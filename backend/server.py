@@ -128,7 +128,7 @@ class ChatbotSettings(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = "main_settings"
     bot_name: str = "Assistente Olbia Airport"
-    welcome_message: str = "Ciao! \ud83d\udc4b Sono l'assistente virtuale dell'Aeroporto di Olbia Costa Smeralda. Come posso aiutarti?"
+    welcome_message: str = "Ciao! 👋 Sono l'assistente virtuale dell'Aeroporto di Olbia Costa Smeralda. Come posso aiutarti?"
     system_prompt_prefix: str = "Sei un assistente virtuale amichevole e competente dell'Aeroporto di Olbia Costa Smeralda."
     virtual_tour_url: str = "https://tour.fairsgate.com/tour/olbia-ultimo"
     live_flights_url: str = "https://www.geasar.it/en/flights/live-flights"
