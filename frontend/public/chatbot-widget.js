@@ -4,7 +4,7 @@
  * 
  * Features:
  * - Automatic language detection based on IP geolocation
- * - Manual language selector (IT, EN, DE, FR, ES, RU)
+ * - Always visible language flags bar
  * - Localized UI and suggested questions
  */
 
@@ -15,7 +15,7 @@
     API_URL: 'https://virtual-agent-info.preview.emergentagent.com/api',
     WIDGET_ID: 'trivor-chatbot-widget',
     Z_INDEX: 999999,
-    LOGO_URL: 'https://customer-assets.emergentagent.com/job_virtual-agent-info/artifacts/520jda3c_logo%20trivor%20heritage%20senza%20testo.png'
+    LOGO_URL: 'https://customer-assets.emergentagent.com/job_virtual-agent-info/artifacts/blz7uoye_logo%20trivor%20heritage%20senza%20testo.png'
   };
 
   if (window.OlbiaAirportChatbot) {
@@ -76,7 +76,7 @@
       bottom: 24px;
       right: 24px;
       width: 400px;
-      height: 600px;
+      height: 620px;
       background: white;
       border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
@@ -158,84 +158,39 @@
       fill: white;
     }
 
-    #${CONFIG.WIDGET_ID} .oac-lang-selector {
-      position: relative;
-    }
-
-    #${CONFIG.WIDGET_ID} .oac-lang-btn {
-      background: rgba(255,255,255,0.2);
-      border: none;
-      border-radius: 8px;
-      padding: 6px 10px;
-      cursor: pointer;
-      font-size: 16px;
+    /* Language flags bar - always visible */
+    #${CONFIG.WIDGET_ID} .oac-lang-bar {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 4px;
-      transition: background 0.2s;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #0f766e 0%, #0e7490 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
 
-    #${CONFIG.WIDGET_ID} .oac-lang-btn:hover {
-      background: rgba(255,255,255,0.3);
-    }
-
-    #${CONFIG.WIDGET_ID} .oac-lang-btn svg {
-      width: 12px;
-      height: 12px;
-      fill: white;
-    }
-
-    #${CONFIG.WIDGET_ID} .oac-lang-dropdown {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      margin-top: 8px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-      overflow: hidden;
-      display: none;
-      min-width: 150px;
-      z-index: 10;
-    }
-
-    #${CONFIG.WIDGET_ID} .oac-lang-dropdown.open {
-      display: block;
-      animation: oac-fade-in 0.2s ease;
-    }
-
-    @keyframes oac-fade-in {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    #${CONFIG.WIDGET_ID} .oac-lang-option {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
+    #${CONFIG.WIDGET_ID} .oac-lang-flag {
+      font-size: 20px;
       cursor: pointer;
-      transition: background 0.2s;
-      border: none;
-      background: none;
-      width: 100%;
-      text-align: left;
-      font-size: 14px;
-      color: #1f2937;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+      background: rgba(255,255,255,0.1);
+      opacity: 0.7;
     }
 
-    #${CONFIG.WIDGET_ID} .oac-lang-option:hover {
-      background: #f0fdfa;
+    #${CONFIG.WIDGET_ID} .oac-lang-flag:hover {
+      opacity: 1;
+      background: rgba(255,255,255,0.2);
+      transform: scale(1.1);
     }
 
-    #${CONFIG.WIDGET_ID} .oac-lang-option.active {
-      background: #ccfbf1;
-      color: #0d9488;
-      font-weight: 500;
-    }
-
-    #${CONFIG.WIDGET_ID} .oac-lang-option .flag {
-      font-size: 18px;
+    #${CONFIG.WIDGET_ID} .oac-lang-flag.active {
+      opacity: 1;
+      background: rgba(255,255,255,0.3);
+      border-color: white;
+      transform: scale(1.1);
     }
 
     #${CONFIG.WIDGET_ID} .oac-messages {
@@ -334,7 +289,7 @@
     }
 
     #${CONFIG.WIDGET_ID} .oac-input-area {
-      padding: 16px;
+      padding: 12px 16px;
       border-top: 1px solid #e5e7eb;
       background: #f9fafb;
       display: flex;
@@ -345,7 +300,7 @@
       flex: 1;
       border: 1px solid #d1d5db;
       border-radius: 24px;
-      padding: 12px 16px;
+      padding: 10px 16px;
       font-size: 14px;
       outline: none;
       transition: border-color 0.2s;
@@ -356,8 +311,8 @@
     }
 
     #${CONFIG.WIDGET_ID} .oac-send-btn {
-      width: 44px;
-      height: 44px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
       background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
       border: none;
@@ -374,44 +329,32 @@
     }
 
     #${CONFIG.WIDGET_ID} .oac-send-btn svg {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       fill: white;
     }
 
+    /* Smaller Trivor logo footer */
     #${CONFIG.WIDGET_ID} .oac-powered {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      padding: 8px;
-      font-size: 10px;
-      color: #9ca3af;
-      background: #f9fafb;
-      border-top: 1px solid #f3f4f6;
+      gap: 4px;
+      padding: 4px 8px;
+      font-size: 9px;
+      color: #b0b0b0;
+      background: #fafafa;
     }
 
     #${CONFIG.WIDGET_ID} .oac-powered img {
-      width: 16px;
-      height: 16px;
+      width: 12px;
+      height: 12px;
       object-fit: contain;
+      opacity: 0.7;
     }
 
-    #${CONFIG.WIDGET_ID} .oac-powered a {
-      color: #0d9488;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    #${CONFIG.WIDGET_ID} .oac-lang-detected {
-      background: rgba(255,255,255,0.15);
-      padding: 8px 12px;
-      margin: -14px -16px 12px -16px;
-      font-size: 11px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
+    #${CONFIG.WIDGET_ID} .oac-powered span {
+      opacity: 0.7;
     }
 
     @media (max-width: 480px) {
@@ -434,9 +377,7 @@
     plane: '<svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>',
     close: '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>',
     send: '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>',
-    trash: '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
-    chevron: '<svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>',
-    globe: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>'
+    trash: '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>'
   };
 
   // State
@@ -448,7 +389,6 @@
     showSuggestions: true,
     currentLanguage: 'it',
     detectedLanguage: null,
-    langDropdownOpen: false,
     langConfig: null
   };
 
@@ -493,8 +433,9 @@
 
   // Change language
   async function changeLanguage(langCode) {
+    if (langCode === state.currentLanguage) return;
+    
     state.currentLanguage = langCode;
-    state.langDropdownOpen = false;
     state.messages = [];
     state.sessionId = null;
     state.showSuggestions = true;
@@ -523,14 +464,6 @@
     container.id = CONFIG.WIDGET_ID;
     document.body.appendChild(container);
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (state.langDropdownOpen && !e.target.closest('.oac-lang-selector')) {
-        state.langDropdownOpen = false;
-        render();
-      }
-    });
-
     render();
   }
 
@@ -558,21 +491,6 @@
               </div>
             </div>
             <div class="oac-header-actions">
-              <div class="oac-lang-selector">
-                <button class="oac-lang-btn" onclick="OlbiaAirportChatbot.toggleLangDropdown(event)">
-                  <span>${lang.flag}</span>
-                  ${icons.chevron}
-                </button>
-                <div class="oac-lang-dropdown ${state.langDropdownOpen ? 'open' : ''}">
-                  ${Object.entries(LANGUAGES).map(([code, l]) => `
-                    <button class="oac-lang-option ${code === state.currentLanguage ? 'active' : ''}" 
-                            onclick="OlbiaAirportChatbot.changeLanguage('${code}')">
-                      <span class="flag">${l.flag}</span>
-                      <span>${l.name}</span>
-                    </button>
-                  `).join('')}
-                </div>
-              </div>
               <button class="oac-header-btn" onclick="OlbiaAirportChatbot.clearChat()" title="${config.new_conversation || 'New conversation'}">
                 ${icons.trash}
               </button>
@@ -581,6 +499,18 @@
               </button>
             </div>
           </div>
+          
+          <!-- Language flags bar - always visible -->
+          <div class="oac-lang-bar">
+            ${Object.entries(LANGUAGES).map(([code, l]) => `
+              <span class="oac-lang-flag ${code === state.currentLanguage ? 'active' : ''}" 
+                    onclick="OlbiaAirportChatbot.changeLanguage('${code}')"
+                    title="${l.name}">
+                ${l.flag}
+              </span>
+            `).join('')}
+          </div>
+          
           <div class="oac-messages" id="oac-messages">
             ${renderMessages()}
           </div>
@@ -604,7 +534,7 @@
           </div>
           <div class="oac-powered">
             <img src="${CONFIG.LOGO_URL}" alt="Trivor">
-            <span>${config.powered_by || 'Powered by'} <a href="#">Trivor srl</a></span>
+            <span>Trivor srl</span>
           </div>
         </div>
       `;
@@ -681,13 +611,6 @@
       });
     }
     
-    render();
-  };
-
-  // Toggle language dropdown
-  window.OlbiaAirportChatbot.toggleLangDropdown = function(event) {
-    event.stopPropagation();
-    state.langDropdownOpen = !state.langDropdownOpen;
     render();
   };
 
