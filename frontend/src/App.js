@@ -1669,7 +1669,7 @@ const HomePage = ({ lang, setLang, t }) => {
                   onClick={() => setShowLangMenu(!showLangMenu)} 
                   className="flex items-center gap-2 px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 transition"
                 >
-                  <span className="text-xl">{languageFlags[lang]}</span>
+                  <FlagIcon code={lang} size={24} />
                   <span>{languageNames[lang]}</span>
                   <ChevronDown size={16} />
                 </button>
@@ -1681,7 +1681,7 @@ const HomePage = ({ lang, setLang, t }) => {
                         onClick={() => { setLang(code); setShowLangMenu(false); }}
                         className={`w-full text-left px-4 py-2 hover:bg-emerald-50 flex items-center gap-3 ${lang === code ? "bg-emerald-100 text-emerald-800" : ""}`}
                       >
-                        <span className="text-xl">{languageFlags[code]}</span>
+                        <FlagIcon code={code} size={24} />
                         <span>{name}</span>
                       </button>
                     ))}
