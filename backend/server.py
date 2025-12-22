@@ -25,6 +25,14 @@ db = client[os.environ['DB_NAME']]
 # Emergent LLM Key
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
+# Admin credentials (in production, use environment variables)
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'tadasuni2025')
+
+# Create uploads directory
+UPLOADS_DIR = ROOT_DIR / 'uploads'
+UPLOADS_DIR.mkdir(exist_ok=True)
+
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
