@@ -144,6 +144,52 @@ class AdminLoginResponse(BaseModel):
     token: Optional[str] = None
     message: str
 
+# Chatbot Knowledge Base Models
+class ChatbotSourceCreate(BaseModel):
+    url: str
+    name: str
+    description: Optional[str] = None
+    auto_refresh: bool = False
+    refresh_hours: int = 24
+
+class ChatbotSourceUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    auto_refresh: Optional[bool] = None
+    refresh_hours: Optional[int] = None
+    active: Optional[bool] = None
+
+class ChatbotSourceResponse(BaseModel):
+    id: str
+    url: str
+    name: str
+    description: Optional[str] = None
+    content: Optional[str] = None
+    content_summary: Optional[str] = None
+    auto_refresh: bool = False
+    refresh_hours: int = 24
+    active: bool = True
+    last_fetched: Optional[str] = None
+    created_at: str
+    updated_at: str
+    status: str = "pending"
+    error_message: Optional[str] = None
+
+class ChatbotCustomKnowledge(BaseModel):
+    title: str
+    content: str
+
+class ChatbotSettingsUpdate(BaseModel):
+    welcome_message: Optional[str] = None
+    welcome_message_en: Optional[str] = None
+    welcome_message_fr: Optional[str] = None
+    welcome_message_es: Optional[str] = None
+    welcome_message_de: Optional[str] = None
+    system_prompt: Optional[str] = None
+    bot_name: Optional[str] = None
+    max_tokens: Optional[int] = None
+    temperature: Optional[float] = None
+
 # Tadasuni knowledge base
 TADASUNI_CONTEXT = """
 Tadasuni è un piccolissimo borgo della Sardegna centrale, situato nella regione storica del Barigadu, in provincia di Oristano.
