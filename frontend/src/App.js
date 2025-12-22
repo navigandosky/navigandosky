@@ -404,6 +404,600 @@ const EventsPage = ({ lang, t }) => {
   );
 };
 
+// ============== CHATBOT ADMIN PANEL ==============
+const ChatbotAdminPanel = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem("chatbotAdminToken") || "");
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
+  const [loginError, setLoginError] = useState("");
+  const [activeTab, setActiveTab] = useState("sources");
+  const [sources, setSources] = useState([]);
+  const [customKnowledge, setCustomKnowledge] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showAddSource, setShowAddSource] = useState(false);
+  const [showAddKnowledge, setShowAddKnowledge] = useState(false);
+  const [newSource, setNewSource] = useState({ url: "", name: "", description: "", auto_refresh: false, refresh_hours: 24 });
+  const [newKnowledge, setNewKnowledge] = useState({ title: "", content: "" });
+  const [fetchingSource, setFetchingSource] = useState(null);
+
+  useEffect(() => {
+    if (token) {
+      setIsLoggedIn(true);
+      fetchData();
+    }
+  }, [token]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+    try {
+      const response = await axios.post(`${API}/chatbot/admin/login`, loginForm);
+      if (response.data.success) {
+        setToken(response.data.token);
+        localStorage.setItem("chatbotAdminToken", response.data.token);
+        setIsLoggedIn(true);
+        fetchData();
+      }
+    } catch (error) {
+      setLoginError("Credenziali non valide");
+    }
+  };
+
+  const handleLogout = () => {
+    setToken("");
+    localStorage.removeItem("chatbotAdminToken");
+    setIsLoggedIn(false);
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [sourcesRes, knowledgeRes, settingsRes, statsRes] = await Promise.all([
+        axios.get(`${API}/chatbot/sources`),
+        axios.get(`${API}/chatbot/custom-knowledge`),
+        axios.get(`${API}/chatbot/settings`),
+        axios.get(`${API}/chatbot/stats`)
+      ]);
+      setSources(sourcesRes.data);
+      setCustomKnowledge(knowledgeRes.data);
+      setSettings(settingsRes.data);
+      setStats(statsRes.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddSource = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${API}/chatbot/sources`, newSource);
+      setNewSource({ url: "", name: "", description: "", auto_refresh: false, refresh_hours: 24 });
+      setShowAddSource(false);
+      fetchData();
+    } catch (error) {
+      alert(error.response?.data?.detail || "Errore nell'aggiunta della fonte");
+    }
+  };
+
+  const handleFetchSource = async (sourceId) => {
+    setFetchingSource(sourceId);
+    try {
+      await axios.post(`${API}/chatbot/sources/${sourceId}/fetch`);
+      fetchData();
+    } catch (error) {
+      alert(error.response?.data?.detail || "Errore nel recupero dei contenuti");
+    } finally {
+      setFetchingSource(null);
+    }
+  };
+
+  const handleDeleteSource = async (sourceId) => {
+    if (!window.confirm("Eliminare questa fonte?")) return;
+    try {
+      await axios.delete(`${API}/chatbot/sources/${sourceId}`);
+      fetchData();
+    } catch (error) {
+      alert("Errore nell'eliminazione");
+    }
+  };
+
+  const handleToggleSource = async (source) => {
+    try {
+      await axios.put(`${API}/chatbot/sources/${source.id}`, { active: !source.active });
+      fetchData();
+    } catch (error) {
+      alert("Errore nell'aggiornamento");
+    }
+  };
+
+  const handleAddKnowledge = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${API}/chatbot/custom-knowledge`, newKnowledge);
+      setNewKnowledge({ title: "", content: "" });
+      setShowAddKnowledge(false);
+      fetchData();
+    } catch (error) {
+      alert("Errore nell'aggiunta");
+    }
+  };
+
+  const handleDeleteKnowledge = async (id) => {
+    if (!window.confirm("Eliminare questa conoscenza?")) return;
+    try {
+      await axios.delete(`${API}/chatbot/custom-knowledge/${id}`);
+      fetchData();
+    } catch (error) {
+      alert("Errore nell'eliminazione");
+    }
+  };
+
+  const handleUpdateSettings = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(`${API}/chatbot/settings`, settings);
+      alert("Impostazioni salvate!");
+      fetchData();
+    } catch (error) {
+      alert("Errore nel salvataggio");
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "active": return <CheckCircle className="text-green-500" size={18} />;
+      case "error": return <AlertCircle className="text-red-500" size={18} />;
+      case "pending": return <Clock className="text-amber-500" size={18} />;
+      default: return <Clock className="text-gray-400" size={18} />;
+    }
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-900 to-purple-900 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+          <div className="text-center mb-6">
+            <Bot size={48} className="mx-auto text-indigo-600 mb-3" />
+            <h1 className="text-2xl font-bold text-gray-800">Chatbot Admin</h1>
+            <p className="text-gray-500 text-sm">Gestione Knowledge Base</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <input
+                type="text"
+                value={loginForm.username}
+                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                required
+                data-testid="chatbot-admin-username"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                required
+                data-testid="chatbot-admin-password"
+              />
+            </div>
+            {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
+            <button
+              type="submit"
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition"
+              data-testid="chatbot-admin-login-btn"
+            >
+              Accedi
+            </button>
+          </form>
+          <div className="mt-6 text-center">
+            <Link to="/" className="text-indigo-600 hover:text-indigo-700">← Torna al sito</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Bot size={28} className="text-indigo-600" />
+            <h1 className="text-xl font-bold text-gray-800">Chatbot Admin</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link to="/" className="text-indigo-600 hover:text-indigo-700 text-sm">Visualizza Sito</Link>
+            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm transition">
+              <LogOut size={16} /> Esci
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Stats */}
+        {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <Database className="text-indigo-500 mb-2" size={24} />
+              <p className="text-2xl font-bold text-gray-800">{stats.active_sources}</p>
+              <p className="text-sm text-gray-500">Fonti Attive</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <FileText className="text-purple-500 mb-2" size={24} />
+              <p className="text-2xl font-bold text-gray-800">{stats.custom_knowledge_entries}</p>
+              <p className="text-sm text-gray-500">Knowledge Custom</p>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab("sources")}
+            className={`px-4 py-2 rounded-lg font-medium transition ${activeTab === "sources" ? "bg-indigo-600 text-white" : "bg-white text-gray-700 hover:bg-gray-100"}`}
+          >
+            <Link2 size={18} className="inline mr-2" />
+            Fonti Web
+          </button>
+          <button
+            onClick={() => setActiveTab("knowledge")}
+            className={`px-4 py-2 rounded-lg font-medium transition ${activeTab === "knowledge" ? "bg-indigo-600 text-white" : "bg-white text-gray-700 hover:bg-gray-100"}`}
+          >
+            <FileText size={18} className="inline mr-2" />
+            Knowledge Custom
+          </button>
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`px-4 py-2 rounded-lg font-medium transition ${activeTab === "settings" ? "bg-indigo-600 text-white" : "bg-white text-gray-700 hover:bg-gray-100"}`}
+          >
+            <Settings size={18} className="inline mr-2" />
+            Impostazioni
+          </button>
+        </div>
+
+        {/* Sources Tab */}
+        {activeTab === "sources" && (
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800">Fonti Web</h2>
+              <button
+                onClick={() => setShowAddSource(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition"
+              >
+                <Plus size={18} /> Aggiungi Fonte
+              </button>
+            </div>
+
+            {/* Add Source Modal */}
+            {showAddSource && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">Aggiungi Fonte Web</h3>
+                  <form onSubmit={handleAddSource} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">URL del sito *</label>
+                      <input
+                        type="url"
+                        value={newSource.url}
+                        onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
+                        placeholder="https://esempio.com/pagina"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome fonte *</label>
+                      <input
+                        type="text"
+                        value={newSource.name}
+                        onChange={(e) => setNewSource({ ...newSource, name: e.target.value })}
+                        placeholder="es. Sito Comune Tadasuni"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Descrizione</label>
+                      <textarea
+                        value={newSource.description}
+                        onChange={(e) => setNewSource({ ...newSource, description: e.target.value })}
+                        placeholder="Breve descrizione della fonte..."
+                        rows={2}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div className="flex gap-4">
+                      <button type="button" onClick={() => setShowAddSource(false)} className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition">
+                        Annulla
+                      </button>
+                      <button type="submit" className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition">
+                        Aggiungi
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Sources List */}
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+              </div>
+            ) : sources.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl shadow-sm">
+                <Link2 size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-500">Nessuna fonte aggiunta. Clicca "Aggiungi Fonte" per iniziare.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {sources.map((source) => (
+                  <div key={source.id} className="bg-white rounded-xl shadow-sm p-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {getStatusIcon(source.status)}
+                          <h3 className="font-bold text-gray-800">{source.name}</h3>
+                          {!source.active && <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded">Disattivato</span>}
+                        </div>
+                        <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-sm hover:underline break-all">
+                          {source.url}
+                        </a>
+                        {source.description && <p className="text-gray-500 text-sm mt-1">{source.description}</p>}
+                        {source.last_fetched && (
+                          <p className="text-gray-400 text-xs mt-2">Ultimo aggiornamento: {new Date(source.last_fetched).toLocaleString()}</p>
+                        )}
+                        {source.error_message && (
+                          <p className="text-red-500 text-xs mt-1">Errore: {source.error_message}</p>
+                        )}
+                        {source.content_summary && (
+                          <details className="mt-2">
+                            <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">Anteprima contenuto</summary>
+                            <p className="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded max-h-32 overflow-auto">{source.content_summary}</p>
+                          </details>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleFetchSource(source.id)}
+                          disabled={fetchingSource === source.id}
+                          className="p-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded-lg transition disabled:opacity-50"
+                          title="Aggiorna contenuti"
+                        >
+                          <RefreshCw size={18} className={fetchingSource === source.id ? "animate-spin" : ""} />
+                        </button>
+                        <button
+                          onClick={() => handleToggleSource(source)}
+                          className={`p-2 rounded-lg transition ${source.active ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-gray-100 text-gray-500 hover:bg-gray-200"}`}
+                          title={source.active ? "Disattiva" : "Attiva"}
+                        >
+                          {source.active ? <Eye size={18} /> : <EyeOff size={18} />}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSource(source.id)}
+                          className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition"
+                          title="Elimina"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Custom Knowledge Tab */}
+        {activeTab === "knowledge" && (
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800">Knowledge Personalizzata</h2>
+              <button
+                onClick={() => setShowAddKnowledge(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition"
+              >
+                <Plus size={18} /> Aggiungi Knowledge
+              </button>
+            </div>
+
+            {/* Add Knowledge Modal */}
+            {showAddKnowledge && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">Aggiungi Knowledge Personalizzata</h3>
+                  <form onSubmit={handleAddKnowledge} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Titolo *</label>
+                      <input
+                        type="text"
+                        value={newKnowledge.title}
+                        onChange={(e) => setNewKnowledge({ ...newKnowledge, title: e.target.value })}
+                        placeholder="es. Orari di apertura museo"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contenuto *</label>
+                      <textarea
+                        value={newKnowledge.content}
+                        onChange={(e) => setNewKnowledge({ ...newKnowledge, content: e.target.value })}
+                        placeholder="Inserisci qui le informazioni che il chatbot deve conoscere..."
+                        rows={8}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        required
+                      />
+                    </div>
+                    <div className="flex gap-4">
+                      <button type="button" onClick={() => setShowAddKnowledge(false)} className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition">
+                        Annulla
+                      </button>
+                      <button type="submit" className="flex-1 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition">
+                        Aggiungi
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Knowledge List */}
+            {customKnowledge.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl shadow-sm">
+                <FileText size={48} className="mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-500">Nessuna knowledge personalizzata. Aggiungi informazioni che il chatbot deve conoscere.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {customKnowledge.map((k) => (
+                  <div key={k.id} className="bg-white rounded-xl shadow-sm p-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-800 mb-2">{k.title}</h3>
+                        <p className="text-gray-600 text-sm whitespace-pre-wrap">{k.content}</p>
+                        <p className="text-gray-400 text-xs mt-2">Aggiunto: {new Date(k.created_at).toLocaleString()}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteKnowledge(k.id)}
+                        className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition ml-4"
+                        title="Elimina"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === "settings" && settings && (
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-lg font-bold text-gray-800 mb-6">Impostazioni Chatbot</h2>
+            <form onSubmit={handleUpdateSettings} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Bot</label>
+                <input
+                  type="text"
+                  value={settings.bot_name || ""}
+                  onChange={(e) => setSettings({ ...settings, bot_name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">System Prompt</label>
+                <textarea
+                  value={settings.system_prompt || ""}
+                  onChange={(e) => setSettings({ ...settings, system_prompt: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Istruzioni per il comportamento del chatbot..."
+                />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
+                  <input
+                    type="number"
+                    value={settings.max_tokens || 500}
+                    onChange={(e) => setSettings({ ...settings, max_tokens: parseInt(e.target.value) })}
+                    min={100}
+                    max={2000}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Temperature (0-1)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={settings.temperature || 0.7}
+                    onChange={(e) => setSettings({ ...settings, temperature: parseFloat(e.target.value) })}
+                    min={0}
+                    max={1}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <details className="bg-gray-50 rounded-lg p-4">
+                <summary className="font-medium text-gray-700 cursor-pointer">Messaggi di benvenuto multilingue</summary>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">🇮🇹 Italiano</label>
+                    <input
+                      type="text"
+                      value={settings.welcome_message || ""}
+                      onChange={(e) => setSettings({ ...settings, welcome_message: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">🇬🇧 English</label>
+                    <input
+                      type="text"
+                      value={settings.welcome_message_en || ""}
+                      onChange={(e) => setSettings({ ...settings, welcome_message_en: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">🇫🇷 Français</label>
+                    <input
+                      type="text"
+                      value={settings.welcome_message_fr || ""}
+                      onChange={(e) => setSettings({ ...settings, welcome_message_fr: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">🇪🇸 Español</label>
+                    <input
+                      type="text"
+                      value={settings.welcome_message_es || ""}
+                      onChange={(e) => setSettings({ ...settings, welcome_message_es: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">🇩🇪 Deutsch</label>
+                    <input
+                      type="text"
+                      value={settings.welcome_message_de || ""}
+                      onChange={(e) => setSettings({ ...settings, welcome_message_de: e.target.value })}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+              </details>
+
+              <button type="submit" className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition flex items-center justify-center gap-2">
+                <Save size={20} /> Salva Impostazioni
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ============== ADMIN PANEL ==============
 const AdminPanel = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
