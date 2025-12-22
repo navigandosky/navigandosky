@@ -21,7 +21,7 @@ db = client[os.environ['DB_NAME']]
 
 # OpenAI configuration via Emergent
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_API_URL = "https://api.emergentagi.com/v1/chat/completions"
 
 # Create the main app
 app = FastAPI()
