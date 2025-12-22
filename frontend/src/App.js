@@ -219,6 +219,14 @@ const languageNames = {
   de: "Deutsch"
 };
 
+const languageFlags = {
+  it: "🇮🇹",
+  en: "🇬🇧",
+  fr: "🇫🇷",
+  es: "🇪🇸",
+  de: "🇩🇪"
+};
+
 const images = {
   hero: "https://www.visittadasuni.it/wp-content/uploads/2025/11/vista-paese_lago_DJI_0228.jpg",
   casaPinna: "https://www.visittadasuni.it/wp-content/uploads/2025/11/Tadasuni-Casa-Pinna-retro.jpg",
