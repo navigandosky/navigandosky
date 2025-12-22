@@ -44,15 +44,16 @@
 
     #${CONFIG.WIDGET_ID} .oac-toggle-btn {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      width: 64px;
-      height: 64px;
+      bottom: 50%;
+      right: 50%;
+      transform: translate(50%, 50%);
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
       background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 20px rgba(13, 148, 136, 0.4);
+      box-shadow: 0 8px 32px rgba(13, 148, 136, 0.5);
       z-index: ${CONFIG.Z_INDEX};
       display: flex;
       align-items: center;
@@ -61,8 +62,8 @@
     }
 
     #${CONFIG.WIDGET_ID} .oac-toggle-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 30px rgba(13, 148, 136, 0.5);
+      transform: translate(50%, 50%) scale(1.15);
+      box-shadow: 0 12px 40px rgba(13, 148, 136, 0.6);
     }
 
     #${CONFIG.WIDGET_ID} .oac-toggle-btn svg {
