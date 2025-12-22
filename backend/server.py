@@ -479,6 +479,230 @@ async def delete_event_image(event_id: str, image_id: str):
     
     return {"success": True, "message": "Image deleted"}
 
+# ============== CHATBOT ADMIN API ==============
+
+async def scrape_webpage(url: str) -> dict:
+    """Scrape content from a webpage"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style", "nav", "footer", "header"]):
+                script.decompose()
+            
+            # Get text content
+            text = soup.get_text(separator='\n', strip=True)
+            
+            # Clean up whitespace
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            content = '\n'.join(lines)
+            
+            # Limit content length
+            if len(content) > 15000:
+                content = content[:15000] + "..."
+            
+            # Get title
+            title = soup.title.string if soup.title else url
+            
+            return {
+                "success": True,
+                "content": content,
+                "title": title
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@api_router.post("/chatbot/admin/login", response_model=AdminLoginResponse)
+async def chatbot_admin_login(request: AdminLogin):
+    """Login for chatbot admin panel"""
+    if request.username == CHATBOT_ADMIN_USERNAME and request.password == CHATBOT_ADMIN_PASSWORD:
+        token = base64.b64encode(f"chatbot:{request.username}:{datetime.now().isoformat()}".encode()).decode()
+        return AdminLoginResponse(success=True, token=token, message="Login successful")
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+@api_router.get("/chatbot/sources", response_model=List[ChatbotSourceResponse])
+async def get_chatbot_sources():
+    """Get all chatbot knowledge sources"""
+    sources = await db.chatbot_sources.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return sources
+
+@api_router.post("/chatbot/sources", response_model=ChatbotSourceResponse)
+async def create_chatbot_source(source: ChatbotSourceCreate):
+    """Add a new knowledge source from URL"""
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Check if URL already exists
+    existing = await db.chatbot_sources.find_one({"url": source.url})
+    if existing:
+        raise HTTPException(status_code=400, detail="URL already exists as a source")
+    
+    source_doc = {
+        "id": str(uuid.uuid4()),
+        "url": source.url,
+        "name": source.name,
+        "description": source.description,
+        "content": None,
+        "content_summary": None,
+        "auto_refresh": source.auto_refresh,
+        "refresh_hours": source.refresh_hours,
+        "active": True,
+        "last_fetched": None,
+        "created_at": now,
+        "updated_at": now,
+        "status": "pending",
+        "error_message": None
+    }
+    
+    await db.chatbot_sources.insert_one(source_doc)
+    if "_id" in source_doc:
+        del source_doc["_id"]
+    
+    return source_doc
+
+@api_router.post("/chatbot/sources/{source_id}/fetch")
+async def fetch_source_content(source_id: str):
+    """Fetch/refresh content from a source URL"""
+    source = await db.chatbot_sources.find_one({"id": source_id})
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    result = await scrape_webpage(source["url"])
+    now = datetime.now(timezone.utc).isoformat()
+    
+    if result["success"]:
+        # Generate a summary using AI
+        summary = result["content"][:500] + "..." if len(result["content"]) > 500 else result["content"]
+        
+        await db.chatbot_sources.update_one(
+            {"id": source_id},
+            {"$set": {
+                "content": result["content"],
+                "content_summary": summary,
+                "last_fetched": now,
+                "updated_at": now,
+                "status": "active",
+                "error_message": None
+            }}
+        )
+        return {"success": True, "message": "Content fetched successfully", "content_length": len(result["content"])}
+    else:
+        await db.chatbot_sources.update_one(
+            {"id": source_id},
+            {"$set": {
+                "status": "error",
+                "error_message": result["error"],
+                "updated_at": now
+            }}
+        )
+        raise HTTPException(status_code=400, detail=f"Failed to fetch: {result['error']}")
+
+@api_router.put("/chatbot/sources/{source_id}", response_model=ChatbotSourceResponse)
+async def update_chatbot_source(source_id: str, source: ChatbotSourceUpdate):
+    """Update a chatbot source"""
+    existing = await db.chatbot_sources.find_one({"id": source_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    update_data = {k: v for k, v in source.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.chatbot_sources.update_one({"id": source_id}, {"$set": update_data})
+    updated = await db.chatbot_sources.find_one({"id": source_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/chatbot/sources/{source_id}")
+async def delete_chatbot_source(source_id: str):
+    """Delete a chatbot source"""
+    result = await db.chatbot_sources.delete_one({"id": source_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Source not found")
+    return {"success": True, "message": "Source deleted"}
+
+@api_router.get("/chatbot/custom-knowledge")
+async def get_custom_knowledge():
+    """Get all custom knowledge entries"""
+    knowledge = await db.chatbot_knowledge.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return knowledge
+
+@api_router.post("/chatbot/custom-knowledge")
+async def add_custom_knowledge(knowledge: ChatbotCustomKnowledge):
+    """Add custom knowledge to chatbot"""
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "id": str(uuid.uuid4()),
+        "title": knowledge.title,
+        "content": knowledge.content,
+        "created_at": now,
+        "updated_at": now
+    }
+    await db.chatbot_knowledge.insert_one(doc)
+    if "_id" in doc:
+        del doc["_id"]
+    return doc
+
+@api_router.delete("/chatbot/custom-knowledge/{knowledge_id}")
+async def delete_custom_knowledge(knowledge_id: str):
+    """Delete custom knowledge entry"""
+    result = await db.chatbot_knowledge.delete_one({"id": knowledge_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Knowledge not found")
+    return {"success": True, "message": "Knowledge deleted"}
+
+@api_router.get("/chatbot/settings")
+async def get_chatbot_settings():
+    """Get chatbot settings"""
+    settings = await db.chatbot_settings.find_one({"id": "main"}, {"_id": 0})
+    if not settings:
+        # Default settings
+        settings = {
+            "id": "main",
+            "welcome_message": "Ciao! Sono l'assistente virtuale di Visit Tadasuni. Come posso aiutarti?",
+            "welcome_message_en": "Hello! I'm the virtual assistant of Visit Tadasuni. How can I help you?",
+            "welcome_message_fr": "Bonjour! Je suis l'assistant virtuel de Visit Tadasuni. Comment puis-je vous aider?",
+            "welcome_message_es": "¡Hola! Soy el asistente virtual de Visit Tadasuni. ¿Cómo puedo ayudarte?",
+            "welcome_message_de": "Hallo! Ich bin der virtuelle Assistent von Visit Tadasuni. Wie kann ich Ihnen helfen?",
+            "system_prompt": "Sei un assistente virtuale per Visit Tadasuni, il sito turistico del borgo di Tadasuni in Sardegna.",
+            "bot_name": "Assistente Tadasuni",
+            "max_tokens": 500,
+            "temperature": 0.7
+        }
+        await db.chatbot_settings.insert_one(settings)
+    return settings
+
+@api_router.put("/chatbot/settings")
+async def update_chatbot_settings(settings: ChatbotSettingsUpdate):
+    """Update chatbot settings"""
+    update_data = {k: v for k, v in settings.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.chatbot_settings.update_one(
+        {"id": "main"},
+        {"$set": update_data},
+        upsert=True
+    )
+    return await get_chatbot_settings()
+
+@api_router.get("/chatbot/stats")
+async def get_chatbot_stats():
+    """Get chatbot statistics"""
+    sources_count = await db.chatbot_sources.count_documents({"active": True})
+    knowledge_count = await db.chatbot_knowledge.count_documents({})
+    
+    return {
+        "active_sources": sources_count,
+        "custom_knowledge_entries": knowledge_count
+    }
+
 # Include router
 app.include_router(api_router)
 
