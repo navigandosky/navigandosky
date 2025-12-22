@@ -1,14 +1,16 @@
 /**
- * Trivor Chatbot Widget - Embed Script
+ * Trivor Chatbot Widget - Multilingual Embed Script
  * Aeroporto di Olbia Costa Smeralda
  * 
- * Uso: <script src="https://virtual-agent-info.preview.emergentagent.com/chatbot-widget.js"></script>
+ * Features:
+ * - Automatic language detection based on IP geolocation
+ * - Manual language selector (IT, EN, DE, FR, ES, RU)
+ * - Localized UI and suggested questions
  */
 
 (function() {
   'use strict';
 
-  // Configuration
   const CONFIG = {
     API_URL: 'https://virtual-agent-info.preview.emergentagent.com/api',
     WIDGET_ID: 'trivor-chatbot-widget',
@@ -16,13 +18,22 @@
     LOGO_URL: 'https://customer-assets.emergentagent.com/job_virtual-agent-info/artifacts/520jda3c_logo%20trivor%20heritage%20senza%20testo.png'
   };
 
-  // Prevent multiple initializations
   if (window.OlbiaAirportChatbot) {
     console.log('Trivor Chatbot already initialized');
     return;
   }
 
   window.OlbiaAirportChatbot = { initialized: true };
+
+  // Available languages
+  const LANGUAGES = {
+    it: { name: 'Italiano', flag: '🇮🇹' },
+    en: { name: 'English', flag: '🇬🇧' },
+    de: { name: 'Deutsch', flag: '🇩🇪' },
+    fr: { name: 'Français', flag: '🇫🇷' },
+    es: { name: 'Español', flag: '🇪🇸' },
+    ru: { name: 'Русский', flag: '🇷🇺' }
+  };
 
   // Styles
   const styles = `
@@ -64,8 +75,8 @@
       position: fixed;
       bottom: 24px;
       right: 24px;
-      width: 380px;
-      height: 580px;
+      width: 400px;
+      height: 600px;
       background: white;
       border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
@@ -77,20 +88,14 @@
     }
 
     @keyframes oac-slide-in {
-      from {
-        opacity: 0;
-        transform: translateY(20px) scale(0.95);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
+      from { opacity: 0; transform: translateY(20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
     #${CONFIG.WIDGET_ID} .oac-header {
       background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
       color: white;
-      padding: 16px;
+      padding: 14px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -129,7 +134,8 @@
 
     #${CONFIG.WIDGET_ID} .oac-header-actions {
       display: flex;
-      gap: 8px;
+      gap: 6px;
+      align-items: center;
     }
 
     #${CONFIG.WIDGET_ID} .oac-header-btn {
@@ -150,6 +156,86 @@
       width: 16px;
       height: 16px;
       fill: white;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-selector {
+      position: relative;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.2s;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-btn svg {
+      width: 12px;
+      height: 12px;
+      fill: white;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 8px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      overflow: hidden;
+      display: none;
+      min-width: 150px;
+      z-index: 10;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-dropdown.open {
+      display: block;
+      animation: oac-fade-in 0.2s ease;
+    }
+
+    @keyframes oac-fade-in {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-size: 14px;
+      color: #1f2937;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-option:hover {
+      background: #f0fdfa;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-option.active {
+      background: #ccfbf1;
+      color: #0d9488;
+      font-weight: 500;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-lang-option .flag {
+      font-size: 18px;
     }
 
     #${CONFIG.WIDGET_ID} .oac-messages {
@@ -317,6 +403,17 @@
       font-weight: 500;
     }
 
+    #${CONFIG.WIDGET_ID} .oac-lang-detected {
+      background: rgba(255,255,255,0.15);
+      padding: 8px 12px;
+      margin: -14px -16px 12px -16px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
     @media (max-width: 480px) {
       #${CONFIG.WIDGET_ID} .oac-chat-window {
         width: calc(100vw - 32px);
@@ -324,7 +421,6 @@
         bottom: 80px;
         right: 16px;
       }
-
       #${CONFIG.WIDGET_ID} .oac-toggle-btn {
         bottom: 16px;
         right: 16px;
@@ -338,16 +434,10 @@
     plane: '<svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>',
     close: '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>',
     send: '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>',
-    trash: '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>'
+    trash: '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>',
+    globe: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>'
   };
-
-  // Suggested questions
-  const defaultSuggestions = [
-    { id: '1', text: 'Dove trovo il check-in Ryanair?', short: 'Check-in Ryanair' },
-    { id: '2', text: 'Quali negozi ci sono?', short: 'Negozi' },
-    { id: '3', text: 'Dove posso mangiare?', short: 'Ristorazione' },
-    { id: '4', text: 'Assistenza speciale?', short: 'Assistenza' }
-  ];
 
   // State
   let state = {
@@ -356,64 +446,103 @@
     sessionId: null,
     isLoading: false,
     showSuggestions: true,
-    suggestions: defaultSuggestions,
-    settings: {
-      bot_name: 'Assistente Olbia Airport',
-      welcome_message: 'Ciao! \ud83d\udc4b Sono l\'assistente virtuale dell\'Aeroporto di Olbia Costa Smeralda. Come posso aiutarti?'
-    }
+    currentLanguage: 'it',
+    detectedLanguage: null,
+    langDropdownOpen: false,
+    langConfig: null
   };
 
-  // Fetch settings and suggestions
-  async function loadConfig() {
+  // Detect language from IP
+  async function detectLanguage() {
     try {
-      const [settingsRes, suggestionsRes] = await Promise.all([
-        fetch(`${CONFIG.API_URL}/chatbot-settings`),
-        fetch(`${CONFIG.API_URL}/suggested-questions`)
-      ]);
-      
-      if (settingsRes.ok) {
-        state.settings = await settingsRes.json();
-      }
-      
-      if (suggestionsRes.ok) {
-        const suggestions = await suggestionsRes.json();
-        if (suggestions && suggestions.length > 0) {
-          state.suggestions = suggestions.slice(0, 4).map(s => ({
-            id: s.id,
-            text: s.question,
-            short: s.question.length > 25 ? s.question.substring(0, 25) + '...' : s.question
-          }));
-        }
+      const response = await fetch(`${CONFIG.API_URL}/detect-language`);
+      if (response.ok) {
+        const data = await response.json();
+        state.detectedLanguage = data.language;
+        state.currentLanguage = data.language;
+        await loadLanguageConfig(data.language);
+        return data.language;
       }
     } catch (e) {
-      console.log('Using default config');
+      console.log('Language detection failed, using default');
+    }
+    state.currentLanguage = 'it';
+    await loadLanguageConfig('it');
+    return 'it';
+  }
+
+  // Load language configuration
+  async function loadLanguageConfig(langCode) {
+    try {
+      const response = await fetch(`${CONFIG.API_URL}/language-config/${langCode}`);
+      if (response.ok) {
+        state.langConfig = await response.json();
+      }
+    } catch (e) {
+      console.log('Failed to load language config');
+      state.langConfig = {
+        welcome: 'Hello! How can I help you?',
+        online_status: 'Online',
+        input_placeholder: 'Type a message...',
+        typing: 'Typing...',
+        suggestions_title: 'Suggested:',
+        suggested_questions: []
+      };
     }
   }
 
-  // Create widget container
-  async function createWidget() {
-    await loadConfig();
+  // Change language
+  async function changeLanguage(langCode) {
+    state.currentLanguage = langCode;
+    state.langDropdownOpen = false;
+    state.messages = [];
+    state.sessionId = null;
+    state.showSuggestions = true;
+    await loadLanguageConfig(langCode);
     
-    // Add styles
+    // Add welcome message in new language
+    if (state.langConfig) {
+      state.messages.push({
+        role: 'assistant',
+        content: state.langConfig.welcome
+      });
+    }
+    
+    render();
+  }
+
+  // Create widget
+  async function createWidget() {
+    await detectLanguage();
+    
     const styleEl = document.createElement('style');
     styleEl.textContent = styles;
     document.head.appendChild(styleEl);
 
-    // Create container
     const container = document.createElement('div');
     container.id = CONFIG.WIDGET_ID;
     document.body.appendChild(container);
 
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (state.langDropdownOpen && !e.target.closest('.oac-lang-selector')) {
+        state.langDropdownOpen = false;
+        render();
+      }
+    });
+
     render();
   }
 
-  // Render widget
+  // Render
   function render() {
     const container = document.getElementById(CONFIG.WIDGET_ID);
+    const lang = LANGUAGES[state.currentLanguage] || LANGUAGES.en;
+    const config = state.langConfig || {};
     
     if (!state.isOpen) {
       container.innerHTML = `
-        <button class="oac-toggle-btn" onclick="OlbiaAirportChatbot.toggle()" title="${state.settings.bot_name}">
+        <button class="oac-toggle-btn" onclick="OlbiaAirportChatbot.toggle()" title="${lang.flag} ${lang.name}">
           ${icons.chat}
         </button>
       `;
@@ -424,15 +553,30 @@
             <div class="oac-header-info">
               <div class="oac-header-icon">${icons.plane}</div>
               <div class="oac-header-text">
-                <h3>${escapeHtml(state.settings.bot_name)}</h3>
-                <p>Online - Pronto ad aiutarti</p>
+                <h3>Olbia Airport Assistant</h3>
+                <p>${config.online_status || 'Online'}</p>
               </div>
             </div>
             <div class="oac-header-actions">
-              <button class="oac-header-btn" onclick="OlbiaAirportChatbot.clearChat()" title="Nuova conversazione">
+              <div class="oac-lang-selector">
+                <button class="oac-lang-btn" onclick="OlbiaAirportChatbot.toggleLangDropdown(event)">
+                  <span>${lang.flag}</span>
+                  ${icons.chevron}
+                </button>
+                <div class="oac-lang-dropdown ${state.langDropdownOpen ? 'open' : ''}">
+                  ${Object.entries(LANGUAGES).map(([code, l]) => `
+                    <button class="oac-lang-option ${code === state.currentLanguage ? 'active' : ''}" 
+                            onclick="OlbiaAirportChatbot.changeLanguage('${code}')">
+                      <span class="flag">${l.flag}</span>
+                      <span>${l.name}</span>
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+              <button class="oac-header-btn" onclick="OlbiaAirportChatbot.clearChat()" title="${config.new_conversation || 'New conversation'}">
                 ${icons.trash}
               </button>
-              <button class="oac-header-btn" onclick="OlbiaAirportChatbot.toggle()" title="Chiudi">
+              <button class="oac-header-btn" onclick="OlbiaAirportChatbot.toggle()" title="Close">
                 ${icons.close}
               </button>
             </div>
@@ -446,7 +590,7 @@
               type="text" 
               class="oac-input" 
               id="oac-input" 
-              placeholder="Scrivi un messaggio..." 
+              placeholder="${config.input_placeholder || 'Type a message...'}" 
               onkeypress="if(event.key==='Enter')OlbiaAirportChatbot.send()"
               ${state.isLoading ? 'disabled' : ''}
             />
@@ -460,18 +604,16 @@
           </div>
           <div class="oac-powered">
             <img src="${CONFIG.LOGO_URL}" alt="Trivor">
-            <span>Powered by <a href="#">Trivor srl</a></span>
+            <span>${config.powered_by || 'Powered by'} <a href="#">Trivor srl</a></span>
           </div>
         </div>
       `;
 
-      // Scroll to bottom
       setTimeout(() => {
         const messagesEl = document.getElementById('oac-messages');
         if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
       }, 50);
 
-      // Focus input
       setTimeout(() => {
         const inputEl = document.getElementById('oac-input');
         if (inputEl) inputEl.focus();
@@ -481,6 +623,7 @@
 
   // Render messages
   function renderMessages() {
+    const config = state.langConfig || {};
     let html = state.messages.map(msg => 
       `<div class="oac-message ${msg.role}">${escapeHtml(msg.content)}</div>`
     ).join('');
@@ -493,7 +636,7 @@
             <div class="oac-typing-dot"></div>
             <div class="oac-typing-dot"></div>
           </div>
-          <span style="font-size: 12px; color: #6b7280;">Sto scrivendo...</span>
+          <span style="font-size: 12px; color: #6b7280;">${config.typing || 'Typing...'}</span>
         </div>
       `;
     }
@@ -503,12 +646,17 @@
 
   // Render suggestions
   function renderSuggestions() {
+    const config = state.langConfig || {};
+    const questions = config.suggested_questions || [];
+    
+    if (questions.length === 0) return '';
+    
     return `
       <div class="oac-suggestions">
-        <div class="oac-suggestions-title">Domande frequenti:</div>
-        ${state.suggestions.map(s => 
-          `<button class="oac-suggestion-btn" onclick="OlbiaAirportChatbot.sendSuggestion('${escapeHtml(s.text)}')">
-            ${escapeHtml(s.short)}
+        <div class="oac-suggestions-title">${config.suggestions_title || 'Suggested:'}</div>
+        ${questions.map(q => 
+          `<button class="oac-suggestion-btn" onclick="OlbiaAirportChatbot.sendSuggestion('${escapeHtml(q.question)}')">
+            ${escapeHtml(q.short)}
           </button>`
         ).join('')}
       </div>
@@ -526,15 +674,26 @@
   window.OlbiaAirportChatbot.toggle = function() {
     state.isOpen = !state.isOpen;
     
-    // Add welcome message if opening for first time
-    if (state.isOpen && state.messages.length === 0) {
+    if (state.isOpen && state.messages.length === 0 && state.langConfig) {
       state.messages.push({
         role: 'assistant',
-        content: state.settings.welcome_message
+        content: state.langConfig.welcome
       });
     }
     
     render();
+  };
+
+  // Toggle language dropdown
+  window.OlbiaAirportChatbot.toggleLangDropdown = function(event) {
+    event.stopPropagation();
+    state.langDropdownOpen = !state.langDropdownOpen;
+    render();
+  };
+
+  // Change language
+  window.OlbiaAirportChatbot.changeLanguage = function(langCode) {
+    changeLanguage(langCode);
   };
 
   // Send message
@@ -544,7 +703,6 @@
     
     if (!message || state.isLoading) return;
 
-    // Add user message
     state.messages.push({ role: 'user', content: message });
     state.isLoading = true;
     state.showSuggestions = false;
@@ -556,7 +714,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: message,
-          session_id: state.sessionId
+          session_id: state.sessionId,
+          language: state.currentLanguage
         })
       });
 
@@ -568,7 +727,7 @@
       console.error('Chat error:', error);
       state.messages.push({ 
         role: 'assistant', 
-        content: 'Mi dispiace, si \u00e8 verificato un errore. Riprova tra qualche istante.' 
+        content: 'Sorry, an error occurred. Please try again.' 
       });
     }
 
@@ -602,16 +761,17 @@
     state.showSuggestions = true;
     state.isOpen = true;
     
-    // Re-add welcome message
-    state.messages.push({
-      role: 'assistant',
-      content: state.settings.welcome_message
-    });
+    if (state.langConfig) {
+      state.messages.push({
+        role: 'assistant',
+        content: state.langConfig.welcome
+      });
+    }
     
     render();
   };
 
-  // Initialize when DOM is ready
+  // Initialize
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', createWidget);
   } else {
