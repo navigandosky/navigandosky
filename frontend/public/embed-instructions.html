@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Istruzioni Embed - Chatbot Aeroporto Olbia</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            color: #1e40af;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .card h2 {
+            color: #1e40af;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h2 .number {
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .code-block {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 16px 0;
+            overflow-x: auto;
+        }
+        .code-block code {
+            color: #e2e8f0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .code-block .tag { color: #f472b6; }
+        .code-block .attr { color: #a78bfa; }
+        .code-block .string { color: #34d399; }
+        .copy-btn {
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: transform 0.2s;
+        }
+        .copy-btn:hover {
+            transform: scale(1.05);
+        }
+        .note {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+        }
+        .note strong {
+            color: #92400e;
+        }
+        .success {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            padding: 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .feature {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+        .feature h4 {
+            color: #334155;
+            margin-bottom: 4px;
+        }
+        .feature p {
+            color: #64748b;
+            font-size: 13px;
+        }
+        .demo-section {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            border-radius: 16px;
+            color: white;
+        }
+        .demo-section h2 {
+            color: white;
+            margin-bottom: 16px;
+        }
+        .demo-section p {
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        .demo-btn {
+            background: white;
+            color: #2563eb;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .demo-btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✈️ Chatbot Aeroporto Olbia</h1>
+            <p>Guida all'integrazione del widget chatbot nel tuo sito web</p>
+        </div>
+
+        <div class="card">
+            <h2><span class="number">1</span> Copia lo Script</h2>
+            <p>Aggiungi questa singola linea di codice prima del tag <code>&lt;/body&gt;</code> del tuo sito:</p>
+            
+            <div class="code-block">
+                <code>
+                    <span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://virtual-agent-info.preview.emergentagent.com/chatbot-widget.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
+                </code>
+            </div>
+            
+            <button class="copy-btn" onclick="copyCode()">📋 Copia Codice</button>
+        </div>
+
+        <div class="card">
+            <h2><span class="number">2</span> Esempio Completo</h2>
+            <p>Ecco come apparirà nel tuo HTML:</p>
+            
+            <div class="code-block">
+                <code>
+<span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html&gt;</span>
+<span class="tag">&lt;head&gt;</span>
+    <span class="tag">&lt;title&gt;</span>Il Mio Sito<span class="tag">&lt;/title&gt;</span>
+<span class="tag">&lt;/head&gt;</span>
+<span class="tag">&lt;body&gt;</span>
+    <span style="color:#6b7280;"><!-- Il contenuto del tuo sito --></span>
+    
+    <span style="color:#6b7280;"><!-- Aggiungi questo prima di &lt;/body&gt; --></span>
+    <span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://virtual-agent-info.preview.emergentagent.com/chatbot-widget.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
+<span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span>
+                </code>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2><span class="number">3</span> Per Fairsgate</h2>
+            <p>Se hai accesso al pannello Fairsgate, cerca una delle seguenti opzioni:</p>
+            
+            <div class="note">
+                <strong>📌 Opzioni possibili:</strong>
+                <ul style="margin-top: 10px; margin-left: 20px;">
+                    <li>"Custom HTML" o "HTML personalizzato"</li>
+                    <li>"Embed code" o "Codice embed"</li>
+                    <li>"Scripts" o "Script esterni"</li>
+                    <li>"Footer code" o "Codice footer"</li>
+                </ul>
+            </div>
+            
+            <p style="margin-top: 16px;">Se non trovi queste opzioni, contatta il supporto Fairsgate e invia loro lo script sopra indicato.</p>
+        </div>
+
+        <div class="card">
+            <h2>✨ Funzionalità Incluse</h2>
+            
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">💬</div>
+                    <h4>Chat AI</h4>
+                    <p>Powered by OpenAI GPT</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎯</div>
+                    <h4>Domande Rapide</h4>
+                    <p>Suggerimenti pre-impostati</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📱</div>
+                    <h4>Responsive</h4>
+                    <p>Mobile & Desktop</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔒</div>
+                    <h4>Sicuro</h4>
+                    <p>Connessione HTTPS</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card demo-section">
+            <h2>🚀 Prova il Widget</h2>
+            <p>Clicca il pulsante per vedere il chatbot in azione su questa pagina!</p>
+            <button class="demo-btn" onclick="loadDemo()">Carica Demo</button>
+        </div>
+
+        <div class="card">
+            <h2>📞 Supporto</h2>
+            <p>Hai bisogno di aiuto con l'integrazione? Contattaci!</p>
+            <div class="success">
+                <strong>✅ Il widget è pronto all'uso!</strong><br>
+                Una volta aggiunto lo script, il chatbot apparirà automaticamente in basso a destra.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyCode() {
+            const code = '<script src="https://virtual-agent-info.preview.emergentagent.com/chatbot-widget.js"><\/script>';
+            navigator.clipboard.writeText(code).then(() => {
+                alert('✅ Codice copiato negli appunti!');
+            });
+        }
+
+        function loadDemo() {
+            if (!window.OlbiaAirportChatbot) {
+                const script = document.createElement('script');
+                script.src = 'https://virtual-agent-info.preview.emergentagent.com/chatbot-widget.js';
+                document.body.appendChild(script);
+            } else {
+                window.OlbiaAirportChatbot.toggle();
+            }
+        }
+    </script>
+</body>
+</html>
