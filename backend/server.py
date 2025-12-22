@@ -358,7 +358,7 @@ async def get_chatbot_settings_public():
         settings = ChatbotSettings().model_dump()
     return {
         "bot_name": settings.get("bot_name", "Assistente Olbia Airport"),
-        "welcome_message": settings.get("welcome_message", "Ciao! \ud83d\udc4b Sono l'assistente virtuale. Come posso aiutarti?"),
+        "welcome_message": settings.get("welcome_message", "Ciao! 👋 Sono l'assistente virtuale. Come posso aiutarti?"),
         "virtual_tour_url": settings.get("virtual_tour_url", ""),
         "live_flights_url": settings.get("live_flights_url", "")
     }
