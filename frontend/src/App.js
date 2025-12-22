@@ -239,8 +239,8 @@ const images = {
   monumentoCaduti: "https://www.visittadasuni.it/wp-content/uploads/2025/11/Tadasuni-Monumento-ai-caduti.jpg"
 };
 
-// Logo URL
-const LOGO_URL = "/logo-tadasuni.jpg";
+// Logo URL - use process.env.PUBLIC_URL for correct path in production
+const LOGO_URL = process.env.PUBLIC_URL + "/logo-tadasuni.jpg";
 
 // Helper to get localized content
 const getLocalizedContent = (item, field, lang) => {
