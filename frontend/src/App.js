@@ -1992,14 +1992,14 @@ function App() {
   const t = translations[lang];
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<HomePage lang={lang} setLang={setLang} t={t} />} />
         <Route path="/eventi" element={<EventsPage lang={lang} t={t} />} />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/chatbot-admin" element={<ChatbotAdminPanel />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
