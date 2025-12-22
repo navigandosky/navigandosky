@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks
+from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -6,7 +6,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Dict
 import uuid
 from datetime import datetime, timezone
 from emergentintegrations.llm.openai import LlmChat, UserMessage
@@ -32,42 +32,171 @@ api_router = APIRouter(prefix="/api")
 # Emergent LLM Key
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
+# ====== MULTILINGUAL SUPPORT ======
+SUPPORTED_LANGUAGES = {
+    "it": {
+        "name": "Italiano",
+        "flag": "🇮🇹",
+        "welcome": "Ciao! 👋 Sono l'assistente virtuale dell'Aeroporto di Olbia Costa Smeralda. Come posso aiutarti?",
+        "online_status": "Online - Pronto ad aiutarti",
+        "input_placeholder": "Scrivi un messaggio...",
+        "typing": "Sto scrivendo...",
+        "suggestions_title": "Domande frequenti:",
+        "powered_by": "Powered by",
+        "new_conversation": "Nuova conversazione",
+        "system_prompt": "Rispondi SEMPRE in italiano. Sii cortese e professionale."
+    },
+    "en": {
+        "name": "English",
+        "flag": "🇬🇧",
+        "welcome": "Hello! 👋 I'm the virtual assistant of Olbia Costa Smeralda Airport. How can I help you?",
+        "online_status": "Online - Ready to help",
+        "input_placeholder": "Type a message...",
+        "typing": "Typing...",
+        "suggestions_title": "Frequently asked:",
+        "powered_by": "Powered by",
+        "new_conversation": "New conversation",
+        "system_prompt": "ALWAYS respond in English. Be polite and professional."
+    },
+    "de": {
+        "name": "Deutsch",
+        "flag": "🇩🇪",
+        "welcome": "Hallo! 👋 Ich bin der virtuelle Assistent des Flughafens Olbia Costa Smeralda. Wie kann ich Ihnen helfen?",
+        "online_status": "Online - Bereit zu helfen",
+        "input_placeholder": "Nachricht eingeben...",
+        "typing": "Schreibt...",
+        "suggestions_title": "Häufige Fragen:",
+        "powered_by": "Powered by",
+        "new_conversation": "Neues Gespräch",
+        "system_prompt": "Antworte IMMER auf Deutsch. Sei höflich und professionell."
+    },
+    "fr": {
+        "name": "Français",
+        "flag": "🇫🇷",
+        "welcome": "Bonjour! 👋 Je suis l'assistant virtuel de l'Aéroport d'Olbia Costa Smeralda. Comment puis-je vous aider?",
+        "online_status": "En ligne - Prêt à vous aider",
+        "input_placeholder": "Écrivez un message...",
+        "typing": "En train d'écrire...",
+        "suggestions_title": "Questions fréquentes:",
+        "powered_by": "Powered by",
+        "new_conversation": "Nouvelle conversation",
+        "system_prompt": "Réponds TOUJOURS en français. Sois poli et professionnel."
+    },
+    "es": {
+        "name": "Español",
+        "flag": "🇪🇸",
+        "welcome": "¡Hola! 👋 Soy el asistente virtual del Aeropuerto de Olbia Costa Smeralda. ¿Cómo puedo ayudarte?",
+        "online_status": "En línea - Listo para ayudar",
+        "input_placeholder": "Escribe un mensaje...",
+        "typing": "Escribiendo...",
+        "suggestions_title": "Preguntas frecuentes:",
+        "powered_by": "Powered by",
+        "new_conversation": "Nueva conversación",
+        "system_prompt": "Responde SIEMPRE en español. Sé cortés y profesional."
+    },
+    "ru": {
+        "name": "Русский",
+        "flag": "🇷🇺",
+        "welcome": "Привет! 👋 Я виртуальный помощник аэропорта Ольбия Коста Смеральда. Чем могу помочь?",
+        "online_status": "Онлайн - Готов помочь",
+        "input_placeholder": "Напишите сообщение...",
+        "typing": "Печатает...",
+        "suggestions_title": "Частые вопросы:",
+        "powered_by": "Powered by",
+        "new_conversation": "Новый разговор",
+        "system_prompt": "ВСЕГДА отвечай на русском языке. Будь вежливым и профессиональным."
+    }
+}
+
+# Country to language mapping
+COUNTRY_TO_LANGUAGE = {
+    "IT": "it", "SM": "it", "VA": "it",  # Italian
+    "GB": "en", "US": "en", "AU": "en", "NZ": "en", "CA": "en", "IE": "en",  # English
+    "DE": "de", "AT": "de", "CH": "de", "LI": "de",  # German
+    "FR": "fr", "BE": "fr", "MC": "fr", "LU": "fr",  # French
+    "ES": "es", "MX": "es", "AR": "es", "CO": "es", "CL": "es",  # Spanish
+    "RU": "ru", "BY": "ru", "KZ": "ru",  # Russian
+}
+
+# Suggested questions per language
+SUGGESTED_QUESTIONS = {
+    "it": [
+        {"id": "1", "question": "Dove trovo il check-in Ryanair?", "short": "Check-in Ryanair"},
+        {"id": "2", "question": "Quali negozi ci sono?", "short": "Negozi"},
+        {"id": "3", "question": "Dove posso mangiare?", "short": "Ristorazione"},
+        {"id": "4", "question": "Assistenza speciale?", "short": "Assistenza"}
+    ],
+    "en": [
+        {"id": "1", "question": "Where is the Ryanair check-in?", "short": "Ryanair Check-in"},
+        {"id": "2", "question": "What shops are available?", "short": "Shops"},
+        {"id": "3", "question": "Where can I eat?", "short": "Restaurants"},
+        {"id": "4", "question": "Special assistance?", "short": "Assistance"}
+    ],
+    "de": [
+        {"id": "1", "question": "Wo ist der Ryanair Check-in?", "short": "Ryanair Check-in"},
+        {"id": "2", "question": "Welche Geschäfte gibt es?", "short": "Geschäfte"},
+        {"id": "3", "question": "Wo kann ich essen?", "short": "Restaurants"},
+        {"id": "4", "question": "Besondere Unterstützung?", "short": "Hilfe"}
+    ],
+    "fr": [
+        {"id": "1", "question": "Où est l'enregistrement Ryanair?", "short": "Ryanair Check-in"},
+        {"id": "2", "question": "Quels magasins y a-t-il?", "short": "Boutiques"},
+        {"id": "3", "question": "Où puis-je manger?", "short": "Restauration"},
+        {"id": "4", "question": "Assistance spéciale?", "short": "Assistance"}
+    ],
+    "es": [
+        {"id": "1", "question": "¿Dónde está el check-in de Ryanair?", "short": "Check-in Ryanair"},
+        {"id": "2", "question": "¿Qué tiendas hay?", "short": "Tiendas"},
+        {"id": "3", "question": "¿Dónde puedo comer?", "short": "Restaurantes"},
+        {"id": "4", "question": "¿Asistencia especial?", "short": "Asistencia"}
+    ],
+    "ru": [
+        {"id": "1", "question": "Где регистрация Ryanair?", "short": "Регистрация Ryanair"},
+        {"id": "2", "question": "Какие магазины есть?", "short": "Магазины"},
+        {"id": "3", "question": "Где можно поесть?", "short": "Рестораны"},
+        {"id": "4", "question": "Специальная помощь?", "short": "Помощь"}
+    ]
+}
+
 # Default Knowledge Base
 DEFAULT_KNOWLEDGE_BASE = """
-# Aeroporto di Olbia Costa Smeralda - Guida Completa
+# Aeroporto di Olbia Costa Smeralda - Complete Guide
 
-## Informazioni Generali
-L'Aeroporto di Olbia Costa Smeralda (codice IATA: OLB) è il principale aeroporto della Sardegna nord-orientale, situato a circa 4 km dal centro di Olbia. È la porta d'accesso alla famosa Costa Smeralda e serve milioni di passeggeri ogni anno.
+## General Information
+Olbia Costa Smeralda Airport (IATA: OLB) is the main airport in northeastern Sardinia, located about 4 km from Olbia city center. It's the gateway to the famous Costa Smeralda and serves millions of passengers annually.
 
-## Aree Check-in
-- Check-in Desk 17-31: Area principale (Aeroitalia, EasyJet, Ryanair)
-- Check-in Desk 1-16: Volotea e altre compagnie
+## Check-in Areas
+- Check-in Desk 17-31: Main area (Aeroitalia, EasyJet, Ryanair)
+- Check-in Desk 1-16: Volotea and other airlines
 
-## Servizi
-- Assistenza Speciale per passeggeri a mobilità ridotta
-- Docce, Toilets in tutte le aree
-- Deposito bagagli oversize, Lost & Found
-- 5 nastri ritiro bagagli (Carousel 1-5)
-- Farmacia, Dispositivi medici
-- ATM nella hall arrivi
-- Punto Informazioni Sardegna
-- Cappella (primo piano)
+## Services
+- Special Assistance for passengers with reduced mobility
+- Showers, Toilets in all areas
+- Oversized luggage storage, Lost & Found
+- 5 baggage claim carousels (Carousel 1-5)
+- Pharmacy, Medical devices
+- ATM in arrivals hall
+- Sardinia Information Point
+- Chapel (first floor)
 
 ## Shopping
-- Island Crafts, Prodotti Tipici Sardi
+- Island Crafts, Typical Sardinian Products
 - Polo Ralph Lauren, Max & Co., Boggi, Carpisa
 - Priarone Optics
 
-## Ristorazione
+## Food & Beverage
 - Grain & Grapes, Self-service Karafood
-- Distributori automatici
+- Vending machines
 
 ## Gates
 - Gates B: B1-B6
-- Gates A: accesso separato
+- Gates A: separate access
 
-## Tour Virtuale
+## Virtual Tour
 https://tour.fairsgate.com/tour/olbia-ultimo
+
+## Live Flights
+https://www.geasar.it/en/flights/live-flights
 """
 
 # Define Models
@@ -88,6 +217,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    language: Optional[str] = "it"
 
 class ChatResponse(BaseModel):
     response: str
@@ -150,7 +280,7 @@ class WebSource(BaseModel):
     description: str = ""
     extracted_content: str = ""
     is_active: bool = True
-    status: str = "pending"  # pending, processing, completed, error
+    status: str = "pending"
     last_fetched: Optional[datetime] = None
     error_message: str = ""
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -170,6 +300,28 @@ class WebSourceUpdate(BaseModel):
 # Store active chat instances
 chat_instances = {}
 
+# ====== IP GEOLOCATION ======
+async def get_country_from_ip(ip: str) -> str:
+    """Get country code from IP address using free API"""
+    if ip in ["127.0.0.1", "localhost", "::1"] or ip.startswith("10.") or ip.startswith("192.168."):
+        return "IT"  # Default for local IPs
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            # Using ip-api.com (free, no key required)
+            response = await client.get(f"http://ip-api.com/json/{ip}?fields=countryCode")
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("countryCode", "IT")
+    except Exception as e:
+        logging.error(f"IP geolocation error: {e}")
+    
+    return "IT"  # Default to Italian
+
+def get_language_from_country(country_code: str) -> str:
+    """Map country code to language"""
+    return COUNTRY_TO_LANGUAGE.get(country_code.upper(), "en")  # Default to English for unknown
+
 # ====== WEB SCRAPING FUNCTIONS ======
 async def extract_content_from_url(url: str) -> tuple[str, str]:
     """Extract text content from a URL. Returns (content, error_message)"""
@@ -188,53 +340,42 @@ async def extract_content_from_url(url: str) -> tuple[str, str]:
             response = await client.get(url, headers=headers)
             response.raise_for_status()
             
-            # Parse HTML
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Remove script and style elements
             for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside', 'form', 'iframe']):
                 element.decompose()
             
-            # Get text
             text = soup.get_text(separator='\n', strip=True)
-            
-            # Clean up text
             lines = [line.strip() for line in text.splitlines() if line.strip()]
-            # Remove very short lines (likely navigation items)
             lines = [line for line in lines if len(line) > 20 or any(c in line for c in ['.', ':', '-'])]
             
-            # Limit content length
-            content = '\n'.join(lines[:200])  # First 200 meaningful lines
+            content = '\n'.join(lines[:200])
             
             if len(content) > 10000:
-                content = content[:10000] + "\n... [contenuto troncato]"
+                content = content[:10000] + "\n... [content truncated]"
             
             return content, ""
             
     except httpx.TimeoutException:
-        return "", "Timeout: il sito non risponde"
+        return "", "Timeout: site not responding"
     except httpx.HTTPStatusError as e:
-        return "", f"Errore HTTP: {e.response.status_code}"
+        return "", f"HTTP Error: {e.response.status_code}"
     except Exception as e:
-        return "", f"Errore: {str(e)}"
+        return "", f"Error: {str(e)}"
 
 async def fetch_web_source(source_id: str):
     """Background task to fetch and extract content from a web source"""
-    # Update status to processing
     await db.web_sources.update_one(
         {"id": source_id},
         {"$set": {"status": "processing", "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
-    # Get the source
     source = await db.web_sources.find_one({"id": source_id}, {"_id": 0})
     if not source:
         return
     
-    # Extract content
     content, error = await extract_content_from_url(source["url"])
     
-    # Update source
     update_data = {
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "last_fetched": datetime.now(timezone.utc).isoformat()
@@ -253,7 +394,6 @@ async def fetch_web_source(source_id: str):
         {"$set": update_data}
     )
     
-    # Clear chat instances to use new knowledge
     chat_instances.clear()
 
 # ====== HELPER FUNCTIONS ======
@@ -261,14 +401,13 @@ async def get_dynamic_knowledge_base():
     """Build knowledge base from database entries and web sources"""
     kb_content = DEFAULT_KNOWLEDGE_BASE + "\n\n"
     
-    # Get manual entries
     entries = await db.knowledge_entries.find({"is_active": True}, {"_id": 0}).to_list(1000)
     
     if entries:
-        kb_content += "\n# Informazioni Aggiuntive\n\n"
+        kb_content += "\n# Additional Information\n\n"
         categories = {}
         for entry in entries:
-            cat = entry.get("category", "Altro")
+            cat = entry.get("category", "Other")
             if cat not in categories:
                 categories[cat] = []
             categories[cat].append(entry)
@@ -279,25 +418,24 @@ async def get_dynamic_knowledge_base():
                 kb_content += f"### {item.get('title', '')}\n"
                 kb_content += f"{item.get('content', '')}\n\n"
     
-    # Get web sources content
     web_sources = await db.web_sources.find(
         {"is_active": True, "status": "completed"},
         {"_id": 0}
     ).to_list(100)
     
     if web_sources:
-        kb_content += "\n# Informazioni da Fonti Web\n\n"
+        kb_content += "\n# Information from Web Sources\n\n"
         for source in web_sources:
             if source.get("extracted_content"):
-                kb_content += f"## {source.get('name', 'Fonte Web')}\n"
+                kb_content += f"## {source.get('name', 'Web Source')}\n"
                 if source.get('description'):
                     kb_content += f"*{source.get('description')}*\n\n"
                 kb_content += f"{source.get('extracted_content', '')}\n\n"
     
     return kb_content
 
-async def get_system_prompt():
-    """Build system prompt with current settings and knowledge"""
+async def get_system_prompt(language: str = "it"):
+    """Build system prompt with current settings, knowledge, and language"""
     settings = await db.chatbot_settings.find_one({"id": "main_settings"}, {"_id": 0})
     
     if not settings:
@@ -305,29 +443,83 @@ async def get_system_prompt():
     
     knowledge = await get_dynamic_knowledge_base()
     
-    return f"""{settings.get('system_prompt_prefix', 'Sei un assistente virtuale amichevole e competente.')}
+    lang_config = SUPPORTED_LANGUAGES.get(language, SUPPORTED_LANGUAGES["it"])
+    lang_instruction = lang_config["system_prompt"]
+    
+    return f"""You are a friendly and knowledgeable virtual assistant for Olbia Costa Smeralda Airport.
 
-Il tuo compito è aiutare i viaggiatori fornendo informazioni accurate sui servizi, le aree e i punti di interesse dell'aeroporto.
+IMPORTANT LANGUAGE INSTRUCTION: {lang_instruction}
 
-Rispondi sempre in italiano in modo cortese e professionale. Se non conosci una risposta specifica, suggerisci di contattare il punto informazioni dell'aeroporto.
+Your task is to help travelers by providing accurate information about airport services, areas, and points of interest.
 
-Ecco la base di conoscenza:
+Here is your knowledge base:
 
 {knowledge}
 
-Linee guida:
-1. Sii conciso ma completo nelle risposte
-2. Usa un tono amichevole e professionale
-3. Se appropriato, suggerisci servizi correlati
-4. Per informazioni sui voli in tempo reale, indirizza a {settings.get('live_flights_url', 'www.geasar.it/en/flights/live-flights')}
-5. Menziona il tour virtuale quando rilevante: {settings.get('virtual_tour_url', 'https://tour.fairsgate.com/tour/olbia-ultimo')}
-6. Se la domanda non riguarda l'aeroporto, rispondi gentilmente che sei specializzato solo nell'assistenza aeroportuale
+Guidelines:
+1. Be concise but complete in your responses
+2. Use a friendly and professional tone
+3. If appropriate, suggest related services
+4. For real-time flight information, direct to {settings.get('live_flights_url', 'www.geasar.it/en/flights/live-flights')}
+5. Mention the virtual tour when relevant: {settings.get('virtual_tour_url', 'https://tour.fairsgate.com/tour/olbia-ultimo')}
+6. If the question is not about the airport, politely explain that you specialize only in airport assistance
+7. ALWAYS respond in the language specified above
 """
 
 # ====== PUBLIC API ROUTES ======
 @api_router.get("/")
 async def root():
-    return {"message": "Trivor Virtual Assistant API"}
+    return {"message": "Trivor Virtual Assistant API - Multilingual"}
+
+@api_router.get("/detect-language")
+async def detect_language(request: Request):
+    """Detect language based on IP address"""
+    # Get client IP
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        ip = forwarded.split(",")[0].strip()
+    else:
+        ip = request.client.host if request.client else "127.0.0.1"
+    
+    country = await get_country_from_ip(ip)
+    language = get_language_from_country(country)
+    
+    return {
+        "ip": ip,
+        "country": country,
+        "language": language,
+        "language_name": SUPPORTED_LANGUAGES.get(language, SUPPORTED_LANGUAGES["en"])["name"]
+    }
+
+@api_router.get("/languages")
+async def get_supported_languages():
+    """Get all supported languages with their configurations"""
+    return {
+        "languages": [
+            {
+                "code": code,
+                "name": config["name"],
+                "flag": config["flag"]
+            }
+            for code, config in SUPPORTED_LANGUAGES.items()
+        ],
+        "default": "it"
+    }
+
+@api_router.get("/language-config/{lang_code}")
+async def get_language_config(lang_code: str):
+    """Get full configuration for a specific language"""
+    if lang_code not in SUPPORTED_LANGUAGES:
+        lang_code = "en"  # Fallback to English
+    
+    config = SUPPORTED_LANGUAGES[lang_code]
+    questions = SUGGESTED_QUESTIONS.get(lang_code, SUGGESTED_QUESTIONS["en"])
+    
+    return {
+        "code": lang_code,
+        **config,
+        "suggested_questions": questions
+    }
 
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
@@ -347,16 +539,15 @@ async def get_status_checks():
     return status_checks
 
 @api_router.get("/suggested-questions")
-async def get_suggested_questions():
+async def get_suggested_questions(lang: str = "it"):
+    """Get suggested questions for a language"""
+    # First check database
     questions = await db.suggested_questions.find({}, {"_id": 0}).to_list(100)
-    if not questions:
-        return [
-            {"id": "1", "question": "Dove trovo i banchi check-in Ryanair?", "category": "Check-in"},
-            {"id": "2", "question": "Quali negozi ci sono in aeroporto?", "category": "Shopping"},
-            {"id": "3", "question": "Dove posso mangiare qualcosa?", "category": "Ristorazione"},
-            {"id": "4", "question": "Come richiedo assistenza speciale?", "category": "Servizi"}
-        ]
-    return questions
+    if questions:
+        return questions
+    
+    # Return language-specific defaults
+    return SUGGESTED_QUESTIONS.get(lang, SUGGESTED_QUESTIONS["en"])
 
 @api_router.get("/chatbot-settings")
 async def get_chatbot_settings_public():
@@ -376,16 +567,22 @@ async def chat(request: ChatRequest):
         raise HTTPException(status_code=500, detail="LLM API key not configured")
     
     session_id = request.session_id or str(uuid.uuid4())
-    system_prompt = await get_system_prompt()
+    language = request.language if request.language in SUPPORTED_LANGUAGES else "it"
     
-    if session_id not in chat_instances:
-        chat_instances[session_id] = LlmChat(
+    # Create unique key for session + language
+    cache_key = f"{session_id}_{language}"
+    
+    # Get system prompt for the language
+    system_prompt = await get_system_prompt(language)
+    
+    if cache_key not in chat_instances:
+        chat_instances[cache_key] = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
+            session_id=cache_key,
             system_message=system_prompt
         ).with_model("openai", "gpt-4o-mini")
     
-    chat_instance = chat_instances[session_id]
+    chat_instance = chat_instances[cache_key]
     
     try:
         user_msg = UserMessage(text=request.message)
@@ -393,6 +590,7 @@ async def chat(request: ChatRequest):
         
         chat_doc = {
             "session_id": session_id,
+            "language": language,
             "user_message": request.message,
             "assistant_response": response,
             "timestamp": datetime.now(timezone.utc).isoformat()
@@ -415,14 +613,15 @@ async def get_chat_history(session_id: str):
 
 @api_router.delete("/chat/session/{session_id}")
 async def clear_chat_session(session_id: str):
-    if session_id in chat_instances:
-        del chat_instances[session_id]
+    # Clear all language variants
+    keys_to_remove = [k for k in chat_instances.keys() if k.startswith(session_id)]
+    for key in keys_to_remove:
+        del chat_instances[key]
     await db.chat_history.delete_many({"session_id": session_id})
     return {"message": "Session cleared", "session_id": session_id}
 
 # ====== ADMIN API ROUTES ======
 
-# Knowledge Base Management
 @api_router.get("/admin/knowledge")
 async def admin_get_knowledge_entries():
     entries = await db.knowledge_entries.find({}, {"_id": 0}).sort("category", 1).to_list(1000)
@@ -475,11 +674,9 @@ async def admin_create_web_source(source: WebSourceCreate, background_tasks: Bac
         doc['last_fetched'] = doc['last_fetched'].isoformat()
     
     await db.web_sources.insert_one(doc)
-    
-    # Start background task to fetch content
     background_tasks.add_task(fetch_web_source, source_obj.id)
     
-    return {"id": source_obj.id, "message": "Fonte aggiunta, estrazione contenuto in corso..."}
+    return {"id": source_obj.id, "message": "Source added, extracting content..."}
 
 @api_router.put("/admin/web-sources/{source_id}")
 async def admin_update_web_source(source_id: str, update: WebSourceUpdate):
@@ -508,7 +705,6 @@ async def admin_refresh_web_source(source_id: str, background_tasks: BackgroundT
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
     
-    # Reset status and start fetching
     await db.web_sources.update_one(
         {"id": source_id},
         {"$set": {"status": "pending", "error_message": ""}}
@@ -516,7 +712,7 @@ async def admin_refresh_web_source(source_id: str, background_tasks: BackgroundT
     
     background_tasks.add_task(fetch_web_source, source_id)
     
-    return {"message": "Aggiornamento in corso..."}
+    return {"message": "Refreshing..."}
 
 # Suggested Questions Management
 @api_router.get("/admin/questions")
@@ -581,6 +777,12 @@ async def admin_get_analytics():
     total_knowledge = await db.knowledge_entries.count_documents({})
     total_web_sources = await db.web_sources.count_documents({})
     
+    # Language stats
+    pipeline = [
+        {"$group": {"_id": "$language", "count": {"$sum": 1}}}
+    ]
+    lang_stats = await db.chat_history.aggregate(pipeline).to_list(100)
+    
     recent = await db.chat_history.find(
         {},
         {"_id": 0}
@@ -591,6 +793,7 @@ async def admin_get_analytics():
         "total_sessions": total_sessions,
         "total_knowledge": total_knowledge,
         "total_web_sources": total_web_sources,
+        "language_stats": {item["_id"]: item["count"] for item in lang_stats if item["_id"]},
         "recent_conversations": recent
     }
 
