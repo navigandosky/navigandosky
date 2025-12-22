@@ -489,10 +489,6 @@
         <button class="oac-toggle-btn" onclick="OlbiaAirportChatbot.toggle()" title="${lang.flag} ${lang.name}">
           ${icons.chat}
         </button>
-        <div class="oac-powered">
-          <img src="${CONFIG.LOGO_URL}" alt="Trivor">
-          <span>Trivor srl</span>
-        </div>
       `;
     } else {
       container.innerHTML = `
