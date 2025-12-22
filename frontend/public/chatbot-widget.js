@@ -1,6 +1,6 @@
 /**
- * Olbia Airport Chatbot Widget - Embed Script
- * Inserisci questo script in qualsiasi pagina web per aggiungere il chatbot
+ * Trivor Chatbot Widget - Embed Script
+ * Aeroporto di Olbia Costa Smeralda
  * 
  * Uso: <script src="https://virtual-agent-info.preview.emergentagent.com/chatbot-widget.js"></script>
  */
@@ -11,13 +11,14 @@
   // Configuration
   const CONFIG = {
     API_URL: 'https://virtual-agent-info.preview.emergentagent.com/api',
-    WIDGET_ID: 'olbia-airport-chatbot-widget',
-    Z_INDEX: 999999
+    WIDGET_ID: 'trivor-chatbot-widget',
+    Z_INDEX: 999999,
+    LOGO_URL: 'https://customer-assets.emergentagent.com/job_virtual-agent-info/artifacts/520jda3c_logo%20trivor%20heritage%20senza%20testo.png'
   };
 
   // Prevent multiple initializations
   if (window.OlbiaAirportChatbot) {
-    console.log('Olbia Airport Chatbot already initialized');
+    console.log('Trivor Chatbot already initialized');
     return;
   }
 
@@ -37,10 +38,10 @@
       width: 64px;
       height: 64px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+      box-shadow: 0 4px 20px rgba(13, 148, 136, 0.4);
       z-index: ${CONFIG.Z_INDEX};
       display: flex;
       align-items: center;
@@ -50,7 +51,7 @@
 
     #${CONFIG.WIDGET_ID} .oac-toggle-btn:hover {
       transform: scale(1.1);
-      box-shadow: 0 6px 30px rgba(37, 99, 235, 0.5);
+      box-shadow: 0 6px 30px rgba(13, 148, 136, 0.5);
     }
 
     #${CONFIG.WIDGET_ID} .oac-toggle-btn svg {
@@ -64,7 +65,7 @@
       bottom: 24px;
       right: 24px;
       width: 380px;
-      height: 550px;
+      height: 580px;
       background: white;
       border-radius: 16px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
@@ -87,7 +88,7 @@
     }
 
     #${CONFIG.WIDGET_ID} .oac-header {
-      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
       color: white;
       padding: 16px;
       display: flex;
@@ -171,7 +172,7 @@
 
     #${CONFIG.WIDGET_ID} .oac-message.user {
       align-self: flex-end;
-      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
       color: white;
       border-bottom-right-radius: 4px;
     }
@@ -202,7 +203,7 @@
     #${CONFIG.WIDGET_ID} .oac-typing-dot {
       width: 8px;
       height: 8px;
-      background: #2563eb;
+      background: #0d9488;
       border-radius: 50%;
       animation: oac-bounce 1.4s infinite ease-in-out;
     }
@@ -232,18 +233,18 @@
 
     #${CONFIG.WIDGET_ID} .oac-suggestion-btn {
       background: white;
-      border: 1px solid #dbeafe;
+      border: 1px solid #99f6e4;
       border-radius: 20px;
       padding: 8px 12px;
       font-size: 12px;
-      color: #2563eb;
+      color: #0d9488;
       cursor: pointer;
       transition: all 0.2s;
     }
 
     #${CONFIG.WIDGET_ID} .oac-suggestion-btn:hover {
-      background: #eff6ff;
-      border-color: #93c5fd;
+      background: #f0fdfa;
+      border-color: #5eead4;
     }
 
     #${CONFIG.WIDGET_ID} .oac-input-area {
@@ -265,14 +266,14 @@
     }
 
     #${CONFIG.WIDGET_ID} .oac-input:focus {
-      border-color: #2563eb;
+      border-color: #0d9488;
     }
 
     #${CONFIG.WIDGET_ID} .oac-send-btn {
       width: 44px;
       height: 44px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+      background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
       border: none;
       cursor: pointer;
       display: flex;
@@ -293,16 +294,27 @@
     }
 
     #${CONFIG.WIDGET_ID} .oac-powered {
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
       padding: 8px;
       font-size: 10px;
       color: #9ca3af;
       background: #f9fafb;
+      border-top: 1px solid #f3f4f6;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-powered img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
     }
 
     #${CONFIG.WIDGET_ID} .oac-powered a {
-      color: #2563eb;
+      color: #0d9488;
       text-decoration: none;
+      font-weight: 500;
     }
 
     @media (max-width: 480px) {
@@ -330,7 +342,7 @@
   };
 
   // Suggested questions
-  const suggestions = [
+  const defaultSuggestions = [
     { id: '1', text: 'Dove trovo il check-in Ryanair?', short: 'Check-in Ryanair' },
     { id: '2', text: 'Quali negozi ci sono?', short: 'Negozi' },
     { id: '3', text: 'Dove posso mangiare?', short: 'Ristorazione' },
@@ -343,11 +355,45 @@
     messages: [],
     sessionId: null,
     isLoading: false,
-    showSuggestions: true
+    showSuggestions: true,
+    suggestions: defaultSuggestions,
+    settings: {
+      bot_name: 'Assistente Olbia Airport',
+      welcome_message: 'Ciao! \ud83d\udc4b Sono l\'assistente virtuale dell\'Aeroporto di Olbia Costa Smeralda. Come posso aiutarti?'
+    }
   };
 
+  // Fetch settings and suggestions
+  async function loadConfig() {
+    try {
+      const [settingsRes, suggestionsRes] = await Promise.all([
+        fetch(`${CONFIG.API_URL}/chatbot-settings`),
+        fetch(`${CONFIG.API_URL}/suggested-questions`)
+      ]);
+      
+      if (settingsRes.ok) {
+        state.settings = await settingsRes.json();
+      }
+      
+      if (suggestionsRes.ok) {
+        const suggestions = await suggestionsRes.json();
+        if (suggestions && suggestions.length > 0) {
+          state.suggestions = suggestions.slice(0, 4).map(s => ({
+            id: s.id,
+            text: s.question,
+            short: s.question.length > 25 ? s.question.substring(0, 25) + '...' : s.question
+          }));
+        }
+      }
+    } catch (e) {
+      console.log('Using default config');
+    }
+  }
+
   // Create widget container
-  function createWidget() {
+  async function createWidget() {
+    await loadConfig();
+    
     // Add styles
     const styleEl = document.createElement('style');
     styleEl.textContent = styles;
@@ -367,7 +413,7 @@
     
     if (!state.isOpen) {
       container.innerHTML = `
-        <button class="oac-toggle-btn" onclick="OlbiaAirportChatbot.toggle()" title="Assistente Aeroporto Olbia">
+        <button class="oac-toggle-btn" onclick="OlbiaAirportChatbot.toggle()" title="${state.settings.bot_name}">
           ${icons.chat}
         </button>
       `;
@@ -378,7 +424,7 @@
             <div class="oac-header-info">
               <div class="oac-header-icon">${icons.plane}</div>
               <div class="oac-header-text">
-                <h3>Assistente Olbia Airport</h3>
+                <h3>${escapeHtml(state.settings.bot_name)}</h3>
                 <p>Online - Pronto ad aiutarti</p>
               </div>
             </div>
@@ -413,7 +459,8 @@
             </button>
           </div>
           <div class="oac-powered">
-            Aeroporto di Olbia Costa Smeralda
+            <img src="${CONFIG.LOGO_URL}" alt="Trivor">
+            <span>Powered by <a href="#">Trivor srl</a></span>
           </div>
         </div>
       `;
@@ -459,7 +506,7 @@
     return `
       <div class="oac-suggestions">
         <div class="oac-suggestions-title">Domande frequenti:</div>
-        ${suggestions.map(s => 
+        ${state.suggestions.map(s => 
           `<button class="oac-suggestion-btn" onclick="OlbiaAirportChatbot.sendSuggestion('${escapeHtml(s.text)}')">
             ${escapeHtml(s.short)}
           </button>`
@@ -483,7 +530,7 @@
     if (state.isOpen && state.messages.length === 0) {
       state.messages.push({
         role: 'assistant',
-        content: 'Ciao! 👋 Sono l\'assistente virtuale dell\'Aeroporto di Olbia Costa Smeralda. Come posso aiutarti? Puoi chiedermi informazioni su check-in, servizi, negozi, ristoranti e molto altro!'
+        content: state.settings.welcome_message
       });
     }
     
@@ -521,7 +568,7 @@
       console.error('Chat error:', error);
       state.messages.push({ 
         role: 'assistant', 
-        content: 'Mi dispiace, si è verificato un errore. Riprova tra qualche istante.' 
+        content: 'Mi dispiace, si \u00e8 verificato un errore. Riprova tra qualche istante.' 
       });
     }
 
@@ -558,7 +605,7 @@
     // Re-add welcome message
     state.messages.push({
       role: 'assistant',
-      content: 'Ciao! 👋 Sono l\'assistente virtuale dell\'Aeroporto di Olbia Costa Smeralda. Come posso aiutarti? Puoi chiedermi informazioni su check-in, servizi, negozi, ristoranti e molto altro!'
+      content: state.settings.welcome_message
     });
     
     render();
