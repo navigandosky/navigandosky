@@ -259,6 +259,23 @@ LANGUAGE_PROMPTS = {
 async def root():
     return {"message": "Visit Tadasuni API"}
 
+async def build_knowledge_context():
+    """Build context from all active sources and custom knowledge"""
+    context_parts = [TADASUNI_CONTEXT]
+    
+    # Get active sources
+    sources = await db.chatbot_sources.find({"active": True, "status": "active"}, {"_id": 0}).to_list(50)
+    for source in sources:
+        if source.get("content"):
+            context_parts.append(f"\n--- Fonte: {source['name']} ({source['url']}) ---\n{source['content'][:3000]}")
+    
+    # Get custom knowledge
+    knowledge = await db.chatbot_knowledge.find({}, {"_id": 0}).to_list(50)
+    for k in knowledge:
+        context_parts.append(f"\n--- {k['title']} ---\n{k['content']}")
+    
+    return "\n\n".join(context_parts)
+
 @api_router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     if not EMERGENT_LLM_KEY:
@@ -266,10 +283,20 @@ async def chat(request: ChatRequest):
     
     language_instruction = LANGUAGE_PROMPTS.get(request.language, LANGUAGE_PROMPTS["it"])
     
-    system_prompt = f"""Sei un assistente virtuale per Visit Tadasuni, il sito turistico del borgo di Tadasuni in Sardegna.
+    # Get settings
+    settings = await db.chatbot_settings.find_one({"id": "main"}, {"_id": 0})
+    custom_system_prompt = settings.get("system_prompt", "") if settings else ""
+    max_tokens = settings.get("max_tokens", 500) if settings else 500
+    temperature = settings.get("temperature", 0.7) if settings else 0.7
+    
+    # Build dynamic knowledge context
+    knowledge_context = await build_knowledge_context()
+    
+    system_prompt = f"""{custom_system_prompt or 'Sei un assistente virtuale per Visit Tadasuni, il sito turistico del borgo di Tadasuni in Sardegna.'}
+
 Usa le seguenti informazioni per rispondere alle domande:
 
-{TADASUNI_CONTEXT}
+{knowledge_context}
 
 {language_instruction}
 Se non conosci la risposta, suggerisci di contattare il Comune di Tadasuni o visitare il gemello digitale.
