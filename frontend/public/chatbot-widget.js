@@ -362,12 +362,18 @@
       #${CONFIG.WIDGET_ID} .oac-chat-window {
         width: calc(100vw - 32px);
         height: calc(100vh - 100px);
-        bottom: 80px;
+        bottom: 50px;
         right: 16px;
       }
       #${CONFIG.WIDGET_ID} .oac-toggle-btn {
-        bottom: 16px;
-        right: 16px;
+        bottom: 50%;
+        right: 50%;
+        transform: translate(50%, 50%);
+        width: 70px;
+        height: 70px;
+      }
+      #${CONFIG.WIDGET_ID} .oac-toggle-btn:hover {
+        transform: translate(50%, 50%) scale(1.1);
       }
     }
   `;
