@@ -1711,7 +1711,7 @@ const HomePage = ({ lang, setLang, t }) => {
                     onClick={() => { setLang(code); setMobileMenuOpen(false); }}
                     className={`px-3 py-2 rounded-full text-sm flex items-center gap-2 ${lang === code ? "bg-emerald-600 text-white" : "bg-stone-200"}`}
                   >
-                    <span className="text-lg">{languageFlags[code]}</span>
+                    <FlagIcon code={code} size={20} />
                     <span>{name}</span>
                   </button>
                 ))}
