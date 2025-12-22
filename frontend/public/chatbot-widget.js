@@ -543,12 +543,11 @@
               ${icons.send}
             </button>
           </div>
-          <div class="oac-powered">
-            <img src="${CONFIG.LOGO_URL}" alt="Trivor">
-            <span>Trivor srl</span>
-          </div>
         </div>
-      `;
+        <div class="oac-powered">
+          <img src="${CONFIG.LOGO_URL}" alt="Trivor">
+          <span>Trivor srl</span>
+        </div>`;
 
       setTimeout(() => {
         const messagesEl = document.getElementById('oac-messages');
