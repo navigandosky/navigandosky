@@ -130,7 +130,7 @@ async def root():
 
 @api_router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    if not openai_client:
+    if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="LLM key not configured")
     
     language_instruction = LANGUAGE_PROMPTS.get(request.language, LANGUAGE_PROMPTS["it"])
@@ -144,29 +144,30 @@ Usa le seguenti informazioni per rispondere alle domande:
 Se non conosci la risposta, suggerisci di contattare il Comune di Tadasuni o visitare il gemello digitale.
 Sii conciso ma completo nelle risposte."""
     
-    messages = [
-        {"role": "system", "content": system_prompt}
-    ]
-    
-    # Add conversation history
-    for msg in request.history[-10:]:  # Keep last 10 messages
-        messages.append({"role": msg.role, "content": msg.content})
-    
-    messages.append({"role": "user", "content": request.message})
+    # Build initial messages from history
+    initial_messages = [{"role": "system", "content": system_prompt}]
+    for msg in request.history[-10:]:
+        initial_messages.append({"role": msg.role, "content": msg.content})
     
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=500,
-            temperature=0.7
-        )
+        # Create chat instance with system message
+        chat_instance = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=str(uuid.uuid4()),
+            system_message=system_prompt,
+            initial_messages=initial_messages
+        ).with_model("openai", "gpt-4o-mini")
         
-        ai_response = response.choices[0].message.content
+        # Send user message
+        ai_response = await chat_instance.send_message(UserMessage(text=request.message))
+        
         return ChatResponse(response=ai_response)
         
-    except Exception as e:
+    except ChatError as e:
         logger.error(f"Chat error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/contact", response_model=ContactResponse)
