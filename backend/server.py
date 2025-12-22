@@ -134,7 +134,7 @@ async def root():
 
 @api_router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    if not EMERGENT_LLM_KEY:
+    if not openai_client:
         raise HTTPException(status_code=500, detail="LLM key not configured")
     
     language_instruction = LANGUAGE_PROMPTS.get(request.language, LANGUAGE_PROMPTS["it"])
@@ -159,32 +159,16 @@ Sii conciso ma completo nelle risposte."""
     messages.append({"role": "user", "content": request.message})
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                OPENAI_API_URL,
-                headers={
-                    "Authorization": f"Bearer {EMERGENT_LLM_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": messages,
-                    "max_tokens": 500,
-                    "temperature": 0.7
-                }
-            )
-            
-            if response.status_code != 200:
-                logger.error(f"OpenAI API error: {response.text}")
-                raise HTTPException(status_code=500, detail="Error communicating with AI service")
-            
-            data = response.json()
-            ai_response = data["choices"][0]["message"]["content"]
-            
-            return ChatResponse(response=ai_response)
-            
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="AI service timeout")
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        ai_response = response.choices[0].message.content
+        return ChatResponse(response=ai_response)
+        
     except Exception as e:
         logger.error(f"Chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
