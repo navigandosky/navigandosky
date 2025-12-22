@@ -44,9 +44,9 @@
 
     #${CONFIG.WIDGET_ID} .oac-toggle-btn {
       position: fixed;
-      bottom: 50%;
-      right: 50%;
-      transform: translate(50%, 50%);
+      top: 30%;
+      left: 50%;
+      transform: translateX(-50%);
       width: 80px;
       height: 80px;
       border-radius: 50%;
@@ -62,7 +62,7 @@
     }
 
     #${CONFIG.WIDGET_ID} .oac-toggle-btn:hover {
-      transform: translate(50%, 50%) scale(1.15);
+      transform: translateX(-50%) scale(1.15);
       box-shadow: 0 12px 40px rgba(13, 148, 136, 0.6);
     }
 
