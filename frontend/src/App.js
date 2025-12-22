@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { MessageCircle, X, Send, Globe, Menu, ChevronDown, MapPin, Mail, Calendar, Church, Palette, Trees, ExternalLink, Play, Plus, Trash2, Edit, Upload, Image, LogOut, Eye, EyeOff, ArrowLeft, Save, Bot, Link2, FileText, Settings, RefreshCw, CheckCircle, AlertCircle, Clock, Database } from "lucide-react";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 const API = `${BACKEND_URL}/api`;
 
 // Translations
