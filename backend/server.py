@@ -70,6 +70,73 @@ class ContactResponse(BaseModel):
     success: bool
     message: str
 
+# Event/Article Models for CMS
+class EventImage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    url: str
+    caption: Optional[str] = None
+
+class EventCreate(BaseModel):
+    title: str
+    title_en: Optional[str] = None
+    title_fr: Optional[str] = None
+    title_es: Optional[str] = None
+    title_de: Optional[str] = None
+    content: str
+    content_en: Optional[str] = None
+    content_fr: Optional[str] = None
+    content_es: Optional[str] = None
+    content_de: Optional[str] = None
+    event_date: Optional[str] = None
+    location: Optional[str] = None
+    category: Optional[str] = "evento"
+    published: bool = True
+
+class EventUpdate(BaseModel):
+    title: Optional[str] = None
+    title_en: Optional[str] = None
+    title_fr: Optional[str] = None
+    title_es: Optional[str] = None
+    title_de: Optional[str] = None
+    content: Optional[str] = None
+    content_en: Optional[str] = None
+    content_fr: Optional[str] = None
+    content_es: Optional[str] = None
+    content_de: Optional[str] = None
+    event_date: Optional[str] = None
+    location: Optional[str] = None
+    category: Optional[str] = None
+    published: Optional[bool] = None
+
+class EventResponse(BaseModel):
+    id: str
+    title: str
+    title_en: Optional[str] = None
+    title_fr: Optional[str] = None
+    title_es: Optional[str] = None
+    title_de: Optional[str] = None
+    content: str
+    content_en: Optional[str] = None
+    content_fr: Optional[str] = None
+    content_es: Optional[str] = None
+    content_de: Optional[str] = None
+    event_date: Optional[str] = None
+    location: Optional[str] = None
+    category: Optional[str] = None
+    images: List[EventImage] = []
+    published: bool = True
+    created_at: str
+    updated_at: str
+
+class AdminLogin(BaseModel):
+    username: str
+    password: str
+
+class AdminLoginResponse(BaseModel):
+    success: bool
+    token: Optional[str] = None
+    message: str
+
 # Tadasuni knowledge base
 TADASUNI_CONTEXT = """
 Tadasuni è un piccolissimo borgo della Sardegna centrale, situato nella regione storica del Barigadu, in provincia di Oristano.
