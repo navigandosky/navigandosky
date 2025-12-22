@@ -1061,19 +1061,20 @@ const HomePage = ({ lang, setLang, t }) => {
                   onClick={() => setShowLangMenu(!showLangMenu)} 
                   className="flex items-center gap-2 px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 transition"
                 >
-                  <Globe size={18} />
+                  <span className="text-xl">{languageFlags[lang]}</span>
                   <span>{languageNames[lang]}</span>
                   <ChevronDown size={16} />
                 </button>
                 {showLangMenu && (
-                  <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg py-2 border">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 border">
                     {Object.entries(languageNames).map(([code, name]) => (
                       <button
                         key={code}
                         onClick={() => { setLang(code); setShowLangMenu(false); }}
-                        className={`w-full text-left px-4 py-2 hover:bg-emerald-50 ${lang === code ? "bg-emerald-100 text-emerald-800" : ""}`}
+                        className={`w-full text-left px-4 py-2 hover:bg-emerald-50 flex items-center gap-3 ${lang === code ? "bg-emerald-100 text-emerald-800" : ""}`}
                       >
-                        {name}
+                        <span className="text-xl">{languageFlags[code]}</span>
+                        <span>{name}</span>
                       </button>
                     ))}
                   </div>
