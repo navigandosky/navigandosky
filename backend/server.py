@@ -13,6 +13,9 @@ from datetime import datetime, timezone
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ChatError
 import shutil
 import base64
+import httpx
+from bs4 import BeautifulSoup
+import re
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,9 +28,13 @@ db = client[os.environ['DB_NAME']]
 # Emergent LLM Key
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
-# Admin credentials (in production, use environment variables)
+# Admin credentials for CMS
 ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'tadasuni2025')
+
+# Chatbot Admin credentials
+CHATBOT_ADMIN_USERNAME = os.environ.get('CHATBOT_ADMIN_USERNAME', 'chatbotadmin')
+CHATBOT_ADMIN_PASSWORD = os.environ.get('CHATBOT_ADMIN_PASSWORD', 'ChatBot2025$')
 
 # Create uploads directory
 UPLOADS_DIR = ROOT_DIR / 'uploads'
