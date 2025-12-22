@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-import httpx
+from openai import OpenAI
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,9 +19,12 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# OpenAI configuration via Emergent
+# OpenAI client via Emergent
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
-OPENAI_API_URL = "https://llm.emergent.sh/v1/chat/completions"
+openai_client = OpenAI(
+    api_key=EMERGENT_LLM_KEY,
+    base_url="https://api.openai.com/v1"
+) if EMERGENT_LLM_KEY else None
 
 # Create the main app
 app = FastAPI()
