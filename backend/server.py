@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, BackgroundTasks
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -10,6 +10,9 @@ from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
 from emergentintegrations.llm.openai import LlmChat, UserMessage
+import httpx
+from bs4 import BeautifulSoup
+import re
 
 
 ROOT_DIR = Path(__file__).parent
@@ -37,148 +40,39 @@ DEFAULT_KNOWLEDGE_BASE = """
 L'Aeroporto di Olbia Costa Smeralda (codice IATA: OLB) è il principale aeroporto della Sardegna nord-orientale, situato a circa 4 km dal centro di Olbia. È la porta d'accesso alla famosa Costa Smeralda e serve milioni di passeggeri ogni anno.
 
 ## Aree Check-in
+- Check-in Desk 17-31: Area principale (Aeroitalia, EasyJet, Ryanair)
+- Check-in Desk 1-16: Volotea e altre compagnie
 
-### Check-in Desk 17-31
-- Area principale per le compagnie aeree
-- Check-in Aeroitalia
-- Check-in EasyJet
-- Check-in Ryanair
-
-### Check-in Desk 1-16
-- Check-in Volotea
-- Altre compagnie aeree
-
-## Servizi Disponibili
-
-### Assistenza Speciale
-- Servizio di assistenza per passeggeri a mobilità ridotta
-- Sedie a rotelle disponibili
-- Personale dedicato
-
-### Servizi Igienici e Comfort
-- Docce disponibili per i viaggiatori
-- Toilets in tutte le aree
-- Toilets anche nell'area Gates B
-
-### Bagagli
-- Deposito bagagli oversize
-- Lost & Found (oggetti smarriti)
+## Servizi
+- Assistenza Speciale per passeggeri a mobilità ridotta
+- Docce, Toilets in tutte le aree
+- Deposito bagagli oversize, Lost & Found
 - 5 nastri ritiro bagagli (Carousel 1-5)
-
-### Servizi Medici
-- Farmacia
-- Dispositivi medici
-
-### Servizi Finanziari
+- Farmacia, Dispositivi medici
 - ATM nella hall arrivi
-- Multipli bancomat disponibili
-
-### Informazioni e Biglietteria
-- Punto Informazioni Sardegna (Hall Arrivi)
-- Biglietteria (Ticket Office)
-- Emettitrice biglietti trasporto pubblico
-- Tabellone orari voli
-
-### Servizi Religiosi
-- Cappella (al primo piano)
-
-### Altri Servizi
-- Meet & Greet
-- Ascensori
-- Scale per il primo piano
+- Punto Informazioni Sardegna
+- Cappella (primo piano)
 
 ## Shopping
-
-### Prodotti Tipici Sardi
-- Island Crafts - Artigianato sardo
-- The Best Selection of Typical Sardinian Products - Prodotti tipici
-- Saint Martin - Vini e prodotti locali
-
-### Moda e Accessori
-- Polo Ralph Lauren
-- Max & Co.
-- Boggi
-- Carpisa - Borse e accessori
-- Ambrosio
-
-### Altro
-- Priarone Optics - Ottica e occhiali
+- Island Crafts, Prodotti Tipici Sardi
+- Polo Ralph Lauren, Max & Co., Boggi, Carpisa
+- Priarone Optics
 
 ## Ristorazione
+- Grain & Grapes, Self-service Karafood
+- Distributori automatici
 
-### Bar e Ristoranti
-- Grain & Grapes - Bar e ristorazione
-- Self-service Karafood
-
-### Distributori Automatici
-- Vending Machine disponibili in varie aree
-
-## Gates di Imbarco
-
-### Gates B
-- Gate B1
-- Gate B2
-- Gate B3
-- Gate B4
-- Gate B5
-- Gate B6
-
-### Gates A
-- Accesso separato ai Gates A
-
-### Accesso ai Gates
-- Controlli di sicurezza prima dell'accesso
-- Toilets disponibili nell'area gates
-
-## Sicurezza e Polizia
-- Polizia di Frontiera
-- Carabinieri
-- Controlli arrivi
-
-## Uscite
-
-### Partenze
-- Ingresso partenze principale
-
-### Arrivi
-- Uscita arrivi
-- Uscita "Nulla da dichiarare"
-- Uscita "Articoli da dichiarare" (dogana)
-
-## Intrattenimento e Cultura
-
-### Mostra Mont'e Prama
-Esposizione dedicata ai famosi Giganti di Mont'e Prama, antiche statue nuragiche ritrovate in Sardegna. Una collezione unica che rappresenta un importante patrimonio archeologico della civiltà nuragica.
-
-## Sponsor e Partner
-- Mercedes-Benz
-- Rolex
-- Saint Martin
-
-## Collegamenti e Social
-- Voli in tempo reale: www.geasar.it/en/flights/live-flights
-- Facebook: OlbiaAirport
-- LinkedIn: Geasar SpA
-- YouTube: Aeroporto Olbia Costa Smeralda
-
-## Informazioni sulla Costa Smeralda
-La Costa Smeralda è una rinomata destinazione turistica della Sardegna nord-orientale, famosa per:
-- Spiagge di sabbia bianca e acque cristalline
-- Porto Cervo - centro mondano e porto turistico di lusso
-- Hotel e resort di alta gamma
-- Vita notturna esclusiva
-- Ristoranti gourmet
-- Campi da golf
-- Sport acquatici
+## Gates
+- Gates B: B1-B6
+- Gates A: accesso separato
 
 ## Tour Virtuale
-È disponibile un tour virtuale interattivo dell'aeroporto che permette di esplorare tutti gli spazi e i servizi: https://tour.fairsgate.com/tour/olbia-ultimo
+https://tour.fairsgate.com/tour/olbia-ultimo
 """
 
 # Define Models
 class StatusCheck(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     client_name: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -191,14 +85,6 @@ class ChatMessage(BaseModel):
     content: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class ChatSession(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    messages: List[ChatMessage] = []
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
@@ -207,15 +93,9 @@ class ChatResponse(BaseModel):
     response: str
     session_id: str
 
-class SuggestedQuestion(BaseModel):
-    id: str
-    question: str
-    category: str
-
 # ====== ADMIN MODELS ======
 class KnowledgeEntry(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     category: str
     title: str
@@ -246,7 +126,6 @@ class SuggestedQuestionUpdate(BaseModel):
 
 class ChatbotSettings(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    
     id: str = "main_settings"
     bot_name: str = "Assistente Olbia Airport"
     welcome_message: str = "Ciao! \ud83d\udc4b Sono l'assistente virtuale dell'Aeroporto di Olbia Costa Smeralda. Come posso aiutarti?"
@@ -262,39 +141,151 @@ class ChatbotSettingsUpdate(BaseModel):
     virtual_tour_url: Optional[str] = None
     live_flights_url: Optional[str] = None
 
+# ====== WEB SOURCE MODELS ======
+class WebSource(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    url: str
+    name: str
+    description: str = ""
+    extracted_content: str = ""
+    is_active: bool = True
+    status: str = "pending"  # pending, processing, completed, error
+    last_fetched: Optional[datetime] = None
+    error_message: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class WebSourceCreate(BaseModel):
+    url: str
+    name: str
+    description: str = ""
+
+class WebSourceUpdate(BaseModel):
+    url: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
 # Store active chat instances
 chat_instances = {}
 
-# Cache for knowledge base
-knowledge_cache = {
-    "content": None,
-    "last_updated": None
-}
+# ====== WEB SCRAPING FUNCTIONS ======
+async def extract_content_from_url(url: str) -> tuple[str, str]:
+    """Extract text content from a URL. Returns (content, error_message)"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            
+            # Parse HTML
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Remove script and style elements
+            for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside', 'form', 'iframe']):
+                element.decompose()
+            
+            # Get text
+            text = soup.get_text(separator='\n', strip=True)
+            
+            # Clean up text
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            # Remove very short lines (likely navigation items)
+            lines = [line for line in lines if len(line) > 20 or any(c in line for c in ['.', ':', '-'])]
+            
+            # Limit content length
+            content = '\n'.join(lines[:200])  # First 200 meaningful lines
+            
+            if len(content) > 10000:
+                content = content[:10000] + "\n... [contenuto troncato]"
+            
+            return content, ""
+            
+    except httpx.TimeoutException:
+        return "", "Timeout: il sito non risponde"
+    except httpx.HTTPStatusError as e:
+        return "", f"Errore HTTP: {e.response.status_code}"
+    except Exception as e:
+        return "", f"Errore: {str(e)}"
+
+async def fetch_web_source(source_id: str):
+    """Background task to fetch and extract content from a web source"""
+    # Update status to processing
+    await db.web_sources.update_one(
+        {"id": source_id},
+        {"$set": {"status": "processing", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Get the source
+    source = await db.web_sources.find_one({"id": source_id}, {"_id": 0})
+    if not source:
+        return
+    
+    # Extract content
+    content, error = await extract_content_from_url(source["url"])
+    
+    # Update source
+    update_data = {
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "last_fetched": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if error:
+        update_data["status"] = "error"
+        update_data["error_message"] = error
+    else:
+        update_data["status"] = "completed"
+        update_data["extracted_content"] = content
+        update_data["error_message"] = ""
+    
+    await db.web_sources.update_one(
+        {"id": source_id},
+        {"$set": update_data}
+    )
+    
+    # Clear chat instances to use new knowledge
+    chat_instances.clear()
 
 # ====== HELPER FUNCTIONS ======
 async def get_dynamic_knowledge_base():
-    """Build knowledge base from database entries"""
+    """Build knowledge base from database entries and web sources"""
+    kb_content = DEFAULT_KNOWLEDGE_BASE + "\n\n"
+    
+    # Get manual entries
     entries = await db.knowledge_entries.find({"is_active": True}, {"_id": 0}).to_list(1000)
     
-    if not entries:
-        return DEFAULT_KNOWLEDGE_BASE
+    if entries:
+        kb_content += "\n# Informazioni Aggiuntive\n\n"
+        categories = {}
+        for entry in entries:
+            cat = entry.get("category", "Altro")
+            if cat not in categories:
+                categories[cat] = []
+            categories[cat].append(entry)
+        
+        for cat_name, items in categories.items():
+            kb_content += f"## {cat_name}\n\n"
+            for item in items:
+                kb_content += f"### {item.get('title', '')}\n"
+                kb_content += f"{item.get('content', '')}\n\n"
     
-    # Group by category
-    categories = {}
-    for entry in entries:
-        cat = entry.get("category", "Altro")
-        if cat not in categories:
-            categories[cat] = []
-        categories[cat].append(entry)
+    # Get web sources content
+    web_sources = await db.web_sources.find(
+        {"is_active": True, "status": "completed"},
+        {"_id": 0}
+    ).to_list(100)
     
-    # Build markdown
-    kb_content = "# Informazioni Aeroporto di Olbia Costa Smeralda\n\n"
-    
-    for cat_name, items in categories.items():
-        kb_content += f"## {cat_name}\n\n"
-        for item in items:
-            kb_content += f"### {item.get('title', '')}\n"
-            kb_content += f"{item.get('content', '')}\n\n"
+    if web_sources:
+        kb_content += "\n# Informazioni da Fonti Web\n\n"
+        for source in web_sources:
+            if source.get("extracted_content"):
+                kb_content += f"## {source.get('name', 'Fonte Web')}\n"
+                if source.get('description'):
+                    kb_content += f"*{source.get('description')}*\n\n"
+                kb_content += f"{source.get('extracted_content', '')}\n\n"
     
     return kb_content
 
@@ -350,28 +341,21 @@ async def get_status_checks():
 
 @api_router.get("/suggested-questions")
 async def get_suggested_questions():
-    """Return suggested questions from database or defaults"""
     questions = await db.suggested_questions.find({}, {"_id": 0}).to_list(100)
-    
     if not questions:
-        # Return defaults
         return [
             {"id": "1", "question": "Dove trovo i banchi check-in Ryanair?", "category": "Check-in"},
             {"id": "2", "question": "Quali negozi ci sono in aeroporto?", "category": "Shopping"},
             {"id": "3", "question": "Dove posso mangiare qualcosa?", "category": "Ristorazione"},
             {"id": "4", "question": "Come richiedo assistenza speciale?", "category": "Servizi"}
         ]
-    
     return questions
 
 @api_router.get("/chatbot-settings")
 async def get_chatbot_settings_public():
-    """Get public chatbot settings (for widget)"""
     settings = await db.chatbot_settings.find_one({"id": "main_settings"}, {"_id": 0})
-    
     if not settings:
         settings = ChatbotSettings().model_dump()
-    
     return {
         "bot_name": settings.get("bot_name", "Assistente Olbia Airport"),
         "welcome_message": settings.get("welcome_message", "Ciao! \ud83d\udc4b Sono l'assistente virtuale. Come posso aiutarti?"),
@@ -381,17 +365,12 @@ async def get_chatbot_settings_public():
 
 @api_router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """Process a chat message and return AI response"""
-    
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="LLM API key not configured")
     
     session_id = request.session_id or str(uuid.uuid4())
-    
-    # Get dynamic system prompt
     system_prompt = await get_system_prompt()
     
-    # Get or create chat instance
     if session_id not in chat_instances:
         chat_instances[session_id] = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -439,60 +418,107 @@ async def clear_chat_session(session_id: str):
 # Knowledge Base Management
 @api_router.get("/admin/knowledge")
 async def admin_get_knowledge_entries():
-    """Get all knowledge entries"""
     entries = await db.knowledge_entries.find({}, {"_id": 0}).sort("category", 1).to_list(1000)
     return entries
 
 @api_router.post("/admin/knowledge")
 async def admin_create_knowledge_entry(entry: KnowledgeEntryCreate):
-    """Create a new knowledge entry"""
     entry_obj = KnowledgeEntry(**entry.model_dump())
     doc = entry_obj.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     doc['updated_at'] = doc['updated_at'].isoformat()
     await db.knowledge_entries.insert_one(doc)
-    # Clear chat instances to use new knowledge
     chat_instances.clear()
     return entry_obj
 
 @api_router.put("/admin/knowledge/{entry_id}")
 async def admin_update_knowledge_entry(entry_id: str, update: KnowledgeEntryUpdate):
-    """Update a knowledge entry"""
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-    
     result = await db.knowledge_entries.update_one(
         {"id": entry_id},
         {"$set": update_data}
     )
-    
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Entry not found")
-    
     chat_instances.clear()
     return {"message": "Updated successfully"}
 
 @api_router.delete("/admin/knowledge/{entry_id}")
 async def admin_delete_knowledge_entry(entry_id: str):
-    """Delete a knowledge entry"""
     result = await db.knowledge_entries.delete_one({"id": entry_id})
-    
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Entry not found")
-    
     chat_instances.clear()
     return {"message": "Deleted successfully"}
+
+# Web Sources Management
+@api_router.get("/admin/web-sources")
+async def admin_get_web_sources():
+    sources = await db.web_sources.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return sources
+
+@api_router.post("/admin/web-sources")
+async def admin_create_web_source(source: WebSourceCreate, background_tasks: BackgroundTasks):
+    source_obj = WebSource(**source.model_dump())
+    doc = source_obj.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['updated_at'] = doc['updated_at'].isoformat()
+    if doc.get('last_fetched'):
+        doc['last_fetched'] = doc['last_fetched'].isoformat()
+    
+    await db.web_sources.insert_one(doc)
+    
+    # Start background task to fetch content
+    background_tasks.add_task(fetch_web_source, source_obj.id)
+    
+    return {"id": source_obj.id, "message": "Fonte aggiunta, estrazione contenuto in corso..."}
+
+@api_router.put("/admin/web-sources/{source_id}")
+async def admin_update_web_source(source_id: str, update: WebSourceUpdate):
+    update_data = {k: v for k, v in update.model_dump().items() if v is not None}
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    result = await db.web_sources.update_one(
+        {"id": source_id},
+        {"$set": update_data}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Source not found")
+    chat_instances.clear()
+    return {"message": "Updated successfully"}
+
+@api_router.delete("/admin/web-sources/{source_id}")
+async def admin_delete_web_source(source_id: str):
+    result = await db.web_sources.delete_one({"id": source_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Source not found")
+    chat_instances.clear()
+    return {"message": "Deleted successfully"}
+
+@api_router.post("/admin/web-sources/{source_id}/refresh")
+async def admin_refresh_web_source(source_id: str, background_tasks: BackgroundTasks):
+    source = await db.web_sources.find_one({"id": source_id}, {"_id": 0})
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    # Reset status and start fetching
+    await db.web_sources.update_one(
+        {"id": source_id},
+        {"$set": {"status": "pending", "error_message": ""}}
+    )
+    
+    background_tasks.add_task(fetch_web_source, source_id)
+    
+    return {"message": "Aggiornamento in corso..."}
 
 # Suggested Questions Management
 @api_router.get("/admin/questions")
 async def admin_get_questions():
-    """Get all suggested questions"""
     questions = await db.suggested_questions.find({}, {"_id": 0}).to_list(100)
     return questions
 
 @api_router.post("/admin/questions")
 async def admin_create_question(question: SuggestedQuestionCreate):
-    """Create a new suggested question"""
     doc = {
         "id": str(uuid.uuid4()),
         "question": question.question,
@@ -503,65 +529,51 @@ async def admin_create_question(question: SuggestedQuestionCreate):
 
 @api_router.put("/admin/questions/{question_id}")
 async def admin_update_question(question_id: str, update: SuggestedQuestionUpdate):
-    """Update a suggested question"""
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
-    
     result = await db.suggested_questions.update_one(
         {"id": question_id},
         {"$set": update_data}
     )
-    
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Question not found")
-    
     return {"message": "Updated successfully"}
 
 @api_router.delete("/admin/questions/{question_id}")
 async def admin_delete_question(question_id: str):
-    """Delete a suggested question"""
     result = await db.suggested_questions.delete_one({"id": question_id})
-    
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Question not found")
-    
     return {"message": "Deleted successfully"}
 
 # Chatbot Settings Management
 @api_router.get("/admin/settings")
 async def admin_get_settings():
-    """Get chatbot settings"""
     settings = await db.chatbot_settings.find_one({"id": "main_settings"}, {"_id": 0})
-    
     if not settings:
         settings = ChatbotSettings().model_dump()
-        settings['created_at'] = settings['updated_at'].isoformat()
         settings['updated_at'] = settings['updated_at'].isoformat()
-    
     return settings
 
 @api_router.put("/admin/settings")
 async def admin_update_settings(update: ChatbotSettingsUpdate):
-    """Update chatbot settings"""
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
-    
     await db.chatbot_settings.update_one(
         {"id": "main_settings"},
         {"$set": update_data},
         upsert=True
     )
-    
     chat_instances.clear()
     return {"message": "Settings updated successfully"}
 
 # Chat Analytics
 @api_router.get("/admin/analytics")
 async def admin_get_analytics():
-    """Get chat analytics"""
     total_messages = await db.chat_history.count_documents({})
     total_sessions = len(await db.chat_history.distinct("session_id"))
+    total_knowledge = await db.knowledge_entries.count_documents({})
+    total_web_sources = await db.web_sources.count_documents({})
     
-    # Recent messages
     recent = await db.chat_history.find(
         {},
         {"_id": 0}
@@ -570,6 +582,8 @@ async def admin_get_analytics():
     return {
         "total_messages": total_messages,
         "total_sessions": total_sessions,
+        "total_knowledge": total_knowledge,
+        "total_web_sources": total_web_sources,
         "recent_conversations": recent
     }
 
