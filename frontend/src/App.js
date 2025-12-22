@@ -1909,7 +1909,10 @@ const HomePage = ({ lang, setLang, t }) => {
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-3 gap-8 mb-8">
             <div>
-              <h3 className="text-xl font-serif font-bold mb-4">Visit Tadasuni</h3>
+              <div className="flex items-center gap-3 mb-4">
+                <img src={LOGO_URL} alt="Visit Tadasuni" className="h-12 w-12 rounded-full object-cover" />
+                <h3 className="text-xl font-serif font-bold">Visit Tadasuni</h3>
+              </div>
               <p className="text-stone-400">Tra lago, colline e tradizioni</p>
             </div>
             <div>
