@@ -313,7 +313,8 @@ async def create_event(event: EventCreate):
         "updated_at": now
     }
     await db.events.insert_one(event_doc)
-    del event_doc["_id"] if "_id" in event_doc else None
+    if "_id" in event_doc:
+        del event_doc["_id"]
     return event_doc
 
 @api_router.put("/events/{event_id}", response_model=EventResponse)
