@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-from openai import OpenAI
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ChatError
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,12 +19,8 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# OpenAI client via Emergent
+# Emergent LLM Key
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
-openai_client = OpenAI(
-    api_key=EMERGENT_LLM_KEY,
-    base_url="https://api.openai.com/v1"
-) if EMERGENT_LLM_KEY else None
 
 # Create the main app
 app = FastAPI()
