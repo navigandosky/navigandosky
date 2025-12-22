@@ -80,7 +80,7 @@
         }
 
         .nav-item.active {
-            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
         }
 
         .nav-item svg {
@@ -121,13 +121,13 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
             color: white;
         }
 
         .btn-primary:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
         }
 
         .btn-secondary {
@@ -147,6 +147,11 @@
 
         .btn-danger:hover {
             background: #dc2626;
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 12px;
         }
 
         .card {
@@ -195,13 +200,19 @@
 
         .form-input:focus, .form-textarea:focus, .form-select:focus {
             outline: none;
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            border-color: #0d9488;
+            box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
         }
 
         .form-textarea {
             min-height: 120px;
             resize: vertical;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
         }
 
         .table {
@@ -248,13 +259,23 @@
         }
 
         .badge-info {
-            background: #dbeafe;
-            color: #2563eb;
+            background: #cffafe;
+            color: #0891b2;
+        }
+
+        .badge-error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .badge-pending {
+            background: #e0e7ff;
+            color: #4f46e5;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 20px;
             margin-bottom: 32px;
         }
@@ -340,13 +361,6 @@
             color: #64748b;
         }
 
-        .empty-state svg {
-            width: 64px;
-            height: 64px;
-            fill: #cbd5e1;
-            margin-bottom: 16px;
-        }
-
         .action-btns {
             display: flex;
             gap: 8px;
@@ -370,6 +384,11 @@
         .icon-btn.danger:hover {
             background: #fef2f2;
             color: #ef4444;
+        }
+
+        .icon-btn.refresh:hover {
+            background: #f0fdfa;
+            color: #0d9488;
         }
 
         .toast {
@@ -424,6 +443,60 @@
             word-break: break-all;
         }
 
+        .url-preview {
+            font-size: 12px;
+            color: #0891b2;
+            word-break: break-all;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .content-preview {
+            font-size: 12px;
+            color: #64748b;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.pending {
+            background: #a78bfa;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.processing {
+            background: #fbbf24;
+            animation: pulse 1s infinite;
+        }
+
+        .status-dot.completed {
+            background: #22c55e;
+        }
+
+        .status-dot.error {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -450,6 +523,10 @@
             <div class="nav-item" data-section="knowledge">
                 <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
                 Base di Conoscenza
+            </div>
+            <div class="nav-item" data-section="websources">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                Fonti Web
             </div>
             <div class="nav-item" data-section="questions">
                 <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
@@ -488,11 +565,11 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-value" id="stat-knowledge">0</div>
-                    <div class="stat-label">Voci Knowledge Base</div>
+                    <div class="stat-label">Voci Manuali</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value" id="stat-questions">0</div>
-                    <div class="stat-label">Domande Suggerite</div>
+                    <div class="stat-value" id="stat-websources">0</div>
+                    <div class="stat-label">Fonti Web</div>
                 </div>
             </div>
 
@@ -535,6 +612,36 @@
                         </tr>
                     </thead>
                     <tbody id="knowledge-table">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Web Sources Section -->
+        <section id="websources" class="section">
+            <div class="header">
+                <h2>Fonti Web</h2>
+                <button class="btn btn-primary" onclick="openWebSourceModal()">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                    Aggiungi Sito Web
+                </button>
+            </div>
+
+            <div class="card">
+                <p style="color: #64748b; margin-bottom: 20px;">
+                    🌐 Aggiungi siti web come fonte di informazioni. Il sistema estrarrè automaticamente il contenuto che verrà usato dal chatbot.
+                </p>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>URL</th>
+                            <th>Stato</th>
+                            <th>Contenuto</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="websources-table">
                     </tbody>
                 </table>
             </div>
@@ -670,6 +777,39 @@
         </div>
     </div>
 
+    <!-- Web Source Modal -->
+    <div class="modal-overlay" id="websource-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title" id="websource-modal-title">Aggiungi Sito Web</span>
+                <button class="modal-close" onclick="closeWebSourceModal()">
+                    <svg width="24" height="24" fill="#64748b" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                </button>
+            </div>
+            <form id="websource-form">
+                <input type="hidden" id="websource-id">
+                <div class="form-group">
+                    <label class="form-label">Nome</label>
+                    <input type="text" class="form-input" id="websource-name" required placeholder="es. Sito Ufficiale Aeroporto">
+                    <div class="form-hint">Un nome descrittivo per identificare questa fonte</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">URL del Sito</label>
+                    <input type="url" class="form-input" id="websource-url" required placeholder="https://www.esempio.com/pagina">
+                    <div class="form-hint">Inserisci l'URL completo della pagina da cui estrarre le informazioni</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Descrizione (opzionale)</label>
+                    <textarea class="form-textarea" id="websource-description" placeholder="Descrivi brevemente cosa contiene questa fonte..."></textarea>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeWebSourceModal()">Annulla</button>
+                    <button type="submit" class="btn btn-primary">Aggiungi Fonte</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Question Modal -->
     <div class="modal-overlay" id="question-modal">
         <div class="modal">
@@ -727,6 +867,7 @@
                 
                 if (section === 'dashboard') loadDashboard();
                 if (section === 'knowledge') loadKnowledge();
+                if (section === 'websources') loadWebSources();
                 if (section === 'questions') loadQuestions();
                 if (section === 'settings') loadSettings();
             });
@@ -744,16 +885,12 @@
         // Dashboard
         async function loadDashboard() {
             try {
-                const [analytics, knowledge, questions] = await Promise.all([
-                    fetch(`${API_URL}/admin/analytics`).then(r => r.json()),
-                    fetch(`${API_URL}/admin/knowledge`).then(r => r.json()),
-                    fetch(`${API_URL}/admin/questions`).then(r => r.json())
-                ]);
+                const analytics = await fetch(`${API_URL}/admin/analytics`).then(r => r.json());
 
                 document.getElementById('stat-messages').textContent = analytics.total_messages || 0;
                 document.getElementById('stat-sessions').textContent = analytics.total_sessions || 0;
-                document.getElementById('stat-knowledge').textContent = knowledge.length || 0;
-                document.getElementById('stat-questions').textContent = questions.length || 0;
+                document.getElementById('stat-knowledge').textContent = analytics.total_knowledge || 0;
+                document.getElementById('stat-websources').textContent = analytics.total_web_sources || 0;
 
                 const tbody = document.getElementById('recent-conversations');
                 if (analytics.recent_conversations && analytics.recent_conversations.length > 0) {
@@ -786,10 +923,10 @@
                             <td><span class="badge ${e.is_active ? 'badge-success' : 'badge-warning'}">${e.is_active ? 'Attivo' : 'Disattivo'}</span></td>
                             <td>
                                 <div class="action-btns">
-                                    <button class="icon-btn" onclick="editKnowledge('${e.id}')">
+                                    <button class="icon-btn" onclick="editKnowledge('${e.id}')" title="Modifica">
                                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                                     </button>
-                                    <button class="icon-btn danger" onclick="deleteKnowledge('${e.id}')">
+                                    <button class="icon-btn danger" onclick="deleteKnowledge('${e.id}')" title="Elimina">
                                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                                     </button>
                                 </div>
@@ -804,13 +941,10 @@
             }
         }
 
-        let knowledgeData = [];
-        
         function openKnowledgeModal(id = null) {
             document.getElementById('knowledge-modal').classList.add('active');
             document.getElementById('knowledge-modal-title').textContent = id ? 'Modifica Voce' : 'Aggiungi Voce';
             document.getElementById('knowledge-id').value = id || '';
-            
             if (!id) {
                 document.getElementById('knowledge-category').value = 'Servizi';
                 document.getElementById('knowledge-title').value = '';
@@ -877,6 +1011,108 @@
             }
         });
 
+        // Web Sources
+        async function loadWebSources() {
+            try {
+                const sources = await fetch(`${API_URL}/admin/web-sources`).then(r => r.json());
+                const tbody = document.getElementById('websources-table');
+                
+                if (sources.length > 0) {
+                    tbody.innerHTML = sources.map(s => {
+                        const statusBadge = getStatusBadge(s.status);
+                        const contentPreview = s.extracted_content ? s.extracted_content.substring(0, 60) + '...' : '-';
+                        return `
+                            <tr>
+                                <td><strong>${escapeHtml(s.name)}</strong></td>
+                                <td><span class="url-preview" title="${escapeHtml(s.url)}">${escapeHtml(s.url)}</span></td>
+                                <td>${statusBadge}</td>
+                                <td><span class="content-preview" title="${escapeHtml(s.extracted_content || '')}">${escapeHtml(contentPreview)}</span></td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button class="icon-btn refresh" onclick="refreshWebSource('${s.id}')" title="Aggiorna contenuto">
+                                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                                        </button>
+                                        <button class="icon-btn danger" onclick="deleteWebSource('${s.id}')" title="Elimina">
+                                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b;">Nessuna fonte web. Aggiungi la prima!</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading web sources:', error);
+            }
+        }
+
+        function getStatusBadge(status) {
+            const statuses = {
+                'pending': '<span class="status-indicator"><span class="status-dot pending"></span>In attesa</span>',
+                'processing': '<span class="status-indicator"><span class="status-dot processing"></span>Elaborazione</span>',
+                'completed': '<span class="badge badge-success">Completato</span>',
+                'error': '<span class="badge badge-error">Errore</span>'
+            };
+            return statuses[status] || status;
+        }
+
+        function openWebSourceModal() {
+            document.getElementById('websource-modal').classList.add('active');
+            document.getElementById('websource-name').value = '';
+            document.getElementById('websource-url').value = '';
+            document.getElementById('websource-description').value = '';
+        }
+
+        function closeWebSourceModal() {
+            document.getElementById('websource-modal').classList.remove('active');
+        }
+
+        async function deleteWebSource(id) {
+            if (confirm('Sei sicuro di voler eliminare questa fonte web?')) {
+                try {
+                    await fetch(`${API_URL}/admin/web-sources/${id}`, { method: 'DELETE' });
+                    showToast('Fonte eliminata con successo');
+                    loadWebSources();
+                } catch (error) {
+                    showToast('Errore durante l\'eliminazione', 'error');
+                }
+            }
+        }
+
+        async function refreshWebSource(id) {
+            try {
+                await fetch(`${API_URL}/admin/web-sources/${id}/refresh`, { method: 'POST' });
+                showToast('Aggiornamento avviato...');
+                setTimeout(loadWebSources, 2000);
+            } catch (error) {
+                showToast('Errore durante l\'aggiornamento', 'error');
+            }
+        }
+
+        document.getElementById('websource-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('websource-name').value,
+                url: document.getElementById('websource-url').value,
+                description: document.getElementById('websource-description').value
+            };
+
+            try {
+                await fetch(`${API_URL}/admin/web-sources`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                showToast('Fonte aggiunta! Estrazione contenuto in corso...');
+                closeWebSourceModal();
+                setTimeout(loadWebSources, 2000);
+            } catch (error) {
+                showToast('Errore durante l\'aggiunta', 'error');
+            }
+        });
+
         // Questions
         async function loadQuestions() {
             try {
@@ -890,10 +1126,10 @@
                             <td><span class="badge badge-info">${escapeHtml(q.category)}</span></td>
                             <td>
                                 <div class="action-btns">
-                                    <button class="icon-btn" onclick="editQuestion('${q.id}')">
+                                    <button class="icon-btn" onclick="editQuestion('${q.id}')" title="Modifica">
                                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                                     </button>
-                                    <button class="icon-btn danger" onclick="deleteQuestion('${q.id}')">
+                                    <button class="icon-btn danger" onclick="deleteQuestion('${q.id}')" title="Elimina">
                                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
                                     </button>
                                 </div>
@@ -912,7 +1148,6 @@
             document.getElementById('question-modal').classList.add('active');
             document.getElementById('question-modal-title').textContent = id ? 'Modifica Domanda' : 'Aggiungi Domanda';
             document.getElementById('question-id').value = id || '';
-            
             if (!id) {
                 document.getElementById('question-text').value = '';
                 document.getElementById('question-category').value = 'Servizi';
@@ -1033,6 +1268,7 @@
 
         // Utility
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
