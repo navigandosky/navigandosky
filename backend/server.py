@@ -276,6 +276,155 @@ async def get_contacts():
     contacts = await db.contacts.find({}, {"_id": 0}).to_list(100)
     return contacts
 
+# ============== ADMIN AUTH ==============
+@api_router.post("/admin/login", response_model=AdminLoginResponse)
+async def admin_login(request: AdminLogin):
+    if request.username == ADMIN_USERNAME and request.password == ADMIN_PASSWORD:
+        # Simple token generation (in production use JWT)
+        token = base64.b64encode(f"{request.username}:{datetime.now().isoformat()}".encode()).decode()
+        return AdminLoginResponse(success=True, token=token, message="Login successful")
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+# ============== EVENTS CMS API ==============
+@api_router.get("/events", response_model=List[EventResponse])
+async def get_events(published_only: bool = True):
+    """Get all events, optionally filtered by published status"""
+    query = {"published": True} if published_only else {}
+    events = await db.events.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return events
+
+@api_router.get("/events/{event_id}", response_model=EventResponse)
+async def get_event(event_id: str):
+    """Get a single event by ID"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
+
+@api_router.post("/events", response_model=EventResponse)
+async def create_event(event: EventCreate):
+    """Create a new event"""
+    now = datetime.now(timezone.utc).isoformat()
+    event_doc = {
+        "id": str(uuid.uuid4()),
+        **event.model_dump(),
+        "images": [],
+        "created_at": now,
+        "updated_at": now
+    }
+    await db.events.insert_one(event_doc)
+    del event_doc["_id"] if "_id" in event_doc else None
+    return event_doc
+
+@api_router.put("/events/{event_id}", response_model=EventResponse)
+async def update_event(event_id: str, event: EventUpdate):
+    """Update an existing event"""
+    existing = await db.events.find_one({"id": event_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    update_data = {k: v for k, v in event.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.events.update_one({"id": event_id}, {"$set": update_data})
+    updated = await db.events.find_one({"id": event_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/events/{event_id}")
+async def delete_event(event_id: str):
+    """Delete an event and its images"""
+    event = await db.events.find_one({"id": event_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Delete associated images
+    for img in event.get("images", []):
+        img_path = UPLOADS_DIR / img["url"].split("/")[-1]
+        if img_path.exists():
+            img_path.unlink()
+    
+    await db.events.delete_one({"id": event_id})
+    return {"success": True, "message": "Event deleted"}
+
+@api_router.post("/events/{event_id}/images")
+async def upload_event_image(
+    event_id: str,
+    file: UploadFile = File(...),
+    caption: Optional[str] = Form(None)
+):
+    """Upload an image for an event (max 3 images per event)"""
+    event = await db.events.find_one({"id": event_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    if len(event.get("images", [])) >= 3:
+        raise HTTPException(status_code=400, detail="Maximum 3 images per event")
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF")
+    
+    # Generate unique filename
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4()}.{ext}"
+    filepath = UPLOADS_DIR / filename
+    
+    # Save file
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Add image to event
+    image_data = {
+        "id": str(uuid.uuid4()),
+        "url": f"/uploads/{filename}",
+        "caption": caption
+    }
+    
+    await db.events.update_one(
+        {"id": event_id},
+        {
+            "$push": {"images": image_data},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    
+    return {"success": True, "image": image_data}
+
+@api_router.delete("/events/{event_id}/images/{image_id}")
+async def delete_event_image(event_id: str, image_id: str):
+    """Delete an image from an event"""
+    event = await db.events.find_one({"id": event_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    # Find and delete the image file
+    image_to_delete = None
+    for img in event.get("images", []):
+        if img["id"] == image_id:
+            image_to_delete = img
+            break
+    
+    if not image_to_delete:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Delete file from disk
+    filename = image_to_delete["url"].split("/")[-1]
+    filepath = UPLOADS_DIR / filename
+    if filepath.exists():
+        filepath.unlink()
+    
+    # Remove from database
+    await db.events.update_one(
+        {"id": event_id},
+        {
+            "$pull": {"images": {"id": image_id}},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    
+    return {"success": True, "message": "Image deleted"}
+
 # Include router
 app.include_router(api_router)
 
