@@ -1331,7 +1331,8 @@ const HomePage = ({ lang, setLang, t }) => {
               </div>
             </div>
           </div>
-          <div className="border-t border-stone-800 pt-8 text-center text-stone-500 text-sm">
+          <div className="border-t border-stone-800 pt-8 flex flex-col md:flex-row justify-between items-center text-stone-500 text-sm gap-4">
+            <p className="text-stone-400">Trivor srl - Fairsgate srl ©</p>
             <p>{t.footer}</p>
           </div>
         </div>
