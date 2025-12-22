@@ -219,13 +219,23 @@ const languageNames = {
   de: "Deutsch"
 };
 
+// Flag images using flag-icons CDN
 const languageFlags = {
-  it: "🇮🇹",
-  en: "🇬🇧",
-  fr: "🇫🇷",
-  es: "🇪🇸",
-  de: "🇩🇪"
+  it: "https://flagcdn.com/w40/it.png",
+  en: "https://flagcdn.com/w40/gb.png",
+  fr: "https://flagcdn.com/w40/fr.png",
+  es: "https://flagcdn.com/w40/es.png",
+  de: "https://flagcdn.com/w40/de.png"
 };
+
+// Flag component
+const FlagIcon = ({ code, size = 20 }) => (
+  <img 
+    src={languageFlags[code]} 
+    alt={languageNames[code]}
+    style={{ width: size, height: Math.round(size * 0.67), objectFit: 'cover', borderRadius: 2 }}
+  />
+);
 
 const images = {
   hero: "https://www.visittadasuni.it/wp-content/uploads/2025/11/vista-paese_lago_DJI_0228.jpg",
