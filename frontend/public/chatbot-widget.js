@@ -343,15 +343,42 @@
         right: 16px;
       }
       #${CONFIG.WIDGET_ID} .oac-toggle-btn {
-        bottom: 50%;
-        right: 50%;
-        transform: translate(50%, 50%);
+        top: 30%;
+        left: 50%;
+        transform: translateX(-50%);
         width: 70px;
         height: 70px;
       }
       #${CONFIG.WIDGET_ID} .oac-toggle-btn:hover {
-        transform: translate(50%, 50%) scale(1.1);
+        transform: translateX(-50%) scale(1.1);
       }
+    }
+
+    /* Trivor logo - fixed bottom left, minimum size */
+    #${CONFIG.WIDGET_ID} .oac-powered {
+      position: fixed;
+      bottom: 8px;
+      left: 8px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 6px;
+      font-size: 7px;
+      color: #c0c0c0;
+      background: rgba(255,255,255,0.8);
+      border-radius: 3px;
+      z-index: ${CONFIG.Z_INDEX - 1};
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-powered img {
+      width: 8px;
+      height: 8px;
+      object-fit: contain;
+      opacity: 0.6;
+    }
+
+    #${CONFIG.WIDGET_ID} .oac-powered span {
+      opacity: 0.6;
     }
   `;
 
