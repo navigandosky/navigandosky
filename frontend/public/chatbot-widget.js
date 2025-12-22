@@ -67,8 +67,8 @@
     }
 
     #${CONFIG.WIDGET_ID} .oac-toggle-btn svg {
-      width: 28px;
-      height: 28px;
+      width: 36px;
+      height: 36px;
       fill: white;
     }
 
