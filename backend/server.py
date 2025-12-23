@@ -591,6 +591,283 @@ async def delete_event_image(event_id: str, image_id: str):
     
     return {"success": True, "message": "Image deleted"}
 
+# ============== ATTRACTIONS CMS API ==============
+
+def extract_coordinates_from_google_maps_link(link: str) -> tuple:
+    """Extract latitude and longitude from a Google Maps link"""
+    import re
+    
+    if not link:
+        return None, None
+    
+    # Pattern for various Google Maps URL formats
+    patterns = [
+        r'@(-?\d+\.\d+),(-?\d+\.\d+)',  # @lat,lng format
+        r'll=(-?\d+\.\d+),(-?\d+\.\d+)',  # ll=lat,lng format
+        r'q=(-?\d+\.\d+),(-?\d+\.\d+)',  # q=lat,lng format
+        r'/place/[^/]+/@(-?\d+\.\d+),(-?\d+\.\d+)',  # /place/@lat,lng format
+        r'!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)',  # !3d lat !4d lng format
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, link)
+        if match:
+            lat, lng = match.groups()
+            return float(lat), float(lng)
+    
+    return None, None
+
+@api_router.get("/attractions", response_model=List[AttractionResponse])
+async def get_attractions(published_only: bool = True):
+    """Get all attractions"""
+    query = {"published": True} if published_only else {}
+    attractions = await db.attractions.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return attractions
+
+@api_router.get("/attractions/{attraction_id}", response_model=AttractionResponse)
+async def get_attraction(attraction_id: str):
+    """Get a single attraction by ID"""
+    attraction = await db.attractions.find_one({"id": attraction_id}, {"_id": 0})
+    if not attraction:
+        raise HTTPException(status_code=404, detail="Attraction not found")
+    return attraction
+
+@api_router.post("/attractions", response_model=AttractionResponse)
+async def create_attraction(attraction: AttractionCreate):
+    """Create a new attraction"""
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Extract coordinates from Google Maps link if provided
+    lat, lng = extract_coordinates_from_google_maps_link(attraction.google_maps_link)
+    if lat and lng:
+        attraction.latitude = lat
+        attraction.longitude = lng
+    
+    attraction_doc = {
+        "id": str(uuid.uuid4()),
+        **attraction.model_dump(),
+        "images": [],
+        "audio_url": None,
+        "audio_url_en": None,
+        "audio_url_fr": None,
+        "audio_url_es": None,
+        "audio_url_de": None,
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    await db.attractions.insert_one(attraction_doc)
+    if "_id" in attraction_doc:
+        del attraction_doc["_id"]
+    
+    return attraction_doc
+
+@api_router.put("/attractions/{attraction_id}", response_model=AttractionResponse)
+async def update_attraction(attraction_id: str, attraction: AttractionUpdate):
+    """Update an existing attraction"""
+    existing = await db.attractions.find_one({"id": attraction_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Attraction not found")
+    
+    update_data = {k: v for k, v in attraction.model_dump().items() if v is not None}
+    
+    # Extract coordinates from Google Maps link if updated
+    if "google_maps_link" in update_data:
+        lat, lng = extract_coordinates_from_google_maps_link(update_data["google_maps_link"])
+        if lat and lng:
+            update_data["latitude"] = lat
+            update_data["longitude"] = lng
+    
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.attractions.update_one({"id": attraction_id}, {"$set": update_data})
+    updated = await db.attractions.find_one({"id": attraction_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/attractions/{attraction_id}")
+async def delete_attraction(attraction_id: str):
+    """Delete an attraction and its files"""
+    attraction = await db.attractions.find_one({"id": attraction_id})
+    if not attraction:
+        raise HTTPException(status_code=404, detail="Attraction not found")
+    
+    # Delete associated images
+    for img in attraction.get("images", []):
+        filename = img["url"].split("/")[-1]
+        img_path = UPLOADS_DIR / filename
+        if img_path.exists():
+            img_path.unlink()
+    
+    # Delete audio files
+    for lang in ["", "_en", "_fr", "_es", "_de"]:
+        audio_key = f"audio_url{lang}"
+        if attraction.get(audio_key):
+            filename = attraction[audio_key].split("/")[-1]
+            audio_path = AUDIO_DIR / filename
+            if audio_path.exists():
+                audio_path.unlink()
+    
+    await db.attractions.delete_one({"id": attraction_id})
+    return {"success": True, "message": "Attraction deleted"}
+
+@api_router.post("/attractions/{attraction_id}/images")
+async def upload_attraction_image(
+    attraction_id: str,
+    file: UploadFile = File(...),
+    caption: Optional[str] = Form(None)
+):
+    """Upload an image for an attraction (max 3 images)"""
+    attraction = await db.attractions.find_one({"id": attraction_id})
+    if not attraction:
+        raise HTTPException(status_code=404, detail="Attraction not found")
+    
+    if len(attraction.get("images", [])) >= 3:
+        raise HTTPException(status_code=400, detail="Maximum 3 images per attraction")
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF")
+    
+    # Generate unique filename
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    filename = f"attr_{uuid.uuid4()}.{ext}"
+    filepath = UPLOADS_DIR / filename
+    
+    # Save file
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Add image to attraction
+    image_data = {
+        "id": str(uuid.uuid4()),
+        "url": f"/api/uploads/{filename}",
+        "caption": caption
+    }
+    
+    await db.attractions.update_one(
+        {"id": attraction_id},
+        {
+            "$push": {"images": image_data},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    
+    return {"success": True, "image": image_data}
+
+@api_router.delete("/attractions/{attraction_id}/images/{image_id}")
+async def delete_attraction_image(attraction_id: str, image_id: str):
+    """Delete an image from an attraction"""
+    attraction = await db.attractions.find_one({"id": attraction_id})
+    if not attraction:
+        raise HTTPException(status_code=404, detail="Attraction not found")
+    
+    # Find and delete the image file
+    image_to_delete = None
+    for img in attraction.get("images", []):
+        if img["id"] == image_id:
+            image_to_delete = img
+            break
+    
+    if not image_to_delete:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Delete file from disk
+    filename = image_to_delete["url"].split("/")[-1]
+    filepath = UPLOADS_DIR / filename
+    if filepath.exists():
+        filepath.unlink()
+    
+    # Remove from database
+    await db.attractions.update_one(
+        {"id": attraction_id},
+        {
+            "$pull": {"images": {"id": image_id}},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    
+    return {"success": True, "message": "Image deleted"}
+
+@api_router.post("/attractions/{attraction_id}/audio")
+async def upload_attraction_audio(
+    attraction_id: str,
+    file: UploadFile = File(...),
+    language: str = Form("it")
+):
+    """Upload an audio guide for an attraction"""
+    attraction = await db.attractions.find_one({"id": attraction_id})
+    if not attraction:
+        raise HTTPException(status_code=404, detail="Attraction not found")
+    
+    # Validate language
+    valid_languages = ["it", "en", "fr", "es", "de"]
+    if language not in valid_languages:
+        raise HTTPException(status_code=400, detail="Invalid language")
+    
+    # Validate file type
+    allowed_types = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/x-wav"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: MP3, WAV, OGG")
+    
+    # Delete old audio file if exists
+    audio_field = "audio_url" if language == "it" else f"audio_url_{language}"
+    if attraction.get(audio_field):
+        old_filename = attraction[audio_field].split("/")[-1]
+        old_path = AUDIO_DIR / old_filename
+        if old_path.exists():
+            old_path.unlink()
+    
+    # Generate unique filename
+    ext = file.filename.split(".")[-1] if "." in file.filename else "mp3"
+    filename = f"audio_{attraction_id}_{language}_{uuid.uuid4()}.{ext}"
+    filepath = AUDIO_DIR / filename
+    
+    # Save file
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Update attraction
+    await db.attractions.update_one(
+        {"id": attraction_id},
+        {"$set": {
+            audio_field: f"/api/audio/{filename}",
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"success": True, "audio_url": f"/api/audio/{filename}", "language": language}
+
+@api_router.delete("/attractions/{attraction_id}/audio/{language}")
+async def delete_attraction_audio(attraction_id: str, language: str):
+    """Delete an audio guide from an attraction"""
+    attraction = await db.attractions.find_one({"id": attraction_id})
+    if not attraction:
+        raise HTTPException(status_code=404, detail="Attraction not found")
+    
+    audio_field = "audio_url" if language == "it" else f"audio_url_{language}"
+    
+    if attraction.get(audio_field):
+        filename = attraction[audio_field].split("/")[-1]
+        filepath = AUDIO_DIR / filename
+        if filepath.exists():
+            filepath.unlink()
+    
+    await db.attractions.update_one(
+        {"id": attraction_id},
+        {"$set": {
+            audio_field: None,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"success": True, "message": "Audio deleted"}
+
+@api_router.get("/config/maps")
+async def get_maps_config():
+    """Get Google Maps API key for frontend"""
+    return {"api_key": GOOGLE_MAPS_API_KEY}
+
 # ============== CHATBOT ADMIN API ==============
 
 async def scrape_webpage(url: str) -> dict:
