@@ -197,6 +197,84 @@ class ChatbotSettingsUpdate(BaseModel):
     max_tokens: Optional[int] = None
     temperature: Optional[float] = None
 
+# Attraction Models for CMS
+class AttractionCreate(BaseModel):
+    name: str
+    name_en: Optional[str] = None
+    name_fr: Optional[str] = None
+    name_es: Optional[str] = None
+    name_de: Optional[str] = None
+    description: str
+    description_en: Optional[str] = None
+    description_fr: Optional[str] = None
+    description_es: Optional[str] = None
+    description_de: Optional[str] = None
+    category: str = "monumento"
+    google_maps_link: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    opening_hours: Optional[str] = None
+    price: Optional[str] = None
+    contact: Optional[str] = None
+    external_link: Optional[str] = None
+    published: bool = True
+
+class AttractionUpdate(BaseModel):
+    name: Optional[str] = None
+    name_en: Optional[str] = None
+    name_fr: Optional[str] = None
+    name_es: Optional[str] = None
+    name_de: Optional[str] = None
+    description: Optional[str] = None
+    description_en: Optional[str] = None
+    description_fr: Optional[str] = None
+    description_es: Optional[str] = None
+    description_de: Optional[str] = None
+    category: Optional[str] = None
+    google_maps_link: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    opening_hours: Optional[str] = None
+    price: Optional[str] = None
+    contact: Optional[str] = None
+    external_link: Optional[str] = None
+    published: Optional[bool] = None
+
+class AttractionImage(BaseModel):
+    id: str
+    url: str
+    caption: Optional[str] = None
+
+class AttractionResponse(BaseModel):
+    id: str
+    name: str
+    name_en: Optional[str] = None
+    name_fr: Optional[str] = None
+    name_es: Optional[str] = None
+    name_de: Optional[str] = None
+    description: str
+    description_en: Optional[str] = None
+    description_fr: Optional[str] = None
+    description_es: Optional[str] = None
+    description_de: Optional[str] = None
+    category: str
+    google_maps_link: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    opening_hours: Optional[str] = None
+    price: Optional[str] = None
+    contact: Optional[str] = None
+    external_link: Optional[str] = None
+    images: List[AttractionImage] = []
+    audio_url: Optional[str] = None
+    audio_url_en: Optional[str] = None
+    audio_url_fr: Optional[str] = None
+    audio_url_es: Optional[str] = None
+    audio_url_de: Optional[str] = None
+    published: bool = True
+    created_at: str
+    updated_at: str
+
 # Tadasuni knowledge base
 TADASUNI_CONTEXT = """
 Tadasuni è un piccolissimo borgo della Sardegna centrale, situato nella regione storica del Barigadu, in provincia di Oristano.
