@@ -269,6 +269,285 @@ const getLocalizedContent = (item, field, lang) => {
   return item[localizedField] || item[field] || "";
 };
 
+// ============== ATTRACTIONS PAGE (PUBLIC) ==============
+const AttractionsPage = ({ lang, t }) => {
+  const [attractions, setAttractions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedAttraction, setSelectedAttraction] = useState(null);
+  const [mapsApiKey, setMapsApiKey] = useState("");
+  const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    fetchAttractions();
+    fetchMapsConfig();
+  }, []);
+
+  const fetchAttractions = async () => {
+    try {
+      const response = await axios.get(`${API}/attractions?published_only=true`);
+      setAttractions(response.data);
+    } catch (error) {
+      console.error("Error fetching attractions:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMapsConfig = async () => {
+    try {
+      const response = await axios.get(`${API}/config/maps`);
+      setMapsApiKey(response.data.api_key);
+    } catch (error) {
+      console.error("Error fetching maps config:", error);
+    }
+  };
+
+  const getCategoryLabel = (value) => {
+    const cat = attractionCategories.find(c => c.value === value);
+    return cat ? (lang === "en" ? cat.labelEn : cat.label) : value;
+  };
+
+  const filteredAttractions = filter === "all" 
+    ? attractions 
+    : attractions.filter(a => a.category === filter);
+
+  const getAudioUrl = (attr) => {
+    if (lang === "it") return attr.audio_url;
+    return attr[`audio_url_${lang}`] || attr.audio_url;
+  };
+
+  if (selectedAttraction) {
+    const audioUrl = getAudioUrl(selectedAttraction);
+    return (
+      <div className="min-h-screen bg-stone-50 pt-20">
+        <div className="max-w-5xl mx-auto px-4 py-12">
+          <button
+            onClick={() => setSelectedAttraction(null)}
+            className="flex items-center gap-2 text-amber-700 hover:text-amber-800 mb-6"
+          >
+            <ArrowLeft size={20} />
+            {t.backToHome || "Torna indietro"}
+          </button>
+          
+          <article className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            {/* Images Gallery */}
+            {selectedAttraction.images && selectedAttraction.images.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
+                {selectedAttraction.images.map((img, idx) => (
+                  <img
+                    key={img.id}
+                    src={`${BACKEND_URL}${img.url}`}
+                    alt={`${selectedAttraction.name} ${idx + 1}`}
+                    className={`w-full object-cover ${idx === 0 && selectedAttraction.images.length === 1 ? 'h-80 col-span-3' : 'h-64'}`}
+                  />
+                ))}
+              </div>
+            )}
+            
+            <div className="p-8">
+              {/* Category badge */}
+              <span className="inline-block px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium mb-4">
+                {getCategoryLabel(selectedAttraction.category)}
+              </span>
+              
+              <h1 className="text-3xl font-serif font-bold text-stone-800 mb-4">
+                {getLocalizedContent(selectedAttraction, "name", lang)}
+              </h1>
+              
+              {/* Audio Guide */}
+              {audioUrl && (
+                <div className="bg-amber-50 rounded-xl p-4 mb-6">
+                  <p className="text-sm font-medium text-amber-800 mb-2 flex items-center gap-2">
+                    <Volume2 size={18} /> Audio Guida
+                  </p>
+                  <audio src={`${BACKEND_URL}${audioUrl}`} controls className="w-full" />
+                </div>
+              )}
+              
+              {/* Description */}
+              <div className="prose prose-stone max-w-none mb-6">
+                <p className="whitespace-pre-wrap text-stone-600 leading-relaxed">
+                  {getLocalizedContent(selectedAttraction, "description", lang)}
+                </p>
+              </div>
+              
+              {/* Info grid */}
+              <div className="grid md:grid-cols-2 gap-4 mb-6">
+                {selectedAttraction.opening_hours && (
+                  <div className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg">
+                    <Clock size={20} className="text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-stone-800">Orari</p>
+                      <p className="text-stone-600 text-sm">{selectedAttraction.opening_hours}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedAttraction.price && (
+                  <div className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg">
+                    <span className="text-amber-600 text-xl">💰</span>
+                    <div>
+                      <p className="font-medium text-stone-800">Ingresso</p>
+                      <p className="text-stone-600 text-sm">{selectedAttraction.price}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedAttraction.contact && (
+                  <div className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg">
+                    <Mail size={20} className="text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-stone-800">Contatti</p>
+                      <p className="text-stone-600 text-sm">{selectedAttraction.contact}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedAttraction.external_link && (
+                  <div className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg">
+                    <ExternalLink size={20} className="text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-stone-800">Sito Web</p>
+                      <a href={selectedAttraction.external_link} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:underline text-sm">
+                        Visita il sito
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Map */}
+              {selectedAttraction.latitude && selectedAttraction.longitude && mapsApiKey && (
+                <div className="rounded-xl overflow-hidden">
+                  <p className="font-medium text-stone-800 mb-2 flex items-center gap-2">
+                    <MapPin size={18} className="text-amber-600" /> Posizione
+                  </p>
+                  <iframe
+                    title="Location Map"
+                    width="100%"
+                    height="300"
+                    frameBorder="0"
+                    style={{ border: 0, borderRadius: "12px" }}
+                    src={`https://www.google.com/maps/embed/v1/place?key=${mapsApiKey}&q=${selectedAttraction.latitude},${selectedAttraction.longitude}&zoom=16`}
+                    allowFullScreen
+                  />
+                  <a
+                    href={selectedAttraction.google_maps_link || `https://maps.google.com/?q=${selectedAttraction.latitude},${selectedAttraction.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-3 text-amber-700 hover:text-amber-800 font-medium"
+                  >
+                    <Map size={18} /> Apri in Google Maps
+                  </a>
+                </div>
+              )}
+            </div>
+          </article>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-50 pt-20">
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-serif font-bold text-stone-800 mb-4">
+            {lang === "it" ? "Attrazioni" : lang === "en" ? "Attractions" : lang === "fr" ? "Attractions" : lang === "es" ? "Atracciones" : "Attraktionen"}
+          </h1>
+          <p className="text-lg text-stone-600">
+            {lang === "it" ? "Scopri i luoghi più belli di Tadasuni" : lang === "en" ? "Discover the most beautiful places in Tadasuni" : "Scopri i luoghi più belli di Tadasuni"}
+          </p>
+        </div>
+
+        {/* Filter */}
+        <div className="flex flex-wrap justify-center gap-2 mb-8">
+          <button
+            onClick={() => setFilter("all")}
+            className={`px-4 py-2 rounded-full font-medium transition ${filter === "all" ? "bg-amber-600 text-white" : "bg-white text-stone-700 hover:bg-amber-50"}`}
+          >
+            {lang === "it" ? "Tutti" : "All"}
+          </button>
+          {attractionCategories.map(cat => (
+            <button
+              key={cat.value}
+              onClick={() => setFilter(cat.value)}
+              className={`px-4 py-2 rounded-full font-medium transition ${filter === cat.value ? "bg-amber-600 text-white" : "bg-white text-stone-700 hover:bg-amber-50"}`}
+            >
+              {lang === "en" ? cat.labelEn : cat.label}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
+          </div>
+        ) : filteredAttractions.length === 0 ? (
+          <div className="text-center py-12 text-stone-500">
+            <Landmark size={48} className="mx-auto mb-4 opacity-50" />
+            <p>{lang === "it" ? "Nessuna attrazione trovata." : "No attractions found."}</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredAttractions.map((attr) => (
+              <article
+                key={attr.id}
+                onClick={() => setSelectedAttraction(attr)}
+                className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer group"
+              >
+                <div className="h-48 overflow-hidden bg-stone-200">
+                  {attr.images && attr.images.length > 0 ? (
+                    <img
+                      src={`${BACKEND_URL}${attr.images[0].url}`}
+                      alt={attr.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-100 to-amber-200">
+                      <Landmark size={48} className="text-amber-400" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                      {getCategoryLabel(attr.category)}
+                    </span>
+                    {getAudioUrl(attr) && (
+                      <span className="flex items-center gap-1 text-amber-600 text-xs">
+                        <Volume2 size={14} /> Audio
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-xl font-bold text-stone-800 mb-2 line-clamp-1">
+                    {getLocalizedContent(attr, "name", lang)}
+                  </h2>
+                  <p className="text-stone-600 line-clamp-2 text-sm mb-3">
+                    {getLocalizedContent(attr, "description", lang)}
+                  </p>
+                  {attr.latitude && attr.longitude && (
+                    <p className="text-amber-600 text-sm flex items-center gap-1">
+                      <MapPin size={14} /> {lang === "it" ? "Vedi su mappa" : "View on map"}
+                    </p>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <div className="text-center mt-12">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-full font-semibold transition"
+          >
+            <ArrowLeft size={20} />
+            {t.backToHome || "Torna alla Home"}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ============== EVENTS PAGE ==============
 const EventsPage = ({ lang, t }) => {
   const [events, setEvents] = useState([]);
