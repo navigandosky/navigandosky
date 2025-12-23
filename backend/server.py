@@ -458,7 +458,7 @@ async def upload_event_image(
     # Add image to event
     image_data = {
         "id": str(uuid.uuid4()),
-        "url": f"/uploads/{filename}",
+        "url": f"/api/uploads/{filename}",
         "caption": caption
     }
     
