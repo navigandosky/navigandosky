@@ -427,6 +427,598 @@ const EventsPage = ({ lang, t }) => {
   );
 };
 
+// ============== ATTRACTIONS ADMIN PANEL ==============
+const AttractionsAdminPanel = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem("adminToken") || "");
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
+  const [loginError, setLoginError] = useState("");
+  const [attractions, setAttractions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingAttraction, setEditingAttraction] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(null);
+  const [uploadingAudio, setUploadingAudio] = useState(null);
+  const [mapsApiKey, setMapsApiKey] = useState("");
+
+  const emptyAttraction = {
+    name: "", name_en: "", name_fr: "", name_es: "", name_de: "",
+    description: "", description_en: "", description_fr: "", description_es: "", description_de: "",
+    category: "monumento",
+    google_maps_link: "",
+    opening_hours: "",
+    price: "",
+    contact: "",
+    external_link: "",
+    published: true
+  };
+
+  const [formData, setFormData] = useState(emptyAttraction);
+
+  useEffect(() => {
+    if (token) {
+      setIsLoggedIn(true);
+      fetchAttractions();
+      fetchMapsConfig();
+    }
+  }, [token]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+    try {
+      const response = await axios.post(`${API}/admin/login`, loginForm);
+      if (response.data.success) {
+        setToken(response.data.token);
+        localStorage.setItem("adminToken", response.data.token);
+        setIsLoggedIn(true);
+        fetchAttractions();
+        fetchMapsConfig();
+      }
+    } catch (error) {
+      setLoginError("Credenziali non valide");
+    }
+  };
+
+  const handleLogout = () => {
+    setToken("");
+    localStorage.removeItem("adminToken");
+    setIsLoggedIn(false);
+  };
+
+  const fetchAttractions = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/attractions?published_only=false`);
+      setAttractions(response.data);
+    } catch (error) {
+      console.error("Error fetching attractions:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMapsConfig = async () => {
+    try {
+      const response = await axios.get(`${API}/config/maps`);
+      setMapsApiKey(response.data.api_key);
+    } catch (error) {
+      console.error("Error fetching maps config:", error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (editingAttraction) {
+        await axios.put(`${API}/attractions/${editingAttraction.id}`, formData);
+      } else {
+        await axios.post(`${API}/attractions`, formData);
+      }
+      fetchAttractions();
+      setShowForm(false);
+      setEditingAttraction(null);
+      setFormData(emptyAttraction);
+    } catch (error) {
+      console.error("Error saving attraction:", error);
+      alert("Errore nel salvataggio");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Sei sicuro di voler eliminare questa attrazione?")) return;
+    try {
+      await axios.delete(`${API}/attractions/${id}`);
+      fetchAttractions();
+    } catch (error) {
+      alert("Errore nell'eliminazione");
+    }
+  };
+
+  const handleEdit = (attraction) => {
+    setEditingAttraction(attraction);
+    setFormData({
+      name: attraction.name || "",
+      name_en: attraction.name_en || "",
+      name_fr: attraction.name_fr || "",
+      name_es: attraction.name_es || "",
+      name_de: attraction.name_de || "",
+      description: attraction.description || "",
+      description_en: attraction.description_en || "",
+      description_fr: attraction.description_fr || "",
+      description_es: attraction.description_es || "",
+      description_de: attraction.description_de || "",
+      category: attraction.category || "monumento",
+      google_maps_link: attraction.google_maps_link || "",
+      opening_hours: attraction.opening_hours || "",
+      price: attraction.price || "",
+      contact: attraction.contact || "",
+      external_link: attraction.external_link || "",
+      published: attraction.published !== false
+    });
+    setShowForm(true);
+  };
+
+  const handleImageUpload = async (attractionId, file) => {
+    if (!file) return;
+    setUploadingImage(attractionId);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      await axios.post(`${API}/attractions/${attractionId}/images`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      fetchAttractions();
+    } catch (error) {
+      alert(error.response?.data?.detail || "Errore nel caricamento immagine");
+    } finally {
+      setUploadingImage(null);
+    }
+  };
+
+  const handleImageDelete = async (attractionId, imageId) => {
+    if (!window.confirm("Eliminare questa immagine?")) return;
+    try {
+      await axios.delete(`${API}/attractions/${attractionId}/images/${imageId}`);
+      fetchAttractions();
+    } catch (error) {
+      alert("Errore nell'eliminazione");
+    }
+  };
+
+  const handleAudioUpload = async (attractionId, file, language) => {
+    if (!file) return;
+    setUploadingAudio(`${attractionId}-${language}`);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("language", language);
+    try {
+      await axios.post(`${API}/attractions/${attractionId}/audio`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      fetchAttractions();
+    } catch (error) {
+      alert(error.response?.data?.detail || "Errore nel caricamento audio");
+    } finally {
+      setUploadingAudio(null);
+    }
+  };
+
+  const handleAudioDelete = async (attractionId, language) => {
+    if (!window.confirm("Eliminare questo audio?")) return;
+    try {
+      await axios.delete(`${API}/attractions/${attractionId}/audio/${language}`);
+      fetchAttractions();
+    } catch (error) {
+      alert("Errore nell'eliminazione");
+    }
+  };
+
+  const togglePublished = async (attraction) => {
+    try {
+      await axios.put(`${API}/attractions/${attraction.id}`, { published: !attraction.published });
+      fetchAttractions();
+    } catch (error) {
+      alert("Errore nell'aggiornamento");
+    }
+  };
+
+  const getCategoryLabel = (value) => {
+    const cat = attractionCategories.find(c => c.value === value);
+    return cat ? cat.label : value;
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-800 to-orange-900 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+          <div className="text-center mb-6">
+            <Landmark size={48} className="mx-auto text-amber-600 mb-3" />
+            <h1 className="text-2xl font-bold text-gray-800">CMS Attrazioni</h1>
+            <p className="text-gray-500 text-sm">Gestione Punti di Interesse</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <input
+                type="text"
+                value={loginForm.username}
+                onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                required
+              />
+            </div>
+            {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
+            <button type="submit" className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold transition">
+              Accedi
+            </button>
+          </form>
+          <div className="mt-6 text-center">
+            <Link to="/" className="text-amber-600 hover:text-amber-700">← Torna al sito</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Landmark size={28} className="text-amber-600" />
+            <h1 className="text-xl font-bold text-gray-800">CMS Attrazioni</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link to="/" className="text-amber-600 hover:text-amber-700 text-sm">Visualizza Sito</Link>
+            <Link to="/#/admin" className="text-gray-600 hover:text-gray-700 text-sm">CMS Eventi</Link>
+            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm transition">
+              <LogOut size={16} /> Esci
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Actions */}
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-800">Gestione Attrazioni</h2>
+          <button
+            onClick={() => { setEditingAttraction(null); setFormData(emptyAttraction); setShowForm(true); }}
+            className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold transition"
+          >
+            <Plus size={20} /> Nuova Attrazione
+          </button>
+        </div>
+
+        {/* Form Modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8">
+              <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-2xl">
+                <h3 className="text-xl font-bold text-gray-800">
+                  {editingAttraction ? "Modifica Attrazione" : "Nuova Attrazione"}
+                </h3>
+                <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                  <X size={24} />
+                </button>
+              </div>
+              <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                {/* Italian (required) */}
+                <div className="bg-amber-50 rounded-xl p-4">
+                  <h4 className="font-semibold text-amber-800 mb-3">🇮🇹 Italiano (obbligatorio)</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Descrizione *</label>
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        rows={4}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Translations */}
+                <details className="bg-gray-50 rounded-xl p-4">
+                  <summary className="font-semibold text-gray-700 cursor-pointer">🌍 Traduzioni (opzionale)</summary>
+                  <div className="mt-4 space-y-4">
+                    {[
+                      { code: "en", flag: "🇬🇧", label: "English" },
+                      { code: "fr", flag: "🇫🇷", label: "Français" },
+                      { code: "es", flag: "🇪🇸", label: "Español" },
+                      { code: "de", flag: "🇩🇪", label: "Deutsch" }
+                    ].map(lang => (
+                      <div key={lang.code} className="border-l-4 border-gray-300 pl-4">
+                        <h5 className="font-medium text-gray-700 mb-2">{lang.flag} {lang.label}</h5>
+                        <input
+                          type="text"
+                          placeholder="Nome"
+                          value={formData[`name_${lang.code}`]}
+                          onChange={(e) => setFormData({ ...formData, [`name_${lang.code}`]: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
+                        />
+                        <textarea
+                          placeholder="Descrizione"
+                          value={formData[`description_${lang.code}`]}
+                          onChange={(e) => setFormData({ ...formData, [`description_${lang.code}`]: e.target.value })}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </details>
+
+                {/* Category and Maps */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    >
+                      {attractionCategories.map(cat => (
+                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <Map size={16} className="inline mr-1" />
+                      Link Google Maps
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.google_maps_link}
+                      onChange={(e) => setFormData({ ...formData, google_maps_link: e.target.value })}
+                      placeholder="https://maps.google.com/..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Le coordinate verranno estratte automaticamente</p>
+                  </div>
+                </div>
+
+                {/* Additional info */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Orari di Apertura</label>
+                    <input
+                      type="text"
+                      value={formData.opening_hours}
+                      onChange={(e) => setFormData({ ...formData, opening_hours: e.target.value })}
+                      placeholder="es. Lun-Ven 9:00-18:00"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Prezzo/Ingresso</label>
+                    <input
+                      type="text"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      placeholder="es. Gratuito, €5"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contatto</label>
+                    <input
+                      type="text"
+                      value={formData.contact}
+                      onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                      placeholder="es. +39 0783 123456"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Link Esterno</label>
+                    <input
+                      type="url"
+                      value={formData.external_link}
+                      onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
+                      placeholder="https://..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="published"
+                    checked={formData.published}
+                    onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
+                    className="w-5 h-5 rounded text-amber-600"
+                  />
+                  <label htmlFor="published" className="text-gray-700">Pubblica immediatamente</label>
+                </div>
+
+                <div className="flex gap-4 pt-4 border-t">
+                  <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold transition">
+                    Annulla
+                  </button>
+                  <button type="submit" disabled={loading} className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold transition flex items-center justify-center gap-2">
+                    <Save size={20} /> {loading ? "Salvataggio..." : "Salva"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Attractions List */}
+        {loading && attractions.length === 0 ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
+          </div>
+        ) : attractions.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl shadow">
+            <Landmark size={48} className="mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-500">Nessuna attrazione creata. Clicca "Nuova Attrazione" per iniziare.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {attractions.map((attr) => (
+              <div key={attr.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition p-6">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  {/* Images */}
+                  <div className="lg:w-1/4">
+                    <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
+                      <Camera size={16} /> Foto ({attr.images?.length || 0}/3)
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 mb-2">
+                      {attr.images && attr.images.map((img) => (
+                        <div key={img.id} className="relative group">
+                          <img src={`${BACKEND_URL}${img.url}`} alt="" className="w-full h-16 object-cover rounded-lg" />
+                          <button
+                            onClick={() => handleImageDelete(attr.id, img.id)}
+                            className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                      {(!attr.images || attr.images.length < 3) && (
+                        <label className="w-full h-16 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-amber-500 hover:bg-amber-50 transition">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleImageUpload(attr.id, e.target.files[0])}
+                            disabled={uploadingImage === attr.id}
+                          />
+                          {uploadingImage === attr.id ? (
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-amber-500 border-t-transparent"></div>
+                          ) : (
+                            <Upload size={14} className="text-gray-400" />
+                          )}
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Audio section */}
+                    <p className="text-sm font-medium text-gray-700 mb-2 mt-4 flex items-center gap-1">
+                      <Volume2 size={16} /> Audio Guide
+                    </p>
+                    <div className="space-y-1">
+                      {[
+                        { code: "it", flag: "🇮🇹", field: "audio_url" },
+                        { code: "en", flag: "🇬🇧", field: "audio_url_en" },
+                        { code: "fr", flag: "🇫🇷", field: "audio_url_fr" },
+                        { code: "es", flag: "🇪🇸", field: "audio_url_es" },
+                        { code: "de", flag: "🇩🇪", field: "audio_url_de" }
+                      ].map(lang => (
+                        <div key={lang.code} className="flex items-center gap-2">
+                          <span className="text-sm">{lang.flag}</span>
+                          {attr[lang.field] ? (
+                            <div className="flex items-center gap-1 flex-1">
+                              <audio src={`${BACKEND_URL}${attr[lang.field]}`} controls className="h-6 flex-1" style={{maxWidth: "120px"}} />
+                              <button
+                                onClick={() => handleAudioDelete(attr.id, lang.code)}
+                                className="p-1 text-red-500 hover:bg-red-50 rounded"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="flex-1 text-xs text-gray-400 cursor-pointer hover:text-amber-600">
+                              <input
+                                type="file"
+                                accept="audio/*"
+                                className="hidden"
+                                onChange={(e) => handleAudioUpload(attr.id, e.target.files[0], lang.code)}
+                                disabled={uploadingAudio === `${attr.id}-${lang.code}`}
+                              />
+                              {uploadingAudio === `${attr.id}-${lang.code}` ? "Caricamento..." : "+ Carica"}
+                            </label>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="lg:w-3/4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-lg font-bold text-gray-800">{attr.name}</h3>
+                          {!attr.published && <span className="px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded">Bozza</span>}
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">{getCategoryLabel(attr.category)}</span>
+                          {attr.latitude && attr.longitude && (
+                            <a
+                              href={attr.google_maps_link || `https://maps.google.com/?q=${attr.latitude},${attr.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-blue-600 hover:underline"
+                            >
+                              <MapPin size={14} /> Vedi su Maps
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => togglePublished(attr)}
+                          className={`p-2 rounded-lg transition ${attr.published ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                        >
+                          {attr.published ? <Eye size={18} /> : <EyeOff size={18} />}
+                        </button>
+                        <button onClick={() => handleEdit(attr)} className="p-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg transition">
+                          <Edit size={18} />
+                        </button>
+                        <button onClick={() => handleDelete(attr.id)} className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm line-clamp-2 mb-3">{attr.description}</p>
+                    <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+                      {attr.opening_hours && <span>🕐 {attr.opening_hours}</span>}
+                      {attr.price && <span>💰 {attr.price}</span>}
+                      {attr.contact && <span>📞 {attr.contact}</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ============== CHATBOT ADMIN PANEL ==============
 const ChatbotAdminPanel = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
