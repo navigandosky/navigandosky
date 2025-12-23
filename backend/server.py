@@ -744,6 +744,7 @@ app.include_router(api_router)
 # Mount uploads directory under /api prefix for consistency
 api_router_uploads = APIRouter(prefix="/api")
 app.mount("/api/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+app.mount("/api/audio", StaticFiles(directory=str(AUDIO_DIR)), name="audio")
 
 app.add_middleware(
     CORSMiddleware,
