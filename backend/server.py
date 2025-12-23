@@ -36,9 +36,16 @@ ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'tadasuni2025')
 CHATBOT_ADMIN_USERNAME = os.environ.get('CHATBOT_ADMIN_USERNAME', 'chatbotadmin')
 CHATBOT_ADMIN_PASSWORD = os.environ.get('CHATBOT_ADMIN_PASSWORD', 'ChatBot2025$')
 
+# Google Maps API Key
+GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+
 # Create uploads directory
 UPLOADS_DIR = ROOT_DIR / 'uploads'
 UPLOADS_DIR.mkdir(exist_ok=True)
+
+# Create audio uploads directory
+AUDIO_DIR = ROOT_DIR / 'audio'
+AUDIO_DIR.mkdir(exist_ok=True)
 
 # Create the main app
 app = FastAPI()
