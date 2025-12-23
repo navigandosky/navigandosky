@@ -39,11 +39,11 @@ const translations = {
     send: "Invia",
     chatTitle: "Assistente Tadasuni",
     chatPlaceholder: "Scrivi un messaggio...",
-    chatWelcome: "Ciao! Sono l'assistente virtuale di Visit Tadasuni. Come posso aiutarti?",
+    chatWelcome: "Ciao! Sono l'assistente virtuale di VisitTadasuni. Come posso aiutarti?",
     howToReach: "Come Arrivare",
     services: "Servizi",
     gallery: "Galleria",
-    footer: "© 2025 Visit Tadasuni - Comune di Tadasuni",
+    footer: "© 2025 VisitTadasuni - Comune di Tadasuni",
     readMore: "Leggi di più",
     noEvents: "Nessun evento disponibile al momento.",
     backToHome: "Torna alla Home",
@@ -79,11 +79,11 @@ const translations = {
     send: "Send",
     chatTitle: "Tadasuni Assistant",
     chatPlaceholder: "Write a message...",
-    chatWelcome: "Hello! I'm the virtual assistant of Visit Tadasuni. How can I help you?",
+    chatWelcome: "Hello! I'm the virtual assistant of VisitTadasuni. How can I help you?",
     howToReach: "How to Reach",
     services: "Services",
     gallery: "Gallery",
-    footer: "© 2025 Visit Tadasuni - Municipality of Tadasuni",
+    footer: "© 2025 VisitTadasuni - Municipality of Tadasuni",
     readMore: "Read more",
     noEvents: "No events available at the moment.",
     backToHome: "Back to Home",
@@ -119,11 +119,11 @@ const translations = {
     send: "Envoyer",
     chatTitle: "Assistant Tadasuni",
     chatPlaceholder: "Écrivez un message...",
-    chatWelcome: "Bonjour! Je suis l'assistant virtuel de Visit Tadasuni. Comment puis-je vous aider?",
+    chatWelcome: "Bonjour! Je suis l'assistant virtuel de VisitTadasuni. Comment puis-je vous aider?",
     howToReach: "Comment Arriver",
     services: "Services",
     gallery: "Galerie",
-    footer: "© 2025 Visit Tadasuni - Commune de Tadasuni",
+    footer: "© 2025 VisitTadasuni - Commune de Tadasuni",
     readMore: "Lire la suite",
     noEvents: "Aucun événement disponible pour le moment.",
     backToHome: "Retour à l'accueil",
@@ -159,11 +159,11 @@ const translations = {
     send: "Enviar",
     chatTitle: "Asistente Tadasuni",
     chatPlaceholder: "Escribe un mensaje...",
-    chatWelcome: "¡Hola! Soy el asistente virtual de Visit Tadasuni. ¿Cómo puedo ayudarte?",
+    chatWelcome: "¡Hola! Soy el asistente virtual de VisitTadasuni. ¿Cómo puedo ayudarte?",
     howToReach: "Cómo Llegar",
     services: "Servicios",
     gallery: "Galería",
-    footer: "© 2025 Visit Tadasuni - Municipio de Tadasuni",
+    footer: "© 2025 VisitTadasuni - Municipio de Tadasuni",
     readMore: "Leer más",
     noEvents: "No hay eventos disponibles en este momento.",
     backToHome: "Volver al inicio",
@@ -199,11 +199,11 @@ const translations = {
     send: "Senden",
     chatTitle: "Tadasuni Assistent",
     chatPlaceholder: "Nachricht schreiben...",
-    chatWelcome: "Hallo! Ich bin der virtuelle Assistent von Visit Tadasuni. Wie kann ich Ihnen helfen?",
+    chatWelcome: "Hallo! Ich bin der virtuelle Assistent von VisitTadasuni. Wie kann ich Ihnen helfen?",
     howToReach: "Anfahrt",
     services: "Dienstleistungen",
     gallery: "Galerie",
-    footer: "© 2025 Visit Tadasuni - Gemeinde Tadasuni",
+    footer: "© 2025 VisitTadasuni - Gemeinde Tadasuni",
     readMore: "Mehr lesen",
     noEvents: "Derzeit keine Veranstaltungen verfügbar.",
     backToHome: "Zurück zur Startseite",
@@ -1226,7 +1226,7 @@ const AdminPanel = () => {
       {/* Admin Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-stone-800">🏛️ Visit Tadasuni - Admin CMS</h1>
+          <h1 className="text-xl font-bold text-stone-800">🏛️ VisitTadasuni - Admin CMS</h1>
           <div className="flex items-center gap-4">
             <Link to="/" className="text-emerald-600 hover:text-emerald-700 text-sm">
               Visualizza Sito
@@ -1653,8 +1653,8 @@ const HomePage = ({ lang, setLang, t }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center gap-3">
-              <img src={LOGO_URL} alt="Visit Tadasuni" className="h-10 w-10 rounded-full object-cover shadow-sm" />
-              <span className="text-2xl font-serif font-bold text-emerald-800">Visit Tadasuni</span>
+              <img src={LOGO_URL} alt="VisitTadasuni" className="h-10 w-10 rounded-full object-cover shadow-sm" />
+              <span className="text-2xl font-serif font-bold text-emerald-800">VisitTadasuni</span>
             </Link>
             
             <div className="hidden md:flex items-center gap-8">
@@ -1920,8 +1920,8 @@ const HomePage = ({ lang, setLang, t }) => {
           <div className="grid md:grid-cols-3 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <img src={LOGO_URL} alt="Visit Tadasuni" className="h-12 w-12 rounded-full object-cover" />
-                <h3 className="text-xl font-serif font-bold">Visit Tadasuni</h3>
+                <img src={LOGO_URL} alt="VisitTadasuni" className="h-12 w-12 rounded-full object-cover" />
+                <h3 className="text-xl font-serif font-bold">VisitTadasuni</h3>
               </div>
               <p className="text-stone-400">Tra lago, colline e tradizioni</p>
             </div>
