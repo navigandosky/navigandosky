@@ -734,7 +734,9 @@ async def get_chatbot_stats():
 app.include_router(api_router)
 
 # Serve uploaded files
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+# Mount uploads directory under /api prefix for consistency
+api_router_uploads = APIRouter(prefix="/api")
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
