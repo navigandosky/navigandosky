@@ -2609,6 +2609,7 @@ function App() {
         <Route path="/" element={<HomePage lang={lang} setLang={setLang} t={t} />} />
         <Route path="/eventi" element={<EventsPage lang={lang} t={t} />} />
         <Route path="/admin" element={<AdminPanel />} />
+        <Route path="/attrazioni-admin" element={<AttractionsAdminPanel />} />
         <Route path="/chatbot-admin" element={<ChatbotAdminPanel />} />
       </Routes>
     </HashRouter>
