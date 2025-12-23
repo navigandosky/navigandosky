@@ -257,7 +257,7 @@ LANGUAGE_PROMPTS = {
 
 @api_router.get("/")
 async def root():
-    return {"message": "Visit Tadasuni API"}
+    return {"message": "VisitTadasuni API"}
 
 async def build_knowledge_context():
     """Build context from all active sources and custom knowledge"""
@@ -292,7 +292,7 @@ async def chat(request: ChatRequest):
     # Build dynamic knowledge context
     knowledge_context = await build_knowledge_context()
     
-    system_prompt = f"""{custom_system_prompt or 'Sei un assistente virtuale per Visit Tadasuni, il sito turistico del borgo di Tadasuni in Sardegna.'}
+    system_prompt = f"""{custom_system_prompt or 'Sei un assistente virtuale per VisitTadasuni, il sito turistico del borgo di Tadasuni in Sardegna.'}
 
 Usa le seguenti informazioni per rispondere alle domande:
 
@@ -693,12 +693,12 @@ async def get_chatbot_settings():
         # Default settings
         settings = {
             "id": "main",
-            "welcome_message": "Ciao! Sono l'assistente virtuale di Visit Tadasuni. Come posso aiutarti?",
-            "welcome_message_en": "Hello! I'm the virtual assistant of Visit Tadasuni. How can I help you?",
-            "welcome_message_fr": "Bonjour! Je suis l'assistant virtuel de Visit Tadasuni. Comment puis-je vous aider?",
-            "welcome_message_es": "¡Hola! Soy el asistente virtual de Visit Tadasuni. ¿Cómo puedo ayudarte?",
-            "welcome_message_de": "Hallo! Ich bin der virtuelle Assistent von Visit Tadasuni. Wie kann ich Ihnen helfen?",
-            "system_prompt": "Sei un assistente virtuale per Visit Tadasuni, il sito turistico del borgo di Tadasuni in Sardegna.",
+            "welcome_message": "Ciao! Sono l'assistente virtuale di VisitTadasuni. Come posso aiutarti?",
+            "welcome_message_en": "Hello! I'm the virtual assistant of VisitTadasuni. How can I help you?",
+            "welcome_message_fr": "Bonjour! Je suis l'assistant virtuel de VisitTadasuni. Comment puis-je vous aider?",
+            "welcome_message_es": "¡Hola! Soy el asistente virtual de VisitTadasuni. ¿Cómo puedo ayudarte?",
+            "welcome_message_de": "Hallo! Ich bin der virtuelle Assistent von VisitTadasuni. Wie kann ich Ihnen helfen?",
+            "system_prompt": "Sei un assistente virtuale per VisitTadasuni, il sito turistico del borgo di Tadasuni in Sardegna.",
             "bot_name": "Assistente Tadasuni",
             "max_tokens": 500,
             "temperature": 0.7
