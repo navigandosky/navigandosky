@@ -3336,6 +3336,7 @@ const HomePage = ({ lang, setLang, t }) => {
                 <Link to="/attrazioni" className="block text-stone-400 hover:text-white transition">{t.attractions}</Link>
                 <Link to="/eventi" className="block text-stone-400 hover:text-white transition">{t.events}</Link>
                 <Link to="/admin" className="block text-stone-400 hover:text-white transition">{t.admin}</Link>
+                <Link to="/attrazioni-admin" className="block text-stone-400 hover:text-white transition">🏛️ CMS Attrazioni</Link>
               </div>
             </div>
             <div>
