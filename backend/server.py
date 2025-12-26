@@ -367,6 +367,65 @@ class CalendarEvent(BaseModel):
     extendedProps: Dict[str, Any] = {}
 
 
+# ============== PLANIMETRIA MODELS ==============
+
+class PuntoMappa(BaseModel):
+    """Posizione di un elettrodomestico sulla planimetria"""
+    elettrodomestico_id: str
+    x: float  # Percentuale 0-100
+    y: float  # Percentuale 0-100
+    label: Optional[str] = None
+
+
+class PlanimetriaBase(BaseModel):
+    nome: str
+    descrizione: Optional[str] = None
+    piano: Optional[str] = None  # es. "Piano Terra", "Primo Piano"
+
+
+class PlanimetriaCreate(PlanimetriaBase):
+    pass
+
+
+class Planimetria(PlanimetriaBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str = DEFAULT_USER_ID
+    filename: str = ""
+    original_filename: str = ""
+    punti: List[PuntoMappa] = []
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ============== SUGGERIMENTI PROATTIVI MODELS ==============
+
+class TipoSuggerimento(str, Enum):
+    MANUTENZIONE = "manutenzione"
+    GARANZIA = "garanzia"
+    RISPARMIO = "risparmio"
+    SICUREZZA = "sicurezza"
+    SOSTITUZIONE = "sostituzione"
+
+
+class PrioritaSuggerimento(str, Enum):
+    INFO = "info"
+    ATTENZIONE = "attenzione"
+    URGENTE = "urgente"
+
+
+class Suggerimento(BaseModel):
+    id: str
+    tipo: TipoSuggerimento
+    priorita: PrioritaSuggerimento
+    titolo: str
+    messaggio: str
+    elettrodomestico_id: Optional[str] = None
+    elettrodomestico_nome: Optional[str] = None
+    azione_suggerita: Optional[str] = None
+    link_azione: Optional[str] = None
+
+
 # ============== HELPER FUNCTIONS ==============
 
 def serialize_datetime(obj):
