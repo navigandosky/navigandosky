@@ -1,52 +1,1614 @@
-import { useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import axios from "axios";
+import { Toaster, toast } from "sonner";
+import {
+  Building2,
+  Zap,
+  Wrench,
+  Users,
+  Home,
+  Plus,
+  Pencil,
+  Trash2,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Euro,
+  Plug,
+  Power,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Settings,
+  BarChart3,
+  Search,
+  Filter,
+  Eye
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
+// Categories and Enums
+const CATEGORIE_ELETTRODOMESTICI = [
+  { value: "cucina", label: "Cucina", icon: "🍳" },
+  { value: "lavanderia", label: "Lavanderia", icon: "🧺" },
+  { value: "climatizzazione", label: "Climatizzazione", icon: "❄️" },
+  { value: "intrattenimento", label: "Intrattenimento", icon: "📺" },
+  { value: "illuminazione", label: "Illuminazione", icon: "💡" },
+  { value: "pulizia", label: "Pulizia", icon: "🧹" },
+  { value: "sicurezza", label: "Sicurezza", icon: "🔒" },
+  { value: "altro", label: "Altro", icon: "📦" },
+];
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
+const SMART_PLUG_PROVIDERS = [
+  { value: "nessuno", label: "Nessuno" },
+  { value: "smartthings", label: "SmartThings" },
+  { value: "tuya", label: "Tuya" },
+  { value: "shelly", label: "Shelly" },
+  { value: "tapo", label: "TP-Link Tapo" },
+  { value: "meross", label: "Meross" },
+  { value: "altro", label: "Altro" },
+];
 
+const STATI_MANUTENZIONE = [
+  { value: "pianificata", label: "Pianificata", color: "bg-blue-500" },
+  { value: "in_corso", label: "In Corso", color: "bg-yellow-500" },
+  { value: "completata", label: "Completata", color: "bg-green-500" },
+  { value: "annullata", label: "Annullata", color: "bg-gray-500" },
+];
+
+const TIPI_MANUTENZIONE = [
+  { value: "ordinaria", label: "Ordinaria" },
+  { value: "straordinaria", label: "Straordinaria" },
+  { value: "riparazione", label: "Riparazione" },
+  { value: "controllo", label: "Controllo" },
+  { value: "pulizia", label: "Pulizia" },
+  { value: "sostituzione", label: "Sostituzione" },
+];
+
+// Matterport Viewer Component
+const MatterportViewer = ({ spaceId }) => {
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
+    <div className="w-full h-[600px] rounded-lg overflow-hidden border border-gray-200 shadow-lg">
+      <iframe
+        title="Matterport Viewer"
+        src={`https://my.matterport.com/show/?m=${spaceId}&play=1`}
+        width="100%"
+        height="100%"
+        frameBorder="0"
+        allow="xr-spatial-tracking"
+        allowFullScreen
+      />
     </div>
   );
 };
 
-function App() {
+// Dashboard Component
+const Dashboard = ({ stats, consumiPerCategoria }) => {
+  if (!stats) return null;
+
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+    <div className="space-y-6" data-testid="dashboard">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium opacity-90">Consumo Mensile</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.consumi?.consumo_mensile_kw || 0} kWh</div>
+            <p className="text-xs opacity-75">~€{stats.consumi?.costo_stimato_mensile_euro || 0}/mese</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium opacity-90">Elettrodomestici</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.consumi?.numero_elettrodomestici || 0}</div>
+            <p className="text-xs opacity-75">{stats.elettrodomestici_in_garanzia || 0} in garanzia</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium opacity-90">Manutenzioni</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.manutenzioni_pianificate || 0}</div>
+            <p className="text-xs opacity-75">{stats.manutenzioni_in_scadenza || 0} in scadenza</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium opacity-90">Costo Annuale</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">€{stats.consumi?.costo_stimato_annuale_euro || 0}</div>
+            <p className="text-xs opacity-75">{stats.consumi?.consumo_annuale_kw || 0} kWh/anno</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Consumi per Categoria */}
+      {consumiPerCategoria && consumiPerCategoria.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Consumi per Categoria
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {consumiPerCategoria.map((cat) => {
+                const catInfo = CATEGORIE_ELETTRODOMESTICI.find(c => c.value === cat.categoria);
+                const maxConsumo = Math.max(...consumiPerCategoria.map(c => c.consumo_mensile_kw));
+                const percentage = maxConsumo > 0 ? (cat.consumo_mensile_kw / maxConsumo) * 100 : 0;
+                
+                return (
+                  <div key={cat.categoria} className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span>{catInfo?.icon} {catInfo?.label || cat.categoria}</span>
+                      <span className="font-medium">{cat.consumo_mensile_kw} kWh/mese</span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">{cat.numero_elettrodomestici} elettrodomestici</p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// Centro Assistenza Form Dialog
+const CentroAssistenzaDialog = ({ open, onOpenChange, centro, onSave }) => {
+  const [formData, setFormData] = useState({
+    nome_azienda: "",
+    referente: "",
+    telefono: "",
+    email: "",
+    indirizzo: "",
+    specializzazioni: [],
+    note: "",
+  });
+  const [specializzazioneInput, setSpecializzazioneInput] = useState("");
+
+  useEffect(() => {
+    if (centro) {
+      setFormData(centro);
+    } else {
+      setFormData({
+        nome_azienda: "",
+        referente: "",
+        telefono: "",
+        email: "",
+        indirizzo: "",
+        specializzazioni: [],
+        note: "",
+      });
+    }
+  }, [centro]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  const addSpecializzazione = () => {
+    if (specializzazioneInput.trim()) {
+      setFormData({
+        ...formData,
+        specializzazioni: [...formData.specializzazioni, specializzazioneInput.trim()],
+      });
+      setSpecializzazioneInput("");
+    }
+  };
+
+  const removeSpecializzazione = (index) => {
+    setFormData({
+      ...formData,
+      specializzazioni: formData.specializzazioni.filter((_, i) => i !== index),
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {centro ? "Modifica Centro Assistenza" : "Nuovo Centro Assistenza"}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="nome_azienda">Nome Azienda *</Label>
+            <Input
+              id="nome_azienda"
+              value={formData.nome_azienda}
+              onChange={(e) => setFormData({ ...formData, nome_azienda: e.target.value })}
+              required
+              data-testid="centro-nome-input"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="referente">Referente</Label>
+              <Input
+                id="referente"
+                value={formData.referente || ""}
+                onChange={(e) => setFormData({ ...formData, referente: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="telefono">Telefono *</Label>
+              <Input
+                id="telefono"
+                value={formData.telefono}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                required
+                data-testid="centro-telefono-input"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email || ""}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="indirizzo">Indirizzo</Label>
+            <Input
+              id="indirizzo"
+              value={formData.indirizzo || ""}
+              onChange={(e) => setFormData({ ...formData, indirizzo: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Specializzazioni</Label>
+            <div className="flex gap-2">
+              <Input
+                value={specializzazioneInput}
+                onChange={(e) => setSpecializzazioneInput(e.target.value)}
+                placeholder="Aggiungi specializzazione"
+                onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addSpecializzazione())}
+              />
+              <Button type="button" variant="outline" onClick={addSpecializzazione}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {formData.specializzazioni.map((spec, index) => (
+                <Badge key={index} variant="secondary" className="gap-1">
+                  {spec}
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => removeSpecializzazione(index)}
+                  />
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="note">Note</Label>
+            <Textarea
+              id="note"
+              value={formData.note || ""}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+              rows={3}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annulla
+            </Button>
+            <Button type="submit" data-testid="centro-save-btn">
+              {centro ? "Salva Modifiche" : "Crea Centro"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Elettrodomestico Form Dialog
+const ElettrodomesticoDialog = ({ open, onOpenChange, elettrodomestico, centriAssistenza, onSave }) => {
+  const [formData, setFormData] = useState({
+    nome: "",
+    marca: "",
+    modello: "",
+    numero_serie: "",
+    categoria: "altro",
+    posizione: "",
+    data_acquisto: "",
+    data_scadenza_garanzia: "",
+    consumo_orario_kw: 0,
+    ore_uso_giornaliero_stimate: 0,
+    smart_plug_provider: "nessuno",
+    smart_plug_id: "",
+    centro_assistenza_id: "",
+    note: "",
+  });
+
+  useEffect(() => {
+    if (elettrodomestico) {
+      setFormData({
+        ...elettrodomestico,
+        centro_assistenza_id: elettrodomestico.centro_assistenza_id || "",
+      });
+    } else {
+      setFormData({
+        nome: "",
+        marca: "",
+        modello: "",
+        numero_serie: "",
+        categoria: "altro",
+        posizione: "",
+        data_acquisto: "",
+        data_scadenza_garanzia: "",
+        consumo_orario_kw: 0,
+        ore_uso_giornaliero_stimate: 0,
+        smart_plug_provider: "nessuno",
+        smart_plug_id: "",
+        centro_assistenza_id: "",
+        note: "",
+      });
+    }
+  }, [elettrodomestico]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const dataToSave = {
+      ...formData,
+      centro_assistenza_id: formData.centro_assistenza_id || null,
+    };
+    onSave(dataToSave);
+  };
+
+  const consumoGiornaliero = formData.consumo_orario_kw * formData.ore_uso_giornaliero_stimate;
+  const consumoMensile = consumoGiornaliero * 30;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {elettrodomestico ? "Modifica Elettrodomestico" : "Nuovo Elettrodomestico"}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Tabs defaultValue="info" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="info">Info</TabsTrigger>
+              <TabsTrigger value="consumi">Consumi</TabsTrigger>
+              <TabsTrigger value="smart">Smart</TabsTrigger>
+              <TabsTrigger value="assistenza">Assistenza</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="info" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome *</Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                    required
+                    data-testid="elettro-nome-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="categoria">Categoria</Label>
+                  <Select
+                    value={formData.categoria}
+                    onValueChange={(value) => setFormData({ ...formData, categoria: value })}
+                  >
+                    <SelectTrigger data-testid="elettro-categoria-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIE_ELETTRODOMESTICI.map((cat) => (
+                        <SelectItem key={cat.value} value={cat.value}>
+                          {cat.icon} {cat.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="marca">Marca</Label>
+                  <Input
+                    id="marca"
+                    value={formData.marca || ""}
+                    onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="modello">Modello</Label>
+                  <Input
+                    id="modello"
+                    value={formData.modello || ""}
+                    onChange={(e) => setFormData({ ...formData, modello: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="numero_serie">Numero Serie</Label>
+                  <Input
+                    id="numero_serie"
+                    value={formData.numero_serie || ""}
+                    onChange={(e) => setFormData({ ...formData, numero_serie: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="posizione">Posizione</Label>
+                  <Input
+                    id="posizione"
+                    value={formData.posizione || ""}
+                    onChange={(e) => setFormData({ ...formData, posizione: e.target.value })}
+                    placeholder="es. Cucina, Bagno piano 1..."
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="data_acquisto">Data Acquisto</Label>
+                  <Input
+                    id="data_acquisto"
+                    type="date"
+                    value={formData.data_acquisto || ""}
+                    onChange={(e) => setFormData({ ...formData, data_acquisto: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="data_scadenza_garanzia">Scadenza Garanzia</Label>
+                  <Input
+                    id="data_scadenza_garanzia"
+                    type="date"
+                    value={formData.data_scadenza_garanzia || ""}
+                    onChange={(e) => setFormData({ ...formData, data_scadenza_garanzia: e.target.value })}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="consumi" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="consumo_orario_kw">Consumo Orario (kW)</Label>
+                  <Input
+                    id="consumo_orario_kw"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.consumo_orario_kw}
+                    onChange={(e) => setFormData({ ...formData, consumo_orario_kw: parseFloat(e.target.value) || 0 })}
+                    data-testid="elettro-consumo-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ore_uso_giornaliero_stimate">Ore Uso/Giorno Stimate</Label>
+                  <Input
+                    id="ore_uso_giornaliero_stimate"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="24"
+                    value={formData.ore_uso_giornaliero_stimate}
+                    onChange={(e) => setFormData({ ...formData, ore_uso_giornaliero_stimate: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+
+              <Card className="bg-blue-50">
+                <CardContent className="pt-4">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" /> Consumi Stimati
+                  </h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500">Giornaliero</p>
+                      <p className="font-bold">{consumoGiornaliero.toFixed(2)} kWh</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Mensile</p>
+                      <p className="font-bold">{consumoMensile.toFixed(2)} kWh</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Costo/Mese</p>
+                      <p className="font-bold">€{(consumoMensile * 0.25).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="smart" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="smart_plug_provider">Provider Smart Plug</Label>
+                <Select
+                  value={formData.smart_plug_provider}
+                  onValueChange={(value) => setFormData({ ...formData, smart_plug_provider: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SMART_PLUG_PROVIDERS.map((provider) => (
+                      <SelectItem key={provider.value} value={provider.value}>
+                        {provider.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.smart_plug_provider !== "nessuno" && (
+                <div className="space-y-2">
+                  <Label htmlFor="smart_plug_id">ID Dispositivo Smart</Label>
+                  <Input
+                    id="smart_plug_id"
+                    value={formData.smart_plug_id || ""}
+                    onChange={(e) => setFormData({ ...formData, smart_plug_id: e.target.value })}
+                    placeholder="ID del dispositivo dalla piattaforma smart home"
+                    data-testid="elettro-smartplug-input"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Inserisci l'ID del dispositivo per monitorare lo stato e i consumi in tempo reale
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="assistenza" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="centro_assistenza_id">Centro Assistenza</Label>
+                <Select
+                  value={formData.centro_assistenza_id || "none"}
+                  onValueChange={(value) => setFormData({ ...formData, centro_assistenza_id: value === "none" ? "" : value })}
+                >
+                  <SelectTrigger data-testid="elettro-centro-select">
+                    <SelectValue placeholder="Seleziona centro assistenza" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nessuno</SelectItem>
+                    {centriAssistenza.map((centro) => (
+                      <SelectItem key={centro.id} value={centro.id}>
+                        {centro.nome_azienda} - {centro.telefono}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="note">Note</Label>
+                <Textarea
+                  id="note"
+                  value={formData.note || ""}
+                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annulla
+            </Button>
+            <Button type="submit" data-testid="elettro-save-btn">
+              {elettrodomestico ? "Salva Modifiche" : "Crea Elettrodomestico"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Manutenzione Form Dialog
+const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici, centriAssistenza, onSave }) => {
+  const [formData, setFormData] = useState({
+    elettrodomestico_id: "",
+    tipo: "ordinaria",
+    descrizione: "",
+    data_programmata: "",
+    data_completamento: "",
+    stato: "pianificata",
+    costo: null,
+    usa_centro_assistenza_elettrodomestico: true,
+    centro_assistenza_id: "",
+    ricorrente: false,
+    frequenza_giorni: null,
+    note: "",
+  });
+
+  useEffect(() => {
+    if (manutenzione) {
+      setFormData({
+        ...manutenzione,
+        elettrodomestico_id: manutenzione.elettrodomestico_id || "",
+        centro_assistenza_id: manutenzione.centro_assistenza_id || "",
+        costo: manutenzione.costo || null,
+        frequenza_giorni: manutenzione.frequenza_giorni || null,
+      });
+    } else {
+      setFormData({
+        elettrodomestico_id: "",
+        tipo: "ordinaria",
+        descrizione: "",
+        data_programmata: "",
+        data_completamento: "",
+        stato: "pianificata",
+        costo: null,
+        usa_centro_assistenza_elettrodomestico: true,
+        centro_assistenza_id: "",
+        ricorrente: false,
+        frequenza_giorni: null,
+        note: "",
+      });
+    }
+  }, [manutenzione]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const dataToSave = {
+      ...formData,
+      elettrodomestico_id: formData.elettrodomestico_id || null,
+      centro_assistenza_id: formData.centro_assistenza_id || null,
+    };
+    onSave(dataToSave);
+  };
+
+  const selectedElettrodomestico = elettrodomestici.find(e => e.id === formData.elettrodomestico_id);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {manutenzione ? "Modifica Manutenzione" : "Nuova Manutenzione"}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="elettrodomestico_id">Elettrodomestico</Label>
+            <Select
+              value={formData.elettrodomestico_id || "none"}
+              onValueChange={(value) => setFormData({ ...formData, elettrodomestico_id: value === "none" ? "" : value })}
+            >
+              <SelectTrigger data-testid="manut-elettro-select">
+                <SelectValue placeholder="Seleziona elettrodomestico" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nessuno (manutenzione generale)</SelectItem>
+                {elettrodomestici.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.nome} - {e.posizione || "N/D"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="tipo">Tipo</Label>
+              <Select
+                value={formData.tipo}
+                onValueChange={(value) => setFormData({ ...formData, tipo: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPI_MANUTENZIONE.map((tipo) => (
+                    <SelectItem key={tipo.value} value={tipo.value}>
+                      {tipo.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stato">Stato</Label>
+              <Select
+                value={formData.stato}
+                onValueChange={(value) => setFormData({ ...formData, stato: value })}
+              >
+                <SelectTrigger data-testid="manut-stato-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATI_MANUTENZIONE.map((stato) => (
+                    <SelectItem key={stato.value} value={stato.value}>
+                      {stato.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="descrizione">Descrizione *</Label>
+            <Textarea
+              id="descrizione"
+              value={formData.descrizione}
+              onChange={(e) => setFormData({ ...formData, descrizione: e.target.value })}
+              required
+              rows={3}
+              data-testid="manut-descrizione-input"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="data_programmata">Data Programmata</Label>
+              <Input
+                id="data_programmata"
+                type="date"
+                value={formData.data_programmata || ""}
+                onChange={(e) => setFormData({ ...formData, data_programmata: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="data_completamento">Data Completamento</Label>
+              <Input
+                id="data_completamento"
+                type="date"
+                value={formData.data_completamento || ""}
+                onChange={(e) => setFormData({ ...formData, data_completamento: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="costo">Costo (€)</Label>
+            <Input
+              id="costo"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.costo || ""}
+              onChange={(e) => setFormData({ ...formData, costo: e.target.value ? parseFloat(e.target.value) : null })}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h4 className="font-medium">Centro Assistenza</h4>
+            
+            {selectedElettrodomestico?.centro_assistenza_id && (
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="usa_centro_assistenza_elettrodomestico"
+                  checked={formData.usa_centro_assistenza_elettrodomestico}
+                  onCheckedChange={(checked) => setFormData({ ...formData, usa_centro_assistenza_elettrodomestico: checked })}
+                />
+                <Label htmlFor="usa_centro_assistenza_elettrodomestico">
+                  Usa centro assistenza dell'elettrodomestico
+                </Label>
+              </div>
+            )}
+
+            {(!formData.usa_centro_assistenza_elettrodomestico || !selectedElettrodomestico?.centro_assistenza_id) && (
+              <div className="space-y-2">
+                <Label htmlFor="centro_assistenza_id">Seleziona Centro Assistenza</Label>
+                <Select
+                  value={formData.centro_assistenza_id || "none"}
+                  onValueChange={(value) => setFormData({ ...formData, centro_assistenza_id: value === "none" ? "" : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona centro assistenza" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nessuno</SelectItem>
+                    {centriAssistenza.map((centro) => (
+                      <SelectItem key={centro.id} value={centro.id}>
+                        {centro.nome_azienda} - {centro.telefono}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="ricorrente"
+                checked={formData.ricorrente}
+                onCheckedChange={(checked) => setFormData({ ...formData, ricorrente: checked })}
+              />
+              <Label htmlFor="ricorrente">Manutenzione ricorrente</Label>
+            </div>
+
+            {formData.ricorrente && (
+              <div className="space-y-2">
+                <Label htmlFor="frequenza_giorni">Frequenza (giorni)</Label>
+                <Input
+                  id="frequenza_giorni"
+                  type="number"
+                  min="1"
+                  value={formData.frequenza_giorni || ""}
+                  onChange={(e) => setFormData({ ...formData, frequenza_giorni: e.target.value ? parseInt(e.target.value) : null })}
+                  placeholder="es. 30, 90, 365..."
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="note">Note</Label>
+            <Textarea
+              id="note"
+              value={formData.note || ""}
+              onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+              rows={2}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annulla
+            </Button>
+            <Button type="submit" data-testid="manut-save-btn">
+              {manutenzione ? "Salva Modifiche" : "Crea Manutenzione"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Main App Component
+function App() {
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [config, setConfig] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [consumiPerCategoria, setConsumiPerCategoria] = useState([]);
+  
+  // Data states
+  const [elettrodomestici, setElettrodomestici] = useState([]);
+  const [manutenzioni, setManutenzioni] = useState([]);
+  const [centriAssistenza, setCentriAssistenza] = useState([]);
+  
+  // Dialog states
+  const [centroDialogOpen, setCentroDialogOpen] = useState(false);
+  const [editingCentro, setEditingCentro] = useState(null);
+  const [elettroDialogOpen, setElettroDialogOpen] = useState(false);
+  const [editingElettro, setEditingElettro] = useState(null);
+  const [manutDialogOpen, setManutDialogOpen] = useState(false);
+  const [editingManut, setEditingManut] = useState(null);
+  
+  // Filter states
+  const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroStatoManut, setFiltroStatoManut] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Load data functions
+  const loadConfig = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/config`);
+      setConfig(response.data);
+    } catch (error) {
+      console.error("Error loading config:", error);
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const [statsRes, consumiRes] = await Promise.all([
+        axios.get(`${API}/dashboard/stats`),
+        axios.get(`${API}/dashboard/consumi-per-categoria`),
+      ]);
+      setStats(statsRes.data);
+      setConsumiPerCategoria(consumiRes.data);
+    } catch (error) {
+      console.error("Error loading stats:", error);
+    }
+  }, []);
+
+  const loadCentriAssistenza = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/centri-assistenza`);
+      setCentriAssistenza(response.data);
+    } catch (error) {
+      console.error("Error loading centri assistenza:", error);
+    }
+  }, []);
+
+  const loadElettrodomestici = useCallback(async () => {
+    try {
+      const params = filtroCategoria ? { categoria: filtroCategoria } : {};
+      const response = await axios.get(`${API}/elettrodomestici`, { params });
+      setElettrodomestici(response.data);
+    } catch (error) {
+      console.error("Error loading elettrodomestici:", error);
+    }
+  }, [filtroCategoria]);
+
+  const loadManutenzioni = useCallback(async () => {
+    try {
+      const params = filtroStatoManut ? { stato: filtroStatoManut } : {};
+      const response = await axios.get(`${API}/manutenzioni`, { params });
+      setManutenzioni(response.data);
+    } catch (error) {
+      console.error("Error loading manutenzioni:", error);
+    }
+  }, [filtroStatoManut]);
+
+  // Initial load
+  useEffect(() => {
+    loadConfig();
+    loadCentriAssistenza();
+  }, [loadConfig, loadCentriAssistenza]);
+
+  // Load data based on active tab
+  useEffect(() => {
+    if (activeTab === "dashboard") {
+      loadStats();
+    } else if (activeTab === "elettrodomestici") {
+      loadElettrodomestici();
+    } else if (activeTab === "manutenzioni") {
+      loadManutenzioni();
+      loadElettrodomestici();
+    }
+  }, [activeTab, loadStats, loadElettrodomestici, loadManutenzioni]);
+
+  // CRUD handlers for Centri Assistenza
+  const handleSaveCentro = async (data) => {
+    try {
+      if (editingCentro) {
+        await axios.put(`${API}/centri-assistenza/${editingCentro.id}`, data);
+        toast.success("Centro assistenza aggiornato");
+      } else {
+        await axios.post(`${API}/centri-assistenza`, data);
+        toast.success("Centro assistenza creato");
+      }
+      setCentroDialogOpen(false);
+      setEditingCentro(null);
+      loadCentriAssistenza();
+    } catch (error) {
+      toast.error("Errore nel salvataggio");
+      console.error(error);
+    }
+  };
+
+  const handleDeleteCentro = async (id) => {
+    if (window.confirm("Sei sicuro di voler eliminare questo centro assistenza?")) {
+      try {
+        await axios.delete(`${API}/centri-assistenza/${id}`);
+        toast.success("Centro assistenza eliminato");
+        loadCentriAssistenza();
+      } catch (error) {
+        toast.error("Errore nell'eliminazione");
+        console.error(error);
+      }
+    }
+  };
+
+  // CRUD handlers for Elettrodomestici
+  const handleSaveElettro = async (data) => {
+    try {
+      if (editingElettro) {
+        await axios.put(`${API}/elettrodomestici/${editingElettro.id}`, data);
+        toast.success("Elettrodomestico aggiornato");
+      } else {
+        await axios.post(`${API}/elettrodomestici`, data);
+        toast.success("Elettrodomestico creato");
+      }
+      setElettroDialogOpen(false);
+      setEditingElettro(null);
+      loadElettrodomestici();
+      loadStats();
+    } catch (error) {
+      toast.error("Errore nel salvataggio");
+      console.error(error);
+    }
+  };
+
+  const handleDeleteElettro = async (id) => {
+    if (window.confirm("Sei sicuro di voler eliminare questo elettrodomestico?")) {
+      try {
+        await axios.delete(`${API}/elettrodomestici/${id}`);
+        toast.success("Elettrodomestico eliminato");
+        loadElettrodomestici();
+        loadStats();
+      } catch (error) {
+        toast.error("Errore nell'eliminazione");
+        console.error(error);
+      }
+    }
+  };
+
+  // CRUD handlers for Manutenzioni
+  const handleSaveManut = async (data) => {
+    try {
+      if (editingManut) {
+        await axios.put(`${API}/manutenzioni/${editingManut.id}`, data);
+        toast.success("Manutenzione aggiornata");
+      } else {
+        await axios.post(`${API}/manutenzioni`, data);
+        toast.success("Manutenzione creata");
+      }
+      setManutDialogOpen(false);
+      setEditingManut(null);
+      loadManutenzioni();
+      loadStats();
+    } catch (error) {
+      toast.error("Errore nel salvataggio");
+      console.error(error);
+    }
+  };
+
+  const handleDeleteManut = async (id) => {
+    if (window.confirm("Sei sicuro di voler eliminare questa manutenzione?")) {
+      try {
+        await axios.delete(`${API}/manutenzioni/${id}`);
+        toast.success("Manutenzione eliminata");
+        loadManutenzioni();
+        loadStats();
+      } catch (error) {
+        toast.error("Errore nell'eliminazione");
+        console.error(error);
+      }
+    }
+  };
+
+  // Filter elettrodomestici by search
+  const filteredElettrodomestici = elettrodomestici.filter(e => 
+    !searchTerm || 
+    e.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.marca?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    e.posizione?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" richColors />
+      
+      {/* Header */}
+      <header className="bg-white border-b shadow-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Building2 className="h-8 w-8 text-blue-600" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">SmartBuilding</h1>
+                <p className="text-xs text-gray-500">Gestione Immobili Intelligente</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation */}
+      <nav className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex gap-1 overflow-x-auto">
+            {[
+              { id: "dashboard", label: "Dashboard", icon: Home },
+              { id: "matterport", label: "Vista 3D", icon: Eye },
+              { id: "elettrodomestici", label: "Elettrodomestici", icon: Zap },
+              { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
+              { id: "centri", label: "Centri Assistenza", icon: Users },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+                data-testid={`nav-${tab.id}`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Dashboard Tab */}
+        {activeTab === "dashboard" && (
+          <Dashboard stats={stats} consumiPerCategoria={consumiPerCategoria} />
+        )}
+
+        {/* Matterport Tab */}
+        {activeTab === "matterport" && config && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Vista 3D Matterport
+                </CardTitle>
+                <CardDescription>
+                  Esplora lo spazio in 3D - Space ID: {config.matterport_space_id}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MatterportViewer spaceId={config.matterport_space_id} />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Elettrodomestici Tab */}
+        {activeTab === "elettrodomestici" && (
+          <div className="space-y-4">
+            {/* Toolbar */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex flex-1 gap-4 items-center">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Cerca elettrodomestici..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                    data-testid="elettro-search"
+                  />
+                </div>
+                <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                  <SelectTrigger className="w-[180px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutte</SelectItem>
+                    {CATEGORIE_ELETTRODOMESTICI.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.icon} {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                onClick={() => {
+                  setEditingElettro(null);
+                  setElettroDialogOpen(true);
+                }}
+                data-testid="add-elettro-btn"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nuovo Elettrodomestico
+              </Button>
+            </div>
+
+            {/* Elettrodomestici Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredElettrodomestici.map((e) => {
+                const catInfo = CATEGORIE_ELETTRODOMESTICI.find(c => c.value === e.categoria);
+                const hasSmartPlug = e.smart_plug_id && e.smart_plug_provider !== "nessuno";
+                
+                return (
+                  <Card key={e.id} className="hover:shadow-md transition-shadow" data-testid={`elettro-card-${e.id}`}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{catInfo?.icon || "📦"}</span>
+                          <div>
+                            <CardTitle className="text-base">{e.nome}</CardTitle>
+                            <CardDescription>{e.marca} {e.modello}</CardDescription>
+                          </div>
+                        </div>
+                        {hasSmartPlug && (
+                          <Badge variant="outline" className="gap-1">
+                            <Plug className="h-3 w-3" />
+                            Smart
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {e.posizione && (
+                        <p className="text-sm text-gray-500 flex items-center gap-1">
+                          <MapPin className="h-3 w-3" /> {e.posizione}
+                        </p>
+                      )}
+                      
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-blue-50 p-2 rounded">
+                          <p className="text-gray-500 text-xs">Consumo/mese</p>
+                          <p className="font-bold text-blue-600">{e.consumo_mensile_kw} kWh</p>
+                        </div>
+                        <div className="bg-green-50 p-2 rounded">
+                          <p className="text-gray-500 text-xs">Costo/mese</p>
+                          <p className="font-bold text-green-600">€{(e.consumo_mensile_kw * 0.25).toFixed(2)}</p>
+                        </div>
+                      </div>
+
+                      {e.centro_assistenza && (
+                        <div className="text-sm bg-gray-50 p-2 rounded">
+                          <p className="text-gray-500 text-xs flex items-center gap-1">
+                            <Users className="h-3 w-3" /> Centro Assistenza
+                          </p>
+                          <p className="font-medium">{e.centro_assistenza.nome_azienda}</p>
+                          <p className="text-gray-600 flex items-center gap-1">
+                            <Phone className="h-3 w-3" /> {e.centro_assistenza.telefono}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => {
+                            setEditingElettro(e);
+                            setElettroDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" /> Modifica
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteElettro(e.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {filteredElettrodomestici.length === 0 && (
+              <Card className="p-8 text-center">
+                <Zap className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">Nessun elettrodomestico trovato</p>
+                <Button
+                  className="mt-4"
+                  onClick={() => {
+                    setEditingElettro(null);
+                    setElettroDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Aggiungi il primo
+                </Button>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Manutenzioni Tab */}
+        {activeTab === "manutenzioni" && (
+          <div className="space-y-4">
+            {/* Toolbar */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <Select value={filtroStatoManut} onValueChange={setFiltroStatoManut}>
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Stato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti</SelectItem>
+                  {STATI_MANUTENZIONE.map((stato) => (
+                    <SelectItem key={stato.value} value={stato.value}>
+                      {stato.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={() => {
+                  setEditingManut(null);
+                  setManutDialogOpen(true);
+                }}
+                data-testid="add-manut-btn"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nuova Manutenzione
+              </Button>
+            </div>
+
+            {/* Manutenzioni List */}
+            <div className="space-y-3">
+              {manutenzioni.map((m) => {
+                const statoInfo = STATI_MANUTENZIONE.find(s => s.value === m.stato);
+                const tipoInfo = TIPI_MANUTENZIONE.find(t => t.value === m.tipo);
+                
+                return (
+                  <Card key={m.id} className="hover:shadow-md transition-shadow" data-testid={`manut-card-${m.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className={statoInfo?.color}>
+                              {statoInfo?.label}
+                            </Badge>
+                            <Badge variant="outline">{tipoInfo?.label}</Badge>
+                            {m.ricorrente && (
+                              <Badge variant="secondary">Ricorrente ({m.frequenza_giorni}gg)</Badge>
+                            )}
+                          </div>
+                          
+                          <p className="font-medium">{m.descrizione}</p>
+                          
+                          <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                            {m.elettrodomestico && (
+                              <span className="flex items-center gap-1">
+                                <Zap className="h-3 w-3" /> {m.elettrodomestico.nome}
+                              </span>
+                            )}
+                            {m.data_programmata && (
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" /> {m.data_programmata}
+                              </span>
+                            )}
+                            {m.costo && (
+                              <span className="flex items-center gap-1">
+                                <Euro className="h-3 w-3" /> {m.costo}€
+                              </span>
+                            )}
+                          </div>
+
+                          {m.centro_assistenza && (
+                            <div className="text-sm bg-gray-50 p-2 rounded inline-flex items-center gap-2">
+                              <Users className="h-4 w-4 text-gray-400" />
+                              <span>{m.centro_assistenza.nome_azienda}</span>
+                              <span className="text-gray-400">|</span>
+                              <Phone className="h-3 w-3 text-gray-400" />
+                              <span>{m.centro_assistenza.telefono}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingManut(m);
+                              setManutDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteManut(m.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {manutenzioni.length === 0 && (
+              <Card className="p-8 text-center">
+                <Wrench className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">Nessuna manutenzione trovata</p>
+                <Button
+                  className="mt-4"
+                  onClick={() => {
+                    setEditingManut(null);
+                    setManutDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Aggiungi la prima
+                </Button>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Centri Assistenza Tab */}
+        {activeTab === "centri" && (
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button
+                onClick={() => {
+                  setEditingCentro(null);
+                  setCentroDialogOpen(true);
+                }}
+                data-testid="add-centro-btn"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nuovo Centro
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {centriAssistenza.map((centro) => (
+                <Card key={centro.id} className="hover:shadow-md transition-shadow" data-testid={`centro-card-${centro.id}`}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Users className="h-4 w-4 text-blue-600" />
+                      {centro.nome_azienda}
+                    </CardTitle>
+                    {centro.referente && (
+                      <CardDescription>{centro.referente}</CardDescription>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <p className="flex items-center gap-2 text-sm">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <a href={`tel:${centro.telefono}`} className="text-blue-600 hover:underline">
+                        {centro.telefono}
+                      </a>
+                    </p>
+                    {centro.email && (
+                      <p className="flex items-center gap-2 text-sm">
+                        <Mail className="h-4 w-4 text-gray-400" />
+                        <a href={`mailto:${centro.email}`} className="text-blue-600 hover:underline">
+                          {centro.email}
+                        </a>
+                      </p>
+                    )}
+                    {centro.indirizzo && (
+                      <p className="flex items-center gap-2 text-sm text-gray-500">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        {centro.indirizzo}
+                      </p>
+                    )}
+                    {centro.specializzazioni.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-2">
+                        {centro.specializzazioni.map((spec, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {spec}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          setEditingCentro(centro);
+                          setCentroDialogOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-3 w-3 mr-1" /> Modifica
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => handleDeleteCentro(centro.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {centriAssistenza.length === 0 && (
+              <Card className="p-8 text-center">
+                <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500">Nessun centro assistenza trovato</p>
+                <Button
+                  className="mt-4"
+                  onClick={() => {
+                    setEditingCentro(null);
+                    setCentroDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Aggiungi il primo
+                </Button>
+              </Card>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Dialogs */}
+      <CentroAssistenzaDialog
+        open={centroDialogOpen}
+        onOpenChange={setCentroDialogOpen}
+        centro={editingCentro}
+        onSave={handleSaveCentro}
+      />
+
+      <ElettrodomesticoDialog
+        open={elettroDialogOpen}
+        onOpenChange={setElettroDialogOpen}
+        elettrodomestico={editingElettro}
+        centriAssistenza={centriAssistenza}
+        onSave={handleSaveElettro}
+      />
+
+      <ManutenzioneDialog
+        open={manutDialogOpen}
+        onOpenChange={setManutDialogOpen}
+        manutenzione={editingManut}
+        elettrodomestici={elettrodomestici}
+        centriAssistenza={centriAssistenza}
+        onSave={handleSaveManut}
+      />
     </div>
   );
 }
