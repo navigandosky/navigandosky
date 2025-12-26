@@ -765,7 +765,7 @@ export const TicketList = ({ elettrodomestici, centriAssistenza }) => {
                         </Button>
                       </>
                     )}
-                    {(t.stato === "risolto" || t.stato === "annullato") && (
+                    {(t.stato === "completato" || t.stato === "annullato") && (
                       <>
                         <Button 
                           size="sm" 
