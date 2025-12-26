@@ -257,7 +257,7 @@ class ManutenzioneBase(BaseModel):
     descrizione: str
     data_programmata: Optional[str] = None
     data_completamento: Optional[str] = None
-    stato: StatoManutenzione = StatoManutenzione.PIANIFICATA
+    stato: StatoManutenzione = StatoManutenzione.APERTO
     costo: Optional[float] = None
     # Centro assistenza (usa quello dell'elettrodomestico o uno specifico)
     usa_centro_assistenza_elettrodomestico: bool = True
@@ -265,9 +265,17 @@ class ManutenzioneBase(BaseModel):
     # Ricorrenza
     ricorrente: bool = False
     frequenza_giorni: Optional[int] = None
+    # Campi aggiuntivi allineati con Ticket
+    priorita: Optional[str] = "media"
+    titolo: Optional[str] = None  # Titolo breve
+    contatto_preferito: Optional[str] = None
+    valutazione: Optional[int] = None  # 1-5 stelle
+    note_risoluzione: Optional[str] = None
     # Extra
     documenti: List[str] = []
     note: Optional[str] = None
+    # Collegamento Ticket
+    ticket_id: Optional[str] = None
 
 
 class ManutenzioneCreate(ManutenzioneBase):
