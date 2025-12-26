@@ -761,12 +761,24 @@ export const TicketList = ({ elettrodomestici, centriAssistenza }) => {
                         </Button>
                       </>
                     )}
-                    {t.stato === "risolto" && t.valutazione && (
-                      <div className="flex">
-                        {[1,2,3,4,5].map(s => (
-                          <Star key={s} className={`h-4 w-4 ${s <= t.valutazione ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`} />
-                        ))}
-                      </div>
+                    {(t.stato === "risolto" || t.stato === "annullato") && (
+                      <>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => { setSelectedTicket(t); setDettaglioDialogOpen(true); }}
+                          title="Visualizza dettaglio"
+                        >
+                          <Eye className="h-3 w-3 mr-1" /> Visualizza
+                        </Button>
+                        {t.valutazione && (
+                          <div className="flex">
+                            {[1,2,3,4,5].map(s => (
+                              <Star key={s} className={`h-4 w-4 ${s <= t.valutazione ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`} />
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
