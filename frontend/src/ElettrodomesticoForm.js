@@ -303,20 +303,28 @@ export default function ElettrodomesticoDialog({
   const consumoGiornaliero = formData.consumo_orario_kw * formData.ore_uso_giornaliero_stimate;
   const consumoMensile = consumoGiornaliero * 30;
 
-  // Combine categories - custom categories use "custom" as value with the name stored separately
+  // Combine categories - custom categories have unique values for selection but send "custom" to backend
   const allCategorie = [
     ...CATEGORIE_BASE,
-    ...categorieCustom.map(c => ({ value: "custom", label: c.nome, icon: "📁", customName: c.nome }))
+    ...categorieCustom.map(c => ({ value: `custom:${c.nome}`, label: c.nome, icon: "📁", isCustom: true }))
   ];
 
-  // Handle category change - if custom, also set categoria_custom
+  // Handle category change - if custom, extract name and set categoria_custom
   const handleCategoriaChange = (value) => {
-    const selectedCat = allCategorie.find(c => c.value === value && c.customName);
-    if (selectedCat && selectedCat.customName) {
-      setFormData({ ...formData, categoria: "custom", categoria_custom: selectedCat.customName });
+    if (value.startsWith("custom:")) {
+      const customName = value.substring(7); // Remove "custom:" prefix
+      setFormData({ ...formData, categoria: "custom", categoria_custom: customName });
     } else {
       setFormData({ ...formData, categoria: value, categoria_custom: null });
     }
+  };
+
+  // Get display value for Select (convert back from "custom" + categoria_custom)
+  const getCategoriaDisplayValue = () => {
+    if (formData.categoria === "custom" && formData.categoria_custom) {
+      return `custom:${formData.categoria_custom}`;
+    }
+    return formData.categoria;
   };
 
   // Combine brands
