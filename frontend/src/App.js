@@ -129,6 +129,341 @@ const MatterportViewer = ({ spaceId }) => {
   );
 };
 
+// AI Assistant Component
+const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico }) => {
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedElettrodomestico, setSelectedElettrodomestico] = useState("");
+  const [showProblemSolver, setShowProblemSolver] = useState(false);
+  const [problema, setProblema] = useState("");
+  const [soluzione, setSoluzione] = useState(null);
+  const messagesEndRef = { current: null };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    const userMessage = { role: "user", content: inputMessage };
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage("");
+    setIsLoading(true);
+
+    try {
+      const response = await axios.post(`${API}/assistente/chat`, {
+        message: inputMessage,
+        conversation_history: messages.slice(-10),
+        elettrodomestico_id: selectedElettrodomestico || null
+      });
+
+      const assistantMessage = {
+        role: "assistant",
+        content: response.data.response,
+        sources: response.data.sources,
+        suggested_actions: response.data.suggested_actions
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Errore chat:", error);
+      toast.error("Errore nella comunicazione con l'assistente");
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "Mi dispiace, c'è stato un errore. Riprova tra poco."
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const risolviProblema = async () => {
+    if (!selectedElettrodomestico || !problema.trim()) {
+      toast.error("Seleziona un elettrodomestico e descrivi il problema");
+      return;
+    }
+
+    setIsLoading(true);
+    setSoluzione(null);
+
+    try {
+      const response = await axios.post(
+        `${API}/assistente/risolvi-problema?elettrodomestico_id=${selectedElettrodomestico}&problema=${encodeURIComponent(problema)}`
+      );
+      setSoluzione(response.data);
+    } catch (error) {
+      console.error("Errore:", error);
+      toast.error("Errore nella risoluzione del problema");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const cercaManuale = async (marca, modello) => {
+    try {
+      const response = await axios.get(`${API}/ricerca-manuale`, {
+        params: { marca, modello }
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Errore ricerca manuale:", error);
+      return null;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Toggle tra Chat e Problem Solver */}
+      <div className="flex gap-2">
+        <Button
+          variant={!showProblemSolver ? "default" : "outline"}
+          onClick={() => setShowProblemSolver(false)}
+          className="flex-1"
+        >
+          <MessageCircle className="h-4 w-4 mr-2" />
+          Chat Assistente
+        </Button>
+        <Button
+          variant={showProblemSolver ? "default" : "outline"}
+          onClick={() => setShowProblemSolver(true)}
+          className="flex-1"
+        >
+          <HelpCircle className="h-4 w-4 mr-2" />
+          Risolvi Problema
+        </Button>
+      </div>
+
+      {!showProblemSolver ? (
+        /* Chat Interface */
+        <Card className="h-[600px] flex flex-col">
+          <CardHeader className="pb-2 border-b">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Bot className="h-5 w-5 text-blue-600" />
+              Assistente SmartBuilding
+            </CardTitle>
+            <CardDescription>
+              Chiedimi informazioni sui tuoi elettrodomestici, consumi, manutenzioni...
+            </CardDescription>
+            {/* Selettore elettrodomestico opzionale */}
+            <div className="mt-2">
+              <Select
+                value={selectedElettrodomestico}
+                onValueChange={setSelectedElettrodomestico}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Filtra per elettrodomestico (opzionale)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti gli elettrodomestici</SelectItem>
+                  {elettrodomestici.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nome} - {e.marca} {e.modello}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+
+          <CardContent className="flex-1 overflow-hidden p-0">
+            <ScrollArea className="h-full p-4">
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-400 py-8">
+                  <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Ciao! Come posso aiutarti?</p>
+                  <div className="mt-4 space-y-2 text-sm">
+                    <p className="text-gray-500">Prova a chiedermi:</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {[
+                        "Quanti elettrodomestici ho?",
+                        "Quanto consumo al mese?",
+                        "Quali manutenzioni ho in programma?"
+                      ].map((suggestion, i) => (
+                        <Button
+                          key={i}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setInputMessage(suggestion)}
+                          className="text-xs"
+                        >
+                          {suggestion}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[80%] p-3 rounded-lg ${
+                          msg.role === "user"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                        {msg.sources && msg.sources.length > 0 && (
+                          <div className="mt-2 flex gap-1">
+                            {msg.sources.map((source, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                {source}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        {msg.suggested_actions && msg.suggested_actions.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {msg.suggested_actions.map((action, i) => (
+                              <Button
+                                key={i}
+                                variant="outline"
+                                size="sm"
+                                className="text-xs bg-white"
+                                onClick={() => {
+                                  if (action.type === "navigate_matterport") {
+                                    onNavigateToElettrodomestico?.(action.elettrodomestico_id);
+                                  }
+                                }}
+                              >
+                                {action.label}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-gray-100 p-3 rounded-lg">
+                        <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
+
+          <div className="p-4 border-t">
+            <div className="flex gap-2">
+              <Input
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Scrivi un messaggio..."
+                onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+                disabled={isLoading}
+                data-testid="chat-input"
+              />
+              <Button onClick={sendMessage} disabled={isLoading || !inputMessage.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ) : (
+        /* Problem Solver Interface */
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <HelpCircle className="h-5 w-5 text-orange-600" />
+              Risolvi un Problema
+            </CardTitle>
+            <CardDescription>
+              Descrivi il problema con un elettrodomestico e ti aiuterò a risolverlo
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Elettrodomestico *</Label>
+              <Select
+                value={selectedElettrodomestico}
+                onValueChange={setSelectedElettrodomestico}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona elettrodomestico" />
+                </SelectTrigger>
+                <SelectContent>
+                  {elettrodomestici.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nome} - {e.marca} {e.modello}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Descrivi il problema *</Label>
+              <Textarea
+                value={problema}
+                onChange={(e) => setProblema(e.target.value)}
+                placeholder="Es: La lavatrice fa rumore durante la centrifuga..."
+                rows={4}
+              />
+            </div>
+
+            <Button
+              onClick={risolviProblema}
+              disabled={isLoading || !selectedElettrodomestico || !problema.trim()}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Analisi in corso...
+                </>
+              ) : (
+                <>
+                  <HelpCircle className="h-4 w-4 mr-2" />
+                  Trova Soluzione
+                </>
+              )}
+            </Button>
+
+            {soluzione && (
+              <div className="mt-4 space-y-4">
+                <Separator />
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Soluzione per {soluzione.elettrodomestico?.nome}
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {soluzione.elettrodomestico?.marca} {soluzione.elettrodomestico?.modello}
+                  </p>
+                  <div className="prose prose-sm max-w-none">
+                    <pre className="whitespace-pre-wrap text-sm bg-white p-3 rounded border">
+                      {soluzione.soluzione}
+                    </pre>
+                  </div>
+                  {soluzione.centro_assistenza && (
+                    <div className="mt-4 p-3 bg-blue-50 rounded flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm">{soluzione.centro_assistenza}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
 // Dashboard Component
 const Dashboard = ({ stats, consumiPerCategoria }) => {
   if (!stats) return null;
