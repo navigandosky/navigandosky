@@ -114,9 +114,31 @@ const SMART_PLUG_PROVIDERS = [
   { value: "altro", label: "Altro" },
 ];
 
+// Stati unificati per Ticket e Manutenzioni
+const STATI_UNIFICATI = [
+  { value: "aperto", label: "Aperto", labelManutenzione: "Pianificata", color: "bg-blue-500", icon: "📋" },
+  { value: "contattato", label: "Contattato", labelManutenzione: "Contattato", color: "bg-yellow-500", icon: "📞" },
+  { value: "in_lavorazione", label: "In Lavorazione", labelManutenzione: "In Corso", color: "bg-orange-500", icon: "🔧" },
+  { value: "risolto", label: "Risolto", labelManutenzione: "Completata", color: "bg-green-500", icon: "✅" },
+  { value: "annullato", label: "Annullato", labelManutenzione: "Annullata", color: "bg-gray-500", icon: "❌" },
+];
+
+// Mapping per compatibilità backend manutenzioni
+const STATO_MANUTENZIONE_MAP = {
+  "pianificata": "aperto",
+  "in_corso": "in_lavorazione", 
+  "completata": "risolto",
+  "annullata": "annullato",
+  // Inverso
+  "aperto": "pianificata",
+  "in_lavorazione": "in_corso",
+  "risolto": "completata",
+  "annullato": "annullata",
+};
+
 const STATI_MANUTENZIONE = [
   { value: "pianificata", label: "Pianificata", color: "bg-blue-500" },
-  { value: "in_corso", label: "In Corso", color: "bg-yellow-500" },
+  { value: "in_corso", label: "In Corso", color: "bg-orange-500" },
   { value: "completata", label: "Completata", color: "bg-green-500" },
   { value: "annullata", label: "Annullata", color: "bg-gray-500" },
 ];
