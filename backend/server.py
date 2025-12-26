@@ -1053,23 +1053,25 @@ async def get_manutenzioni(
         
         result.append(m)
     
-    # Ordina: completati per data_completamento (più recenti prima), altri per data_programmata
+    # Ordina: completati per data_completamento (più recenti prima), altri per data_programmata (più vicina prima)
     def sort_key(m):
-        if m.get('stato') == 'completato':
-            # Per completati: usa data_completamento (più recente = prima)
+        stato = m.get('stato', '')
+        if stato == 'completato':
+            # Per completati: usa data_completamento (più recente = prima, quindi ordine decrescente)
             data = m.get('data_completamento') or m.get('updated_at') or '1900-01-01'
-            # Converti a stringa se è datetime
             if hasattr(data, 'isoformat'):
                 data = data.isoformat()
-            return (0, str(data))  # 0 = completati prima, poi per data decrescente
+            # Gruppo 0 = completati (verranno prima con reverse=True)
+            return (1, str(data))
         else:
             # Per non completati: usa data_programmata (più vicina = prima)
             data = m.get('data_programmata') or m.get('created_at') or '2099-12-31'
-            # Converti a stringa se è datetime
             if hasattr(data, 'isoformat'):
                 data = data.isoformat()
-            return (1, str(data))  # 1 = dopo i completati
+            # Gruppo 1 = non completati (verranno dopo)
+            return (0, str(data))
     
+    # reverse=True: completati (1,data) prima di non completati (0,data), e date più recenti prima
     result.sort(key=sort_key, reverse=True)
     
     return result
