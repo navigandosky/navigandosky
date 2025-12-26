@@ -510,15 +510,11 @@ const PortfolioSection = () => {
               className="bg-[#111214] border border-gray-800 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all group"
             >
               <div 
-                className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900"
-                style={{
-                  backgroundImage: `url(${project.image})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center'
-                }}
+                className={`relative h-48 overflow-hidden bg-gradient-to-br ${project.gradient} flex items-center justify-center`}
               >
+                <project.icon className="w-20 h-20 text-cyan-400/50 group-hover:text-cyan-400/70 transition-colors" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#111214] via-transparent to-transparent" />
-                <span className={`absolute bottom-4 left-4 px-3 py-1 bg-cyan-500/90 text-white text-xs font-semibold rounded-full`}>
+                <span className="absolute bottom-4 left-4 px-3 py-1 bg-cyan-500/90 text-white text-xs font-semibold rounded-full">
                   {project.category}
                 </span>
               </div>
