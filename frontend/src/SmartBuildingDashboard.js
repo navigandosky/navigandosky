@@ -165,33 +165,107 @@ const DeviceCard = ({ device, onToggle }) => {
 // Ezviz Camera Card (placeholder for when it works)
 const CameraCard = ({ camera }) => {
   const isOnline = camera?.status === 'online';
+  const [imageError, setImageError] = useState(false);
+  
+  // Deep link per aprire l'app Ezviz
+  const openEzvizApp = () => {
+    // Schema URL per app Ezviz
+    const ezvizAppScheme = `ezviz://open?deviceSerial=${camera?.serial}`;
+    const ezvizWebUrl = `https://www.ezvizlife.com/`;
+    
+    // Prova ad aprire l'app, altrimenti apri il sito web
+    window.location.href = ezvizAppScheme;
+    
+    // Fallback al sito web dopo 2 secondi se l'app non si apre
+    setTimeout(() => {
+      window.open(ezvizWebUrl, '_blank');
+    }, 2000);
+  };
+
+  // Fetch snapshot della camera
+  const [snapshotUrl, setSnapshotUrl] = useState(camera?.image_url || null);
+  
+  const refreshSnapshot = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/ezviz/camera/${camera?.serial}/snapshot`);
+      if (response.data?.image_url) {
+        setSnapshotUrl(response.data.image_url);
+        setImageError(false);
+      }
+    } catch (error) {
+      console.log('Snapshot not available');
+    }
+  };
   
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden hover:border-red-500/30 transition-all duration-300">
-      <div className="aspect-video bg-slate-900 relative">
-        {camera?.image_url ? (
+      {/* Preview Immagine */}
+      <div className="aspect-video bg-slate-900 relative cursor-pointer" onClick={openEzvizApp}>
+        {snapshotUrl && !imageError ? (
           <img 
-            src={camera.image_url} 
-            alt={camera.name}
+            src={snapshotUrl} 
+            alt={camera?.name}
             className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Camera size={48} className="text-slate-600" />
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+            <Camera size={48} className="text-slate-600 mb-2" />
+            <p className="text-xs text-slate-500">Clicca per aprire in Ezviz</p>
           </div>
         )}
+        
+        {/* Badge Stato */}
         <div className="absolute top-2 left-2">
           <Badge variant={isOnline ? "default" : "destructive"} className={isOnline ? "bg-green-500" : ""}>
+            <span className={`w-2 h-2 rounded-full mr-1 ${isOnline ? 'bg-white animate-pulse' : 'bg-red-300'}`}></span>
             {isOnline ? "LIVE" : "OFFLINE"}
           </Badge>
         </div>
+        
+        {/* Modello */}
         <div className="absolute top-2 right-2">
           <span className="text-xs bg-black/50 px-2 py-1 rounded text-white">{camera?.model || 'Camera'}</span>
         </div>
+        
+        {/* Overlay con icona play */}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
+          <div className="bg-red-500/80 rounded-full p-3">
+            <Play size={24} className="text-white ml-1" />
+          </div>
+        </div>
       </div>
+      
+      {/* Info e Pulsanti */}
       <div className="p-3">
-        <h3 className="text-sm font-medium text-white truncate">{camera?.name || 'Camera'}</h3>
-        <p className="text-xs text-slate-400">{camera?.serial || ''}</p>
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-medium text-white truncate">{camera?.name || 'Camera'}</h3>
+            <p className="text-xs text-slate-400">{camera?.serial || ''}</p>
+          </div>
+        </div>
+        
+        {/* Pulsanti Azione */}
+        <div className="flex gap-2 mt-2">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="flex-1 text-xs border-red-500/50 text-red-400 hover:bg-red-500/20"
+            onClick={openEzvizApp}
+          >
+            <ExternalLink size={12} className="mr-1" />
+            Apri App
+          </Button>
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="text-xs border-slate-600"
+            onClick={refreshSnapshot}
+            title="Aggiorna immagine"
+          >
+            <RefreshCw size={12} />
+          </Button>
+        </div>
       </div>
     </div>
   );
