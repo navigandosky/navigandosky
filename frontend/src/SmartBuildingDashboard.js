@@ -566,7 +566,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-white">
-                      Dispositivi SmartThings ({domoticaDevices.length})
+                      Dispositivi SmartThings ({smartThingsDevices.length}) - {devicesByRoom.length} Stanze
                     </h3>
                     <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
                       <Wifi size={12} className="mr-1" /> Connesso
@@ -574,16 +574,67 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                   </div>
                   
                   {loading ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {Array.from({ length: 8 }).map((_, i) => (
-                        <Skeleton key={i} className="h-28 bg-slate-800 rounded-xl" />
+                    <div className="space-y-4">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <Skeleton key={i} className="h-32 bg-slate-800 rounded-xl" />
                       ))}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {domoticaDevices.map(device => (
-                        <DeviceCard key={device.id} device={device} />
-                      ))}
+                    <div className="space-y-4">
+                      {devicesByRoom.map((room) => {
+                        // Get room icon based on name
+                        const getRoomIcon = (name) => {
+                          const n = name.toLowerCase();
+                          if (n.includes('luci') || n.includes('luce')) return Lamp;
+                          if (n.includes('aperto') || n.includes('esterno') || n.includes('giardino')) return Trees;
+                          if (n.includes('acqua') || n.includes('irrigazione')) return Droplets;
+                          if (n.includes('living') || n.includes('soggiorno') || n.includes('salotto')) return Armchair;
+                          if (n.includes('accessi') || n.includes('cancello') || n.includes('ingresso')) return DoorOpen;
+                          if (n.includes('studio') || n.includes('ufficio')) return Home;
+                          return Home;
+                        };
+                        const RoomIcon = getRoomIcon(room.roomName);
+                        const isExpanded = expandedRooms[room.roomName] !== false;
+                        
+                        return (
+                          <Card key={room.roomId || room.roomName} className="bg-slate-900/50 border-slate-800 overflow-hidden">
+                            <button
+                              onClick={() => toggleRoom(room.roomName)}
+                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-cyan-500/20">
+                                  <RoomIcon size={20} className="text-cyan-400" />
+                                </div>
+                                <div className="text-left">
+                                  <h4 className="text-white font-medium">{room.roomName}</h4>
+                                  <p className="text-xs text-slate-400">{room.devices.length} dispositivi</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="border-slate-600 text-slate-400">
+                                  {room.devices.length}
+                                </Badge>
+                                {isExpanded ? (
+                                  <ChevronUp size={20} className="text-slate-400" />
+                                ) : (
+                                  <ChevronDown size={20} className="text-slate-400" />
+                                )}
+                              </div>
+                            </button>
+                            
+                            {isExpanded && (
+                              <CardContent className="pt-0 pb-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
+                                  {room.devices.map(device => (
+                                    <DeviceCard key={device.id} device={device} />
+                                  ))}
+                                </div>
+                              </CardContent>
+                            )}
+                          </Card>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
