@@ -1909,7 +1909,7 @@ function App() {
                         
                         <div className="flex gap-2">
                           {/* Se completata/annullata: solo visualizza */}
-                          {(m.stato === "completata" || m.stato === "annullata") ? (
+                          {(m.stato === "completato" || m.stato === "annullato") ? (
                             <Button
                               variant="outline"
                               size="sm"
