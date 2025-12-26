@@ -1788,7 +1788,7 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
                 manutenzione_update["stato"] = "completato"
                 manutenzione_update["data_completamento"] = datetime.now(timezone.utc).isoformat()
             elif stato_ticket == "in_lavorazione":
-                manutenzione_update["stato"] = "in_corso"
+                manutenzione_update["stato"] = "in_lavorazione"
             elif stato_ticket == "annullato":
                 manutenzione_update["stato"] = "annullata"
         
