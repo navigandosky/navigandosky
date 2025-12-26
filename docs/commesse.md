@@ -14,7 +14,52 @@ Applicazione web per la gestione intelligente di immobili con:
 - Gestione elettrodomestici con monitoraggio consumi
 - Pianificazione manutenzioni
 - Integrazione smart home (prese intelligenti)
+- Integrazione SmartThings (22 dispositivi)
+- Integrazione telecamere Ezviz (in sospeso)
 - Architettura multi-tenant (multi-utente)
+
+---
+
+## 🆕 FASE 1.9 - SMARTDOMO DASHBOARD (27/12/2024) - COMPLETATA
+
+### Nuova Interfaccia SmartDomo ✅
+- [x] Tema scuro professionale (bg-[#09090B])
+- [x] Header con status sistema (22 OK, 0 Attenzione, 0 Critici)
+- [x] Sidebar con:
+  - [x] Stato Sistema (contatori colorati)
+  - [x] Accesso Rapido (Elettrodomestici, Manutenzioni, Calendario)
+  - [x] Prossime Manutenzioni
+- [x] Matterport 3D LIVE (Space ID: j1r4zUjanif)
+- [x] 4 Tab interattivi:
+  - [x] 🌡️ Clima (temperatura, umidità, dispositivi clima)
+  - [x] ⚡ Domotica (22 dispositivi SmartThings)
+  - [x] 🛡️ Sicurezza (placeholder telecamere Ezviz)
+  - [x] ☀️ Meteo (previsioni 7 giorni - Nuoro)
+
+### Integrazione SmartThings ✅
+- [x] API /api/smartthings/devices (22 dispositivi collegati)
+- [x] API /api/smartthings/device/{id}/status
+- [x] API /api/smartthings/device/{id}/switch/{on|off}
+- [x] Token configurato: 9a9bd2a1-6484-40c2-aa38-e77dd72cc36e
+- [x] Dispositivi rilevati:
+  - Luci (blu can, pedoni, veranda, applique, dependance)
+  - Irrigazione (Area 1, 2, 3 prato, fioriera, aiuole)
+  - Cancelli (auto, pedonale)
+  - Clima (condizionatore Samsung, sensore temperatura living)
+  - TV Samsung (M5 27", 7 Series 55")
+  - Utility (autoclave, idropulitrice, Abbanoa)
+
+### Integrazione Ezviz ⏸️ (In Sospeso)
+- [x] API /api/ezviz/cameras predisposta
+- [x] Credenziali configurate (navigandosky@yahoo.it)
+- [ ] Risoluzione errore "troppi terminali" (codice 1069)
+- [ ] 7 telecamere da collegare quando risolto
+
+### API Meteo ✅
+- [x] API /api/weather (Open-Meteo)
+- [x] Città: Nuoro (40.3125, 9.3125)
+- [x] Temperatura attuale, umidità, vento
+- [x] Previsioni 7 giorni con icone
 
 ---
 
