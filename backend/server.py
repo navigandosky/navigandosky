@@ -39,12 +39,11 @@ DEFAULT_USER_ID = "default-user"
 # Matterport Space ID (can be configured per user in multi-tenant mode)
 MATTERPORT_SPACE_ID = os.environ.get('MATTERPORT_SPACE_ID', 'SxQL3iGyoDo')
 
-# OpenAI client for AI Assistant (using Emergent LLM Key)
+# OpenAI client for AI Assistant (using Emergent LLM Key via emergentintegrations)
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
-openai_client = OpenAI(
-    api_key=EMERGENT_LLM_KEY,
-    base_url="https://api.emergentmethods.ai/v1"
-) if EMERGENT_LLM_KEY else None
+
+# Import emergentintegrations for LLM
+from emergentintegrations.llm.openai import LlmChat, UserMessage
 
 # Directory for uploaded manuals
 MANUALS_DIR = ROOT_DIR / "manuals"
