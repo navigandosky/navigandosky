@@ -137,11 +137,12 @@ Applicazione web per la gestione intelligente di immobili con:
   - TV Samsung (M5 27", 7 Series 55")
   - Utility (autoclave, idropulitrice, Abbanoa)
 
-### Integrazione Ezviz ⏸️ (In Sospeso)
-- [x] API /api/ezviz/cameras predisposta
+### Integrazione Ezviz ✅ (26/12/2024)
+- [x] API /api/ezviz/cameras funzionante
 - [x] Credenziali configurate (navigandosky@yahoo.it)
-- [ ] Risoluzione errore "troppi terminali" (codice 1069)
-- [ ] 7 telecamere da collegare quando risolto
+- [x] AccessToken EU: at.7qkjj29zbh7a2f1h10kgi2te2j4zkul1-3k8hmhjy8r-0d9ljq5-16epyxcyq
+- [x] Endpoint EU: https://ieuopen.ezvizlife.com
+- [x] 7 telecamere connesse e tutte ONLINE
 
 ### API Meteo ✅
 - [x] API /api/weather (Open-Meteo)
