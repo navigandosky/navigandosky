@@ -950,9 +950,49 @@ async def add_marca_custom(nome: str = Form(...), user_id: str = DEFAULT_USER_ID
 
 @api_router.post("/manutenzioni", response_model=Manutenzione)
 async def create_manutenzione(data: ManutenzioneCreate):
-    manutenzione = Manutenzione(**data.model_dump())
+    # Estrai crea_ticket_automatico prima di creare manutenzione
+    crea_ticket = data.crea_ticket_automatico
+    data_dict = data.model_dump()
+    data_dict.pop('crea_ticket_automatico', None)
+    
+    manutenzione = Manutenzione(**data_dict)
     doc = serialize_doc(manutenzione.model_dump())
     await db.manutenzioni.insert_one(doc)
+    
+    # Se richiesto, crea automaticamente un ticket
+    if crea_ticket and manutenzione.elettrodomestico_id:
+        try:
+            # Ottieni info elettrodomestico
+            elettro = await db.elettrodomestici.find_one(
+                {"id": manutenzione.elettrodomestico_id}, {"_id": 0}
+            )
+            if elettro:
+                # Determina centro assistenza
+                centro_id = None
+                if manutenzione.usa_centro_assistenza_elettrodomestico:
+                    centro_id = elettro.get('centro_assistenza_id')
+                else:
+                    centro_id = manutenzione.centro_assistenza_id
+                
+                # Crea ticket
+                ticket = Ticket(
+                    elettrodomestico_id=manutenzione.elettrodomestico_id,
+                    titolo=f"Manutenzione: {manutenzione.descrizione[:50]}",
+                    descrizione=f"Ticket generato automaticamente dalla pianificazione manutenzione.\n\nDescrizione: {manutenzione.descrizione}\nData programmata: {manutenzione.data_programmata or 'Da definire'}\nTipo: {manutenzione.tipo}",
+                    priorita=PrioritaTicket.MEDIA,
+                    centro_assistenza_id=centro_id,
+                    contatto_preferito="email",
+                    note_interne=f"Manutenzione ID: {manutenzione.id}",
+                )
+                ticket.numero_ticket = await generate_ticket_number()
+                ticket.manutenzione_id = manutenzione.id
+                
+                ticket_doc = serialize_doc(ticket.model_dump())
+                await db.tickets.insert_one(ticket_doc)
+        except Exception as e:
+            # Log errore ma non fallire la creazione manutenzione
+            print(f"Errore creazione ticket automatico: {e}")
+    
     return manutenzione
 
 
