@@ -1447,7 +1447,14 @@ function App() {
     } catch (error) {
       console.error("Errore salvataggio elettrodomestico:", error);
       console.error("Response:", error.response?.data);
-      const errorMsg = error.response?.data?.detail || "Errore nel salvataggio";
+      let errorMsg = "Errore nel salvataggio";
+      const detail = error.response?.data?.detail;
+      if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        // Pydantic validation errors
+        errorMsg = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+      }
       toast.error(errorMsg);
     }
   };
