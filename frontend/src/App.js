@@ -564,8 +564,10 @@ const AboutSection = () => {
 };
 
 // =============================================================================
-// PORTFOLIO SECTION (Dynamic from CMS)
+// PORTFOLIO SECTION (Dynamic from Showcase)
 // =============================================================================
+
+const SHOWCASE_API = "https://trivor-workspace.preview.emergentagent.com/api/showcase";
 
 const PortfolioSection = () => {
   const [projects, setProjects] = useState([]);
@@ -577,40 +579,37 @@ const PortfolioSection = () => {
 
   const fetchProjects = async () => {
     try {
-      const response = await axios.get(`${API}/projects/featured`);
-      setProjects(response.data);
+      const response = await axios.get(SHOWCASE_API);
+      // Mappa i dati dal formato showcase al formato del componente
+      const mappedProjects = response.data
+        .filter(p => p.is_active)
+        .map(p => ({
+          id: p.id,
+          title: p.name,
+          client: p.client,
+          category: formatCategory(p.category),
+          description: p.description,
+          image_url: p.image_url,
+          link: p.link_url,
+        }));
+      setProjects(mappedProjects);
     } catch (error) {
-      console.error('Error fetching projects:', error);
-      // Fallback to default projects if API fails
-      setProjects([
-        {
-          id: '1',
-          title: 'Smart Building Dashboard',
-          client: 'Navigandosky',
-          category: 'Smart Building',
-          description: 'Piattaforma di gestione edifici smart con gemelli digitali Matterport, monitoraggio manutenzioni e domotica integrata.',
-          image_url: null,
-        },
-        {
-          id: '2',
-          title: 'Tour Virtuali Sardegna',
-          client: 'Regione Sardegna',
-          category: 'Beni Culturali',
-          description: 'Digitalizzazione di siti archeologici e grotte con tour virtuali 360° per la valorizzazione del patrimonio culturale sardo.',
-          image_url: null,
-        },
-        {
-          id: '3',
-          title: 'CMS Tracciamento Progetti',
-          client: 'Trivor SRL',
-          category: 'Gestionale',
-          description: 'Sistema di gestione progetti con tracking ore, crediti, sessioni di lavoro ed export dati per monitoraggio attività.',
-          image_url: null,
-        },
-      ]);
+      console.error('Error fetching projects from showcase:', error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatCategory = (cat) => {
+    const categories = {
+      'smart_building': 'Smart Building',
+      'beni_culturali': 'Beni Culturali',
+      'gestionale': 'Gestionale',
+      'turismo': 'Turismo',
+      'web_app': 'Web App',
+    };
+    return categories[cat] || cat;
   };
 
   const getCategoryIcon = (category) => {
@@ -618,6 +617,8 @@ const PortfolioSection = () => {
       'Smart Building': Building2,
       'Beni Culturali': Gem,
       'Gestionale': Monitor,
+      'Turismo': Palmtree,
+      'Web App': Globe,
     };
     return icons[category] || Globe;
   };
@@ -627,6 +628,8 @@ const PortfolioSection = () => {
       'Smart Building': 'from-cyan-500/20 to-teal-500/20',
       'Beni Culturali': 'from-teal-500/20 to-emerald-500/20',
       'Gestionale': 'from-emerald-500/20 to-cyan-500/20',
+      'Turismo': 'from-amber-500/20 to-orange-500/20',
+      'Web App': 'from-purple-500/20 to-pink-500/20',
     };
     return gradients[category] || 'from-gray-500/20 to-gray-600/20';
   };
@@ -650,14 +653,21 @@ const PortfolioSection = () => {
           <div className="flex justify-center items-center py-12">
             <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
           </div>
+        ) : projects.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">
+            Nessun progetto disponibile al momento.
+          </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {projects.map((project) => {
               const IconComponent = getCategoryIcon(project.category);
               return (
-                <div
+                <a
                   key={project.id}
-                  className="bg-[#111214] border border-gray-800 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all group"
+                  href={project.link || "#"}
+                  target={project.link ? "_blank" : undefined}
+                  rel={project.link ? "noopener noreferrer" : undefined}
+                  className="bg-[#111214] border border-gray-800 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all group block"
                 >
                   <div 
                     className={`relative h-48 overflow-hidden bg-gradient-to-br ${getCategoryGradient(project.category)} flex items-center justify-center`}
@@ -666,38 +676,31 @@ const PortfolioSection = () => {
                       <img 
                         src={project.image_url} 
                         alt={project.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
                           e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
                         }}
                       />
-                    ) : null}
-                    <div className={`${project.image_url ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}>
+                    ) : (
                       <IconComponent className="w-20 h-20 text-cyan-400 opacity-30 group-hover:opacity-50 transition-opacity" />
-                    </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#111214] via-transparent to-transparent z-10" />
                     <span className="absolute bottom-4 left-4 px-3 py-1 bg-cyan-500/90 text-white text-xs font-semibold rounded-full z-20">
                       {project.category}
                     </span>
                   </div>
                   <div className="p-6">
-                    <h3 className="text-xl font-bold text-white mb-2">{project.title}</h3>
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">{project.title}</h3>
                     <p className="text-cyan-400 text-sm font-medium mb-3">{project.client}</p>
                     <p className="text-gray-400 text-sm leading-relaxed">{project.description}</p>
                     {project.link && (
-                      <a 
-                        href={project.link} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center mt-4 text-cyan-400 text-sm hover:text-cyan-300 transition-colors"
-                      >
+                      <span className="inline-flex items-center mt-4 text-cyan-400 text-sm group-hover:text-cyan-300 transition-colors">
                         <ExternalLink className="w-4 h-4 mr-1" />
                         Visita il progetto
-                      </a>
+                      </span>
                     )}
                   </div>
-                </div>
+                </a>
               );
             })}
           </div>
