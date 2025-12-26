@@ -3067,14 +3067,35 @@ async def get_ezviz_cameras():
 async def get_ezviz_camera_snapshot(serial: str):
     """Get latest snapshot from Ezviz camera"""
     try:
-        client = await get_ezviz_token()
-        cameras_data = client.get_all_cameras_info()
+        auth = await get_ezviz_token()
         
-        if serial in cameras_data:
-            cover_url = cameras_data[serial].get("cover", "")
-            return {"serial": serial, "image_url": cover_url}
-        
-        raise HTTPException(status_code=404, detail="Camera not found")
+        if auth["type"] == "api":
+            # Usa API ufficiale - richiedi capture
+            result = await ezviz_api_request("/api/lapp/device/capture", "POST", {
+                "deviceSerial": serial,
+                "channelNo": 1
+            })
+            
+            if result.get('code') == '200' or result.get('code') == 200:
+                pic_url = result.get('data', {}).get('picUrl', '')
+                return {"serial": serial, "image_url": pic_url}
+            else:
+                # Fallback - prendi dalla lista dispositivi
+                cameras = await get_ezviz_cameras()
+                for cam in cameras.get('cameras', []):
+                    if cam['serial'] == serial:
+                        return {"serial": serial, "image_url": cam.get('image_url', '')}
+                raise HTTPException(status_code=404, detail="Camera not found")
+        else:
+            # Usa pyezvizapi
+            client = auth["client"]
+            cameras_data = client.get_all_cameras_info()
+            
+            if serial in cameras_data:
+                cover_url = cameras_data[serial].get("cover", "")
+                return {"serial": serial, "image_url": cover_url}
+            
+            raise HTTPException(status_code=404, detail="Camera not found")
     except HTTPException:
         raise
     except Exception as e:
@@ -3086,18 +3107,42 @@ async def get_ezviz_camera_snapshot(serial: str):
 async def get_ezviz_camera_stream_url(serial: str):
     """Get stream URL for Ezviz camera"""
     try:
-        client = await get_ezviz_token()
+        auth = await get_ezviz_token()
         
-        # Try to get live stream URL
-        try:
-            url = client.get_camera_live_url(serial)
-            return {"serial": serial, "stream_url": url}
-        except:
-            # Fallback - return the cover image URL
-            cameras_data = client.get_all_cameras_info()
-            if serial in cameras_data:
-                return {"serial": serial, "stream_url": cameras_data[serial].get("cover", "")}
-            raise HTTPException(status_code=404, detail="Camera not found")
+        if auth["type"] == "api":
+            # Usa API ufficiale per ottenere URL stream
+            result = await ezviz_api_request("/api/lapp/live/address/get", "POST", {
+                "deviceSerial": serial,
+                "channelNo": 1,
+                "protocol": 2,  # 1=ezopen, 2=hls, 3=rtmp
+                "quality": 1    # 1=HD, 2=SD
+            })
+            
+            if result.get('code') == '200' or result.get('code') == 200:
+                stream_url = result.get('data', {}).get('url', '')
+                return {"serial": serial, "stream_url": stream_url}
+            else:
+                # Fallback - prova con protocollo diverso
+                result2 = await ezviz_api_request("/api/lapp/live/address/get", "POST", {
+                    "deviceSerial": serial,
+                    "channelNo": 1,
+                    "protocol": 1,
+                    "quality": 1
+                })
+                if result2.get('code') == '200' or result2.get('code') == 200:
+                    return {"serial": serial, "stream_url": result2.get('data', {}).get('url', '')}
+                raise HTTPException(status_code=404, detail=f"Stream not available: {result.get('msg', 'Unknown error')}")
+        else:
+            # Usa pyezvizapi
+            client = auth["client"]
+            try:
+                url = client.get_camera_live_url(serial)
+                return {"serial": serial, "stream_url": url}
+            except:
+                cameras_data = client.get_all_cameras_info()
+                if serial in cameras_data:
+                    return {"serial": serial, "stream_url": cameras_data[serial].get("cover", "")}
+                raise HTTPException(status_code=404, detail="Camera not found")
     except HTTPException:
         raise
     except Exception as e:
