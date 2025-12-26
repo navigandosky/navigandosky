@@ -512,6 +512,21 @@ export const TicketList = ({ elettrodomestici, centriAssistenza }) => {
     }
   };
 
+  const handleAggiornaTicket = async (ticketId, nuovoStato, note) => {
+    try {
+      const updateData = { stato: nuovoStato };
+      if (note) {
+        updateData.note_interne = note;
+      }
+      await axios.put(`${API}/tickets/${ticketId}`, updateData);
+      toast.success("Ticket aggiornato con successo");
+      loadTickets();
+    } catch (error) {
+      toast.error("Errore nell'aggiornamento del ticket");
+      throw error;
+    }
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
