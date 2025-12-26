@@ -40,7 +40,7 @@ security = HTTPBasic()
 
 # Admin credentials (in production, use environment variables)
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "trivor2024")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Trivor2024$")
 
 def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USERNAME)
