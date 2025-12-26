@@ -1822,15 +1822,12 @@ const Home = () => {
 function App() {
   return (
     <div className="App">
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/trivor" element={<Home />} />
-          <Route path="/trivor/" element={<Home />} />
-          <Route path="/trivor/admin" element={<AdminPage />} />
-          <Route path="/trivor/admin/" element={<AdminPage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </div>
   );
 }
