@@ -181,6 +181,38 @@ async def create_contact_message(input: ContactMessageCreate):
 # ROUTES - Admin (Protected)
 # =============================================================================
 
+# Image Upload endpoint
+@api_router.post("/admin/upload")
+async def upload_image(file: UploadFile = File(...), username: str = Depends(verify_credentials)):
+    """Upload an image file (admin only)"""
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Tipo file non supportato. Usa: JPG, PNG, GIF, WEBP"
+        )
+    
+    # Generate unique filename
+    file_ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    unique_filename = f"{uuid.uuid4()}.{file_ext}"
+    file_path = UPLOADS_DIR / unique_filename
+    
+    # Save file
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore nel salvataggio: {str(e)}")
+    
+    # Return the URL
+    # The URL will be served via the /uploads static mount
+    return {
+        "filename": unique_filename,
+        "url": f"/uploads/{unique_filename}",
+        "message": "Immagine caricata con successo"
+    }
+
 @api_router.get("/admin/verify")
 async def verify_admin(username: str = Depends(verify_credentials)):
     """Verify admin credentials"""
