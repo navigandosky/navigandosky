@@ -1078,6 +1078,15 @@ function App() {
     }
   }, [filtroCategoria]);
 
+  const loadSmartThingsDevices = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/smartthings/devices`);
+      setSmartThingsDevices(response.data.devices || []);
+    } catch (error) {
+      console.log("SmartThings not available:", error.message);
+    }
+  }, []);
+
   const loadManutenzioni = useCallback(async () => {
     try {
       const params = filtroStatoManut ? { stato: filtroStatoManut } : {};
