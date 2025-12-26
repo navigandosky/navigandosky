@@ -907,11 +907,15 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
             <Label htmlFor="costo">Costo (€)</Label>
             <Input
               id="costo"
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
+              placeholder="Es: 150.00 o da definire"
               value={formData.costo || ""}
-              onChange={(e) => setFormData({ ...formData, costo: e.target.value ? parseFloat(e.target.value) : null })}
+              onChange={(e) => {
+                const val = e.target.value;
+                // Permetti input libero, converte in numero se possibile
+                const numVal = parseFloat(val.replace(',', '.'));
+                setFormData({ ...formData, costo: !isNaN(numVal) ? numVal : val || null });
+              }}
             />
           </div>
 
