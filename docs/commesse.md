@@ -502,10 +502,29 @@ Applicazione web per la gestione intelligente di immobili con:
 | 2.2 | Integrazioni SmartThings/Ezviz | ✅ Completata | 100% |
 | 2.3 | Unificazione Stati e Correzioni | ✅ Completata | 100% |
 | 2.4 | Workflow Ticket-Manutenzioni | ✅ Completata | 100% |
+| 2.5 | Miglioramenti e Fix | ✅ Completata | 100% |
 | 3 | Multi-Utente | 📋 Pianificata | 0% |
 | 4 | Smart Home Avanzato | 📋 Futura | 0% |
 
-**Avanzamento globale:** ~90%
+**Avanzamento globale:** ~92%
+
+---
+
+## 📋 PROSSIMI PASSI
+
+### 🔴 Priorità Alta
+1. **Planimetria Avanzata** - Multi-piano, upload foto, posizionamento icone elettrodomestici
+2. **Test Workflow** - Verificare flusso Ticket→Manutenzione con dati reali
+
+### 🟠 Priorità Media  
+3. **Matterport SDK** - Navigazione 3D (in attesa credenziali - vedi `/app/docs/richiesta_matterport_sdk.md`)
+4. **SmartThings Caching** - Evitare errori 429 rate limiting
+
+### 🟡 Progetti Futuri
+5. **trivor.IT** - Area Riservata, CMS, catalogo web
+6. **Multi-Tenancy** - Gestione multi-utente
+7. **Notifiche** - Sistema email/push
+8. **Analisi Consumi** - Grafici storici
 
 ---
 
