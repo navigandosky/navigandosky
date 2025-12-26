@@ -1633,7 +1633,7 @@ function App() {
                             )}
                             {m.data_programmata && (
                               <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" /> {m.data_programmata}
+                                <Calendar className="h-3 w-3" /> {formatDateIT(m.data_programmata)}
                               </span>
                             )}
                             {m.costo && (
