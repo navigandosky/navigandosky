@@ -348,6 +348,10 @@ class TicketBase(BaseModel):
     centro_assistenza_id: Optional[str] = None
     contatto_preferito: str = "email"  # "email", "whatsapp", "telefono"
     note_interne: Optional[str] = None
+    # Campi allineati con Manutenzione
+    tipo: Optional[str] = "riparazione"  # ordinaria, straordinaria, riparazione, controllo
+    data_programmata: Optional[str] = None  # Data prevista intervento
+    data_completamento: Optional[str] = None  # Alias di data_risoluzione
 
 
 class TicketCreate(TicketBase):
@@ -362,9 +366,12 @@ class TicketUpdate(BaseModel):
     centro_assistenza_id: Optional[str] = None
     contatto_preferito: Optional[str] = None
     note_interne: Optional[str] = None
+    tipo: Optional[str] = None
+    data_programmata: Optional[str] = None
     data_contatto: Optional[str] = None
     data_intervento: Optional[str] = None
     data_risoluzione: Optional[str] = None
+    data_completamento: Optional[str] = None
     costo_intervento: Optional[float] = None
     valutazione: Optional[int] = None  # 1-5
     note_risoluzione: Optional[str] = None
