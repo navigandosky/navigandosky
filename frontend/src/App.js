@@ -902,6 +902,100 @@ const CentroAssistenzaDialog = ({ open, onOpenChange, centro, onSave }) => {
 };
 
 // Manutenzione Form Dialog
+// ============== DETTAGLIO MANUTENZIONE (Solo Lettura) ==============
+const DettaglioManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici, centriAssistenza }) => {
+  if (!manutenzione) return null;
+  
+  const elettro = elettrodomestici?.find(e => e.id === manutenzione.elettrodomestico_id);
+  const centro = centriAssistenza?.find(c => c.id === manutenzione.centro_assistenza_id);
+  const statoInfo = STATI_MANUTENZIONE.find(s => s.value === manutenzione.stato);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5" />
+            Dettaglio Manutenzione
+            <Badge className={`${statoInfo?.color} text-white ml-2`}>
+              {statoInfo?.label}
+            </Badge>
+          </DialogTitle>
+          <DialogDescription>
+            Visualizzazione dettagli manutenzione completata/annullata
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Info Elettrodomestico */}
+          {elettro && (
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-blue-800 mb-1">Elettrodomestico</h4>
+              <p className="text-sm">{elettro.nome} - {elettro.marca} {elettro.modello}</p>
+            </div>
+          )}
+
+          {/* Descrizione */}
+          <div>
+            <Label className="text-gray-500">Descrizione</Label>
+            <p className="mt-1 p-2 bg-gray-50 rounded">{manutenzione.descrizione || "-"}</p>
+          </div>
+
+          {/* Date e Tipo */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-gray-500">Tipo</Label>
+              <p className="mt-1 p-2 bg-gray-50 rounded capitalize">{manutenzione.tipo}</p>
+            </div>
+            <div>
+              <Label className="text-gray-500">Costo</Label>
+              <p className="mt-1 p-2 bg-gray-50 rounded">{manutenzione.costo ? `€${manutenzione.costo}` : "-"}</p>
+            </div>
+            <div>
+              <Label className="text-gray-500">Data Programmata</Label>
+              <p className="mt-1 p-2 bg-gray-50 rounded">{formatDateIT(manutenzione.data_programmata) || "-"}</p>
+            </div>
+            <div>
+              <Label className="text-gray-500">Data Completamento</Label>
+              <p className="mt-1 p-2 bg-gray-50 rounded">{formatDateIT(manutenzione.data_completamento) || "-"}</p>
+            </div>
+          </div>
+
+          {/* Centro Assistenza */}
+          {centro && (
+            <div className="p-3 bg-green-50 rounded-lg">
+              <h4 className="font-medium text-green-800 mb-1">Centro Assistenza</h4>
+              <p className="text-sm">{centro.nome_azienda}</p>
+              {centro.telefono && <p className="text-xs text-gray-600">📞 {centro.telefono}</p>}
+            </div>
+          )}
+
+          {/* Note */}
+          {manutenzione.note && (
+            <div>
+              <Label className="text-gray-500">Note</Label>
+              <p className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap text-sm">{manutenzione.note}</p>
+            </div>
+          )}
+
+          {/* Timestamp */}
+          <div className="text-xs text-gray-400 pt-2 border-t">
+            Creata: {formatDateIT(manutenzione.created_at)} | 
+            Aggiornata: {formatDateIT(manutenzione.updated_at)}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Chiudi
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ============== MANUTENZIONE DIALOG (Modifica) ==============
 const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici, centriAssistenza, onSave }) => {
   const [formData, setFormData] = useState({
     elettrodomestico_id: "",
@@ -918,6 +1012,9 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
     note: "",
     crea_ticket_automatico: false,
   });
+
+  // Se manutenzione è completata/annullata, non permettere modifica
+  const isReadOnly = manutenzione && (manutenzione.stato === "completata" || manutenzione.stato === "annullata");
 
   useEffect(() => {
     if (manutenzione) {
