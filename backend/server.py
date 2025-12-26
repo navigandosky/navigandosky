@@ -2146,7 +2146,7 @@ async def get_calendar_events(
     
     # Ticket aperti
     tickets = await db.tickets.find(
-        {"user_id": user_id, "stato": {"$nin": ["risolto", "annullato"]}},
+        {"user_id": user_id, "stato": {"$nin": ["completato", "annullato"]}},
         {"_id": 0}
     ).to_list(100)
     
