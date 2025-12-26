@@ -463,28 +463,28 @@ const AboutSection = () => {
 const PortfolioSection = () => {
   const projects = [
     {
-      image: "https://picsum.photos/seed/smartbuilding/600/400",
+      icon: Building2,
+      gradient: "from-cyan-500/20 to-teal-500/20",
       category: "Smart Building",
       title: "Smart Building Dashboard",
       client: "Navigandosky",
       description: "Piattaforma di gestione edifici smart con gemelli digitali Matterport, monitoraggio manutenzioni e domotica integrata.",
-      color: "cyan",
     },
     {
-      image: "https://picsum.photos/seed/sardegna/600/400",
+      icon: Gem,
+      gradient: "from-teal-500/20 to-emerald-500/20",
       category: "Beni Culturali",
       title: "Tour Virtuali Sardegna",
       client: "Regione Sardegna",
       description: "Digitalizzazione di siti archeologici e grotte con tour virtuali 360° per la valorizzazione del patrimonio culturale sardo.",
-      color: "teal",
     },
     {
-      image: "https://picsum.photos/seed/cms/600/400",
+      icon: Monitor,
+      gradient: "from-emerald-500/20 to-cyan-500/20",
       category: "Gestionale",
       title: "CMS Tracciamento Progetti",
       client: "Trivor SRL",
       description: "Sistema di gestione progetti con tracking ore, crediti, sessioni di lavoro ed export dati per monitoraggio attività.",
-      color: "emerald",
     },
   ];
 
