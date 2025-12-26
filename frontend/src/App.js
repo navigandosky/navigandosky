@@ -1157,6 +1157,13 @@ function App() {
     }
   };
 
+  // Handler per aggiungere centro dalla ricerca web
+  const handleAddCentroFromSearch = (centroData) => {
+    setEditingCentro(centroData);
+    setCentroDialogOpen(true);
+    setRicercaCentriOpen(false);
+  };
+
   // CRUD handlers for Elettrodomestici
   const handleSaveElettro = async (data) => {
     try {
