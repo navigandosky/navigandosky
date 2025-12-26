@@ -43,13 +43,17 @@ export const formatDateTimeIT = (dateString) => {
   }
 };
 
-const STATI_TICKET = [
-  { value: "aperto", label: "Aperto", color: "bg-blue-500", icon: "📋" },
+// Stati UNIFICATI per Ticket e Manutenzioni
+const STATI_UNIFICATI = [
+  { value: "aperto", label: "Aperto", labelAlt: "Pianificato", color: "bg-blue-500", icon: "📋" },
   { value: "contattato", label: "Contattato", color: "bg-yellow-500", icon: "📞" },
   { value: "in_lavorazione", label: "In Lavorazione", color: "bg-orange-500", icon: "🔧" },
-  { value: "risolto", label: "Risolto", color: "bg-green-500", icon: "✅" },
+  { value: "completato", label: "Completato", labelAlt: "Risolto", color: "bg-green-500", icon: "✅" },
   { value: "annullato", label: "Annullato", color: "bg-gray-500", icon: "❌" },
 ];
+
+// Alias per retrocompatibilità
+const STATI_TICKET = STATI_UNIFICATI;
 
 const PRIORITA_TICKET = [
   { value: "bassa", label: "Bassa", color: "bg-gray-400" },
