@@ -1309,7 +1309,7 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
 
 // Main App Component
 function App() {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("smartdomo");
   const [config, setConfig] = useState(null);
   const [stats, setStats] = useState(null);
   const [consumiPerCategoria, setConsumiPerCategoria] = useState([]);
