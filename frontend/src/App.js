@@ -1532,6 +1532,7 @@ function App() {
                 <p className="text-xs text-gray-500">Gestione Immobili Intelligente</p>
               </div>
             </div>
+            <NotificationBadge onClick={() => setActiveTab("suggerimenti")} />
           </div>
         </div>
       </header>
