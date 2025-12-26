@@ -20,7 +20,48 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ---
 
-## 🆕 FASE 1.9 - SMARTDOMO DASHBOARD (27/12/2024) - COMPLETATA
+## 🆕 FASE 2.0 - ELETTRODOMESTICI AVANZATI (27/12/2024) - IN CORSO
+
+### Form Elettrodomestici Migliorato ✅
+- [x] Tab "Info" con foto opzionale
+- [x] Tab "Acquisto" con:
+  - [x] Data acquisto e scadenza garanzia
+  - [x] Costo iniziale (€)
+  - [x] Valore attuale (€)
+  - [x] Upload fattura/documenti acquisto
+- [x] Tab "Consumi" con calcolo automatico kWh/costo
+- [x] Tab "Smart" con selezione dispositivi SmartThings
+- [x] Tab "Assistenza" con:
+  - [x] Centro assistenza collegato
+  - [x] Upload manuali PDF
+  - [x] Link sito manuale
+  - [x] Upload video istruzioni
+  - [x] Upload PDF istruzioni pratiche
+
+### Categorie e Marche Custom ✅
+- [x] API /api/categorie-custom (aggiunta categorie personalizzate)
+- [x] API /api/marche-custom (aggiunta marche personalizzate)
+- [x] Pulsanti "Aggiungi" nel form
+
+### Upload File ✅
+- [x] API /api/upload/{tipo} (fattura, foto, manuale, video, pdf_istruzioni)
+- [x] API /api/files/{tipo}/{filename} (servire file)
+- [x] Validazione estensioni per tipo
+- [x] Cartella upload: /app/uploads/
+
+### Dispositivi SmartThings per Stanza ✅
+- [x] API /api/smartthings/devices-by-room
+- [x] API /api/smartthings/rooms
+- [x] Tab Domotica con stanze espandibili (6 stanze, 22 dispositivi)
+
+### Da Completare
+- [ ] Visualizzare totale consumi stimati nella Dashboard principale
+- [ ] Test completo upload file
+- [ ] Test creazione elettrodomestico con tutti i campi
+
+---
+
+## ✅ FASE 1.9 - SMARTDOMO DASHBOARD (27/12/2024) - COMPLETATA
 
 ### Nuova Interfaccia SmartDomo ✅
 - [x] Tema scuro professionale (bg-[#09090B])
