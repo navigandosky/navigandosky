@@ -163,6 +163,20 @@ export const AggiornaTicketDialog = ({ open, onOpenChange, ticket, onUpdate }) =
             />
           </div>
 
+          {/* Costo Intervento */}
+          <div className="space-y-2">
+            <Label>Costo Intervento (€)</Label>
+            <Input
+              type="text"
+              value={costo}
+              onChange={(e) => setCosto(e.target.value)}
+              placeholder="Es: 150.00"
+            />
+            <p className="text-xs text-gray-500">
+              Inserisci il costo se noto. Verrà usato per aggiornare la manutenzione collegata.
+            </p>
+          </div>
+
           {statiDisponibili().length === 0 && (
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-700">
