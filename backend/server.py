@@ -53,6 +53,20 @@ from emergentintegrations.llm.openai import LlmChat, UserMessage
 MANUALS_DIR = ROOT_DIR / "manuals"
 MANUALS_DIR.mkdir(exist_ok=True)
 
+# Directory for QR codes
+QRCODES_DIR = ROOT_DIR / "qrcodes"
+QRCODES_DIR.mkdir(exist_ok=True)
+
+# Email configuration (optional - can be configured via env)
+SMTP_HOST = os.environ.get('SMTP_HOST', '')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+SMTP_USER = os.environ.get('SMTP_USER', '')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
+SMTP_FROM = os.environ.get('SMTP_FROM', '')
+
+# Frontend URL for QR codes
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://building-portal-hub.preview.emergentagent.com')
+
 
 # ============== ENUMS ==============
 
