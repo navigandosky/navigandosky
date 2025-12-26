@@ -941,7 +941,7 @@ const Footer = () => {
   const reserved = [
     { name: "🔐 Accedi all'Area Riservata", href: "/trivor/admin" },
     { name: "Portfolio / Catalogo", href: "#progetti" },
-    { name: "Smart Building Dashboard", href: "https://buildingdash.preview.emergentagent.com" },
+    { name: "Smart Building Dashboard", href: "https://building-brain.preview.emergentagent.com/" },
   ];
 
   return (
