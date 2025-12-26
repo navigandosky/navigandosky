@@ -1099,8 +1099,40 @@ const AttractionsAdminPanel = () => {
             onClick={() => { setEditingAttraction(null); setFormData(emptyAttraction); setShowForm(true); }}
             className="flex items-center gap-2 px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold transition"
           >
-            <Plus size={20} /> Nuova Attrazione
+            <Plus size={20} /> Nuovo Elemento
           </button>
+        </div>
+
+        {/* Category Filter Tabs */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {[
+            { value: "all", label: "Tutti", icon: "📋" },
+            { value: "attrazioni", label: "Attrazioni", icon: "🏛️" },
+            { value: "mangiare", label: "Dove Mangiare", icon: "🍽️" },
+            { value: "dormire", label: "Dove Dormire", icon: "🏨" },
+            { value: "itinerari", label: "Itinerari", icon: "🚶" }
+          ].map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setCategoryFilter(tab.value)}
+              className={`px-4 py-2 rounded-full font-medium transition ${
+                categoryFilter === tab.value 
+                  ? "bg-amber-600 text-white" 
+                  : "bg-white text-gray-700 hover:bg-amber-50 border"
+              }`}
+            >
+              {tab.icon} {tab.label} 
+              <span className="ml-1 text-xs opacity-70">
+                ({tab.value === "all" ? attractions.length : attractions.filter(a => {
+                  if (tab.value === "attrazioni") return ["chiesa", "monumento", "archeologia", "natura", "museo"].includes(a.category);
+                  if (tab.value === "mangiare") return ["ristorante", "pizzeria", "bar", "agriturismo_rist"].includes(a.category);
+                  if (tab.value === "dormire") return ["hotel", "b&b", "agriturismo", "casa_vacanze"].includes(a.category);
+                  if (tab.value === "itinerari") return a.category === "itinerario";
+                  return false;
+                }).length})
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* Form Modal */}
