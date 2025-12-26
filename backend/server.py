@@ -1940,7 +1940,7 @@ async def chiudi_ticket(
     # Se il ticket ha già una manutenzione collegata, aggiornala
     if manutenzione_id:
         manutenzione_update = {
-            "stato": "completata",
+            "stato": "completato",
             "data_completamento": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
@@ -1965,7 +1965,7 @@ async def chiudi_ticket(
             "descrizione": f"{ticket.get('titolo')}\n\n{ticket.get('descrizione')}\n\nRisoluzione: {note_risoluzione or 'Completata'}",
             "data_programmata": ticket.get('created_at'),
             "data_completamento": datetime.now(timezone.utc).isoformat(),
-            "stato": "completata",
+            "stato": "completato",
             "costo": costo,
             "usa_centro_assistenza_elettrodomestico": False,
             "centro_assistenza_id": ticket.get('centro_assistenza_id'),
