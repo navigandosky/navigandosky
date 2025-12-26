@@ -223,17 +223,69 @@ const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico, onOpenTi
 
     setIsLoading(true);
     setSoluzione(null);
+    setShowActionButtons(false);
 
     try {
       const response = await axios.post(
         `${API}/assistente/risolvi-problema?elettrodomestico_id=${selectedElettrodomestico}&problema=${encodeURIComponent(problema)}`
       );
       setSoluzione(response.data);
+      // Mostra i pulsanti azione dopo 2 secondi dalla soluzione
+      setTimeout(() => setShowActionButtons(true), 2000);
     } catch (error) {
       console.error("Errore:", error);
       toast.error("Errore nella risoluzione del problema");
+      setShowActionButtons(true); // Mostra pulsanti anche in caso di errore
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Funzione per aprire un ticket precompilato
+  const handleApriTicket = () => {
+    const elettro = elettrodomestici.find(e => e.id === selectedElettrodomestico);
+    if (onOpenTicket) {
+      onOpenTicket({
+        elettrodomestico_id: selectedElettrodomestico,
+        titolo: `Problema: ${problema.substring(0, 50)}${problema.length > 50 ? '...' : ''}`,
+        descrizione: `Problema segnalato:\n${problema}\n\n${soluzione ? `Soluzione tentata:\n${soluzione.soluzione?.substring(0, 500) || 'N/A'}` : ''}`,
+        elettrodomestico: elettro
+      });
+    }
+    toast.success("Apertura form ticket...");
+  };
+
+  // Funzione per contattare assistenza
+  const handleContattaAssistenza = () => {
+    const elettro = elettrodomestici.find(e => e.id === selectedElettrodomestico);
+    if (elettro?.centro_assistenza_id) {
+      // Naviga alla tab centri assistenza
+      if (onNavigateToTab) {
+        onNavigateToTab("centri");
+      }
+      toast.success("Vai alla sezione Centri Assistenza");
+    } else {
+      toast.info("Nessun centro assistenza collegato. Vai alla sezione Centri per cercarne uno.");
+      if (onNavigateToTab) {
+        onNavigateToTab("centri");
+      }
+    }
+  };
+
+  // Funzione per navigare nello spazio 3D
+  const handleVaiNelloSpazio = () => {
+    const elettro = elettrodomestici.find(e => e.id === selectedElettrodomestico);
+    if (elettro?.matterport_tag_id) {
+      if (onNavigateToElettrodomestico) {
+        onNavigateToElettrodomestico(selectedElettrodomestico);
+      }
+      toast.success("Navigazione verso l'elettrodomestico nel modello 3D...");
+    } else {
+      // Naviga comunque alla vista 3D
+      if (onNavigateToTab) {
+        onNavigateToTab("matterport");
+      }
+      toast.info("Vai alla Vista 3D per localizzare l'elettrodomestico");
     }
   };
 
