@@ -1806,7 +1806,7 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
     elif stato_ticket == "completato":
         # Crea nuova manutenzione dal ticket
         nuova_manutenzione = {
-            "id": str(uuid4()),
+            "id": str(uuid.uuid4()),
             "user_id": ticket.get('user_id', 'default-user'),
             "elettrodomestico_id": ticket.get('elettrodomestico_id'),
             "centro_assistenza_id": ticket.get('centro_assistenza_id'),
