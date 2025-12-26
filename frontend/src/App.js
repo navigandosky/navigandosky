@@ -1301,6 +1301,8 @@ function App() {
   const [editingElettro, setEditingElettro] = useState(null);
   const [manutDialogOpen, setManutDialogOpen] = useState(false);
   const [editingManut, setEditingManut] = useState(null);
+  const [dettaglioManutOpen, setDettaglioManutOpen] = useState(false);
+  const [viewingManut, setViewingManut] = useState(null);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [qrElettro, setQrElettro] = useState(null);
   const [ricercaCentriOpen, setRicercaCentriOpen] = useState(false);
