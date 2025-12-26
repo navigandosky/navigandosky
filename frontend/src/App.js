@@ -1528,14 +1528,18 @@ const AttractionsAdminPanel = () => {
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-500 border-t-transparent"></div>
           </div>
-        ) : attractions.length === 0 ? (
+        ) : filteredAttractions.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-2xl shadow">
             <Landmark size={48} className="mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-500">Nessuna attrazione creata. Clicca "Nuova Attrazione" per iniziare.</p>
+            <p className="text-gray-500">
+              {attractions.length === 0 
+                ? 'Nessun elemento creato. Clicca "Nuovo Elemento" per iniziare.'
+                : 'Nessun elemento in questa categoria.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-6">
-            {attractions.map((attr) => (
+            {filteredAttractions.map((attr) => (
               <div key={attr.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition p-6">
                 <div className="flex flex-col lg:flex-row gap-6">
                   {/* Images */}
