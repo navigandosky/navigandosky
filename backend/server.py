@@ -1918,15 +1918,33 @@ async def chiudi_ticket(
     note_risoluzione: Optional[str] = Query(None),
     crea_manutenzione: bool = Query(True, description="Crea record manutenzione dall'intervento")
 ):
-    """Chiudi un ticket e opzionalmente crea una manutenzione"""
+    """Chiudi un ticket e aggiorna/crea la manutenzione collegata"""
     ticket = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket non trovato")
     
-    manutenzione_id = None
+    manutenzione_id = ticket.get('manutenzione_id')
     
-    # Crea manutenzione se richiesto
-    if crea_manutenzione:
+    # Se il ticket ha già una manutenzione collegata, aggiornala
+    if manutenzione_id:
+        manutenzione_update = {
+            "stato": "completata",
+            "data_completamento": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        if costo is not None:
+            manutenzione_update["costo"] = costo
+        if note_risoluzione:
+            manutenzione = await db.manutenzioni.find_one({"id": manutenzione_id}, {"_id": 0})
+            note_esistenti = manutenzione.get('note', '') if manutenzione else ''
+            manutenzione_update["note"] = f"{note_esistenti}\n[Risoluzione] {note_risoluzione}".strip()
+        
+        await db.manutenzioni.update_one(
+            {"id": manutenzione_id},
+            {"$set": manutenzione_update}
+        )
+    elif crea_manutenzione:
+        # Crea nuova manutenzione solo se non ce n'è una collegata
         manutenzione = {
             "id": str(uuid.uuid4()),
             "user_id": ticket.get('user_id', DEFAULT_USER_ID),
@@ -1966,7 +1984,8 @@ async def chiudi_ticket(
     
     return {
         "message": "Ticket chiuso con successo",
-        "manutenzione_id": manutenzione_id
+        "manutenzione_id": manutenzione_id,
+        "manutenzione_aggiornata": bool(ticket.get('manutenzione_id'))
     }
 
 
