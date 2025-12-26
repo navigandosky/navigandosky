@@ -1765,6 +1765,7 @@ function App() {
         onOpenChange={setElettroDialogOpen}
         elettrodomestico={editingElettro}
         centriAssistenza={centriAssistenza}
+        smartThingsDevices={smartThingsDevices}
         onSave={handleSaveElettro}
       />
 
