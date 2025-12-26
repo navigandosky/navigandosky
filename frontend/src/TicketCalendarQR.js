@@ -820,6 +820,14 @@ export const TicketList = ({ elettrodomestici, centriAssistenza }) => {
         ticket={selectedTicket}
         onUpdate={handleAggiornaTicket}
       />
+
+      <DettaglioTicketDialog
+        open={dettaglioDialogOpen}
+        onOpenChange={setDettaglioDialogOpen}
+        ticket={selectedTicket}
+        elettrodomestici={elettrodomestici}
+        centriAssistenza={centriAssistenza}
+      />
     </div>
   );
 };
