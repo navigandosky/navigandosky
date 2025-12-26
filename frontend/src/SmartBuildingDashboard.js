@@ -595,13 +595,14 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                   </div>
                   
                   {loading ? (
-                    <div className="space-y-4">
-                      {Array.from({ length: 3 }).map((_, i) => (
-                        <Skeleton key={i} className="h-32 bg-slate-800 rounded-xl" />
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <Skeleton key={i} className="h-48 bg-slate-800 rounded-xl" />
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    // Stanze in colonne verticali
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                       {devicesByRoom.map((room) => {
                         // Get room icon based on name
                         const getRoomIcon = (name) => {
@@ -615,43 +616,53 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                           return Home;
                         };
                         const RoomIcon = getRoomIcon(room.roomName);
-                        const isExpanded = expandedRooms[room.roomName] !== false;
+                        const isExpanded = expandedRooms[room.roomName] === true;
+                        
+                        // Room card color based on type
+                        const getRoomColor = (name) => {
+                          const n = name.toLowerCase();
+                          if (n.includes('luci')) return 'from-yellow-500/20 to-amber-500/10 border-yellow-500/30';
+                          if (n.includes('acqua')) return 'from-blue-500/20 to-cyan-500/10 border-blue-500/30';
+                          if (n.includes('aperto')) return 'from-green-500/20 to-emerald-500/10 border-green-500/30';
+                          if (n.includes('living')) return 'from-purple-500/20 to-violet-500/10 border-purple-500/30';
+                          if (n.includes('accessi')) return 'from-red-500/20 to-orange-500/10 border-red-500/30';
+                          if (n.includes('studio')) return 'from-cyan-500/20 to-blue-500/10 border-cyan-500/30';
+                          return 'from-slate-500/20 to-slate-600/10 border-slate-500/30';
+                        };
                         
                         return (
-                          <Card key={room.roomId || room.roomName} className="bg-slate-900/50 border-slate-800 overflow-hidden">
+                          <Card 
+                            key={room.roomId || room.roomName} 
+                            className={`bg-gradient-to-b ${getRoomColor(room.roomName)} overflow-hidden transition-all duration-300 ${isExpanded ? 'row-span-2' : ''}`}
+                          >
                             <button
                               onClick={() => toggleRoom(room.roomName)}
-                              className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-800/50 transition-colors"
+                              className="w-full p-4 text-center hover:bg-white/5 transition-colors"
                             >
-                              <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-cyan-500/20">
-                                  <RoomIcon size={20} className="text-cyan-400" />
+                              <div className="flex flex-col items-center gap-3">
+                                <div className="p-3 rounded-xl bg-slate-900/50">
+                                  <RoomIcon size={28} className="text-white" />
                                 </div>
-                                <div className="text-left">
-                                  <h4 className="text-white font-medium">{room.roomName}</h4>
-                                  <p className="text-xs text-slate-400">{room.devices.length} dispositivi</p>
+                                <div>
+                                  <h4 className="text-white font-medium text-sm">{room.roomName}</h4>
+                                  <p className="text-xs text-slate-400 mt-1">{room.devices.length} dispositivi</p>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="border-slate-600 text-slate-400">
-                                  {room.devices.length}
-                                </Badge>
-                                {isExpanded ? (
-                                  <ChevronUp size={20} className="text-slate-400" />
-                                ) : (
-                                  <ChevronDown size={20} className="text-slate-400" />
-                                )}
+                                <div className="flex items-center gap-1 text-slate-400">
+                                  {isExpanded ? (
+                                    <ChevronUp size={16} />
+                                  ) : (
+                                    <ChevronDown size={16} />
+                                  )}
+                                </div>
                               </div>
                             </button>
                             
                             {isExpanded && (
-                              <CardContent className="pt-0 pb-4">
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
-                                  {room.devices.map(device => (
-                                    <DeviceCard key={device.id} device={device} />
-                                  ))}
-                                </div>
-                              </CardContent>
+                              <div className="px-3 pb-4 space-y-2">
+                                {room.devices.map(device => (
+                                  <DeviceCard key={device.id} device={device} />
+                                ))}
+                              </div>
                             )}
                           </Card>
                         );
