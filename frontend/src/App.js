@@ -1101,7 +1101,8 @@ function App() {
   useEffect(() => {
     loadConfig();
     loadCentriAssistenza();
-  }, [loadConfig, loadCentriAssistenza]);
+    loadSmartThingsDevices();
+  }, [loadConfig, loadCentriAssistenza, loadSmartThingsDevices]);
 
   // Load data based on active tab
   useEffect(() => {
