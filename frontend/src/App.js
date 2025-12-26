@@ -1448,6 +1448,7 @@ function App() {
   // CRUD handlers for Elettrodomestici
   const handleSaveElettro = async (data) => {
     try {
+      console.log("Saving elettrodomestico:", data);
       if (editingElettro) {
         await axios.put(`${API}/elettrodomestici/${editingElettro.id}`, data);
         toast.success("Elettrodomestico aggiornato");
@@ -1460,8 +1461,10 @@ function App() {
       loadElettrodomestici();
       loadStats();
     } catch (error) {
-      toast.error("Errore nel salvataggio");
-      console.error(error);
+      console.error("Errore salvataggio elettrodomestico:", error);
+      console.error("Response:", error.response?.data);
+      const errorMsg = error.response?.data?.detail || "Errore nel salvataggio";
+      toast.error(errorMsg);
     }
   };
 
