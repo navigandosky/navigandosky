@@ -109,6 +109,12 @@ Applicazione web per la gestione intelligente di immobili con:
   - [x] Note risoluzione
   - [x] Creazione automatica manutenzione nell'archivio
 
+### 📧 Configurazione Email SMTP ✅ (27/12/2024)
+- [x] Server SMTP Gmail configurato
+- [x] Account: navigandosky@gmail.com
+- [x] Password per le App generata e configurata
+- [x] Invio email automatico ai centri assistenza funzionante
+
 ### QR Code Elettrodomestici ✅
 - [x] Generazione QR Code per ogni elettrodomestico
 - [x] Card stampabile con:
