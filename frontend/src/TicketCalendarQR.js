@@ -219,10 +219,10 @@ export const AggiornaTicketDialog = ({ open, onOpenChange, ticket, onUpdate }) =
       case "aperto":
         return ["contattato", "in_lavorazione", "annullato"];
       case "contattato":
-        return ["in_lavorazione", "risolto", "annullato"];
+        return ["in_lavorazione", "completato", "annullato"];
       case "in_lavorazione":
-        return ["contattato", "risolto", "annullato"];
-      case "risolto":
+        return ["contattato", "completato", "annullato"];
+      case "completato":
         return []; // Non si può cambiare
       case "annullato":
         return ["aperto"]; // Si può riaprire
