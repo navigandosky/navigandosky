@@ -52,7 +52,7 @@ import {
   Map,
   Thermometer
 } from "lucide-react";
-import { TicketList, CalendarioManutenzioni, QRCodeDialog } from "./TicketCalendarQR";
+import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "./TicketCalendarQR";
 import { PlanimetriaEditor, SuggerimentiProattivi, NotificationBadge } from "./PlanimetriaSuggerimenti";
 import SmartBuildingDashboard from "./SmartBuildingDashboard";
 import ElettrodomesticoDialog from "./ElettrodomesticoForm";
