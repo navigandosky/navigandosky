@@ -96,10 +96,15 @@ class SmartPlugProvider(str, Enum):
 
 
 class StatoManutenzione(str, Enum):
-    PIANIFICATA = "pianificata"
-    IN_CORSO = "in_corso"
-    COMPLETATA = "completata"
-    ANNULLATA = "annullata"
+    """Stati unificati per Manutenzioni e Ticket"""
+    APERTO = "aperto"           # Nuovo/Pianificato
+    CONTATTATO = "contattato"   # Centro assistenza contattato
+    IN_LAVORAZIONE = "in_lavorazione"  # Lavoro in corso
+    COMPLETATO = "completato"   # Risolto/Completato
+    ANNULLATO = "annullato"     # Annullato
+
+# Alias per retrocompatibilità
+StatoTicket = StatoManutenzione
 
 
 class TipoManutenzione(str, Enum):
