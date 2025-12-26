@@ -232,7 +232,7 @@ const Navbar = ({ showAdminLink = true }) => {
             ))}
             {showAdminLink && (
               <a
-                href="/trivor/admin"
+                href="#/admin"
                 className="flex items-center space-x-1 text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
               >
                 <Lock size={14} />
@@ -265,7 +265,7 @@ const Navbar = ({ showAdminLink = true }) => {
             ))}
             {showAdminLink && (
               <a
-                href="/trivor/admin"
+                href="#/admin"
                 className="flex items-center space-x-2 py-3 px-4 text-cyan-400 hover:text-cyan-300 hover:bg-gray-800/50"
                 onClick={() => setMobileMenuOpen(false)}
               >
