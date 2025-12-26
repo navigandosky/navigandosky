@@ -540,6 +540,42 @@ const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico, onOpenTi
                     </div>
                   )}
                 </div>
+
+                {/* Pulsanti Azione - Se il problema non è risolto */}
+                {showActionButtons && (
+                  <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
+                    <h4 className="font-medium mb-3 flex items-center gap-2 text-orange-800">
+                      <AlertCircle className="h-4 w-4" />
+                      Il problema persiste? Ecco cosa puoi fare:
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <Button
+                        variant="outline"
+                        className="w-full border-orange-300 hover:bg-orange-100 text-orange-700"
+                        onClick={handleApriTicket}
+                      >
+                        <Ticket className="h-4 w-4 mr-2" />
+                        Apri Ticket
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full border-blue-300 hover:bg-blue-100 text-blue-700"
+                        onClick={handleContattaAssistenza}
+                      >
+                        <Phone className="h-4 w-4 mr-2" />
+                        Contatta Assistenza
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full border-purple-300 hover:bg-purple-100 text-purple-700"
+                        onClick={handleVaiNelloSpazio}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Vai nello Spazio 3D
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
