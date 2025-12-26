@@ -1133,6 +1133,9 @@ function App() {
   useEffect(() => {
     if (activeTab === "dashboard") {
       loadStats();
+    } else if (activeTab === "smartdomo") {
+      loadElettrodomestici();
+      loadManutenzioni();
     } else if (activeTab === "elettrodomestici") {
       loadElettrodomestici();
     } else if (activeTab === "manutenzioni") {
