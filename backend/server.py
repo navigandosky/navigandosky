@@ -2846,19 +2846,95 @@ async def get_smartthings_clima():
 
 
 # ============== EZVIZ CAMERA INTEGRATION ==============
+# Supporta sia l'API ufficiale Open Platform (con AppKey) che pyezvizapi (fallback)
 
 EZVIZ_USERNAME = os.environ.get('EZVIZ_USERNAME', '')
 EZVIZ_PASSWORD = os.environ.get('EZVIZ_PASSWORD', '')
 EZVIZ_REGION = os.environ.get('EZVIZ_REGION', 'eu')
+EZVIZ_APPKEY = os.environ.get('EZVIZ_APPKEY', '')
+EZVIZ_SECRET = os.environ.get('EZVIZ_SECRET', '')
 
 # Ezviz session cache
+ezviz_access_token = None
+ezviz_token_expires = None
 ezviz_client = None
-ezviz_token = None
+
+# API URLs per regione
+EZVIZ_API_URLS = {
+    'eu': 'https://api.isgpopen.ezvizlife.com',
+    'us': 'https://api-us.ezvizlife.com',
+    'asia': 'https://api-asia.ezvizlife.com',
+    'it': 'https://api.isgpopen.ezvizlife.com',  # Italia usa EU
+}
+
+async def get_ezviz_api_token():
+    """Get Ezviz API token using Open Platform API with AppKey"""
+    global ezviz_access_token, ezviz_token_expires
+    
+    import httpx
+    from datetime import datetime, timedelta
+    
+    # Se abbiamo un token valido, usalo
+    if ezviz_access_token and ezviz_token_expires and datetime.now() < ezviz_token_expires:
+        return ezviz_access_token
+    
+    if not EZVIZ_APPKEY:
+        raise HTTPException(status_code=500, detail="Ezviz AppKey not configured")
+    
+    if not EZVIZ_USERNAME or not EZVIZ_PASSWORD:
+        raise HTTPException(status_code=500, detail="Ezviz credentials not configured")
+    
+    base_url = EZVIZ_API_URLS.get(EZVIZ_REGION.lower(), EZVIZ_API_URLS['eu'])
+    login_url = f"{base_url}/api/v3/users/loginByPassword"
+    
+    payload = {
+        "appKey": EZVIZ_APPKEY,
+        "account": EZVIZ_USERNAME,
+        "password": EZVIZ_PASSWORD,
+        "ipAddress": "",
+        "dataSource": 0
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                login_url,
+                json=payload,
+                headers={"Content-Type": "application/json"}
+            )
+            
+            data = response.json()
+            logger.info(f"Ezviz login response code: {data.get('code')}")
+            
+            if data.get('code') == '200' or data.get('code') == 200:
+                ezviz_access_token = data['data']['accessToken']
+                # Token valido per 23 ore (scade in 24)
+                ezviz_token_expires = datetime.now() + timedelta(hours=23)
+                logger.info("Ezviz login successful!")
+                return ezviz_access_token
+            else:
+                error_msg = data.get('msg', 'Unknown error')
+                logger.error(f"Ezviz login failed: {error_msg}")
+                raise HTTPException(status_code=500, detail=f"Ezviz login failed: {error_msg}")
+                
+    except httpx.RequestError as e:
+        logger.error(f"Ezviz API request error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ezviz API connection error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Ezviz login error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ezviz authentication error: {str(e)}")
+
 
 async def get_ezviz_token():
-    """Get Ezviz API token using pyezvizapi"""
-    global ezviz_client, ezviz_token
+    """Get Ezviz client - prova prima API ufficiale, poi fallback a pyezvizapi"""
+    global ezviz_client
     
+    # Se abbiamo AppKey, usa l'API ufficiale
+    if EZVIZ_APPKEY:
+        token = await get_ezviz_api_token()
+        return {"type": "api", "token": token}
+    
+    # Fallback a pyezvizapi
     if not EZVIZ_USERNAME or not EZVIZ_PASSWORD:
         raise HTTPException(status_code=500, detail="Ezviz credentials not configured")
     
@@ -2869,47 +2945,117 @@ async def get_ezviz_token():
             ezviz_client = EzvizClient(EZVIZ_USERNAME, EZVIZ_PASSWORD, EZVIZ_REGION)
             ezviz_client.login()
         
-        return ezviz_client
+        return {"type": "client", "client": ezviz_client}
     except Exception as e:
         logger.error(f"Ezviz login error: {e}")
         ezviz_client = None
         raise HTTPException(status_code=500, detail=f"Ezviz authentication error: {str(e)}")
 
 
+async def ezviz_api_request(endpoint: str, method: str = "GET", data: dict = None):
+    """Make authenticated request to Ezviz Open Platform API"""
+    import httpx
+    
+    token = await get_ezviz_api_token()
+    base_url = EZVIZ_API_URLS.get(EZVIZ_REGION.lower(), EZVIZ_API_URLS['eu'])
+    url = f"{base_url}{endpoint}"
+    
+    headers = {
+        "Content-Type": "application/json",
+        "accessToken": token
+    }
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        if method.upper() == "GET":
+            response = await client.get(url, headers=headers, params=data)
+        else:
+            response = await client.post(url, headers=headers, json=data or {})
+        
+        return response.json()
+
+
 @api_router.get("/ezviz/cameras")
 async def get_ezviz_cameras():
     """Get all Ezviz cameras"""
     try:
-        client = await get_ezviz_token()
-        cameras_data = client.get_all_cameras_info()
+        auth = await get_ezviz_token()
         
-        cameras = []
-        online_count = 0
-        offline_count = 0
-        
-        for cam_info in cameras_data.values():
-            status = "online" if cam_info.get("status", 0) == 1 else "offline"
-            if status == "online":
-                online_count += 1
-            else:
-                offline_count += 1
+        if auth["type"] == "api":
+            # Usa API ufficiale Open Platform
+            result = await ezviz_api_request("/api/lapp/device/list", "POST", {
+                "pageStart": 0,
+                "pageSize": 50
+            })
             
-            camera = {
-                "id": cam_info.get("serial"),
-                "serial": cam_info.get("serial"),
-                "name": cam_info.get("name", "Camera"),
-                "model": cam_info.get("device_type", "Unknown"),
-                "status": status,
-                "image_url": cam_info.get("cover", "")
+            logger.info(f"Ezviz devices response: {result}")
+            
+            if result.get('code') != '200' and result.get('code') != 200:
+                error_msg = result.get('msg', 'Unknown error')
+                raise HTTPException(status_code=500, detail=f"Ezviz API error: {error_msg}")
+            
+            cameras = []
+            online_count = 0
+            offline_count = 0
+            
+            device_list = result.get('data', [])
+            if isinstance(device_list, dict):
+                device_list = device_list.get('deviceList', [])
+            
+            for device in device_list:
+                status = "online" if device.get("status", 0) == 1 else "offline"
+                if status == "online":
+                    online_count += 1
+                else:
+                    offline_count += 1
+                
+                camera = {
+                    "id": device.get("deviceSerial"),
+                    "serial": device.get("deviceSerial"),
+                    "name": device.get("deviceName", "Camera"),
+                    "model": device.get("deviceType", "Unknown"),
+                    "status": status,
+                    "image_url": device.get("picUrl", "")
+                }
+                cameras.append(camera)
+            
+            return {
+                "cameras": cameras,
+                "total": len(cameras),
+                "online": online_count,
+                "offline": offline_count
             }
-            cameras.append(camera)
-        
-        return {
-            "cameras": cameras,
-            "total": len(cameras),
-            "online": online_count,
-            "offline": offline_count
-        }
+        else:
+            # Usa pyezvizapi (fallback)
+            client = auth["client"]
+            cameras_data = client.get_all_cameras_info()
+            
+            cameras = []
+            online_count = 0
+            offline_count = 0
+            
+            for cam_info in cameras_data.values():
+                status = "online" if cam_info.get("status", 0) == 1 else "offline"
+                if status == "online":
+                    online_count += 1
+                else:
+                    offline_count += 1
+                
+                camera = {
+                    "id": cam_info.get("serial"),
+                    "serial": cam_info.get("serial"),
+                    "name": cam_info.get("name", "Camera"),
+                    "model": cam_info.get("device_type", "Unknown"),
+                    "status": status,
+                    "image_url": cam_info.get("cover", "")
+                }
+                cameras.append(camera)
+            
+            return {
+                "cameras": cameras,
+                "total": len(cameras),
+                "online": online_count,
+                "offline": offline_count
+            }
     except HTTPException:
         raise
     except Exception as e:
