@@ -1766,6 +1766,10 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
     
     # Se il ticket ha una manutenzione collegata, aggiorna anche quella
     manutenzione_id = ticket.get('manutenzione_id')
+    stato_ticket = None
+    if data.stato:
+        stato_ticket = data.stato.value if hasattr(data.stato, 'value') else data.stato
+    
     if manutenzione_id:
         manutenzione_update = {"updated_at": datetime.now(timezone.utc).isoformat()}
         
@@ -1783,21 +1787,48 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
                 manutenzione_update["note"] = note_esistenti + nuova_nota
         
         # Sincronizza stato
-        if data.stato:
-            stato_ticket = data.stato.value if hasattr(data.stato, 'value') else data.stato
+        if stato_ticket:
             if stato_ticket == "completato":
                 manutenzione_update["stato"] = "completato"
                 manutenzione_update["data_completamento"] = datetime.now(timezone.utc).isoformat()
             elif stato_ticket == "in_lavorazione":
                 manutenzione_update["stato"] = "in_lavorazione"
             elif stato_ticket == "annullato":
-                manutenzione_update["stato"] = "annullata"
+                manutenzione_update["stato"] = "annullato"
         
         if manutenzione_update:
             await db.manutenzioni.update_one(
                 {"id": manutenzione_id},
                 {"$set": manutenzione_update}
             )
+    
+    # Se il ticket viene completato e NON ha manutenzione, creane una nuova
+    elif stato_ticket == "completato":
+        # Crea nuova manutenzione dal ticket
+        nuova_manutenzione = {
+            "id": str(uuid4()),
+            "user_id": ticket.get('user_id', 'default-user'),
+            "elettrodomestico_id": ticket.get('elettrodomestico_id'),
+            "centro_assistenza_id": ticket.get('centro_assistenza_id'),
+            "tipo": "riparazione",
+            "descrizione": ticket.get('descrizione', ticket.get('titolo', 'Intervento da ticket')),
+            "stato": "completato",
+            "data_programmata": ticket.get('created_at'),
+            "data_completamento": datetime.now(timezone.utc).isoformat(),
+            "costo": data.costo_intervento if data.costo_intervento else None,
+            "note": f"Creato da ticket {ticket.get('numero_ticket')}\n{data.note_interne or ''}",
+            "ticket_id": ticket_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.manutenzioni.insert_one(nuova_manutenzione)
+        
+        # Aggiorna il ticket con il riferimento alla manutenzione
+        await db.tickets.update_one(
+            {"id": ticket_id},
+            {"$set": {"manutenzione_id": nuova_manutenzione["id"]}}
+        )
     
     updated = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
     return deserialize_datetime(updated)
