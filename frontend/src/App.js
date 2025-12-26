@@ -1533,6 +1533,8 @@ function App() {
             {[
               { id: "dashboard", label: "Dashboard", icon: Home },
               { id: "assistente", label: "Assistente AI", icon: Bot },
+              { id: "calendario", label: "Calendario", icon: Calendar },
+              { id: "tickets", label: "Ticket", icon: Ticket },
               { id: "matterport", label: "Vista 3D", icon: Eye },
               { id: "elettrodomestici", label: "Elettrodomestici", icon: Zap },
               { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
