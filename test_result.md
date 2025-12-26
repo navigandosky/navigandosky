@@ -102,119 +102,85 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: Complete Attractions CMS feature for VisitTadasuni website - manage attractions with multilingual support, image/audio uploads, and Google Maps integration
+user_problem_statement: Extended CMS with categories for restaurants, accommodations, and itineraries with waypoints
 
 backend:
-  - task: "Attractions API CRUD operations"
+  - task: "Attractions API with extended fields"
     implemented: true
     working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Backend APIs for attractions CRUD already implemented with Google Maps link parsing, image and audio upload endpoints"
-      - working: true
-        agent: "testing"
-        comment: "✅ COMPREHENSIVE TESTING COMPLETED: All attractions CRUD endpoints working perfectly. Tested GET /api/attractions (returns list), POST /api/attractions (creates with coordinate extraction from Google Maps), GET /api/attractions/{id} (retrieves single), PUT /api/attractions/{id} (updates), DELETE /api/attractions/{id} (deletes properly). Admin login working with correct credentials visittadasuni/Tadasuni2025$. Google Maps API key endpoint working."
-
-  - task: "Attractions image upload"
-    implemented: true
-    working: true
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Image upload endpoint /api/attractions/{id}/images working, max 3 images per attraction"
-      - working: true
-        agent: "testing"
-        comment: "✅ IMAGE UPLOAD TESTED: POST /api/attractions/{id}/images endpoint working correctly. Successfully uploaded test image with caption. File validation working (accepts JPEG, PNG, WebP, GIF). Returns proper response with image URL and success flag."
-
-  - task: "Attractions audio upload"
-    implemented: true
-    working: true
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Audio upload endpoint /api/attractions/{id}/audio with multilingual support (it, en, fr, es, de)"
-      - working: true
-        agent: "testing"
-        comment: "✅ AUDIO UPLOAD TESTED: POST /api/attractions/{id}/audio endpoint working correctly. Successfully uploaded test MP3 file with language parameter. Multilingual support confirmed (it, en, fr, es, de). Returns proper response with audio URL and language confirmation."
+        comment: "Extended AttractionCreate/Update/Response models with fields for restaurants (cuisine_type, price_range, reservation_link), accommodations (stars, booking_link, amenities), and itineraries (duration, difficulty, distance, waypoints)"
 
 frontend:
-  - task: "Attractions public page"
+  - task: "Extended categories in admin form"
     implemented: true
     working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "AttractionsPage component displays attractions with filters, maps, and audio player. Accessible at /#/attrazioni"
-      - working: true
-        agent: "testing"
-        comment: "✅ COMPREHENSIVE TESTING COMPLETED: Public attractions page working perfectly. Page loads with correct title 'Attrazioni', all filter buttons present (Tutti, Chiesa, Monumento, Sito Archeologico, Natura, Museo, Altro), attractions display as cards with proper navigation. Filter functionality tested and working. Navigation from header link successful. Back button functionality verified."
+        comment: "Added grouped categories (Attrazioni, Dove Mangiare, Dove Dormire, Itinerari) with conditional form fields for each type. Restaurant fields: cuisine_type, price_range, reservation_link. Accommodation fields: stars, booking_link, amenities. Itinerary fields: duration, difficulty, distance, waypoints with add/remove/reorder functionality."
 
-  - task: "Attractions admin panel"
+  - task: "Category filter tabs in admin"
     implemented: true
     working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "AttractionsAdminPanel component with login, CRUD form, image/audio upload. Accessible at /#/attrazioni-admin"
-      - working: true
-        agent: "testing"
-        comment: "✅ ADMIN PANEL FULLY FUNCTIONAL: Login working with credentials visittadasuni/Tadasuni2025$. Dashboard loads with all header elements (CMS Attrazioni, Visualizza Sito, CMS Eventi, Esci). CRUD form modal opens with all required fields (Nome, Descrizione, Categoria) and optional fields (Google Maps, Orari, Prezzo, Contatto, Link Esterno). Translations section available. Image management (0/3 photos) and Audio management (5 languages: IT, EN, FR, ES, DE) fully implemented with upload functionality."
+        comment: "Added filter tabs (Tutti, Attrazioni, Dove Mangiare, Dove Dormire, Itinerari) with counts for each category group"
 
-  - task: "Navigation links for Attractions"
+  - task: "Public page with grouped filters"
     implemented: true
     working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Added Link to /attrazioni in header nav (desktop and mobile) and footer before Eventi"
+        comment: "Updated public attractions page with grouped filter buttons and title 'Scopri Tadasuni'"
+
+  - task: "Detail view for restaurants/accommodations/itineraries"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
       - working: true
-        agent: "testing"
-        comment: "✅ NAVIGATION LINKS WORKING: 'Attrazioni' link found in header navigation and footer. Header link successfully navigates to /#/attrazioni. Navigation positioning correct in header menu. Back button from attractions page successfully returns to homepage."
+        agent: "main"
+        comment: "Enhanced detail page to show type-specific info: restaurant cuisine/price, accommodation stars/amenities/booking, itinerary duration/difficulty/distance/waypoints list"
 
 metadata:
   created_by: "main_agent"
-  version: "1.0"
-  test_sequence: 1
+  version: "1.1"
+  test_sequence: 2
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Attractions admin login and CRUD"
-    - "Attractions public page display"
-    - "Navigation links"
+    - "Restaurant creation and display"
+    - "Accommodation creation and display"
+    - "Itinerary with waypoints creation and display"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
-    message: "Completed Attractions CMS feature implementation. Backend APIs were already in place. Added navigation links for Attrazioni in header and footer. Please test: 1) Admin login at /#/attrazioni-admin with visittadasuni/Tadasuni2025$, 2) Create/edit/delete attractions, 3) Image and audio uploads, 4) Public page display at /#/attrazioni, 5) Navigation links in header and footer"
-  - agent: "testing"
-    message: "🎉 BACKEND TESTING COMPLETE - ALL SYSTEMS WORKING: Comprehensive testing of all attractions backend APIs completed successfully. All 11 test cases passed: ✅ Admin login (visittadasuni/Tadasuni2025$) ✅ Google Maps API key retrieval ✅ Attractions CRUD operations (GET, POST, PUT, DELETE) ✅ Image upload with validation ✅ Audio upload with multilingual support ✅ Coordinate extraction from Google Maps links ✅ Proper error handling (404 for deleted items). Backend is production-ready. Frontend testing should proceed."
-  - agent: "testing"
-    message: "🎉 FRONTEND TESTING COMPLETE - ALL FEATURES WORKING PERFECTLY: Comprehensive testing of Attractions CMS frontend completed successfully. ✅ Navigation links working in header and footer ✅ Public attractions page loads with correct title and all filter buttons ✅ Admin login successful with provided credentials ✅ Admin dashboard fully functional with all header elements ✅ CRUD form modal working with all required and optional fields ✅ Image management (0/3 photos) and Audio management (5 languages) fully implemented ✅ Filter functionality tested and working ✅ Back navigation working correctly. All test cases from review request passed. Feature is production-ready."
+    message: "Extended CMS with new categories: Dove Mangiare (ristorante, pizzeria, bar, agriturismo_rist), Dove Dormire (hotel, b&b, agriturismo, casa_vacanze), Itinerari. Each type has specific fields that appear conditionally in the form. Itineraries support waypoints with add/remove/reorder. Please test: 1) Creating items of each type, 2) Waypoint management for itineraries, 3) Public display of all types"
