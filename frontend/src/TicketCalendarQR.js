@@ -45,11 +45,11 @@ export const formatDateTimeIT = (dateString) => {
 
 // Stati UNIFICATI per Ticket e Manutenzioni
 const STATI_UNIFICATI = [
-  { value: "aperto", label: "Aperto", labelAlt: "Pianificato", color: "bg-blue-500", icon: "📋" },
-  { value: "contattato", label: "Contattato", color: "bg-yellow-500", icon: "📞" },
-  { value: "in_lavorazione", label: "In Lavorazione", color: "bg-orange-500", icon: "🔧" },
-  { value: "completato", label: "Completato", labelAlt: "Risolto", color: "bg-green-500", icon: "✅" },
-  { value: "annullato", label: "Annullato", color: "bg-gray-500", icon: "❌" },
+  { value: "aperto", label: "Aperto", labelManutenzione: "Pianificato", color: "bg-blue-500", icon: "📋" },
+  { value: "contattato", label: "Contattato", labelManutenzione: "Contattato", color: "bg-yellow-500", icon: "📞" },
+  { value: "in_lavorazione", label: "In Lavorazione", labelManutenzione: "In Corso", color: "bg-orange-500", icon: "🔧" },
+  { value: "completato", label: "Completato", labelManutenzione: "Completato", color: "bg-green-500", icon: "✅" },
+  { value: "annullato", label: "Annullato", labelManutenzione: "Annullato", color: "bg-gray-500", icon: "❌" },
 ];
 
 // Alias per retrocompatibilità
