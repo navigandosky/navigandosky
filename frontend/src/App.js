@@ -1028,6 +1028,7 @@ function App() {
   const [editingManut, setEditingManut] = useState(null);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [qrElettro, setQrElettro] = useState(null);
+  const [ricercaCentriOpen, setRicercaCentriOpen] = useState(false);
   
   // SmartThings devices for form
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
