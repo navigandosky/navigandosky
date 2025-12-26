@@ -1544,6 +1544,7 @@ function App() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-1 overflow-x-auto">
             {[
+              { id: "smartdomo", label: "SmartDomo", icon: Thermometer },
               { id: "dashboard", label: "Dashboard", icon: Home },
               { id: "suggerimenti", label: "Suggerimenti", icon: Lightbulb },
               { id: "assistente", label: "Assistente AI", icon: Bot },
@@ -1574,7 +1575,16 @@ function App() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      {/* SmartDomo Tab - New Full Interface */}
+      {activeTab === "smartdomo" && (
+        <SmartBuildingDashboard 
+          onNavigate={setActiveTab}
+          manutenzioni={manutenzioni}
+          elettrodomestici={elettrodomestici}
+        />
+      )}
+
+      <main className={`max-w-7xl mx-auto px-4 py-6 ${activeTab === 'smartdomo' ? 'hidden' : ''}`}>
         {/* Dashboard Tab */}
         {activeTab === "dashboard" && (
           <Dashboard stats={stats} consumiPerCategoria={consumiPerCategoria} />
