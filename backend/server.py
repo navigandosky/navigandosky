@@ -57,6 +57,10 @@ MANUALS_DIR.mkdir(exist_ok=True)
 QRCODES_DIR = ROOT_DIR / "qrcodes"
 QRCODES_DIR.mkdir(exist_ok=True)
 
+# Directory for floor plans (planimetrie)
+PLANIMETRIE_DIR = ROOT_DIR / "planimetrie"
+PLANIMETRIE_DIR.mkdir(exist_ok=True)
+
 # Email configuration (optional - can be configured via env)
 SMTP_HOST = os.environ.get('SMTP_HOST', '')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
