@@ -169,7 +169,7 @@ const Navbar = ({ showAdminLink = true }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
   const location = useLocation();
-  const isHomePage = location.pathname === "/" || location.pathname === "/trivor" || location.pathname === "/trivor/";
+  const isHomePage = location.pathname === "/" || location.pathname === "";
 
   useEffect(() => {
     const handleScroll = () => {
