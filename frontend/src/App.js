@@ -532,9 +532,6 @@ const AttractionsPage = ({ lang, t }) => {
             🚶 {lang === "it" ? "Itinerari" : "Itineraries"}
           </button>
         </div>
-            </button>
-          ))}
-        </div>
 
         {loading ? (
           <div className="flex justify-center py-12">
