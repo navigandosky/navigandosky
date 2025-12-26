@@ -728,7 +728,7 @@ export const TicketList = ({ elettrodomestici, centriAssistenza }) => {
                   </div>
                   
                   <div className="flex flex-col gap-2">
-                    {t.stato !== "risolto" && t.stato !== "annullato" && (
+                    {t.stato !== "completato" && t.stato !== "annullato" && (
                       <>
                         <div className="flex gap-1">
                           <Button 
