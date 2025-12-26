@@ -6,7 +6,7 @@ import { it } from "date-fns/locale";
 import {
   Plus, Phone, Calendar, Euro, CheckCircle, Clock, X,
   ChevronLeft, ChevronRight, Loader2, Ticket, QrCode, Printer,
-  Star, MessageCircle, ExternalLink, AlertTriangle, Wrench, Edit, Play, Pause
+  Star, MessageCircle, ExternalLink, AlertTriangle, Wrench, Edit, Play, Pause, Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
