@@ -104,6 +104,7 @@ const CATEGORIE_ELETTRODOMESTICI = [
   { value: "riscaldamento", label: "Riscaldamento", icon: "🔥" },
   { value: "pulizia", label: "Pulizia", icon: "🧹" },
   { value: "altro", label: "Altro", icon: "📦" },
+  { value: "custom", label: "Personalizzata", icon: "📁" },
 ];
 
 const SMART_PLUG_PROVIDERS = [
