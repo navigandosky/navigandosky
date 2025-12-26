@@ -49,6 +49,7 @@ import {
   Star,
   Bell
 } from "lucide-react";
+import { TicketList, CalendarioManutenzioni, QRCodeDialog } from "./TicketCalendarQR";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
