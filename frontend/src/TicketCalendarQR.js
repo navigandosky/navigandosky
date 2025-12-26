@@ -529,11 +529,14 @@ export const TicketList = ({ elettrodomestici, centriAssistenza }) => {
     }
   };
 
-  const handleAggiornaTicket = async (ticketId, nuovoStato, note) => {
+  const handleAggiornaTicket = async (ticketId, nuovoStato, note, costo) => {
     try {
       const updateData = { stato: nuovoStato };
       if (note) {
         updateData.note_interne = note;
+      }
+      if (costo !== null && costo !== undefined) {
+        updateData.costo_intervento = costo;
       }
       await axios.put(`${API}/tickets/${ticketId}`, updateData);
       toast.success("Ticket aggiornato con successo");
