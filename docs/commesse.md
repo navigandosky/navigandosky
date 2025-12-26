@@ -8,6 +8,32 @@
 
 ---
 
+## 🆕 FASE 2.5 - MIGLIORAMENTI E FIX (26/12/2024) - COMPLETATA ✅
+
+### Sezione Sicurezza/Telecamere Ezviz Rinnovata ✅
+- [x] Rimossa visualizzazione immagini (problematica)
+- [x] Card semplificate: Nome, Seriale, Modello, Stato (ONLINE/OFFLINE)
+- [x] Pulsante **"Apri App Ezviz (Mobile)"** → deep link `ezviz://`
+- [x] Box espandibile **"Istruzioni PC"** con percorso Ezviz Studio
+- [x] Percorso: `C:\Program Files (x86)\Ezviz Studio`
+
+### Categorie Elettrodomestici Custom ✅
+- [x] Aggiunta categoria **"Custom" 📁** per categorie personalizzate
+- [x] Fix bug salvataggio categorie custom (valore `custom:NOME`)
+- [x] 10 categorie totali ora disponibili
+
+### Ordinamento Manutenzioni ✅
+- [x] Completati prima (per data completamento decrescente)
+- [x] Aperti dopo (per data programmata crescente)
+
+### Fix Vari ✅
+- [x] Token SmartThings ripristinato (era stato sovrascritto)
+- [x] 22 dispositivi SmartThings funzionanti
+- [x] Gestione errori migliorata nel form elettrodomestici
+- [x] Reset archivio manutenzioni (pulizia dati test)
+
+---
+
 ## 🆕 FASE 2.4 - WORKFLOW TICKET-MANUTENZIONI (26/12/2024) - COMPLETATA ✅
 
 ### Nuovo Flusso Automatico Ticket → Manutenzioni ✅
