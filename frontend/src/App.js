@@ -1661,7 +1661,14 @@ function App() {
         {/* Centri Assistenza Tab */}
         {activeTab === "centri" && (
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+              <Button
+                variant="outline"
+                onClick={() => setRicercaCentriOpen(true)}
+              >
+                <Search className="h-4 w-4 mr-2" />
+                Cerca sul Web
+              </Button>
               <Button
                 onClick={() => {
                   setEditingCentro(null);
