@@ -404,8 +404,8 @@ export default function ElettrodomesticoDialog({
                     </Button>
                   </div>
                   <Select
-                    value={formData.categoria}
-                    onValueChange={(value) => setFormData({ ...formData, categoria: value })}
+                    value={getCategoriaDisplayValue()}
+                    onValueChange={handleCategoriaChange}
                   >
                     <SelectTrigger>
                       <SelectValue />
