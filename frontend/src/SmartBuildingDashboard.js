@@ -745,13 +745,16 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
               {/* SICUREZZA TAB */}
               <TabsContent value="sicurezza" className="mt-4">
                 <div className="space-y-4">
+                  {/* Istruzioni per PC */}
+                  <EzvizPCInstructions />
+                  
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-white">
                       Telecamere Ezviz ({ezvizCameras.length})
                     </h3>
                     {ezvizCameras.length > 0 ? (
                       <Badge variant="outline" className="border-green-500/50 text-green-400">
-                        <CheckCircle size={12} className="mr-1" /> Online
+                        <CheckCircle size={12} className="mr-1" /> {ezvizCameras.filter(c => c.status === 'online').length} Online
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="border-yellow-500/50 text-yellow-400">
@@ -761,9 +764,9 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                   </div>
 
                   {ezvizCameras.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {ezvizCameras.map(camera => (
-                        <CameraCard key={camera.id} camera={camera} />
+                        <CameraCard key={camera.id || camera.serial} camera={camera} />
                       ))}
                     </div>
                   ) : (
