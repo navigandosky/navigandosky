@@ -1369,6 +1369,8 @@ function App() {
     } else if (activeTab === "manutenzioni") {
       loadManutenzioni();
       loadElettrodomestici();
+    } else if (activeTab === "assistente") {
+      loadElettrodomestici();
     }
   }, [activeTab, loadStats, loadElettrodomestici, loadManutenzioni]);
 
