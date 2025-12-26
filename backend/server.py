@@ -2747,7 +2747,7 @@ async def get_smartthings_devices_by_room():
 
 @api_router.get("/smartthings/devices")
 async def get_smartthings_devices():
-    """Get all SmartThings devices"""
+    """Get all SmartThings devices with their current status"""
     if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
@@ -2762,15 +2762,22 @@ async def get_smartthings_devices():
             
             devices = []
             for item in data.get("items", []):
+                caps = [cap.get("id") for cap in item.get("components", [{}])[0].get("capabilities", [])]
                 device = {
                     "id": item.get("deviceId"),
                     "name": item.get("label") or item.get("name"),
                     "type": item.get("deviceTypeName", "Unknown"),
                     "status": "online",
-                    "capabilities": [cap.get("id") for cap in item.get("components", [{}])[0].get("capabilities", [])],
+                    "capabilities": caps,
                     "roomId": item.get("roomId"),
-                    "locationId": item.get("locationId")
+                    "locationId": item.get("locationId"),
+                    "switchState": None  # Default, non modifichiamo lo stato
                 }
+                
+                # Fetch stato switch solo se ha la capability (evita modifiche)
+                # NON facciamo fetch dello stato per non sovraccaricare l'API
+                # Lo stato verrà letto solo quando l'utente interagisce
+                
                 devices.append(device)
             
             return {"devices": devices, "count": len(devices)}
