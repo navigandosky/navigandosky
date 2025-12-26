@@ -4,7 +4,7 @@
 **Sottocomponente:** smartdomo-central  
 **Cliente:** Trivor.it  
 **Avvio:** Dicembre 2024  
-**Ultimo aggiornamento:** 28 Dicembre 2024
+**Ultimo aggiornamento:** 26 Dicembre 2024
 
 ---
 
@@ -15,13 +15,47 @@ Applicazione web per la gestione intelligente di immobili con:
 - Gestione elettrodomestici con monitoraggio consumi
 - Pianificazione manutenzioni
 - Integrazione smart home (prese intelligenti)
-- Integrazione SmartThings (22 dispositivi)
-- Integrazione telecamere Ezviz (in sospeso)
+- Integrazione SmartThings (22 dispositivi) ✅
+- Integrazione telecamere Ezviz (7 telecamere) ✅
 - Architettura multi-tenant (multi-utente)
 
 ---
 
-## 🆕 FASE 2.1 - MIGLIORAMENTI UX E WORKFLOW (28/12/2024) - COMPLETATA ✅
+## 🆕 FASE 2.2 - INTEGRAZIONI COMPLETE (26/12/2024) - COMPLETATA ✅
+
+### Integrazione Ezviz ✅
+- [x] 7 telecamere connesse e funzionanti
+- [x] Endpoint EU corretto: `https://ieuopen.ezvizlife.com`
+- [x] AccessToken configurato (valido fino 2026)
+- [x] Telecamere:
+  - Veranda (K40858151) - CS-C8C-A0-1F2WFL1
+  - Via Corbezzoli (BB1774574) - CS-C8W-A0-1F4WKFL
+  - X5S DVR (F38838622) - CS-X5S-8W
+  - Cortile dependance (J23290565) - CS-CTQ3N-A0-3G2WFL1
+  - Cortile Sx (G52097644) - CS-C8C-A0-1F2WF
+  - Via letto Tetto (J23290698) - CS-CTQ3N-A0-3G2WFL1
+  - Muro viale Murichessa (G52097546) - CS-C8C-A0-1F2WF
+
+### Integrazione SmartThings ✅
+- [x] 22 dispositivi connessi in 6 stanze
+- [x] Token: 9a9bd2a1-6484-40c2-aa38-e77dd72cc36e
+- [x] Sensore temperatura/umidità funzionante (24.1°C, 46%)
+- [x] Stanze configurate:
+  - Accessi esterni (3 dispositivi): Cancelli auto/pedonale
+  - Acqua (3 dispositivi): Autoclave, Abbanoa, Idropulitrice
+  - All'aperto (6 dispositivi): Irrigazione, zone H2O
+  - Living (4 dispositivi): Temperatura, TV Samsung, Monitor
+  - Luci esterne (5 dispositivi): Veranda, Applique, Pedoni
+  - Studio (1 dispositivo): Condizionatore aria Samsung
+
+### Stato Sistema ✅
+- [x] 29 dispositivi totali (22 SmartThings + 7 Ezviz)
+- [x] Tutti i dispositivi OK
+- [x] API `/api/system/status` funzionante
+
+---
+
+## 🆕 FASE 2.1 - MIGLIORAMENTI UX E WORKFLOW (26/12/2024) - COMPLETATA ✅
 
 ### Modifiche Completate ✅
 - [x] Icone colorate nell'header di navigazione (ogni tab ha colore distintivo)
