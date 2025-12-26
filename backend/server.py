@@ -1735,7 +1735,12 @@ async def get_ticket(ticket_id: str):
 
 @api_router.put("/tickets/{ticket_id}", response_model=Ticket)
 async def update_ticket(ticket_id: str, data: TicketUpdate):
-    """Aggiorna un ticket"""
+    """Aggiorna un ticket e sincronizza la manutenzione collegata"""
+    # Ottieni ticket corrente
+    ticket = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket non trovato")
+    
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
@@ -1745,6 +1750,41 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Ticket non trovato")
+    
+    # Se il ticket ha una manutenzione collegata, aggiorna anche quella
+    manutenzione_id = ticket.get('manutenzione_id')
+    if manutenzione_id:
+        manutenzione_update = {"updated_at": datetime.now(timezone.utc).isoformat()}
+        
+        # Sincronizza costo
+        if data.costo_intervento is not None:
+            manutenzione_update["costo"] = data.costo_intervento
+        
+        # Sincronizza note
+        if data.note_interne:
+            # Aggiungi nota alla manutenzione
+            manutenzione = await db.manutenzioni.find_one({"id": manutenzione_id}, {"_id": 0})
+            if manutenzione:
+                note_esistenti = manutenzione.get('note', '') or ''
+                nuova_nota = f"\n[{datetime.now().strftime('%d.%m.%Y %H:%M')}] {data.note_interne}"
+                manutenzione_update["note"] = note_esistenti + nuova_nota
+        
+        # Sincronizza stato
+        if data.stato:
+            stato_ticket = data.stato.value if hasattr(data.stato, 'value') else data.stato
+            if stato_ticket == "risolto":
+                manutenzione_update["stato"] = "completata"
+                manutenzione_update["data_completamento"] = datetime.now(timezone.utc).isoformat()
+            elif stato_ticket == "in_lavorazione":
+                manutenzione_update["stato"] = "in_corso"
+            elif stato_ticket == "annullato":
+                manutenzione_update["stato"] = "annullata"
+        
+        if manutenzione_update:
+            await db.manutenzioni.update_one(
+                {"id": manutenzione_id},
+                {"$set": manutenzione_update}
+            )
     
     updated = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
     return deserialize_datetime(updated)
