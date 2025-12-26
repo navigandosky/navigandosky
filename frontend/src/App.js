@@ -2020,6 +2020,12 @@ function App() {
         centriAssistenza={centriAssistenza}
         onSave={handleSaveManut}
       />
+
+      <QRCodeDialog
+        open={qrDialogOpen}
+        onOpenChange={setQrDialogOpen}
+        elettrodomestico={qrElettro}
+      />
     </div>
   );
 }
