@@ -325,18 +325,18 @@ const HeroSection = () => {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-          <a
-            href="#servizi"
+          <button
+            onClick={() => document.getElementById('servizi')?.scrollIntoView({ behavior: 'smooth' })}
             className="px-8 py-4 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg transition-all transform hover:scale-105"
           >
             Scopri i Servizi
-          </a>
-          <a
-            href="#contatti"
+          </button>
+          <button
+            onClick={() => document.getElementById('contatti')?.scrollIntoView({ behavior: 'smooth' })}
             className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg border border-white/20 transition-all"
           >
             Contattaci
-          </a>
+          </button>
         </div>
 
         <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
