@@ -1028,6 +1028,9 @@ function App() {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [qrElettro, setQrElettro] = useState(null);
   
+  // SmartThings devices for form
+  const [smartThingsDevices, setSmartThingsDevices] = useState([]);
+  
   // Filter states
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroStatoManut, setFiltroStatoManut] = useState("");
