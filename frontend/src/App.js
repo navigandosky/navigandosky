@@ -190,12 +190,19 @@ const Navbar = ({ showAdminLink = true }) => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [isHomePage]);
 
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const navItems = [
-    { name: "Home", href: "#home", id: "home" },
-    { name: "Servizi", href: "#servizi", id: "servizi" },
-    { name: "Chi Siamo", href: "#chi-siamo", id: "chi-siamo" },
-    { name: "Progetti", href: "#progetti", id: "progetti" },
-    { name: "Contatti", href: "#contatti", id: "contatti" },
+    { name: "Home", id: "home" },
+    { name: "Servizi", id: "servizi" },
+    { name: "Chi Siamo", id: "chi-siamo" },
+    { name: "Progetti", id: "progetti" },
+    { name: "Contatti", id: "contatti" },
   ];
 
   return (
@@ -218,9 +225,9 @@ const Navbar = ({ showAdminLink = true }) => {
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
-              <a
+              <button
                 key={item.name}
-                href={item.href}
+                onClick={() => scrollToSection(item.id)}
                 className={`text-sm font-medium transition-colors ${
                   isHomePage && activeSection === item.id
                     ? "text-white border-b-2 border-cyan-400 pb-1"
@@ -228,7 +235,7 @@ const Navbar = ({ showAdminLink = true }) => {
                 }`}
               >
                 {item.name}
-              </a>
+              </button>
             ))}
             {showAdminLink && (
               <a
