@@ -1404,6 +1404,8 @@ function App() {
     } else if (activeTab === "tickets") {
       loadElettrodomestici();
       loadCentriAssistenza();
+    } else if (activeTab === "planimetria") {
+      loadElettrodomestici();
     }
   }, [activeTab, loadStats, loadElettrodomestici, loadManutenzioni, loadCentriAssistenza]);
 
