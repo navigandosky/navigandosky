@@ -107,9 +107,17 @@ const WeatherIcon = ({ code, size = 48 }) => {
 
 // SmartThings Device Card
 const DeviceCard = ({ device, onToggle }) => {
-  const [isOn, setIsOn] = useState(false);
+  // Leggi lo stato iniziale dal dispositivo (se disponibile)
+  const initialState = device.status?.switch === 'on' || device.switchState === 'on' || false;
+  const [isOn, setIsOn] = useState(initialState);
   const [loading, setLoading] = useState(false);
   const Icon = getDeviceIcon(device.name, device.capabilities);
+  
+  // Aggiorna stato quando cambia il dispositivo
+  useEffect(() => {
+    const newState = device.status?.switch === 'on' || device.switchState === 'on' || false;
+    setIsOn(newState);
+  }, [device]);
   
   const hasSwitch = device.capabilities?.includes('switch');
   const hasTemp = device.capabilities?.includes('temperatureMeasurement');
