@@ -2784,8 +2784,8 @@ async def get_smartthings_clima():
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     try:
-        # First find the temperature sensor device
         async with httpx.AsyncClient() as client:
+            # Get all devices
             devices_response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices",
                 headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
@@ -2793,24 +2793,31 @@ async def get_smartthings_clima():
             devices_response.raise_for_status()
             devices = devices_response.json().get("items", [])
             
-            # Find temperature sensor
+            # Find temperature sensor - look for "Temperatura" in name or temperatureMeasurement capability
             temp_device = None
             for d in devices:
                 name = (d.get("label") or d.get("name", "")).lower()
-                caps = []
-                if d.get("components"):
-                    for comp in d.get("components", []):
-                        caps.extend([c.get("id") for c in comp.get("capabilities", [])])
                 
-                if "temperaturemeasurement" in [c.lower() for c in caps]:
+                # Check if it's a temperature sensor by name
+                if "temperatura" in name:
                     temp_device = d
+                    break
+                
+                # Or check capabilities in components
+                for comp in d.get("components", []):
+                    cap_ids = [c.get("id", "").lower() for c in comp.get("capabilities", [])]
+                    if "temperaturemeasurement" in cap_ids:
+                        temp_device = d
+                        break
+                if temp_device:
                     break
             
             if not temp_device:
                 return {
-                    "temperatura": None,
-                    "umidita": None,
+                    "temperature": None,
+                    "humidity": None,
                     "device_name": None,
+                    "online": False,
                     "error": "Nessun sensore temperatura trovato"
                 }
             
@@ -2823,17 +2830,17 @@ async def get_smartthings_clima():
             status_response.raise_for_status()
             status = status_response.json()
             
-            # Extract temperature and humidity
+            # Extract temperature and humidity from main component
             main = status.get("components", {}).get("main", {})
             
             temp_data = main.get("temperatureMeasurement", {}).get("temperature", {})
             humidity_data = main.get("relativeHumidityMeasurement", {}).get("humidity", {})
             
             return {
-                "temperatura": temp_data.get("value"),
-                "temperatura_unit": temp_data.get("unit", "C"),
-                "umidita": humidity_data.get("value"),
-                "umidita_unit": humidity_data.get("unit", "%"),
+                "temperature": temp_data.get("value"),
+                "temperature_unit": temp_data.get("unit", "C"),
+                "humidity": humidity_data.get("value"),
+                "humidity_unit": humidity_data.get("unit", "%"),
                 "device_id": device_id,
                 "device_name": temp_device.get("label") or temp_device.get("name"),
                 "timestamp": temp_data.get("timestamp"),
