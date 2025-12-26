@@ -1660,6 +1660,17 @@ const AttractionsAdminPanel = () => {
                       {attr.opening_hours && <span>🕐 {attr.opening_hours}</span>}
                       {attr.price && <span>💰 {attr.price}</span>}
                       {attr.contact && <span>📞 {attr.contact}</span>}
+                      {/* Restaurant specific */}
+                      {attr.cuisine_type && <span>🍴 {cuisineTypes.find(c => c.value === attr.cuisine_type)?.label || attr.cuisine_type}</span>}
+                      {attr.price_range && <span className="font-medium text-green-700">{attr.price_range}</span>}
+                      {/* Accommodation specific */}
+                      {attr.stars && <span>{"⭐".repeat(attr.stars)}</span>}
+                      {attr.amenities && <span>🛎️ {attr.amenities}</span>}
+                      {/* Itinerary specific */}
+                      {attr.duration && <span>⏱️ {attr.duration}</span>}
+                      {attr.difficulty && <span>📊 {difficultyLevels.find(d => d.value === attr.difficulty)?.label || attr.difficulty}</span>}
+                      {attr.distance && <span>📏 {attr.distance}</span>}
+                      {attr.waypoints && attr.waypoints.length > 0 && <span>📍 {attr.waypoints.length} tappe</span>}
                     </div>
                   </div>
                 </div>
