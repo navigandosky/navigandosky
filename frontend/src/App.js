@@ -1158,7 +1158,7 @@ const AdminLogin = ({ onLogin }) => {
         </div>
 
         <div className="text-center mt-6">
-          <a href="/trivor" className="text-gray-400 hover:text-cyan-400 text-sm transition-colors">
+          <a href="#/" className="text-gray-400 hover:text-cyan-400 text-sm transition-colors">
             ← Torna al sito
           </a>
         </div>
