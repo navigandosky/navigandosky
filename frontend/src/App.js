@@ -1576,6 +1576,19 @@ function App() {
           />
         )}
 
+        {/* Calendario Tab */}
+        {activeTab === "calendario" && (
+          <CalendarioManutenzioni />
+        )}
+
+        {/* Tickets Tab */}
+        {activeTab === "tickets" && (
+          <TicketList 
+            elettrodomestici={elettrodomestici} 
+            centriAssistenza={centriAssistenza}
+          />
+        )}
+
         {/* Matterport Tab */}
         {activeTab === "matterport" && config && (
           <div className="space-y-4">
