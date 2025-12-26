@@ -823,25 +823,20 @@ async def ricerca_manuale_online(
         ]
     }
     
-    # Se abbiamo il client AI, usa web search
-    if openai_client:
+    # Se abbiamo la chiave AI, usa per suggerimenti intelligenti
+    if EMERGENT_LLM_KEY:
         try:
-            # Chiedi all'AI di suggerire link specifici
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Sei un assistente che aiuta a trovare manuali di elettrodomestici. Fornisci link diretti e consigli utili in italiano."
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Devo trovare il manuale PDF per: {marca} {modello}. Dammi i link più probabili dove trovarlo e consigli su come cercarlo."
-                    }
-                ],
-                max_tokens=500
+            session_id = str(uuid.uuid4())
+            chat = LlmChat(
+                api_key=EMERGENT_LLM_KEY,
+                session_id=session_id,
+                system_message="Sei un assistente che aiuta a trovare manuali di elettrodomestici. Fornisci link diretti e consigli utili in italiano."
             )
-            suggerimenti["ai_suggerimenti"] = response.choices[0].message.content
+            
+            ai_response = await chat.send_message(
+                UserMessage(text=f"Devo trovare il manuale PDF per: {marca} {modello}. Dammi i link più probabili dove trovarlo e consigli su come cercarlo.")
+            )
+            suggerimenti["ai_suggerimenti"] = ai_response
         except Exception as e:
             logger.error(f"Errore AI search: {e}")
             suggerimenti["ai_suggerimenti"] = None
