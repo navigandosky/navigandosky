@@ -1247,11 +1247,12 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <a href="/trivor" className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">T</span>
-                </div>
-                <span className="text-xl font-bold text-white">TRIVOR</span>
+              <a href="/trivor" className="flex items-center">
+                <img 
+                  src="https://customer-assets.emergentagent.com/job_trivor-agent/artifacts/5wu3c3nj_logo%20trivor%20heritage%20digitale.png" 
+                  alt="Trivor" 
+                  className="h-10 w-auto"
+                />
               </a>
               <span className="text-gray-500">|</span>
               <span className="text-gray-400">Area Riservata</span>
