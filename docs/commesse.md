@@ -8,6 +8,37 @@
 
 ---
 
+## 🆕 FASE 2.3 - UNIFICAZIONE STATI E CORREZIONI (26/12/2024) - COMPLETATA ✅
+
+### Migrazione Dati Database ✅
+- [x] Migrati 7 record Manutenzioni con stati vecchi:
+  - `pianificata` → `aperto` (5 record)
+  - `completata` → `completato` (2 record)
+- [x] Migrati 4 record Tickets con stati vecchi:
+  - `risolto` → `completato` (4 record)
+- [x] Sidebar "Accesso Rapido" ora mostra correttamente Manutenzioni (8)
+
+### Allineamento Categorie Elettrodomestici ✅
+- [x] Aggiunta categoria **"Riscaldamento" 🔥** mancante
+- [x] Allineate categorie tra form creazione e filtro lista
+- [x] Backend: aggiunto `RISCALDAMENTO` all'enum `CategoriaElettrodomestico`
+- [x] Frontend: aggiornato `CATEGORIE_ELETTRODOMESTICI` in App.js
+
+### Categorie Disponibili (9 totali):
+| Icona | Categoria |
+|-------|-----------|
+| ❄️ | Climatizzazione |
+| 🍳 | Cucina |
+| 👕 | Lavanderia |
+| 📺 | Intrattenimento |
+| 💡 | Illuminazione |
+| 🔒 | Sicurezza |
+| 🔥 | Riscaldamento |
+| 🧹 | Pulizia |
+| 📦 | Altro |
+
+---
+
 ## 🎯 OBIETTIVO PROGETTO
 
 Applicazione web per la gestione intelligente di immobili con:
