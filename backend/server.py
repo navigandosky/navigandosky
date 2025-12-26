@@ -2517,7 +2517,7 @@ async def get_suggerimenti_proattivi(user_id: str = DEFAULT_USER_ID):
     # 5. MANUTENZIONI SCADUTE O IN RITARDO
     manutenzioni_scadute = await db.manutenzioni.find({
         "user_id": user_id,
-        "stato": "pianificata",
+        "stato": "aperto",
         "data_programmata": {"$lt": oggi.isoformat()}
     }, {"_id": 0}).to_list(50)
     
