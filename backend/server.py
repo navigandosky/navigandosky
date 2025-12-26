@@ -84,6 +84,7 @@ class CategoriaElettrodomestico(str, Enum):
     RISCALDAMENTO = "riscaldamento"
     PULIZIA = "pulizia"
     ALTRO = "altro"
+    CUSTOM = "custom"  # Per categorie personalizzate (usa categoria_custom)
 
 
 class SmartPlugProvider(str, Enum):
