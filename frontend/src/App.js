@@ -1321,6 +1321,8 @@ function App() {
   const [editingElettro, setEditingElettro] = useState(null);
   const [manutDialogOpen, setManutDialogOpen] = useState(false);
   const [editingManut, setEditingManut] = useState(null);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrElettro, setQrElettro] = useState(null);
   
   // Filter states
   const [filtroCategoria, setFiltroCategoria] = useState("");
