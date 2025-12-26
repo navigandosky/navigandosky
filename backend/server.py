@@ -197,6 +197,16 @@ class ChatbotSettingsUpdate(BaseModel):
     max_tokens: Optional[int] = None
     temperature: Optional[float] = None
 
+# Waypoint model for itineraries
+class Waypoint(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    google_maps_link: Optional[str] = None
+    order: int = 0
+
 # Attraction Models for CMS
 class AttractionCreate(BaseModel):
     name: str
@@ -218,6 +228,20 @@ class AttractionCreate(BaseModel):
     contact: Optional[str] = None
     external_link: Optional[str] = None
     published: bool = True
+    # Restaurant specific fields
+    cuisine_type: Optional[str] = None  # Italian, Sardinian, Pizza, etc.
+    price_range: Optional[str] = None  # €, €€, €€€
+    reservation_link: Optional[str] = None
+    # Accommodation specific fields
+    accommodation_type: Optional[str] = None  # hotel, b&b, agriturismo, casa_vacanze
+    stars: Optional[int] = None  # 1-5 stars
+    booking_link: Optional[str] = None
+    amenities: Optional[str] = None  # WiFi, Parking, Pool, etc.
+    # Itinerary specific fields
+    duration: Optional[str] = None  # e.g., "2 ore", "mezza giornata"
+    difficulty: Optional[str] = None  # facile, medio, difficile
+    distance: Optional[str] = None  # e.g., "5 km"
+    waypoints: Optional[List[dict]] = None  # List of waypoints
 
 class AttractionUpdate(BaseModel):
     name: Optional[str] = None
@@ -239,6 +263,20 @@ class AttractionUpdate(BaseModel):
     contact: Optional[str] = None
     external_link: Optional[str] = None
     published: Optional[bool] = None
+    # Restaurant specific fields
+    cuisine_type: Optional[str] = None
+    price_range: Optional[str] = None
+    reservation_link: Optional[str] = None
+    # Accommodation specific fields
+    accommodation_type: Optional[str] = None
+    stars: Optional[int] = None
+    booking_link: Optional[str] = None
+    amenities: Optional[str] = None
+    # Itinerary specific fields
+    duration: Optional[str] = None
+    difficulty: Optional[str] = None
+    distance: Optional[str] = None
+    waypoints: Optional[List[dict]] = None
 
 class AttractionImage(BaseModel):
     id: str
