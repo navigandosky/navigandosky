@@ -56,35 +56,31 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ---
 
-## 🤖 FASE 1.5 - ASSISTENTE AI SMARTBUILDING (IN SVILUPPO)
+## 🤖 FASE 1.5 - ASSISTENTE AI SMARTBUILDING (COMPLETATA)
 
-### Funzionalità Assistente
-- [ ] Chat assistente nel frontend
-- [ ] Interrogazione archivi in linguaggio naturale
+### Funzionalità Assistente ✅
+- [x] Chat assistente nel frontend
+- [x] Interrogazione archivi in linguaggio naturale
   - "Quanti frigoriferi ho in casa?"
   - "Quanto consuma la lavatrice?"
   - "Quali manutenzioni ho in scadenza?"
-- [ ] Supporto tecnico intelligente
+- [x] Supporto tecnico intelligente (Risolvi Problema)
   - "Come faccio la sintonia della TV?"
   - "La lavatrice fa rumore, cosa può essere?"
-- [ ] Gestione manuali PDF
-  - [ ] Upload manuali per elettrodomestico
-  - [ ] Ricerca automatica manuali online
-  - [ ] Estrazione testo e indicizzazione
-  - [ ] Ricerca nel contenuto del manuale
-- [ ] Ricerca web automatica
-  - [ ] Cerca soluzioni se non trova nel manuale
-  - [ ] Link a video tutorial
-  - [ ] Siti produttori
+- [x] Ricerca manuali online con AI
+- [ ] Gestione manuali PDF (API pronte, UI da completare)
+  - [x] Upload manuali per elettrodomestico (API)
+  - [x] Ricerca automatica manuali online (API)
+  - [ ] Estrazione testo e indicizzazione (parziale)
+  - [ ] UI upload nel frontend
 - [ ] Navigazione Matterport (quando SDK disponibile)
   - "Portami alla lavatrice"
-- [ ] Multilingua (italiano default, poi in base all'utente)
+- [x] Italiano default
 
-### Tecnologie
-- **LLM:** Emergent LLM Key (OpenAI/Claude)
-- **PDF Parsing:** per estrazione testo manuali
-- **Web Search:** per trovare manuali e soluzioni
-- **Vector Search:** per ricerca semantica nei manuali (futuro)
+### Tecnologie Usate
+- **LLM:** Emergent LLM Key via emergentintegrations
+- **PDF Parsing:** PyPDF2 per estrazione testo manuali
+- **Web Search:** AI-powered suggestions per trovare manuali
 
 ---
 
