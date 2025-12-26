@@ -1547,7 +1547,6 @@ function App() {
           <div className="flex gap-1 overflow-x-auto">
             {[
               { id: "smartdomo", label: "SmartDomo", icon: Thermometer },
-              { id: "dashboard", label: "Dashboard", icon: Home },
               { id: "calendario", label: "Calendario", icon: Calendar },
               { id: "tickets", label: "Ticket", icon: Ticket },
               { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
@@ -1557,6 +1556,7 @@ function App() {
               { id: "centri", label: "Centri Assistenza", icon: Users },
               { id: "suggerimenti", label: "Suggerimenti", icon: Lightbulb },
               { id: "assistente", label: "Assistente AI", icon: Bot },
+              { id: "dashboard", label: "Dashboard", icon: Home },
             ].map((tab) => {
               // Colori specifici per ogni tab
               const tabColors = {
