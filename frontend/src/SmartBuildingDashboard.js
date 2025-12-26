@@ -195,12 +195,13 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const [devicesByRoom, setDevicesByRoom] = useState([]);
   const [ezvizCameras, setEzvizCameras] = useState([]);
   const [weather, setWeather] = useState(null);
+  const [climaData, setClimaData] = useState(null); // Dati sensore temperatura SmartThings
   const [systemStatus, setSystemStatus] = useState({ ok: 0, attenzione: 0, critici: 0, totali: 0 });
   const [loading, setLoading] = useState(true);
   const [matterportSpaceId, setMatterportSpaceId] = useState('j1r4zUjanif');
   const [expandedRooms, setExpandedRooms] = useState({});
 
-  // Toggle room expansion
+  // Toggle room expansion - default collapsed
   const toggleRoom = (roomName) => {
     setExpandedRooms(prev => ({
       ...prev,
@@ -220,12 +221,20 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
       const devicesRes = await axios.get(`${API_URL}/api/smartthings/devices`);
       setSmartThingsDevices(devicesRes.data.devices || []);
       
-      // Expand all rooms by default
-      const expanded = {};
+      // Start with all rooms COLLAPSED
+      const collapsed = {};
       (devicesByRoomRes.data.rooms || []).forEach(room => {
-        expanded[room.roomName] = true;
+        collapsed[room.roomName] = false; // false = collapsed
       });
-      setExpandedRooms(expanded);
+      setExpandedRooms(collapsed);
+      
+      // Fetch clima data from SmartThings sensor (Temperatura living)
+      try {
+        const climaRes = await axios.get(`${API_URL}/api/smartthings/clima`);
+        setClimaData(climaRes.data);
+      } catch (e) {
+        console.log('Clima sensor not available:', e.message);
+      }
       
       // Fetch Ezviz cameras (may fail)
       try {
