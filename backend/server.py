@@ -1038,7 +1038,7 @@ async def risolvi_problema(
 ):
     """Cerca di risolvere un problema specifico di un elettrodomestico"""
     
-    if not openai_client:
+    if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=503, detail="Assistente AI non configurato")
     
     # Carica info elettrodomestico
@@ -1060,7 +1060,9 @@ async def risolvi_problema(
         if centro:
             centro_info = f"\n\nCENTRO ASSISTENZA: {centro.get('nome_azienda')} - Tel: {centro.get('telefono')}"
     
-    prompt = f"""Sei un tecnico esperto di elettrodomestici. L'utente ha un problema con:
+    system_message = "Sei un tecnico esperto di elettrodomestici. Rispondi sempre in italiano con istruzioni chiare e precise."
+    
+    prompt = f"""L'utente ha un problema con:
 
 ELETTRODOMESTICO:
 - Nome: {elettro.get('nome')}
@@ -1080,7 +1082,6 @@ ISTRUZIONI:
 3. Se non trovi nel manuale, fornisci una soluzione basata sulla tua conoscenza
 4. Dai istruzioni passo-passo numerate
 5. Indica quando è necessario chiamare un tecnico
-6. Rispondi in italiano
 
 Fornisci la risposta in questo formato:
 📋 DIAGNOSI: [breve diagnosi]
@@ -1093,15 +1094,14 @@ Fornisci la risposta in questo formato:
 """
 
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Sei un tecnico esperto di elettrodomestici. Rispondi sempre in italiano con istruzioni chiare e precise."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1500,
-            temperature=0.5
+        session_id = str(uuid.uuid4())
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message=system_message
         )
+        
+        ai_response = await chat.send_message(UserMessage(text=prompt))
         
         return {
             "elettrodomestico": {
@@ -1110,7 +1110,7 @@ Fornisci la risposta in questo formato:
                 "modello": elettro.get('modello')
             },
             "problema": problema,
-            "soluzione": response.choices[0].message.content,
+            "soluzione": ai_response,
             "manuale_disponibile": len(manuali) > 0,
             "centro_assistenza": centro_info if centro_info else None
         }
