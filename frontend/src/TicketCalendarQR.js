@@ -6,7 +6,7 @@ import { it } from "date-fns/locale";
 import {
   Plus, Phone, Calendar, Euro, CheckCircle, Clock, X,
   ChevronLeft, ChevronRight, Loader2, Ticket, QrCode, Printer,
-  Star, MessageCircle, ExternalLink, AlertTriangle, Wrench
+  Star, MessageCircle, ExternalLink, AlertTriangle, Wrench, Edit, Play, Pause
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,28 @@ import { Separator } from "@/components/ui/separator";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Helper per formattare le date in formato italiano gg.mm.aaaa
+export const formatDateIT = (dateString) => {
+  if (!dateString) return "-";
+  try {
+    const date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
+    return format(date, "dd.MM.yyyy", { locale: it });
+  } catch {
+    return dateString;
+  }
+};
+
+// Helper per formattare date con ora
+export const formatDateTimeIT = (dateString) => {
+  if (!dateString) return "-";
+  try {
+    const date = typeof dateString === 'string' ? parseISO(dateString) : dateString;
+    return format(date, "dd.MM.yyyy HH:mm", { locale: it });
+  } catch {
+    return dateString;
+  }
+};
 
 const STATI_TICKET = [
   { value: "aperto", label: "Aperto", color: "bg-blue-500" },
@@ -35,6 +57,134 @@ const PRIORITA_TICKET = [
   { value: "alta", label: "Alta", color: "bg-orange-500" },
   { value: "urgente", label: "Urgente", color: "bg-red-500" },
 ];
+
+// ============== AGGIORNA TICKET DIALOG ==============
+
+export const AggiornaTicketDialog = ({ open, onOpenChange, ticket, onUpdate }) => {
+  const [nuovoStato, setNuovoStato] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (ticket) {
+      setNuovoStato(ticket.stato || "aperto");
+      setNote("");
+    }
+  }, [ticket]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await onUpdate(ticket.id, nuovoStato, note);
+      onOpenChange(false);
+    } catch (error) {
+      toast.error("Errore nell'aggiornamento");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Determina quali stati sono disponibili in base allo stato corrente
+  const statiDisponibili = () => {
+    const statoCorrente = ticket?.stato || "aperto";
+    switch (statoCorrente) {
+      case "aperto":
+        return ["contattato", "in_lavorazione", "annullato"];
+      case "contattato":
+        return ["in_lavorazione", "risolto", "annullato"];
+      case "in_lavorazione":
+        return ["contattato", "risolto", "annullato"];
+      case "risolto":
+        return []; // Non si può cambiare
+      case "annullato":
+        return ["aperto"]; // Si può riaprire
+      default:
+        return STATI_TICKET.map(s => s.value);
+    }
+  };
+
+  const statoCorrente = STATI_TICKET.find(s => s.value === ticket?.stato);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Edit className="h-5 w-5" />
+            Aggiorna Ticket {ticket?.numero_ticket}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Stato Corrente */}
+          <div className="p-3 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-500">Stato corrente</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge className={statoCorrente?.color}>{statoCorrente?.label}</Badge>
+              <span className="text-sm text-gray-600">→</span>
+            </div>
+          </div>
+
+          {/* Nuovo Stato */}
+          <div className="space-y-2">
+            <Label>Nuovo Stato</Label>
+            <Select value={nuovoStato} onValueChange={setNuovoStato}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona nuovo stato" />
+              </SelectTrigger>
+              <SelectContent>
+                {statiDisponibili().map((statoValue) => {
+                  const stato = STATI_TICKET.find(s => s.value === statoValue);
+                  return (
+                    <SelectItem key={statoValue} value={statoValue}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${stato?.color}`}></div>
+                        {stato?.label}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Note Aggiornamento */}
+          <div className="space-y-2">
+            <Label>Note Aggiornamento</Label>
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Descrivi l'aggiornamento o le azioni intraprese..."
+              rows={3}
+            />
+          </div>
+
+          {statiDisponibili().length === 0 && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-700">
+                Questo ticket è in stato "{statoCorrente?.label}" e non può essere modificato.
+              </p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annulla
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={loading || statiDisponibili().length === 0 || nuovoStato === ticket?.stato}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Aggiorna Stato
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 // ============== TICKET COMPONENTS ==============
 
