@@ -75,13 +75,14 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://building-brain.preview.em
 # ============== ENUMS ==============
 
 class CategoriaElettrodomestico(str, Enum):
+    CLIMATIZZAZIONE = "climatizzazione"
     CUCINA = "cucina"
     LAVANDERIA = "lavanderia"
-    CLIMATIZZAZIONE = "climatizzazione"
     INTRATTENIMENTO = "intrattenimento"
     ILLUMINAZIONE = "illuminazione"
-    PULIZIA = "pulizia"
     SICUREZZA = "sicurezza"
+    RISCALDAMENTO = "riscaldamento"
+    PULIZIA = "pulizia"
     ALTRO = "altro"
 
 
