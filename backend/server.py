@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from enum import Enum
 import aiofiles
 import httpx
-from openai import OpenAI
 import PyPDF2
 import io
 import json
