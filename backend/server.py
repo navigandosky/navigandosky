@@ -674,6 +674,451 @@ async def get_consumi_per_categoria(user_id: str = DEFAULT_USER_ID):
     return list(consumi_per_cat.values())
 
 
+# ------------ MANUALI / DOCUMENTI ------------
+
+class ManualeInfo(BaseModel):
+    id: str
+    elettrodomestico_id: str
+    filename: str
+    original_filename: str
+    tipo: str  # "uso", "installazione", "riparazione", "altro"
+    uploaded_at: datetime
+    size_bytes: int
+    text_extracted: bool = False
+
+
+@api_router.post("/elettrodomestici/{elettrodomestico_id}/manuali")
+async def upload_manuale(
+    elettrodomestico_id: str,
+    file: UploadFile = File(...),
+    tipo: str = Form("uso")
+):
+    """Upload a PDF manual for an appliance"""
+    # Verifica che l'elettrodomestico esista
+    elettro = await db.elettrodomestici.find_one({"id": elettrodomestico_id}, {"_id": 0})
+    if not elettro:
+        raise HTTPException(status_code=404, detail="Elettrodomestico non trovato")
+    
+    # Genera ID univoco per il file
+    file_id = str(uuid.uuid4())
+    file_ext = Path(file.filename).suffix.lower()
+    
+    if file_ext != ".pdf":
+        raise HTTPException(status_code=400, detail="Solo file PDF sono supportati")
+    
+    # Salva il file
+    stored_filename = f"{file_id}{file_ext}"
+    file_path = MANUALS_DIR / stored_filename
+    
+    content = await file.read()
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(content)
+    
+    # Estrai testo dal PDF
+    text_content = ""
+    try:
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
+        for page in pdf_reader.pages:
+            text_content += page.extract_text() + "\n"
+    except Exception as e:
+        logger.error(f"Errore estrazione testo PDF: {e}")
+    
+    # Salva info nel database
+    manuale_doc = {
+        "id": file_id,
+        "elettrodomestico_id": elettrodomestico_id,
+        "user_id": DEFAULT_USER_ID,
+        "filename": stored_filename,
+        "original_filename": file.filename,
+        "tipo": tipo,
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        "size_bytes": len(content),
+        "text_content": text_content,
+        "text_extracted": len(text_content) > 0
+    }
+    
+    await db.manuali.insert_one(manuale_doc)
+    
+    return {
+        "id": file_id,
+        "filename": file.filename,
+        "tipo": tipo,
+        "size_bytes": len(content),
+        "text_extracted": len(text_content) > 0
+    }
+
+
+@api_router.get("/elettrodomestici/{elettrodomestico_id}/manuali")
+async def get_manuali(elettrodomestico_id: str):
+    """Get all manuals for an appliance"""
+    manuali = await db.manuali.find(
+        {"elettrodomestico_id": elettrodomestico_id},
+        {"_id": 0, "text_content": 0}
+    ).to_list(100)
+    return manuali
+
+
+@api_router.delete("/manuali/{manuale_id}")
+async def delete_manuale(manuale_id: str):
+    """Delete a manual"""
+    manuale = await db.manuali.find_one({"id": manuale_id})
+    if not manuale:
+        raise HTTPException(status_code=404, detail="Manuale non trovato")
+    
+    # Elimina file fisico
+    file_path = MANUALS_DIR / manuale["filename"]
+    if file_path.exists():
+        file_path.unlink()
+    
+    # Elimina da database
+    await db.manuali.delete_one({"id": manuale_id})
+    return {"message": "Manuale eliminato"}
+
+
+@api_router.get("/manuali/{manuale_id}/download")
+async def download_manuale(manuale_id: str):
+    """Download a manual PDF"""
+    manuale = await db.manuali.find_one({"id": manuale_id})
+    if not manuale:
+        raise HTTPException(status_code=404, detail="Manuale non trovato")
+    
+    file_path = MANUALS_DIR / manuale["filename"]
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File non trovato")
+    
+    return FileResponse(
+        file_path,
+        filename=manuale["original_filename"],
+        media_type="application/pdf"
+    )
+
+
+# ------------ RICERCA MANUALI ONLINE ------------
+
+@api_router.get("/ricerca-manuale")
+async def ricerca_manuale_online(
+    marca: str = Query(..., description="Marca dell'elettrodomestico"),
+    modello: str = Query(..., description="Modello dell'elettrodomestico"),
+    tipo_doc: str = Query("manuale uso", description="Tipo documento cercato")
+):
+    """Cerca manuali online per un elettrodomestico"""
+    
+    query = f"{marca} {modello} {tipo_doc} PDF filetype:pdf"
+    
+    # Siti comuni per manuali
+    siti_manuali = [
+        f"https://www.manualslib.com/brand/{marca.lower()}/",
+        f"https://www.manualslib.com/search/?q={marca}+{modello}",
+        f"https://www.manualpdf.it/marca/{marca.lower()}/",
+    ]
+    
+    # Costruisci suggerimenti
+    suggerimenti = {
+        "query_google": f"https://www.google.com/search?q={marca}+{modello}+manuale+PDF",
+        "siti_consigliati": siti_manuali,
+        "consigli": [
+            f"Cerca su Google: '{marca} {modello} manuale PDF'",
+            f"Visita il sito ufficiale {marca.lower()}.com nella sezione Supporto/Download",
+            "Prova ManualsLib.com - grande archivio di manuali",
+            "Controlla se c'è un QR code sul prodotto che porta al manuale"
+        ]
+    }
+    
+    # Se abbiamo il client AI, usa web search
+    if openai_client:
+        try:
+            # Chiedi all'AI di suggerire link specifici
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Sei un assistente che aiuta a trovare manuali di elettrodomestici. Fornisci link diretti e consigli utili in italiano."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Devo trovare il manuale PDF per: {marca} {modello}. Dammi i link più probabili dove trovarlo e consigli su come cercarlo."
+                    }
+                ],
+                max_tokens=500
+            )
+            suggerimenti["ai_suggerimenti"] = response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Errore AI search: {e}")
+            suggerimenti["ai_suggerimenti"] = None
+    
+    return suggerimenti
+
+
+# ------------ ASSISTENTE AI ------------
+
+class ChatMessage(BaseModel):
+    role: str  # "user" o "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    conversation_history: List[ChatMessage] = []
+    elettrodomestico_id: Optional[str] = None  # Se la domanda è su un dispositivo specifico
+
+
+class ChatResponse(BaseModel):
+    response: str
+    sources: List[str] = []  # Fonti usate (manuale, database, web)
+    suggested_actions: List[Dict[str, Any]] = []  # Azioni suggerite (vai a matterport, chiama assistenza, etc.)
+
+
+async def get_context_data(user_id: str = DEFAULT_USER_ID, elettrodomestico_id: Optional[str] = None) -> str:
+    """Raccoglie dati di contesto dagli archivi per l'AI"""
+    
+    context_parts = []
+    
+    # Elettrodomestici
+    if elettrodomestico_id:
+        elettro = await db.elettrodomestici.find_one({"id": elettrodomestico_id}, {"_id": 0})
+        if elettro:
+            context_parts.append(f"ELETTRODOMESTICO SELEZIONATO:\n{json.dumps(elettro, indent=2, default=str)}")
+            
+            # Carica manuali per questo elettrodomestico
+            manuali = await db.manuali.find(
+                {"elettrodomestico_id": elettrodomestico_id}
+            ).to_list(10)
+            
+            for m in manuali:
+                if m.get("text_content"):
+                    context_parts.append(f"CONTENUTO MANUALE ({m.get('original_filename', 'N/A')}):\n{m['text_content'][:10000]}")
+            
+            # Centro assistenza
+            if elettro.get('centro_assistenza_id'):
+                centro = await db.centri_assistenza.find_one({"id": elettro['centro_assistenza_id']}, {"_id": 0})
+                if centro:
+                    context_parts.append(f"CENTRO ASSISTENZA:\n{json.dumps(centro, indent=2, default=str)}")
+    else:
+        # Tutti gli elettrodomestici
+        elettrodomestici = await db.elettrodomestici.find(
+            {"user_id": user_id}, {"_id": 0}
+        ).to_list(100)
+        
+        if elettrodomestici:
+            context_parts.append(f"ELENCO ELETTRODOMESTICI ({len(elettrodomestici)} totali):")
+            for e in elettrodomestici:
+                consumo = e.get('consumo_orario_kw', 0) * e.get('ore_uso_giornaliero_stimate', 0)
+                context_parts.append(
+                    f"- {e.get('nome')} ({e.get('marca', 'N/A')} {e.get('modello', 'N/A')}): "
+                    f"posizione={e.get('posizione', 'N/A')}, categoria={e.get('categoria', 'N/A')}, "
+                    f"consumo={consumo:.2f} kWh/giorno, id={e.get('id')}"
+                )
+    
+    # Manutenzioni
+    manutenzioni = await db.manutenzioni.find(
+        {"user_id": user_id}, {"_id": 0}
+    ).to_list(50)
+    
+    if manutenzioni:
+        context_parts.append(f"\nMANUTENZIONI ({len(manutenzioni)} totali):")
+        for m in manutenzioni:
+            context_parts.append(
+                f"- {m.get('descrizione')}: stato={m.get('stato')}, "
+                f"data={m.get('data_programmata', 'N/A')}, tipo={m.get('tipo')}"
+            )
+    
+    # Centri assistenza
+    centri = await db.centri_assistenza.find(
+        {"user_id": user_id}, {"_id": 0}
+    ).to_list(20)
+    
+    if centri:
+        context_parts.append(f"\nCENTRI ASSISTENZA ({len(centri)} totali):")
+        for c in centri:
+            context_parts.append(
+                f"- {c.get('nome_azienda')}: tel={c.get('telefono')}, "
+                f"specializzazioni={', '.join(c.get('specializzazioni', []))}"
+            )
+    
+    return "\n".join(context_parts)
+
+
+@api_router.post("/assistente/chat", response_model=ChatResponse)
+async def chat_with_assistant(request: ChatRequest):
+    """Chat con l'assistente AI SmartBuilding"""
+    
+    if not openai_client:
+        raise HTTPException(
+            status_code=503, 
+            detail="Assistente AI non configurato. Manca EMERGENT_LLM_KEY."
+        )
+    
+    # Raccogli contesto
+    context = await get_context_data(DEFAULT_USER_ID, request.elettrodomestico_id)
+    
+    # System prompt
+    system_prompt = """Sei l'Assistente SmartBuilding, un aiutante intelligente per la gestione della casa.
+
+Il tuo compito è:
+1. Rispondere a domande sugli elettrodomestici dell'utente (quanti sono, dove sono, quanto consumano)
+2. Fornire supporto tecnico basato sui manuali caricati
+3. Aiutare con problemi e malfunzionamenti cercando soluzioni
+4. Dare informazioni su manutenzioni programmate
+5. Fornire contatti dei centri assistenza quando necessario
+
+REGOLE:
+- Rispondi SEMPRE in italiano
+- Sii conciso ma completo
+- Se hai informazioni dal manuale, citalo
+- Se non trovi la risposta nei dati, suggerisci di cercare online o contattare l'assistenza
+- Quando parli di un elettrodomestico specifico, indica sempre marca e modello
+- Per problemi tecnici, dai istruzioni passo-passo numerate
+- Se l'utente chiede di "andare" o "vedere" un dispositivo, suggerisci di usare la vista 3D Matterport
+
+DATI DISPONIBILI:
+""" + context
+    
+    # Costruisci messaggi
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    # Aggiungi storia conversazione
+    for msg in request.conversation_history[-10:]:  # Ultimi 10 messaggi
+        messages.append({"role": msg.role, "content": msg.content})
+    
+    # Aggiungi messaggio utente
+    messages.append({"role": "user", "content": request.message})
+    
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=1000,
+            temperature=0.7
+        )
+        
+        ai_response = response.choices[0].message.content
+        
+        # Determina le fonti usate
+        sources = []
+        if "manuale" in ai_response.lower():
+            sources.append("manuale")
+        if context:
+            sources.append("database")
+        
+        # Suggerisci azioni
+        suggested_actions = []
+        
+        # Se menziona un elettrodomestico, suggerisci vista 3D
+        if request.elettrodomestico_id:
+            suggested_actions.append({
+                "type": "navigate_matterport",
+                "label": "Vai nello spazio 3D",
+                "elettrodomestico_id": request.elettrodomestico_id
+            })
+        
+        # Se menziona assistenza o problemi gravi
+        if any(word in ai_response.lower() for word in ["assistenza", "tecnico", "riparare", "chiamare"]):
+            suggested_actions.append({
+                "type": "contact_support",
+                "label": "Contatta assistenza"
+            })
+        
+        return ChatResponse(
+            response=ai_response,
+            sources=sources,
+            suggested_actions=suggested_actions
+        )
+        
+    except Exception as e:
+        logger.error(f"Errore chat AI: {e}")
+        raise HTTPException(status_code=500, detail=f"Errore comunicazione AI: {str(e)}")
+
+
+@api_router.post("/assistente/risolvi-problema")
+async def risolvi_problema(
+    elettrodomestico_id: str = Query(...),
+    problema: str = Query(..., description="Descrizione del problema")
+):
+    """Cerca di risolvere un problema specifico di un elettrodomestico"""
+    
+    if not openai_client:
+        raise HTTPException(status_code=503, detail="Assistente AI non configurato")
+    
+    # Carica info elettrodomestico
+    elettro = await db.elettrodomestici.find_one({"id": elettrodomestico_id}, {"_id": 0})
+    if not elettro:
+        raise HTTPException(status_code=404, detail="Elettrodomestico non trovato")
+    
+    # Carica manuali
+    manuali_content = ""
+    manuali = await db.manuali.find({"elettrodomestico_id": elettrodomestico_id}).to_list(10)
+    for m in manuali:
+        if m.get("text_content"):
+            manuali_content += f"\n\n--- MANUALE: {m.get('original_filename')} ---\n{m['text_content'][:15000]}"
+    
+    # Carica centro assistenza
+    centro_info = ""
+    if elettro.get('centro_assistenza_id'):
+        centro = await db.centri_assistenza.find_one({"id": elettro['centro_assistenza_id']}, {"_id": 0})
+        if centro:
+            centro_info = f"\n\nCENTRO ASSISTENZA: {centro.get('nome_azienda')} - Tel: {centro.get('telefono')}"
+    
+    prompt = f"""Sei un tecnico esperto di elettrodomestici. L'utente ha un problema con:
+
+ELETTRODOMESTICO:
+- Nome: {elettro.get('nome')}
+- Marca: {elettro.get('marca', 'N/A')}
+- Modello: {elettro.get('modello', 'N/A')}
+- Posizione: {elettro.get('posizione', 'N/A')}
+
+PROBLEMA SEGNALATO:
+{problema}
+
+{f"CONTENUTO MANUALI DISPONIBILI:{manuali_content}" if manuali_content else "Nessun manuale caricato."}
+{centro_info}
+
+ISTRUZIONI:
+1. Analizza il problema
+2. Se trovi la soluzione nel manuale, fornisci i passaggi esatti con riferimento alla pagina/sezione
+3. Se non trovi nel manuale, fornisci una soluzione basata sulla tua conoscenza
+4. Dai istruzioni passo-passo numerate
+5. Indica quando è necessario chiamare un tecnico
+6. Rispondi in italiano
+
+Fornisci la risposta in questo formato:
+📋 DIAGNOSI: [breve diagnosi]
+🔧 SOLUZIONE:
+1. [passo 1]
+2. [passo 2]
+...
+⚠️ ATTENZIONE: [eventuali avvertenze]
+📞 ASSISTENZA: [quando chiamare il tecnico]
+"""
+
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Sei un tecnico esperto di elettrodomestici. Rispondi sempre in italiano con istruzioni chiare e precise."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1500,
+            temperature=0.5
+        )
+        
+        return {
+            "elettrodomestico": {
+                "nome": elettro.get('nome'),
+                "marca": elettro.get('marca'),
+                "modello": elettro.get('modello')
+            },
+            "problema": problema,
+            "soluzione": response.choices[0].message.content,
+            "manuale_disponibile": len(manuali) > 0,
+            "centro_assistenza": centro_info if centro_info else None
+        }
+        
+    except Exception as e:
+        logger.error(f"Errore risoluzione problema: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
