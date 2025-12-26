@@ -605,6 +605,14 @@ export const TicketList = ({ elettrodomestici, centriAssistenza }) => {
                         </div>
                         <Button 
                           size="sm" 
+                          variant="outline"
+                          onClick={() => { setSelectedTicket(t); setAggiornaDialogOpen(true); }}
+                          title="Aggiorna stato"
+                        >
+                          <Edit className="h-3 w-3 mr-1" /> Aggiorna
+                        </Button>
+                        <Button 
+                          size="sm" 
                           className="bg-green-600 hover:bg-green-700"
                           onClick={() => { setSelectedTicket(t); setChiudiDialogOpen(true); }}
                         >
