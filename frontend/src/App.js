@@ -417,12 +417,55 @@ const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico, onOpenTi
                                 onClick={() => {
                                   if (action.type === "navigate_matterport") {
                                     onNavigateToElettrodomestico?.(action.elettrodomestico_id);
+                                  } else if (action.type === "open_ticket") {
+                                    handleApriTicket();
+                                  } else if (action.type === "contact_support") {
+                                    handleContattaAssistenza();
+                                  } else if (action.type === "navigate_tab") {
+                                    onNavigateToTab?.(action.tab);
                                   }
                                 }}
                               >
                                 {action.label}
                               </Button>
                             ))}
+                          </div>
+                        )}
+                        {/* Mostra pulsanti azione se il messaggio contiene parole chiave di problema non risolto */}
+                        {msg.role === "assistant" && 
+                         (msg.content?.toLowerCase().includes("non riesco") || 
+                          msg.content?.toLowerCase().includes("contatta") ||
+                          msg.content?.toLowerCase().includes("assistenza") ||
+                          msg.content?.toLowerCase().includes("tecnico")) && 
+                         selectedElettrodomestico && (
+                          <div className="mt-3 pt-2 border-t border-gray-200">
+                            <p className="text-xs text-gray-500 mb-2">Azioni rapide:</p>
+                            <div className="flex flex-wrap gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={handleApriTicket}
+                              >
+                                🎫 Apri Ticket
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={handleContattaAssistenza}
+                              >
+                                📞 Assistenza
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={handleVaiNelloSpazio}
+                              >
+                                🏠 Vista 3D
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>
