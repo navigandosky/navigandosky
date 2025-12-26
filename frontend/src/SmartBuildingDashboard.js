@@ -166,108 +166,91 @@ const DeviceCard = ({ device, onToggle }) => {
 // Ezviz Camera Card (placeholder for when it works)
 const CameraCard = ({ camera }) => {
   const isOnline = camera?.status === 'online';
-  const [imageError, setImageError] = useState(false);
   
-  // Deep link per aprire l'app Ezviz
+  // Deep link per aprire l'app Ezviz su smartphone
   const openEzvizApp = () => {
-    // Schema URL per app Ezviz
     const ezvizAppScheme = `ezviz://open?deviceSerial=${camera?.serial}`;
-    const ezvizWebUrl = `https://www.ezvizlife.com/`;
-    
-    // Prova ad aprire l'app, altrimenti apri il sito web
     window.location.href = ezvizAppScheme;
-    
-    // Fallback al sito web dopo 2 secondi se l'app non si apre
-    setTimeout(() => {
-      window.open(ezvizWebUrl, '_blank');
-    }, 2000);
-  };
-
-  // Fetch snapshot della camera
-  const [snapshotUrl, setSnapshotUrl] = useState(camera?.image_url || null);
-  
-  const refreshSnapshot = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/ezviz/camera/${camera?.serial}/snapshot`);
-      if (response.data?.image_url) {
-        setSnapshotUrl(response.data.image_url);
-        setImageError(false);
-      }
-    } catch (error) {
-      console.log('Snapshot not available');
-    }
   };
   
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden hover:border-red-500/30 transition-all duration-300">
-      {/* Preview Immagine */}
-      <div className="aspect-video bg-slate-900 relative cursor-pointer" onClick={openEzvizApp}>
-        {snapshotUrl && !imageError ? (
-          <img 
-            src={snapshotUrl} 
-            alt={camera?.name}
-            className="w-full h-full object-cover"
-            onError={() => setImageError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
-            <Camera size={48} className="text-slate-600 mb-2" />
-            <p className="text-xs text-slate-500">Clicca per aprire in Ezviz</p>
-          </div>
-        )}
-        
-        {/* Badge Stato */}
-        <div className="absolute top-2 left-2">
-          <Badge variant={isOnline ? "default" : "destructive"} className={isOnline ? "bg-green-500" : ""}>
-            <span className={`w-2 h-2 rounded-full mr-1 ${isOnline ? 'bg-white animate-pulse' : 'bg-red-300'}`}></span>
-            {isOnline ? "LIVE" : "OFFLINE"}
-          </Badge>
+    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 hover:border-cyan-500/30 transition-all duration-300">
+      {/* Header con stato */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Camera size={20} className="text-cyan-400" />
+          <h3 className="text-sm font-medium text-white">{camera?.name || 'Camera'}</h3>
         </div>
-        
-        {/* Modello */}
-        <div className="absolute top-2 right-2">
-          <span className="text-xs bg-black/50 px-2 py-1 rounded text-white">{camera?.model || 'Camera'}</span>
+        <Badge variant={isOnline ? "default" : "destructive"} className={isOnline ? "bg-green-500" : ""}>
+          <span className={`w-2 h-2 rounded-full mr-1 ${isOnline ? 'bg-white animate-pulse' : 'bg-red-300'}`}></span>
+          {isOnline ? "ONLINE" : "OFFLINE"}
+        </Badge>
+      </div>
+      
+      {/* Dettagli Camera */}
+      <div className="space-y-1 text-xs text-slate-400 mb-3">
+        <div className="flex justify-between">
+          <span>Seriale:</span>
+          <span className="text-slate-300 font-mono">{camera?.serial || '-'}</span>
         </div>
-        
-        {/* Overlay con icona play */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
-          <div className="bg-red-500/80 rounded-full p-3">
-            <Play size={24} className="text-white ml-1" />
-          </div>
+        <div className="flex justify-between">
+          <span>Modello:</span>
+          <span className="text-slate-300">{camera?.model || '-'}</span>
         </div>
       </div>
       
-      {/* Info e Pulsanti */}
-      <div className="p-3">
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-medium text-white truncate">{camera?.name || 'Camera'}</h3>
-            <p className="text-xs text-slate-400">{camera?.serial || ''}</p>
+      {/* Pulsante App Mobile */}
+      <Button 
+        size="sm" 
+        className="w-full text-xs bg-cyan-600 hover:bg-cyan-500"
+        onClick={openEzvizApp}
+      >
+        <Smartphone size={14} className="mr-2" />
+        Apri App Ezviz (Mobile)
+      </Button>
+    </div>
+  );
+};
+
+// Componente per le istruzioni PC
+const EzvizPCInstructions = () => {
+  const [showInstructions, setShowInstructions] = useState(false);
+  
+  return (
+    <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 mb-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Monitor size={24} className="text-blue-400" />
+          <div>
+            <h3 className="text-sm font-medium text-white">Visualizza su PC</h3>
+            <p className="text-xs text-slate-400">Usa Ezviz Studio per vedere tutte le telecamere</p>
           </div>
         </div>
-        
-        {/* Pulsanti Azione */}
-        <div className="flex gap-2 mt-2">
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="flex-1 text-xs border-red-500/50 text-red-400 hover:bg-red-500/20"
-            onClick={openEzvizApp}
-          >
-            <ExternalLink size={12} className="mr-1" />
-            Apri App
-          </Button>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="text-xs border-slate-600"
-            onClick={refreshSnapshot}
-            title="Aggiorna immagine"
-          >
-            <RefreshCw size={12} />
-          </Button>
-        </div>
+        <Button 
+          size="sm" 
+          variant="outline"
+          className="border-blue-500/50 text-blue-400 hover:bg-blue-500/20"
+          onClick={() => setShowInstructions(!showInstructions)}
+        >
+          <Info size={14} className="mr-2" />
+          {showInstructions ? 'Nascondi' : 'Istruzioni'}
+        </Button>
       </div>
+      
+      {showInstructions && (
+        <div className="mt-4 p-3 bg-slate-900/50 rounded-lg border border-slate-700/50">
+          <p className="text-sm text-slate-300 mb-2">Per visualizzare le telecamere su PC:</p>
+          <ol className="text-xs text-slate-400 space-y-2 list-decimal list-inside">
+            <li>Apri <span className="text-cyan-400 font-mono">Ezviz Studio</span> dal menu Start</li>
+            <li>Oppure vai in: <span className="text-cyan-400 font-mono break-all">C:\Program Files (x86)\Ezviz Studio</span></li>
+            <li>Accedi con le tue credenziali Ezviz</li>
+            <li>Tutte le telecamere saranno disponibili nella console</li>
+          </ol>
+          <div className="mt-3 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-400">
+            💡 Suggerimento: Crea un collegamento sul desktop per un accesso rapido
+          </div>
+        </div>
+      )}
     </div>
   );
 };
