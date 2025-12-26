@@ -208,3 +208,5 @@ test_plan:
 agent_communication:
     - agent: "main"
     - message: "Completate tutte le 6 modifiche P0. Backend testato via curl, frontend verificato via screenshot. Le icone colorate sono visibili nell'header. Il file commesse.md è stato aggiornato con smartdomo-central."
+    - agent: "main"
+    - message: "MIGRAZIONE DATI COMPLETATA: Migrati stati vecchi di manutenzioni (pianificata->aperto, completata->completato) e tickets (risolto->completato). Totale 11 record aggiornati. API /api/tickets e /api/manutenzioni funzionanti. Sidebar ora mostra correttamente Manutenzioni (8)."
