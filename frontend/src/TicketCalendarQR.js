@@ -443,6 +443,7 @@ export const TicketList = ({ elettrodomestici, centriAssistenza }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
   const [chiudiDialogOpen, setChiudiDialogOpen] = useState(false);
+  const [aggiornaDialogOpen, setAggiornaDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [filtroStato, setFiltroStato] = useState("");
 
