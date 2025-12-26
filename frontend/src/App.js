@@ -1799,6 +1799,12 @@ function App() {
         onOpenChange={setQrDialogOpen}
         elettrodomestico={qrElettro}
       />
+
+      <RicercaCentriAssistenza
+        open={ricercaCentriOpen}
+        onOpenChange={setRicercaCentriOpen}
+        onAddCentro={handleAddCentroFromSearch}
+      />
     </div>
   );
 }
