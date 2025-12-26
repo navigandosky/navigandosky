@@ -44,11 +44,11 @@ export const formatDateTimeIT = (dateString) => {
 };
 
 const STATI_TICKET = [
-  { value: "aperto", label: "Aperto", color: "bg-blue-500" },
-  { value: "contattato", label: "Contattato", color: "bg-yellow-500" },
-  { value: "in_lavorazione", label: "In Lavorazione", color: "bg-orange-500" },
-  { value: "risolto", label: "Risolto", color: "bg-green-500" },
-  { value: "annullato", label: "Annullato", color: "bg-gray-500" },
+  { value: "aperto", label: "Aperto", color: "bg-blue-500", icon: "📋" },
+  { value: "contattato", label: "Contattato", color: "bg-yellow-500", icon: "📞" },
+  { value: "in_lavorazione", label: "In Lavorazione", color: "bg-orange-500", icon: "🔧" },
+  { value: "risolto", label: "Risolto", color: "bg-green-500", icon: "✅" },
+  { value: "annullato", label: "Annullato", color: "bg-gray-500", icon: "❌" },
 ];
 
 const PRIORITA_TICKET = [
@@ -57,6 +57,126 @@ const PRIORITA_TICKET = [
   { value: "alta", label: "Alta", color: "bg-orange-500" },
   { value: "urgente", label: "Urgente", color: "bg-red-500" },
 ];
+
+// ============== DETTAGLIO TICKET (Solo Lettura) ==============
+export const DettaglioTicketDialog = ({ open, onOpenChange, ticket, elettrodomestici, centriAssistenza }) => {
+  if (!ticket) return null;
+  
+  const elettro = elettrodomestici?.find(e => e.id === ticket.elettrodomestico_id);
+  const centro = centriAssistenza?.find(c => c.id === ticket.centro_assistenza_id);
+  const statoInfo = STATI_TICKET.find(s => s.value === ticket.stato);
+  const prioritaInfo = PRIORITA_TICKET.find(p => p.value === ticket.priorita);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Eye className="h-5 w-5" />
+            Dettaglio Ticket #{ticket.numero_ticket}
+            <Badge className={`${statoInfo?.color} text-white ml-2`}>
+              {statoInfo?.icon} {statoInfo?.label}
+            </Badge>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Titolo */}
+          <div>
+            <Label className="text-gray-500">Titolo</Label>
+            <p className="mt-1 p-2 bg-gray-50 rounded font-medium">{ticket.titolo}</p>
+          </div>
+
+          {/* Info Elettrodomestico */}
+          {elettro && (
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-blue-800 mb-1">Elettrodomestico</h4>
+              <p className="text-sm">{elettro.nome} - {elettro.marca} {elettro.modello}</p>
+            </div>
+          )}
+
+          {/* Descrizione */}
+          <div>
+            <Label className="text-gray-500">Descrizione Problema</Label>
+            <p className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap">{ticket.descrizione || "-"}</p>
+          </div>
+
+          {/* Priorità e Date */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-gray-500">Priorità</Label>
+              <div className="mt-1">
+                <Badge className={`${prioritaInfo?.color} text-white`}>{prioritaInfo?.label}</Badge>
+              </div>
+            </div>
+            <div>
+              <Label className="text-gray-500">Costo Intervento</Label>
+              <p className="mt-1 p-2 bg-gray-50 rounded">{ticket.costo_intervento ? `€${ticket.costo_intervento}` : "-"}</p>
+            </div>
+            <div>
+              <Label className="text-gray-500">Data Apertura</Label>
+              <p className="mt-1 p-2 bg-gray-50 rounded">{formatDateIT(ticket.created_at)}</p>
+            </div>
+            <div>
+              <Label className="text-gray-500">Data Risoluzione</Label>
+              <p className="mt-1 p-2 bg-gray-50 rounded">{formatDateIT(ticket.data_risoluzione) || "-"}</p>
+            </div>
+          </div>
+
+          {/* Centro Assistenza */}
+          {centro && (
+            <div className="p-3 bg-green-50 rounded-lg">
+              <h4 className="font-medium text-green-800 mb-1">Centro Assistenza</h4>
+              <p className="text-sm">{centro.nome_azienda}</p>
+              {centro.telefono && <p className="text-xs text-gray-600">📞 {centro.telefono}</p>}
+              {centro.email && <p className="text-xs text-gray-600">📧 {centro.email}</p>}
+            </div>
+          )}
+
+          {/* Note Risoluzione */}
+          {ticket.note_risoluzione && (
+            <div className="p-3 bg-green-50 rounded-lg">
+              <h4 className="font-medium text-green-800 mb-1">✅ Note Risoluzione</h4>
+              <p className="text-sm whitespace-pre-wrap">{ticket.note_risoluzione}</p>
+            </div>
+          )}
+
+          {/* Valutazione */}
+          {ticket.valutazione && (
+            <div>
+              <Label className="text-gray-500">Valutazione</Label>
+              <div className="flex mt-1">
+                {[1,2,3,4,5].map(s => (
+                  <Star key={s} className={`h-5 w-5 ${s <= ticket.valutazione ? "text-yellow-500 fill-yellow-500" : "text-gray-300"}`} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Note Interne */}
+          {ticket.note_interne && (
+            <div>
+              <Label className="text-gray-500">Note Interne</Label>
+              <p className="mt-1 p-2 bg-gray-50 rounded whitespace-pre-wrap text-sm">{ticket.note_interne}</p>
+            </div>
+          )}
+
+          {/* Timestamp */}
+          <div className="text-xs text-gray-400 pt-2 border-t">
+            Creato: {formatDateTimeIT(ticket.created_at)} | 
+            Aggiornato: {formatDateTimeIT(ticket.updated_at)}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Chiudi
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 // ============== AGGIORNA TICKET DIALOG ==============
 
