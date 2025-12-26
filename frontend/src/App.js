@@ -1183,9 +1183,31 @@ const AttractionsAdminPanel = () => {
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     >
-                      {attractionCategories.map(cat => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                      ))}
+                      <optgroup label="🏛️ Attrazioni">
+                        {attractionCategories.filter(c => c.group === "attrazioni").map(cat => (
+                          <option key={cat.value} value={cat.value}>{cat.label}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🍽️ Dove Mangiare">
+                        {attractionCategories.filter(c => c.group === "mangiare").map(cat => (
+                          <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🏨 Dove Dormire">
+                        {attractionCategories.filter(c => c.group === "dormire").map(cat => (
+                          <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🚶 Itinerari">
+                        {attractionCategories.filter(c => c.group === "itinerari").map(cat => (
+                          <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="📍 Altro">
+                        {attractionCategories.filter(c => c.group === "altro").map(cat => (
+                          <option key={cat.value} value={cat.value}>{cat.label}</option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
                   <div>
@@ -1204,49 +1226,246 @@ const AttractionsAdminPanel = () => {
                   </div>
                 </div>
 
-                {/* Additional info */}
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Orari di Apertura</label>
-                    <input
-                      type="text"
-                      value={formData.opening_hours}
-                      onChange={(e) => setFormData({ ...formData, opening_hours: e.target.value })}
-                      placeholder="es. Lun-Ven 9:00-18:00"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
+                {/* Restaurant specific fields */}
+                {isRestaurant(formData.category) && (
+                  <div className="bg-orange-50 rounded-xl p-4">
+                    <h4 className="font-semibold text-orange-800 mb-3">🍽️ Info Ristorante</h4>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Cucina</label>
+                        <select
+                          value={formData.cuisine_type}
+                          onChange={(e) => setFormData({ ...formData, cuisine_type: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="">Seleziona...</option>
+                          {cuisineTypes.map(c => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Fascia Prezzo</label>
+                        <select
+                          value={formData.price_range}
+                          onChange={(e) => setFormData({ ...formData, price_range: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="">Seleziona...</option>
+                          {priceRanges.map(p => (
+                            <option key={p.value} value={p.value}>{p.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Link Prenotazione</label>
+                        <input
+                          type="url"
+                          value={formData.reservation_link}
+                          onChange={(e) => setFormData({ ...formData, reservation_link: e.target.value })}
+                          placeholder="https://..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Prezzo/Ingresso</label>
-                    <input
-                      type="text"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      placeholder="es. Gratuito, €5"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
+                )}
+
+                {/* Accommodation specific fields */}
+                {isAccommodation(formData.category) && (
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <h4 className="font-semibold text-blue-800 mb-3">🏨 Info Alloggio</h4>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Stelle</label>
+                        <select
+                          value={formData.stars || ""}
+                          onChange={(e) => setFormData({ ...formData, stars: e.target.value ? parseInt(e.target.value) : null })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="">N/A</option>
+                          <option value="1">⭐</option>
+                          <option value="2">⭐⭐</option>
+                          <option value="3">⭐⭐⭐</option>
+                          <option value="4">⭐⭐⭐⭐</option>
+                          <option value="5">⭐⭐⭐⭐⭐</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Link Prenotazione</label>
+                        <input
+                          type="url"
+                          value={formData.booking_link}
+                          onChange={(e) => setFormData({ ...formData, booking_link: e.target.value })}
+                          placeholder="https://booking.com/..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Servizi</label>
+                        <input
+                          type="text"
+                          value={formData.amenities}
+                          onChange={(e) => setFormData({ ...formData, amenities: e.target.value })}
+                          placeholder="WiFi, Parcheggio, Piscina..."
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Contatto</label>
-                    <input
-                      type="text"
-                      value={formData.contact}
-                      onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                      placeholder="es. +39 0783 123456"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
+                )}
+
+                {/* Itinerary specific fields */}
+                {isItinerary(formData.category) && (
+                  <div className="bg-green-50 rounded-xl p-4">
+                    <h4 className="font-semibold text-green-800 mb-3">🚶 Info Itinerario</h4>
+                    <div className="grid md:grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Durata</label>
+                        <input
+                          type="text"
+                          value={formData.duration}
+                          onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                          placeholder="es. 2 ore, mezza giornata"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Difficoltà</label>
+                        <select
+                          value={formData.difficulty}
+                          onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="">Seleziona...</option>
+                          {difficultyLevels.map(d => (
+                            <option key={d.value} value={d.value}>{d.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Distanza</label>
+                        <input
+                          type="text"
+                          value={formData.distance}
+                          onChange={(e) => setFormData({ ...formData, distance: e.target.value })}
+                          placeholder="es. 5 km"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Waypoints */}
+                    <div className="border-t border-green-200 pt-4 mt-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h5 className="font-medium text-green-800">📍 Tappe dell'itinerario</h5>
+                        <button
+                          type="button"
+                          onClick={addWaypoint}
+                          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm flex items-center gap-1"
+                        >
+                          <Plus size={16} /> Aggiungi Tappa
+                        </button>
+                      </div>
+                      
+                      {(formData.waypoints || []).length === 0 ? (
+                        <p className="text-gray-500 text-sm text-center py-4">Nessuna tappa aggiunta. Clicca "Aggiungi Tappa" per iniziare.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {(formData.waypoints || []).map((wp, index) => (
+                            <div key={wp.id || index} className="bg-white rounded-lg p-3 border border-green-200">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">{index + 1}</span>
+                                <input
+                                  type="text"
+                                  value={wp.name}
+                                  onChange={(e) => updateWaypoint(index, "name", e.target.value)}
+                                  placeholder="Nome tappa"
+                                  className="flex-1 px-3 py-1 border border-gray-300 rounded-lg text-sm"
+                                />
+                                <div className="flex gap-1">
+                                  <button type="button" onClick={() => moveWaypoint(index, -1)} disabled={index === 0} className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-30">
+                                    <ChevronUp size={16} />
+                                  </button>
+                                  <button type="button" onClick={() => moveWaypoint(index, 1)} disabled={index === (formData.waypoints?.length || 0) - 1} className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-30">
+                                    <ChevronDown size={16} />
+                                  </button>
+                                  <button type="button" onClick={() => removeWaypoint(index)} className="p-1 text-red-500 hover:text-red-700">
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="grid md:grid-cols-2 gap-2 ml-8">
+                                <input
+                                  type="text"
+                                  value={wp.description || ""}
+                                  onChange={(e) => updateWaypoint(index, "description", e.target.value)}
+                                  placeholder="Descrizione breve"
+                                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+                                />
+                                <input
+                                  type="url"
+                                  value={wp.google_maps_link || ""}
+                                  onChange={(e) => updateWaypoint(index, "google_maps_link", e.target.value)}
+                                  placeholder="Link Google Maps"
+                                  className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Link Esterno</label>
-                    <input
-                      type="url"
-                      value={formData.external_link}
-                      onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
-                      placeholder="https://..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
+                )}
+
+                {/* Additional info - only for non-itineraries */}
+                {!isItinerary(formData.category) && (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Orari di Apertura</label>
+                      <input
+                        type="text"
+                        value={formData.opening_hours}
+                        onChange={(e) => setFormData({ ...formData, opening_hours: e.target.value })}
+                        placeholder="es. Lun-Ven 9:00-18:00"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {isRestaurant(formData.category) || isAccommodation(formData.category) ? "Prezzo medio" : "Prezzo/Ingresso"}
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        placeholder={isRestaurant(formData.category) ? "es. €15-25" : "es. Gratuito, €5"}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contatto</label>
+                      <input
+                        type="text"
+                        value={formData.contact}
+                        onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                        placeholder="es. +39 0783 123456"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Link Esterno</label>
+                      <input
+                        type="url"
+                        value={formData.external_link}
+                        onChange={(e) => setFormData({ ...formData, external_link: e.target.value })}
+                        placeholder="https://..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex items-center gap-3">
                   <input
