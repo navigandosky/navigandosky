@@ -340,12 +340,18 @@ const AttractionsPage = ({ lang, t }) => {
 
   const getCategoryLabel = (value) => {
     const cat = attractionCategories.find(c => c.value === value);
-    return cat ? (lang === "en" ? cat.labelEn : cat.label) : value;
+    return cat ? (cat.icon ? `${cat.icon} ` : "") + (lang === "en" ? cat.labelEn : cat.label) : value;
   };
 
   const filteredAttractions = filter === "all" 
     ? attractions 
-    : attractions.filter(a => a.category === filter);
+    : filter === "attrazioni" 
+      ? attractions.filter(a => ["chiesa", "monumento", "archeologia", "natura", "museo"].includes(a.category))
+      : filter === "mangiare"
+        ? attractions.filter(a => ["ristorante", "pizzeria", "bar", "agriturismo_rist"].includes(a.category))
+        : filter === "dormire"
+          ? attractions.filter(a => ["hotel", "b&b", "agriturismo", "casa_vacanze"].includes(a.category))
+          : attractions.filter(a => a.category === filter);
 
   const getAudioUrl = (attr) => {
     if (lang === "it") return attr.audio_url;
