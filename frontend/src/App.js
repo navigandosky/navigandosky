@@ -1575,6 +1575,16 @@ function App() {
           <Dashboard stats={stats} consumiPerCategoria={consumiPerCategoria} />
         )}
 
+        {/* Suggerimenti Tab */}
+        {activeTab === "suggerimenti" && (
+          <SuggerimentiProattivi 
+            onNavigateToElettrodomestico={(id) => {
+              // Trova l'elettrodomestico e vai alla sua scheda
+              setActiveTab("elettrodomestici");
+            }}
+          />
+        )}
+
         {/* Assistente AI Tab */}
         {activeTab === "assistente" && (
           <AssistenteAI 
@@ -1596,6 +1606,17 @@ function App() {
           <TicketList 
             elettrodomestici={elettrodomestici} 
             centriAssistenza={centriAssistenza}
+          />
+        )}
+
+        {/* Planimetria Tab */}
+        {activeTab === "planimetria" && (
+          <PlanimetriaEditor 
+            elettrodomestici={elettrodomestici}
+            onElettrodomesticoClick={(elettro) => {
+              setEditingElettro(elettro);
+              setElettroDialogOpen(true);
+            }}
           />
         )}
 
