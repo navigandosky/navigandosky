@@ -1398,8 +1398,11 @@ function App() {
       loadElettrodomestici();
     } else if (activeTab === "assistente") {
       loadElettrodomestici();
+    } else if (activeTab === "tickets") {
+      loadElettrodomestici();
+      loadCentriAssistenza();
     }
-  }, [activeTab, loadStats, loadElettrodomestici, loadManutenzioni]);
+  }, [activeTab, loadStats, loadElettrodomestici, loadManutenzioni, loadCentriAssistenza]);
 
   // CRUD handlers for Centri Assistenza
   const handleSaveCentro = async (data) => {
