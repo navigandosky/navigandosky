@@ -2859,12 +2859,13 @@ ezviz_access_token = None
 ezviz_token_expires = None
 ezviz_client = None
 
-# API URLs per regione
+# API URLs per regione - EU usa ieuopen.ezvizlife.com
 EZVIZ_API_URLS = {
-    'eu': 'https://api.isgpopen.ezvizlife.com',
-    'us': 'https://api-us.ezvizlife.com',
-    'asia': 'https://api-asia.ezvizlife.com',
-    'it': 'https://api.isgpopen.ezvizlife.com',  # Italia usa EU
+    'eu': 'https://ieuopen.ezvizlife.com',
+    'it': 'https://ieuopen.ezvizlife.com',  # Italia usa EU
+    'us': 'https://open.ys7.com',
+    'asia': 'https://open.ys7.com',
+    'global': 'https://isgpopen.ezvizlife.com',
 }
 
 async def get_ezviz_api_token():
