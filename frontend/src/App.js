@@ -47,9 +47,12 @@ import {
   QrCode,
   Printer,
   Star,
-  Bell
+  Bell,
+  Lightbulb,
+  Map
 } from "lucide-react";
 import { TicketList, CalendarioManutenzioni, QRCodeDialog } from "./TicketCalendarQR";
+import { PlanimetriaEditor, SuggerimentiProattivi, NotificationBadge } from "./PlanimetriaSuggerimenti";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
