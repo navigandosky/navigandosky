@@ -3250,7 +3250,7 @@ async def get_system_status():
         "critici": 0,
         "totali": 0,
         "smartthings_connected": bool(SMARTTHINGS_TOKEN),
-        "ezviz_connected": bool(EZVIZ_USERNAME and EZVIZ_PASSWORD),
+        "ezviz_connected": bool((EZVIZ_USERNAME and EZVIZ_PASSWORD) or EZVIZ_APPKEY),
         "matterport_configured": bool(MATTERPORT_SPACE_ID)
     }
     
@@ -3270,13 +3270,12 @@ async def get_system_status():
             pass
     
     # Check Ezviz cameras
-    if EZVIZ_USERNAME and EZVIZ_PASSWORD:
+    if (EZVIZ_USERNAME and EZVIZ_PASSWORD) or EZVIZ_APPKEY:
         try:
-            client = await get_ezviz_token()
-            cameras = client.get_all_cameras_info()
-            for cam in cameras.values():
+            cameras_result = await get_ezviz_cameras()
+            for cam in cameras_result.get("cameras", []):
                 status["totali"] += 1
-                if cam.get("status", 0) == 1:
+                if cam.get("status") == "online":
                     status["ok"] += 1
                 else:
                     status["critici"] += 1
