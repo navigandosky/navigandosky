@@ -266,7 +266,7 @@ class ManutenzioneBase(BaseModel):
 
 
 class ManutenzioneCreate(ManutenzioneBase):
-    pass
+    crea_ticket_automatico: bool = False
 
 
 class ManutenzioneUpdate(BaseModel):
