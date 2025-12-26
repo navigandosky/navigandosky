@@ -153,19 +153,38 @@ class ElettrodomesticoBase(BaseModel):
     modello: Optional[str] = None
     numero_serie: Optional[str] = None
     categoria: CategoriaElettrodomestico = CategoriaElettrodomestico.ALTRO
+    categoria_custom: Optional[str] = None  # Per categorie aggiunte dall'utente
     posizione: Optional[str] = None
     data_acquisto: Optional[str] = None
     data_scadenza_garanzia: Optional[str] = None
+    # Costi e valore
+    costo_acquisto: Optional[float] = None
+    valore_attuale: Optional[float] = None
+    # Documenti acquisto
+    fattura_url: Optional[str] = None
+    documenti_acquisto: List[str] = []
     # Consumi energetici
     consumo_orario_kw: float = 0.0
     ore_uso_giornaliero_stimate: float = 0.0
-    # Smart Plug
+    # Smart Plug / SmartThings
     smart_plug_provider: SmartPlugProvider = SmartPlugProvider.NESSUNO
     smart_plug_id: Optional[str] = None
+    smartthings_device_id: Optional[str] = None  # Collegamento a dispositivo SmartThings
+    smartthings_device_name: Optional[str] = None
+    # Marca custom
+    marca_custom: Optional[str] = None  # Per marche non in lista
     # Centro assistenza
     centro_assistenza_id: Optional[str] = None
     # Matterport
     matterport_tag_id: Optional[str] = None
+    # Foto e media
+    foto_url: Optional[str] = None
+    foto_lista: List[str] = []
+    # Manuali e documentazione
+    manuali_urls: List[str] = []  # Upload manuali PDF
+    manuale_link_sito: Optional[str] = None  # Link al sito del manuale
+    video_istruzioni: List[str] = []  # Video istruzioni pratiche
+    pdf_istruzioni: List[str] = []  # PDF istruzioni pratiche
     # Extra
     documenti: List[str] = []
     note: Optional[str] = None
@@ -181,15 +200,29 @@ class ElettrodomesticoUpdate(BaseModel):
     modello: Optional[str] = None
     numero_serie: Optional[str] = None
     categoria: Optional[CategoriaElettrodomestico] = None
+    categoria_custom: Optional[str] = None
     posizione: Optional[str] = None
     data_acquisto: Optional[str] = None
     data_scadenza_garanzia: Optional[str] = None
+    costo_acquisto: Optional[float] = None
+    valore_attuale: Optional[float] = None
+    fattura_url: Optional[str] = None
+    documenti_acquisto: Optional[List[str]] = None
     consumo_orario_kw: Optional[float] = None
     ore_uso_giornaliero_stimate: Optional[float] = None
     smart_plug_provider: Optional[SmartPlugProvider] = None
     smart_plug_id: Optional[str] = None
+    smartthings_device_id: Optional[str] = None
+    smartthings_device_name: Optional[str] = None
+    marca_custom: Optional[str] = None
     centro_assistenza_id: Optional[str] = None
     matterport_tag_id: Optional[str] = None
+    foto_url: Optional[str] = None
+    foto_lista: Optional[List[str]] = None
+    manuali_urls: Optional[List[str]] = None
+    manuale_link_sito: Optional[str] = None
+    video_istruzioni: Optional[List[str]] = None
+    pdf_istruzioni: Optional[List[str]] = None
     documenti: Optional[List[str]] = None
     note: Optional[str] = None
 
