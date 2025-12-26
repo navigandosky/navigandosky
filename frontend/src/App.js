@@ -206,7 +206,7 @@ const Navbar = ({ showAdminLink = true }) => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 md:h-20">
-          <a href="/trivor" className="flex items-center">
+          <a href="#/" className="flex items-center">
             <img 
               src="https://customer-assets.emergentagent.com/job_trivor-agent/artifacts/5wu3c3nj_logo%20trivor%20heritage%20digitale.png" 
               alt="Trivor - Heritage Digitale" 
@@ -1247,7 +1247,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <a href="/trivor" className="flex items-center">
+              <a href="#/" className="flex items-center">
                 <img 
                   src="https://customer-assets.emergentagent.com/job_trivor-agent/artifacts/5wu3c3nj_logo%20trivor%20heritage%20digitale.png" 
                   alt="Trivor" 
