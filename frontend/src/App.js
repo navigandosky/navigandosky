@@ -1921,24 +1921,40 @@ function App() {
                         </div>
                         
                         <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditingManut(m);
-                              setManutDialogOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => handleDeleteManut(m.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {/* Se completata/annullata: solo visualizza */}
+                          {(m.stato === "completata" || m.stato === "annullata") ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setViewingManut(m);
+                                setDettaglioManutOpen(true);
+                              }}
+                            >
+                              <Eye className="h-3 w-3 mr-1" /> Visualizza
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingManut(m);
+                                  setManutDialogOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700"
+                                onClick={() => handleDeleteManut(m.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </CardContent>
