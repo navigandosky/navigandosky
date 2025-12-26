@@ -312,4 +312,4 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ---
 
-*Ultimo aggiornamento: 26 Dicembre 2024*
+*Ultimo aggiornamento: 27 Dicembre 2024*
