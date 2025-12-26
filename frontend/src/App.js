@@ -2541,7 +2541,7 @@ const HomePage = ({ lang, setLang, t }) => {
             <div className="hidden md:flex items-center gap-8">
               <button onClick={() => scrollToSection("about")} className="text-stone-700 hover:text-emerald-700 transition">{t.about}</button>
               <button onClick={() => scrollToSection("digital-twin")} className="text-stone-700 hover:text-emerald-700 transition">{t.digitalTwin}</button>
-              <button onClick={() => scrollToSection("attractions")} className="text-stone-700 hover:text-emerald-700 transition">{t.attractions}</button>
+              <Link to="/attrazioni" className="text-stone-700 hover:text-emerald-700 transition">{t.attractions}</Link>
               <Link to="/eventi" className="text-stone-700 hover:text-emerald-700 transition">{t.events}</Link>
               <button onClick={() => scrollToSection("contact")} className="text-stone-700 hover:text-emerald-700 transition">{t.contact}</button>
               
@@ -2582,8 +2582,8 @@ const HomePage = ({ lang, setLang, t }) => {
             <div className="px-4 py-4 space-y-3">
               <button onClick={() => scrollToSection("about")} className="block w-full text-left py-2">{t.about}</button>
               <button onClick={() => scrollToSection("digital-twin")} className="block w-full text-left py-2">{t.digitalTwin}</button>
-              <button onClick={() => scrollToSection("attractions")} className="block w-full text-left py-2">{t.attractions}</button>
-              <Link to="/eventi" className="block w-full text-left py-2">{t.events}</Link>
+              <Link to="/attrazioni" onClick={() => setMobileMenuOpen(false)} className="block w-full text-left py-2">{t.attractions}</Link>
+              <Link to="/eventi" onClick={() => setMobileMenuOpen(false)} className="block w-full text-left py-2">{t.events}</Link>
               <button onClick={() => scrollToSection("contact")} className="block w-full text-left py-2">{t.contact}</button>
               <div className="flex flex-wrap gap-2 pt-2 border-t">
                 {Object.entries(languageNames).map(([code, name]) => (
@@ -2811,6 +2811,7 @@ const HomePage = ({ lang, setLang, t }) => {
               <div className="space-y-2">
                 <a href="https://comune.tadasuni.or.it/" target="_blank" rel="noopener noreferrer" className="block text-stone-400 hover:text-white transition">Comune di Tadasuni</a>
                 <a href="https://dromosfestival.it/" target="_blank" rel="noopener noreferrer" className="block text-stone-400 hover:text-white transition">Dromos Festival</a>
+                <Link to="/attrazioni" className="block text-stone-400 hover:text-white transition">{t.attractions}</Link>
                 <Link to="/eventi" className="block text-stone-400 hover:text-white transition">{t.events}</Link>
                 <Link to="/admin" className="block text-stone-400 hover:text-white transition">{t.admin}</Link>
               </div>
