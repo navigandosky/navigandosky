@@ -463,7 +463,7 @@ const AboutSection = () => {
 const PortfolioSection = () => {
   const projects = [
     {
-      image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&q=80",
+      image: "https://picsum.photos/seed/smartbuilding/600/400",
       category: "Smart Building",
       title: "Smart Building Dashboard",
       client: "Navigandosky",
@@ -471,7 +471,7 @@ const PortfolioSection = () => {
       color: "cyan",
     },
     {
-      image: "https://images.unsplash.com/photo-1539768942893-daf53e448371?w=600&q=80",
+      image: "https://picsum.photos/seed/sardegna/600/400",
       category: "Beni Culturali",
       title: "Tour Virtuali Sardegna",
       client: "Regione Sardegna",
@@ -479,7 +479,7 @@ const PortfolioSection = () => {
       color: "teal",
     },
     {
-      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&q=80",
+      image: "https://picsum.photos/seed/cms/600/400",
       category: "Gestionale",
       title: "CMS Tracciamento Progetti",
       client: "Trivor SRL",
