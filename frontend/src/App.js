@@ -191,11 +191,11 @@ const Navbar = ({ showAdminLink = true }) => {
   }, [isHomePage]);
 
   const navItems = [
-    { name: "Home", href: isHomePage ? "#home" : "/trivor#home", id: "home" },
-    { name: "Servizi", href: isHomePage ? "#servizi" : "/trivor#servizi", id: "servizi" },
-    { name: "Chi Siamo", href: isHomePage ? "#chi-siamo" : "/trivor#chi-siamo", id: "chi-siamo" },
-    { name: "Progetti", href: isHomePage ? "#progetti" : "/trivor#progetti", id: "progetti" },
-    { name: "Contatti", href: isHomePage ? "#contatti" : "/trivor#contatti", id: "contatti" },
+    { name: "Home", href: "#home", id: "home" },
+    { name: "Servizi", href: "#servizi", id: "servizi" },
+    { name: "Chi Siamo", href: "#chi-siamo", id: "chi-siamo" },
+    { name: "Progetti", href: "#progetti", id: "progetti" },
+    { name: "Contatti", href: "#contatti", id: "contatti" },
   ];
 
   return (
