@@ -162,7 +162,7 @@ const MatterportViewer = ({ spaceId }) => {
 };
 
 // AI Assistant Component
-const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico }) => {
+const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico, onOpenTicket, onNavigateToTab }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -170,6 +170,7 @@ const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico }) => {
   const [showProblemSolver, setShowProblemSolver] = useState(false);
   const [problema, setProblema] = useState("");
   const [soluzione, setSoluzione] = useState(null);
+  const [showActionButtons, setShowActionButtons] = useState(false);
   const messagesEndRef = { current: null };
 
   const scrollToBottom = () => {
