@@ -21,17 +21,15 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ---
 
-## 🆕 FASE 2.1 - MIGLIORAMENTI UX E WORKFLOW (28/12/2024) - IN CORSO
+## 🆕 FASE 2.1 - MIGLIORAMENTI UX E WORKFLOW (28/12/2024) - COMPLETATA ✅
 
 ### Modifiche Completate ✅
 - [x] Icone colorate nell'header di navigazione (ogni tab ha colore distintivo)
-- [x] Gestione aggiornamento stato ticket (modale dedicata con workflow)
-- [x] Campo costo manutenzioni: input libero da tastiera
-- [x] Creazione automatica ticket quando si pianifica manutenzione
-
-### Da Completare
-- [ ] Formattare tutte le date in formato gg.mm.aaaa
-- [ ] Calendario default su data corrente (già implementato, da verificare)
+- [x] Gestione aggiornamento stato ticket (modale dedicata con workflow stati)
+- [x] Campo costo manutenzioni: input libero da tastiera (supporta testo e numeri)
+- [x] Creazione automatica ticket quando si pianifica manutenzione (checkbox opzionale)
+- [x] Formattazione date in formato gg.mm.aaaa (funzione formatDateIT)
+- [x] Calendario default su data corrente (già implementato)
 
 ---
 
