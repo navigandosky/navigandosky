@@ -1505,6 +1505,15 @@ function App() {
               setActiveTab("matterport");
               // Qui potremmo navigare al tag specifico quando avremo SDK Matterport
             }}
+            onOpenTicket={(ticketData) => {
+              // Apre la tab ticket e prepara i dati per un nuovo ticket
+              setActiveTab("tickets");
+              // Potremmo anche settare uno stato per pre-popolare il form
+              toast.info(`Apri un nuovo ticket per: ${ticketData.elettrodomestico?.nome || 'elettrodomestico'}`);
+            }}
+            onNavigateToTab={(tab) => {
+              setActiveTab(tab);
+            }}
           />
         )}
 
