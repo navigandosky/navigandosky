@@ -1000,6 +1000,22 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
             />
           </div>
 
+          {/* Checkbox per creare ticket automatico */}
+          {!manutenzione && formData.elettrodomestico_id && (
+            <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <input
+                type="checkbox"
+                id="crea_ticket"
+                checked={formData.crea_ticket_automatico}
+                onChange={(e) => setFormData({ ...formData, crea_ticket_automatico: e.target.checked })}
+                className="rounded border-blue-300"
+              />
+              <Label htmlFor="crea_ticket" className="cursor-pointer text-blue-800">
+                🎫 Crea automaticamente un ticket di assistenza per questa manutenzione
+              </Label>
+            </div>
+          )}
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Annulla
