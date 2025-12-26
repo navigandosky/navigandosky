@@ -1263,6 +1263,526 @@ Fornisci la risposta in questo formato:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ------------ TICKET ASSISTENZA ------------
+
+@api_router.post("/tickets", response_model=Ticket)
+async def create_ticket(data: TicketCreate):
+    """Crea un nuovo ticket di assistenza"""
+    # Verifica elettrodomestico
+    elettro = await db.elettrodomestici.find_one({"id": data.elettrodomestico_id}, {"_id": 0})
+    if not elettro:
+        raise HTTPException(status_code=404, detail="Elettrodomestico non trovato")
+    
+    # Se non specificato centro assistenza, usa quello dell'elettrodomestico
+    centro_id = data.centro_assistenza_id or elettro.get('centro_assistenza_id')
+    
+    ticket = Ticket(**data.model_dump())
+    ticket.centro_assistenza_id = centro_id
+    ticket.numero_ticket = await generate_ticket_number()
+    
+    doc = serialize_doc(ticket.model_dump())
+    await db.tickets.insert_one(doc)
+    
+    return ticket
+
+
+@api_router.get("/tickets", response_model=List[TicketConDettagli])
+async def get_tickets(
+    user_id: str = DEFAULT_USER_ID,
+    stato: Optional[StatoTicket] = None,
+    elettrodomestico_id: Optional[str] = None
+):
+    """Ottieni tutti i ticket"""
+    query = {"user_id": user_id}
+    if stato:
+        query["stato"] = stato.value
+    if elettrodomestico_id:
+        query["elettrodomestico_id"] = elettrodomestico_id
+    
+    tickets = await db.tickets.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    result = []
+    for t in tickets:
+        t = deserialize_datetime(t)
+        
+        # Carica elettrodomestico
+        if t.get('elettrodomestico_id'):
+            elettro = await db.elettrodomestici.find_one(
+                {"id": t['elettrodomestico_id']}, {"_id": 0}
+            )
+            if elettro:
+                t['elettrodomestico'] = deserialize_datetime(elettro)
+        
+        # Carica centro assistenza
+        if t.get('centro_assistenza_id'):
+            centro = await db.centri_assistenza.find_one(
+                {"id": t['centro_assistenza_id']}, {"_id": 0}
+            )
+            if centro:
+                t['centro_assistenza'] = deserialize_datetime(centro)
+        
+        result.append(t)
+    
+    return result
+
+
+@api_router.get("/tickets/{ticket_id}", response_model=TicketConDettagli)
+async def get_ticket(ticket_id: str):
+    """Ottieni dettagli ticket"""
+    t = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
+    if not t:
+        raise HTTPException(status_code=404, detail="Ticket non trovato")
+    
+    t = deserialize_datetime(t)
+    
+    if t.get('elettrodomestico_id'):
+        elettro = await db.elettrodomestici.find_one(
+            {"id": t['elettrodomestico_id']}, {"_id": 0}
+        )
+        if elettro:
+            t['elettrodomestico'] = deserialize_datetime(elettro)
+    
+    if t.get('centro_assistenza_id'):
+        centro = await db.centri_assistenza.find_one(
+            {"id": t['centro_assistenza_id']}, {"_id": 0}
+        )
+        if centro:
+            t['centro_assistenza'] = deserialize_datetime(centro)
+    
+    return t
+
+
+@api_router.put("/tickets/{ticket_id}", response_model=Ticket)
+async def update_ticket(ticket_id: str, data: TicketUpdate):
+    """Aggiorna un ticket"""
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.tickets.update_one(
+        {"id": ticket_id},
+        {"$set": update_data}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ticket non trovato")
+    
+    updated = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
+    return deserialize_datetime(updated)
+
+
+@api_router.post("/tickets/{ticket_id}/contatta")
+async def contatta_assistenza(
+    ticket_id: str,
+    metodo: str = Query("email", description="email o whatsapp")
+):
+    """Contatta il centro assistenza per un ticket"""
+    # Carica ticket con dettagli
+    ticket = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket non trovato")
+    
+    # Carica elettrodomestico
+    elettro = await db.elettrodomestici.find_one(
+        {"id": ticket['elettrodomestico_id']}, {"_id": 0}
+    )
+    
+    # Carica centro assistenza
+    centro = None
+    if ticket.get('centro_assistenza_id'):
+        centro = await db.centri_assistenza.find_one(
+            {"id": ticket['centro_assistenza_id']}, {"_id": 0}
+        )
+    
+    if not centro:
+        raise HTTPException(status_code=400, detail="Nessun centro assistenza associato")
+    
+    # Prepara messaggio
+    messaggio = f"""Richiesta Assistenza - {ticket.get('numero_ticket', 'N/A')}
+
+Salve,
+
+Richiedo assistenza per il seguente problema:
+
+ELETTRODOMESTICO:
+- Tipo: {elettro.get('nome', 'N/A')}
+- Marca: {elettro.get('marca', 'N/A')}
+- Modello: {elettro.get('modello', 'N/A')}
+- N. Serie: {elettro.get('numero_serie', 'N/A')}
+
+PROBLEMA:
+{ticket.get('titolo', '')}
+
+DESCRIZIONE:
+{ticket.get('descrizione', '')}
+
+PRIORITÀ: {ticket.get('priorita', 'media').upper()}
+
+Resto in attesa di un vostro riscontro.
+
+Cordiali saluti
+---
+Ticket #{ticket.get('numero_ticket')} - SmartBuilding
+"""
+    
+    result = {"metodo": metodo, "destinatario": centro}
+    
+    if metodo == "whatsapp" and centro.get('telefono'):
+        # Genera link WhatsApp
+        whatsapp_link = generate_whatsapp_link(centro['telefono'], messaggio)
+        result["whatsapp_link"] = whatsapp_link
+        result["messaggio"] = messaggio
+        
+    elif metodo == "email" and centro.get('email'):
+        # Invia email
+        subject = f"Richiesta Assistenza - {ticket.get('numero_ticket')} - {elettro.get('marca')} {elettro.get('modello')}"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif;">
+            <h2>Richiesta Assistenza - {ticket.get('numero_ticket')}</h2>
+            
+            <h3>Elettrodomestico</h3>
+            <ul>
+                <li><strong>Tipo:</strong> {elettro.get('nome', 'N/A')}</li>
+                <li><strong>Marca:</strong> {elettro.get('marca', 'N/A')}</li>
+                <li><strong>Modello:</strong> {elettro.get('modello', 'N/A')}</li>
+                <li><strong>N. Serie:</strong> {elettro.get('numero_serie', 'N/A')}</li>
+            </ul>
+            
+            <h3>Problema</h3>
+            <p><strong>{ticket.get('titolo', '')}</strong></p>
+            <p>{ticket.get('descrizione', '').replace(chr(10), '<br>')}</p>
+            
+            <p><strong>Priorità:</strong> <span style="color: {'red' if ticket.get('priorita') == 'urgente' else 'orange' if ticket.get('priorita') == 'alta' else 'blue'};">{ticket.get('priorita', 'media').upper()}</span></p>
+            
+            <hr>
+            <p style="color: gray; font-size: 12px;">Ticket #{ticket.get('numero_ticket')} - SmartBuilding</p>
+        </body>
+        </html>
+        """
+        
+        email_sent = await send_email_notification(centro['email'], subject, html_body)
+        result["email_sent"] = email_sent
+        result["messaggio"] = messaggio
+        
+        if not email_sent:
+            result["note"] = "SMTP non configurato. Copia il messaggio e invialo manualmente."
+    
+    # Aggiorna ticket
+    await db.tickets.update_one(
+        {"id": ticket_id},
+        {
+            "$set": {
+                "stato": StatoTicket.CONTATTATO.value,
+                "data_contatto": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            },
+            "$push": {
+                "messaggi_inviati": {
+                    "metodo": metodo,
+                    "destinatario": centro.get('email') or centro.get('telefono'),
+                    "data": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        }
+    )
+    
+    return result
+
+
+@api_router.post("/tickets/{ticket_id}/chiudi")
+async def chiudi_ticket(
+    ticket_id: str,
+    costo: Optional[float] = Query(None),
+    valutazione: Optional[int] = Query(None, ge=1, le=5),
+    note_risoluzione: Optional[str] = Query(None),
+    crea_manutenzione: bool = Query(True, description="Crea record manutenzione dall'intervento")
+):
+    """Chiudi un ticket e opzionalmente crea una manutenzione"""
+    ticket = await db.tickets.find_one({"id": ticket_id}, {"_id": 0})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket non trovato")
+    
+    manutenzione_id = None
+    
+    # Crea manutenzione se richiesto
+    if crea_manutenzione:
+        manutenzione = {
+            "id": str(uuid.uuid4()),
+            "user_id": ticket.get('user_id', DEFAULT_USER_ID),
+            "elettrodomestico_id": ticket.get('elettrodomestico_id'),
+            "tipo": "straordinaria",
+            "descrizione": f"{ticket.get('titolo')}\n\n{ticket.get('descrizione')}\n\nRisoluzione: {note_risoluzione or 'Completata'}",
+            "data_programmata": ticket.get('created_at'),
+            "data_completamento": datetime.now(timezone.utc).isoformat(),
+            "stato": "completata",
+            "costo": costo,
+            "usa_centro_assistenza_elettrodomestico": False,
+            "centro_assistenza_id": ticket.get('centro_assistenza_id'),
+            "ricorrente": False,
+            "documenti": [],
+            "note": f"Generata da Ticket #{ticket.get('numero_ticket')}",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.manutenzioni.insert_one(manutenzione)
+        manutenzione_id = manutenzione['id']
+    
+    # Aggiorna ticket
+    await db.tickets.update_one(
+        {"id": ticket_id},
+        {
+            "$set": {
+                "stato": StatoTicket.RISOLTO.value,
+                "data_risoluzione": datetime.now(timezone.utc).isoformat(),
+                "costo_intervento": costo,
+                "valutazione": valutazione,
+                "note_risoluzione": note_risoluzione,
+                "manutenzione_id": manutenzione_id,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    
+    return {
+        "message": "Ticket chiuso con successo",
+        "manutenzione_id": manutenzione_id
+    }
+
+
+# ------------ QR CODE ------------
+
+@api_router.get("/elettrodomestici/{elettrodomestico_id}/qrcode")
+async def get_qrcode(elettrodomestico_id: str, size: int = Query(200, ge=100, le=500)):
+    """Genera QR code per un elettrodomestico"""
+    elettro = await db.elettrodomestici.find_one({"id": elettrodomestico_id}, {"_id": 0})
+    if not elettro:
+        raise HTTPException(status_code=404, detail="Elettrodomestico non trovato")
+    
+    # URL che punterà alla scheda elettrodomestico
+    url = f"{FRONTEND_URL}?elettro={elettrodomestico_id}"
+    
+    # Genera QR code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Salva in memory
+    img_buffer = io.BytesIO()
+    img.save(img_buffer, format='PNG')
+    img_buffer.seek(0)
+    
+    return StreamingResponse(
+        img_buffer,
+        media_type="image/png",
+        headers={"Content-Disposition": f"inline; filename=qr_{elettrodomestico_id}.png"}
+    )
+
+
+@api_router.get("/elettrodomestici/{elettrodomestico_id}/qrcode-card")
+async def get_qrcode_card(elettrodomestico_id: str):
+    """Genera dati per card QR stampabile"""
+    elettro = await db.elettrodomestici.find_one({"id": elettrodomestico_id}, {"_id": 0})
+    if not elettro:
+        raise HTTPException(status_code=404, detail="Elettrodomestico non trovato")
+    
+    # Carica centro assistenza se presente
+    centro = None
+    if elettro.get('centro_assistenza_id'):
+        centro = await db.centri_assistenza.find_one(
+            {"id": elettro['centro_assistenza_id']}, {"_id": 0}
+        )
+    
+    url = f"{FRONTEND_URL}?elettro={elettrodomestico_id}"
+    
+    return {
+        "qr_url": f"/api/elettrodomestici/{elettrodomestico_id}/qrcode",
+        "target_url": url,
+        "elettrodomestico": {
+            "nome": elettro.get('nome'),
+            "marca": elettro.get('marca'),
+            "modello": elettro.get('modello'),
+            "numero_serie": elettro.get('numero_serie'),
+            "posizione": elettro.get('posizione')
+        },
+        "centro_assistenza": {
+            "nome": centro.get('nome_azienda') if centro else None,
+            "telefono": centro.get('telefono') if centro else None
+        } if centro else None
+    }
+
+
+# ------------ CALENDARIO ------------
+
+@api_router.get("/calendario/eventi", response_model=List[CalendarEvent])
+async def get_calendar_events(
+    user_id: str = DEFAULT_USER_ID,
+    start: Optional[str] = None,
+    end: Optional[str] = None
+):
+    """Ottieni eventi per il calendario"""
+    events = []
+    
+    # Manutenzioni
+    manut_query = {"user_id": user_id}
+    if start and end:
+        manut_query["$or"] = [
+            {"data_programmata": {"$gte": start, "$lte": end}},
+            {"data_completamento": {"$gte": start, "$lte": end}}
+        ]
+    
+    manutenzioni = await db.manutenzioni.find(manut_query, {"_id": 0}).to_list(500)
+    
+    for m in manutenzioni:
+        if m.get('data_programmata'):
+            color = "#3b82f6"  # blue
+            if m.get('stato') == 'completata':
+                color = "#22c55e"  # green
+            elif m.get('stato') == 'in_corso':
+                color = "#eab308"  # yellow
+            
+            # Carica nome elettrodomestico
+            elettro_nome = "Generale"
+            if m.get('elettrodomestico_id'):
+                elettro = await db.elettrodomestici.find_one(
+                    {"id": m['elettrodomestico_id']}, {"nome": 1}
+                )
+                if elettro:
+                    elettro_nome = elettro.get('nome', 'N/A')
+            
+            events.append(CalendarEvent(
+                id=m['id'],
+                title=f"🔧 {m.get('tipo', 'Manutenzione').capitalize()} - {elettro_nome}",
+                start=m['data_programmata'],
+                end=m.get('data_completamento'),
+                tipo="manutenzione",
+                color=color,
+                extendedProps={
+                    "descrizione": m.get('descrizione'),
+                    "stato": m.get('stato'),
+                    "elettrodomestico_id": m.get('elettrodomestico_id'),
+                    "costo": m.get('costo')
+                }
+            ))
+    
+    # Scadenze garanzia
+    elettrodomestici = await db.elettrodomestici.find(
+        {"user_id": user_id, "data_scadenza_garanzia": {"$exists": True, "$ne": None}},
+        {"_id": 0}
+    ).to_list(500)
+    
+    for e in elettrodomestici:
+        if e.get('data_scadenza_garanzia'):
+            events.append(CalendarEvent(
+                id=f"garanzia-{e['id']}",
+                title=f"📋 Scadenza Garanzia - {e.get('nome')}",
+                start=e['data_scadenza_garanzia'],
+                tipo="garanzia",
+                color="#f97316",  # orange
+                extendedProps={
+                    "elettrodomestico_id": e['id'],
+                    "marca": e.get('marca'),
+                    "modello": e.get('modello')
+                }
+            ))
+    
+    # Ticket aperti
+    tickets = await db.tickets.find(
+        {"user_id": user_id, "stato": {"$nin": ["risolto", "annullato"]}},
+        {"_id": 0}
+    ).to_list(100)
+    
+    for t in tickets:
+        color = "#ef4444"  # red per urgente
+        if t.get('priorita') == 'alta':
+            color = "#f97316"  # orange
+        elif t.get('priorita') == 'media':
+            color = "#eab308"  # yellow
+        elif t.get('priorita') == 'bassa':
+            color = "#6b7280"  # gray
+        
+        events.append(CalendarEvent(
+            id=t['id'],
+            title=f"🎫 Ticket {t.get('numero_ticket')} - {t.get('titolo', 'N/A')[:30]}",
+            start=t.get('created_at', datetime.now(timezone.utc).isoformat())[:10],
+            tipo="ticket",
+            color=color,
+            extendedProps={
+                "numero_ticket": t.get('numero_ticket'),
+                "stato": t.get('stato'),
+                "priorita": t.get('priorita'),
+                "descrizione": t.get('descrizione')
+            }
+        ))
+    
+    return events
+
+
+@api_router.get("/calendario/prossimi")
+async def get_prossimi_eventi(
+    user_id: str = DEFAULT_USER_ID,
+    giorni: int = Query(7, ge=1, le=90)
+):
+    """Ottieni eventi dei prossimi N giorni"""
+    oggi = datetime.now(timezone.utc).date()
+    fine = oggi + timedelta(days=giorni)
+    
+    oggi_str = oggi.isoformat()
+    fine_str = fine.isoformat()
+    
+    eventi = []
+    
+    # Manutenzioni programmate
+    manutenzioni = await db.manutenzioni.find({
+        "user_id": user_id,
+        "stato": {"$in": ["pianificata", "in_corso"]},
+        "data_programmata": {"$gte": oggi_str, "$lte": fine_str}
+    }, {"_id": 0}).to_list(50)
+    
+    for m in manutenzioni:
+        elettro_nome = "Generale"
+        if m.get('elettrodomestico_id'):
+            elettro = await db.elettrodomestici.find_one(
+                {"id": m['elettrodomestico_id']}, {"nome": 1}
+            )
+            if elettro:
+                elettro_nome = elettro.get('nome', 'N/A')
+        
+        eventi.append({
+            "tipo": "manutenzione",
+            "data": m['data_programmata'],
+            "titolo": f"Manutenzione {m.get('tipo', '')} - {elettro_nome}",
+            "descrizione": m.get('descrizione'),
+            "id": m['id']
+        })
+    
+    # Garanzie in scadenza
+    garanzie = await db.elettrodomestici.find({
+        "user_id": user_id,
+        "data_scadenza_garanzia": {"$gte": oggi_str, "$lte": fine_str}
+    }, {"_id": 0}).to_list(50)
+    
+    for g in garanzie:
+        eventi.append({
+            "tipo": "garanzia",
+            "data": g['data_scadenza_garanzia'],
+            "titolo": f"Scadenza Garanzia - {g.get('nome')}",
+            "descrizione": f"{g.get('marca')} {g.get('modello')}",
+            "id": g['id']
+        })
+    
+    # Ordina per data
+    eventi.sort(key=lambda x: x['data'])
+    
+    return eventi
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
