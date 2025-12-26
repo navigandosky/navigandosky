@@ -755,6 +755,7 @@ const AttractionsAdminPanel = () => {
   const [uploadingImage, setUploadingImage] = useState(null);
   const [uploadingAudio, setUploadingAudio] = useState(null);
   const [mapsApiKey, setMapsApiKey] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const emptyAttraction = {
     name: "", name_en: "", name_fr: "", name_es: "", name_de: "",
@@ -765,7 +766,21 @@ const AttractionsAdminPanel = () => {
     price: "",
     contact: "",
     external_link: "",
-    published: true
+    published: true,
+    // Restaurant fields
+    cuisine_type: "",
+    price_range: "",
+    reservation_link: "",
+    // Accommodation fields
+    accommodation_type: "",
+    stars: null,
+    booking_link: "",
+    amenities: "",
+    // Itinerary fields
+    duration: "",
+    difficulty: "",
+    distance: "",
+    waypoints: []
   };
 
   const [formData, setFormData] = useState(emptyAttraction);
