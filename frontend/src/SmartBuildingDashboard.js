@@ -19,6 +19,8 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Play,
   Pause,
   Volume2,
@@ -42,7 +44,11 @@ import {
   Waves,
   Gauge,
   Activity,
-  Radio
+  Radio,
+  DoorOpen,
+  Trees,
+  Lamp,
+  Armchair
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
