@@ -206,11 +206,13 @@ const Navbar = ({ showAdminLink = true }) => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 md:h-20">
-          <a href="/trivor" className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">T</span>
-            </div>
-            <span className="text-2xl font-bold text-white">TRIVOR</span>
+          <a href="/trivor" className="flex items-center">
+            <img 
+              src="https://customer-assets.emergentagent.com/job_trivor-agent/artifacts/5wu3c3nj_logo%20trivor%20heritage%20digitale.png" 
+              alt="Trivor - Heritage Digitale" 
+              className="h-14 md:h-16 w-auto"
+              style={{ transform: 'scale(1.4)', transformOrigin: 'left center' }}
+            />
           </a>
 
           {/* Desktop Menu */}
