@@ -325,14 +325,6 @@ class DashboardStats(BaseModel):
 
 # ============== TICKET MODELS ==============
 
-class StatoTicket(str, Enum):
-    APERTO = "aperto"
-    CONTATTATO = "contattato"
-    IN_LAVORAZIONE = "in_lavorazione"
-    RISOLTO = "risolto"
-    ANNULLATO = "annullato"
-
-
 class PrioritaTicket(str, Enum):
     BASSA = "bassa"
     MEDIA = "media"
