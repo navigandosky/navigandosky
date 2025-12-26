@@ -2869,60 +2869,57 @@ EZVIZ_API_URLS = {
 }
 
 async def get_ezviz_api_token():
-    """Get Ezviz API token using Open Platform API with AppKey"""
+    """Get Ezviz API token - usa AccessToken preconfigurato o genera nuovo"""
     global ezviz_access_token, ezviz_token_expires
     
     import httpx
     from datetime import datetime, timedelta
     
-    # Se abbiamo un token valido, usalo
+    # Se EZVIZ_APPKEY contiene già un AccessToken (inizia con "at."), usalo direttamente
+    if EZVIZ_APPKEY and EZVIZ_APPKEY.startswith('at.'):
+        logger.info("Using pre-configured Ezviz AccessToken")
+        return EZVIZ_APPKEY
+    
+    # Se abbiamo un token valido in cache, usalo
     if ezviz_access_token and ezviz_token_expires and datetime.now() < ezviz_token_expires:
         return ezviz_access_token
     
-    if not EZVIZ_APPKEY:
-        raise HTTPException(status_code=500, detail="Ezviz AppKey not configured")
-    
-    if not EZVIZ_USERNAME or not EZVIZ_PASSWORD:
-        raise HTTPException(status_code=500, detail="Ezviz credentials not configured")
+    # Altrimenti prova a generare un nuovo token
+    if not EZVIZ_APPKEY or not EZVIZ_SECRET:
+        raise HTTPException(status_code=500, detail="Ezviz AppKey/Secret not configured")
     
     base_url = EZVIZ_API_URLS.get(EZVIZ_REGION.lower(), EZVIZ_API_URLS['eu'])
-    login_url = f"{base_url}/api/v3/users/loginByPassword"
-    
-    payload = {
-        "appKey": EZVIZ_APPKEY,
-        "account": EZVIZ_USERNAME,
-        "password": EZVIZ_PASSWORD,
-        "ipAddress": "",
-        "dataSource": 0
-    }
+    token_url = f"{base_url}/api/lapp/token/get"
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                login_url,
-                json=payload,
-                headers={"Content-Type": "application/json"}
+                token_url,
+                data={
+                    "appKey": EZVIZ_APPKEY,
+                    "appSecret": EZVIZ_SECRET
+                }
             )
             
             data = response.json()
-            logger.info(f"Ezviz login response code: {data.get('code')}")
+            logger.info(f"Ezviz token response code: {data.get('code')}")
             
             if data.get('code') == '200' or data.get('code') == 200:
                 ezviz_access_token = data['data']['accessToken']
-                # Token valido per 23 ore (scade in 24)
-                ezviz_token_expires = datetime.now() + timedelta(hours=23)
-                logger.info("Ezviz login successful!")
+                # Token valido per 6 giorni (default Ezviz)
+                ezviz_token_expires = datetime.now() + timedelta(days=6)
+                logger.info("Ezviz token obtained successfully!")
                 return ezviz_access_token
             else:
                 error_msg = data.get('msg', 'Unknown error')
-                logger.error(f"Ezviz login failed: {error_msg}")
-                raise HTTPException(status_code=500, detail=f"Ezviz login failed: {error_msg}")
+                logger.error(f"Ezviz token failed: {error_msg}")
+                raise HTTPException(status_code=500, detail=f"Ezviz token failed: {error_msg}")
                 
     except httpx.RequestError as e:
         logger.error(f"Ezviz API request error: {e}")
         raise HTTPException(status_code=500, detail=f"Ezviz API connection error: {str(e)}")
     except Exception as e:
-        logger.error(f"Ezviz login error: {e}")
+        logger.error(f"Ezviz token error: {e}")
         raise HTTPException(status_code=500, detail=f"Ezviz authentication error: {str(e)}")
 
 
