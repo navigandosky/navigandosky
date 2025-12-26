@@ -1846,6 +1846,367 @@ async def get_prossimi_eventi(
     return eventi
 
 
+# ------------ PLANIMETRIE ------------
+
+@api_router.post("/planimetrie")
+async def create_planimetria(
+    nome: str = Form(...),
+    descrizione: Optional[str] = Form(None),
+    piano: Optional[str] = Form(None),
+    file: UploadFile = File(...)
+):
+    """Carica una nuova planimetria"""
+    # Verifica tipo file
+    allowed_types = [".png", ".jpg", ".jpeg", ".webp", ".pdf"]
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"Tipo file non supportato. Usa: {', '.join(allowed_types)}")
+    
+    # Genera ID e salva file
+    plan_id = str(uuid.uuid4())
+    stored_filename = f"{plan_id}{file_ext}"
+    file_path = PLANIMETRIE_DIR / stored_filename
+    
+    content = await file.read()
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(content)
+    
+    # Salva in database
+    planimetria = Planimetria(
+        id=plan_id,
+        nome=nome,
+        descrizione=descrizione,
+        piano=piano,
+        filename=stored_filename,
+        original_filename=file.filename
+    )
+    
+    doc = serialize_doc(planimetria.model_dump())
+    await db.planimetrie.insert_one(doc)
+    
+    return planimetria
+
+
+@api_router.get("/planimetrie", response_model=List[Planimetria])
+async def get_planimetrie(user_id: str = DEFAULT_USER_ID):
+    """Ottieni tutte le planimetrie"""
+    planimetrie = await db.planimetrie.find(
+        {"user_id": user_id}, {"_id": 0}
+    ).to_list(50)
+    return [deserialize_datetime(p) for p in planimetrie]
+
+
+@api_router.get("/planimetrie/{planimetria_id}")
+async def get_planimetria(planimetria_id: str):
+    """Ottieni una planimetria con dettagli elettrodomestici"""
+    plan = await db.planimetrie.find_one({"id": planimetria_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Planimetria non trovata")
+    
+    # Arricchisci i punti con i dettagli degli elettrodomestici
+    punti_dettagliati = []
+    for punto in plan.get('punti', []):
+        elettro = await db.elettrodomestici.find_one(
+            {"id": punto['elettrodomestico_id']}, {"_id": 0}
+        )
+        if elettro:
+            punti_dettagliati.append({
+                **punto,
+                "elettrodomestico": deserialize_datetime(elettro)
+            })
+    
+    plan['punti_dettagliati'] = punti_dettagliati
+    return deserialize_datetime(plan)
+
+
+@api_router.get("/planimetrie/{planimetria_id}/image")
+async def get_planimetria_image(planimetria_id: str):
+    """Scarica l'immagine della planimetria"""
+    plan = await db.planimetrie.find_one({"id": planimetria_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Planimetria non trovata")
+    
+    file_path = PLANIMETRIE_DIR / plan['filename']
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File non trovato")
+    
+    return FileResponse(file_path, filename=plan['original_filename'])
+
+
+@api_router.put("/planimetrie/{planimetria_id}/punti")
+async def update_planimetria_punti(planimetria_id: str, punti: List[PuntoMappa]):
+    """Aggiorna i punti (posizioni elettrodomestici) sulla planimetria"""
+    result = await db.planimetrie.update_one(
+        {"id": planimetria_id},
+        {
+            "$set": {
+                "punti": [p.model_dump() for p in punti],
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Planimetria non trovata")
+    
+    return {"message": "Punti aggiornati", "count": len(punti)}
+
+
+@api_router.post("/planimetrie/{planimetria_id}/punti")
+async def add_punto_planimetria(planimetria_id: str, punto: PuntoMappa):
+    """Aggiungi un singolo punto alla planimetria"""
+    # Verifica che l'elettrodomestico esista
+    elettro = await db.elettrodomestici.find_one({"id": punto.elettrodomestico_id})
+    if not elettro:
+        raise HTTPException(status_code=404, detail="Elettrodomestico non trovato")
+    
+    result = await db.planimetrie.update_one(
+        {"id": planimetria_id},
+        {
+            "$push": {"punti": punto.model_dump()},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Planimetria non trovata")
+    
+    return {"message": "Punto aggiunto"}
+
+
+@api_router.delete("/planimetrie/{planimetria_id}/punti/{elettrodomestico_id}")
+async def remove_punto_planimetria(planimetria_id: str, elettrodomestico_id: str):
+    """Rimuovi un punto dalla planimetria"""
+    result = await db.planimetrie.update_one(
+        {"id": planimetria_id},
+        {
+            "$pull": {"punti": {"elettrodomestico_id": elettrodomestico_id}},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Planimetria non trovata")
+    
+    return {"message": "Punto rimosso"}
+
+
+@api_router.delete("/planimetrie/{planimetria_id}")
+async def delete_planimetria(planimetria_id: str):
+    """Elimina una planimetria"""
+    plan = await db.planimetrie.find_one({"id": planimetria_id})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Planimetria non trovata")
+    
+    # Elimina file
+    file_path = PLANIMETRIE_DIR / plan['filename']
+    if file_path.exists():
+        file_path.unlink()
+    
+    await db.planimetrie.delete_one({"id": planimetria_id})
+    return {"message": "Planimetria eliminata"}
+
+
+# ------------ ASSISTENTE PROATTIVO ------------
+
+@api_router.get("/suggerimenti", response_model=List[Suggerimento])
+async def get_suggerimenti_proattivi(user_id: str = DEFAULT_USER_ID):
+    """Genera suggerimenti proattivi basati sui dati degli elettrodomestici"""
+    suggerimenti = []
+    oggi = datetime.now(timezone.utc).date()
+    
+    # Carica tutti gli elettrodomestici
+    elettrodomestici = await db.elettrodomestici.find(
+        {"user_id": user_id}, {"_id": 0}
+    ).to_list(500)
+    
+    for e in elettrodomestici:
+        elettro_id = e['id']
+        elettro_nome = f"{e.get('nome')} ({e.get('marca', '')} {e.get('modello', '')})"
+        
+        # 1. GARANZIE IN SCADENZA
+        if e.get('data_scadenza_garanzia'):
+            try:
+                scadenza = datetime.fromisoformat(e['data_scadenza_garanzia']).date()
+                giorni_rimanenti = (scadenza - oggi).days
+                
+                if giorni_rimanenti < 0:
+                    suggerimenti.append(Suggerimento(
+                        id=f"garanzia-scaduta-{elettro_id}",
+                        tipo=TipoSuggerimento.GARANZIA,
+                        priorita=PrioritaSuggerimento.INFO,
+                        titolo="Garanzia scaduta",
+                        messaggio=f"La garanzia di {elettro_nome} è scaduta da {abs(giorni_rimanenti)} giorni. Considera di estendere la copertura o programmare un controllo.",
+                        elettrodomestico_id=elettro_id,
+                        elettrodomestico_nome=e.get('nome'),
+                        azione_suggerita="Verifica opzioni estensione garanzia"
+                    ))
+                elif giorni_rimanenti <= 30:
+                    suggerimenti.append(Suggerimento(
+                        id=f"garanzia-{elettro_id}",
+                        tipo=TipoSuggerimento.GARANZIA,
+                        priorita=PrioritaSuggerimento.URGENTE if giorni_rimanenti <= 7 else PrioritaSuggerimento.ATTENZIONE,
+                        titolo="Garanzia in scadenza",
+                        messaggio=f"La garanzia di {elettro_nome} scade tra {giorni_rimanenti} giorni ({scadenza.strftime('%d/%m/%Y')}). Valuta se estenderla prima della scadenza.",
+                        elettrodomestico_id=elettro_id,
+                        elettrodomestico_nome=e.get('nome'),
+                        azione_suggerita="Contatta il produttore per estensione"
+                    ))
+            except:
+                pass
+        
+        # 2. ELETTRODOMESTICI VECCHI - SUGGERIMENTO SOSTITUZIONE
+        if e.get('data_acquisto'):
+            try:
+                acquisto = datetime.fromisoformat(e['data_acquisto']).date()
+                anni = (oggi - acquisto).days / 365
+                
+                # Suggerimenti basati su categoria e età
+                limiti_eta = {
+                    "lavanderia": 10,
+                    "cucina": 12,
+                    "climatizzazione": 10,
+                    "intrattenimento": 7,
+                    "pulizia": 8
+                }
+                
+                categoria = e.get('categoria', 'altro')
+                limite = limiti_eta.get(categoria, 10)
+                
+                if anni >= limite:
+                    suggerimenti.append(Suggerimento(
+                        id=f"vecchio-{elettro_id}",
+                        tipo=TipoSuggerimento.SOSTITUZIONE,
+                        priorita=PrioritaSuggerimento.INFO,
+                        titolo="Elettrodomestico datato",
+                        messaggio=f"{elettro_nome} ha {int(anni)} anni. I modelli recenti sono più efficienti e potrebbero farti risparmiare energia. Valuta una sostituzione.",
+                        elettrodomestico_id=elettro_id,
+                        elettrodomestico_nome=e.get('nome'),
+                        azione_suggerita="Confronta modelli nuovi"
+                    ))
+                elif anni >= limite - 2:
+                    # Suggerimento controllo preventivo
+                    suggerimenti.append(Suggerimento(
+                        id=f"controllo-{elettro_id}",
+                        tipo=TipoSuggerimento.MANUTENZIONE,
+                        priorita=PrioritaSuggerimento.INFO,
+                        titolo="Controllo consigliato",
+                        messaggio=f"{elettro_nome} ha {int(anni)} anni. Potrebbe essere utile un controllo preventivo per garantirne la longevità.",
+                        elettrodomestico_id=elettro_id,
+                        elettrodomestico_nome=e.get('nome'),
+                        azione_suggerita="Programma manutenzione preventiva"
+                    ))
+            except:
+                pass
+        
+        # 3. CONSUMI ELEVATI - RISPARMIO ENERGETICO
+        consumo_mensile = e.get('consumo_orario_kw', 0) * e.get('ore_uso_giornaliero_stimate', 0) * 30
+        costo_mensile = consumo_mensile * 0.25
+        
+        if costo_mensile > 30:  # Più di 30€/mese
+            suggerimenti.append(Suggerimento(
+                id=f"consumo-alto-{elettro_id}",
+                tipo=TipoSuggerimento.RISPARMIO,
+                priorita=PrioritaSuggerimento.ATTENZIONE,
+                titolo="Consumo elevato rilevato",
+                messaggio=f"{elettro_nome} consuma circa €{costo_mensile:.0f}/mese. Verifica che funzioni correttamente o considera un modello più efficiente.",
+                elettrodomestico_id=elettro_id,
+                elettrodomestico_nome=e.get('nome'),
+                azione_suggerita="Verifica efficienza energetica"
+            ))
+        
+        # 4. SMART PLUG NON CONFIGURATO
+        if e.get('smart_plug_provider') and e['smart_plug_provider'] != 'nessuno' and not e.get('smart_plug_id'):
+            suggerimenti.append(Suggerimento(
+                id=f"smart-{elettro_id}",
+                tipo=TipoSuggerimento.RISPARMIO,
+                priorita=PrioritaSuggerimento.INFO,
+                titolo="Smart plug da configurare",
+                messaggio=f"Hai indicato una presa smart per {e.get('nome')} ma non hai inserito l'ID dispositivo. Configurala per monitorare i consumi reali.",
+                elettrodomestico_id=elettro_id,
+                elettrodomestico_nome=e.get('nome'),
+                azione_suggerita="Completa configurazione smart plug"
+            ))
+    
+    # 5. MANUTENZIONI SCADUTE O IN RITARDO
+    manutenzioni_scadute = await db.manutenzioni.find({
+        "user_id": user_id,
+        "stato": "pianificata",
+        "data_programmata": {"$lt": oggi.isoformat()}
+    }, {"_id": 0}).to_list(50)
+    
+    for m in manutenzioni_scadute:
+        elettro_nome = "Generale"
+        if m.get('elettrodomestico_id'):
+            elettro = await db.elettrodomestici.find_one(
+                {"id": m['elettrodomestico_id']}, {"nome": 1, "marca": 1}
+            )
+            if elettro:
+                elettro_nome = elettro.get('nome', 'N/A')
+        
+        suggerimenti.append(Suggerimento(
+            id=f"manut-scaduta-{m['id']}",
+            tipo=TipoSuggerimento.MANUTENZIONE,
+            priorita=PrioritaSuggerimento.URGENTE,
+            titolo="Manutenzione in ritardo",
+            messaggio=f"La manutenzione '{m.get('descrizione', 'N/A')[:50]}' per {elettro_nome} era programmata per il {m.get('data_programmata')} ed è in ritardo.",
+            elettrodomestico_id=m.get('elettrodomestico_id'),
+            elettrodomestico_nome=elettro_nome,
+            azione_suggerita="Riprogramma o completa la manutenzione"
+        ))
+    
+    # 6. TICKET APERTI DA TROPPO TEMPO
+    una_settimana_fa = (oggi - timedelta(days=7)).isoformat()
+    tickets_vecchi = await db.tickets.find({
+        "user_id": user_id,
+        "stato": {"$in": ["aperto", "contattato"]},
+        "created_at": {"$lt": una_settimana_fa}
+    }, {"_id": 0}).to_list(50)
+    
+    for t in tickets_vecchi:
+        suggerimenti.append(Suggerimento(
+            id=f"ticket-vecchio-{t['id']}",
+            tipo=TipoSuggerimento.MANUTENZIONE,
+            priorita=PrioritaSuggerimento.ATTENZIONE,
+            titolo="Ticket in sospeso",
+            messaggio=f"Il ticket #{t.get('numero_ticket')} '{t.get('titolo', 'N/A')[:40]}' è aperto da più di 7 giorni. Verifica lo stato con l'assistenza.",
+            elettrodomestico_id=t.get('elettrodomestico_id'),
+            azione_suggerita="Sollecita assistenza"
+        ))
+    
+    # 7. SUGGERIMENTI GENERICI RISPARMIO ENERGETICO
+    totale_consumo = sum(
+        e.get('consumo_orario_kw', 0) * e.get('ore_uso_giornaliero_stimate', 0) * 30
+        for e in elettrodomestici
+    )
+    
+    if totale_consumo > 300:  # Più di 300 kWh/mese
+        suggerimenti.append(Suggerimento(
+            id="risparmio-generale",
+            tipo=TipoSuggerimento.RISPARMIO,
+            priorita=PrioritaSuggerimento.INFO,
+            titolo="Consiglio risparmio energetico",
+            messaggio=f"Il consumo totale stimato è {totale_consumo:.0f} kWh/mese (~€{totale_consumo*0.25:.0f}). Considera di usare gli elettrodomestici nelle fasce orarie a minor costo.",
+            azione_suggerita="Ottimizza orari di utilizzo"
+        ))
+    
+    # Ordina per priorità
+    ordine_priorita = {"urgente": 0, "attenzione": 1, "info": 2}
+    suggerimenti.sort(key=lambda x: ordine_priorita.get(x.priorita, 3))
+    
+    return suggerimenti
+
+
+@api_router.get("/suggerimenti/count")
+async def get_suggerimenti_count(user_id: str = DEFAULT_USER_ID):
+    """Conta suggerimenti per priorità (per badge notifiche)"""
+    suggerimenti = await get_suggerimenti_proattivi(user_id)
+    
+    return {
+        "totale": len(suggerimenti),
+        "urgenti": sum(1 for s in suggerimenti if s.priorita == PrioritaSuggerimento.URGENTE),
+        "attenzione": sum(1 for s in suggerimenti if s.priorita == PrioritaSuggerimento.ATTENZIONE),
+        "info": sum(1 for s in suggerimenti if s.priorita == PrioritaSuggerimento.INFO)
+    }
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
