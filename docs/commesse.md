@@ -434,10 +434,11 @@ Applicazione web per la gestione intelligente di immobili con:
 | 2 | Matterport SDK | ⏳ In attesa credenziali | 10% |
 | 2.1 | Miglioramenti UX | ✅ Completata | 100% |
 | 2.2 | Integrazioni SmartThings/Ezviz | ✅ Completata | 100% |
+| 2.3 | Unificazione Stati e Correzioni | ✅ Completata | 100% |
 | 3 | Multi-Utente | 📋 Pianificata | 0% |
 | 4 | Smart Home Avanzato | 📋 Futura | 0% |
 
-**Avanzamento globale:** ~85%
+**Avanzamento globale:** ~88%
 
 ---
 
