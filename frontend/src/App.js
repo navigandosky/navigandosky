@@ -55,6 +55,7 @@ import {
 import { TicketList, CalendarioManutenzioni, QRCodeDialog } from "./TicketCalendarQR";
 import { PlanimetriaEditor, SuggerimentiProattivi, NotificationBadge } from "./PlanimetriaSuggerimenti";
 import SmartBuildingDashboard from "./SmartBuildingDashboard";
+import ElettrodomesticoDialog from "./ElettrodomesticoForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
