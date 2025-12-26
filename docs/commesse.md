@@ -8,6 +8,46 @@
 
 ---
 
+## 🆕 FASE 2.4 - WORKFLOW TICKET-MANUTENZIONI (26/12/2024) - COMPLETATA ✅
+
+### Nuovo Flusso Automatico Ticket → Manutenzioni ✅
+- [x] **Contattato**: Crea automaticamente manutenzione con stato "contattato"
+- [x] **In Lavorazione**: Crea/aggiorna manutenzione con stato "in_lavorazione"
+- [x] **Completato**: Crea/aggiorna manutenzione con stato "completato" + data completamento
+- [x] Sincronizzazione costo intervento e note tra ticket e manutenzione
+- [x] Collegamento bidirezionale ticket_id ↔ manutenzione_id
+
+### Ticket Completati Nascosti dalla Lista ✅
+- [x] I ticket completati/annullati **spariscono dalla lista ticket**
+- [x] Rimangono **solo nel registro manutenzioni** per storico
+- [x] Parametro `include_completati=true` per recuperare tutti (admin)
+
+### Diagramma Flusso:
+```
+TICKET                           MANUTENZIONE
+──────                           ────────────
+Aperto ─────────────────────────→ (nessuna)
+   │
+   ▼
+Contattato ─────────────────────→ Stato: contattato
+   │
+   ▼
+In Lavorazione ─────────────────→ Stato: in_lavorazione
+   │
+   ▼
+Completato ─────────────────────→ Stato: completato
+   │                               + data_completamento
+   ▼                               + costo
+[SPARISCE dalla lista ticket]     [RIMANE nel registro]
+```
+
+### Stati Unificati Allineati ✅
+- [x] Stessi stati in Ticket e Manutenzioni
+- [x] Dialog "Aggiorna Ticket" mostra tutti i 5 stati
+- [x] Filtri coerenti in entrambe le sezioni
+
+---
+
 ## 🆕 FASE 2.3 - UNIFICAZIONE STATI E CORREZIONI (26/12/2024) - COMPLETATA ✅
 
 ### Migrazione Dati Database ✅
