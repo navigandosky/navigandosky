@@ -2212,6 +2212,162 @@ async def get_suggerimenti_count(user_id: str = DEFAULT_USER_ID):
 SMARTTHINGS_TOKEN = os.environ.get('SMARTTHINGS_TOKEN', '')
 SMARTTHINGS_API_URL = "https://api.smartthings.com/v1"
 
+@api_router.get("/smartthings/locations")
+async def get_smartthings_locations():
+    """Get all SmartThings locations"""
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings token not configured")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{SMARTTHINGS_API_URL}/locations",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            response.raise_for_status()
+            data = response.json()
+            return {"locations": data.get("items", [])}
+    except httpx.HTTPError as e:
+        logger.error(f"SmartThings locations error: {e}")
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
+@api_router.get("/smartthings/rooms")
+async def get_smartthings_rooms():
+    """Get all rooms from all locations"""
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings token not configured")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # First get all locations
+            loc_response = await client.get(
+                f"{SMARTTHINGS_API_URL}/locations",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            loc_response.raise_for_status()
+            locations = loc_response.json().get("items", [])
+            
+            all_rooms = []
+            for loc in locations:
+                location_id = loc.get("locationId")
+                location_name = loc.get("name")
+                
+                # Get rooms for this location
+                rooms_response = await client.get(
+                    f"{SMARTTHINGS_API_URL}/locations/{location_id}/rooms",
+                    headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+                )
+                if rooms_response.status_code == 200:
+                    rooms = rooms_response.json().get("items", [])
+                    for room in rooms:
+                        room["locationName"] = location_name
+                        all_rooms.append(room)
+            
+            return {"rooms": all_rooms, "count": len(all_rooms)}
+    except httpx.HTTPError as e:
+        logger.error(f"SmartThings rooms error: {e}")
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
+@api_router.get("/smartthings/devices-by-room")
+async def get_smartthings_devices_by_room():
+    """Get all SmartThings devices grouped by room"""
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings token not configured")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Get all locations
+            loc_response = await client.get(
+                f"{SMARTTHINGS_API_URL}/locations",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            loc_response.raise_for_status()
+            locations = loc_response.json().get("items", [])
+            
+            # Build rooms map
+            rooms_map = {}
+            for loc in locations:
+                location_id = loc.get("locationId")
+                location_name = loc.get("name")
+                
+                rooms_response = await client.get(
+                    f"{SMARTTHINGS_API_URL}/locations/{location_id}/rooms",
+                    headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+                )
+                if rooms_response.status_code == 200:
+                    rooms = rooms_response.json().get("items", [])
+                    for room in rooms:
+                        rooms_map[room.get("roomId")] = {
+                            "id": room.get("roomId"),
+                            "name": room.get("name"),
+                            "locationId": location_id,
+                            "locationName": location_name
+                        }
+            
+            # Get all devices
+            dev_response = await client.get(
+                f"{SMARTTHINGS_API_URL}/devices",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            dev_response.raise_for_status()
+            devices_data = dev_response.json().get("items", [])
+            
+            # Group devices by room
+            grouped = {}
+            no_room_devices = []
+            
+            for item in devices_data:
+                device = {
+                    "id": item.get("deviceId"),
+                    "name": item.get("label") or item.get("name"),
+                    "type": item.get("deviceTypeName", "Unknown"),
+                    "status": "online",
+                    "capabilities": [cap.get("id") for cap in item.get("components", [{}])[0].get("capabilities", [])],
+                    "roomId": item.get("roomId"),
+                    "locationId": item.get("locationId")
+                }
+                
+                room_id = item.get("roomId")
+                if room_id and room_id in rooms_map:
+                    room_name = rooms_map[room_id]["name"]
+                    if room_name not in grouped:
+                        grouped[room_name] = {
+                            "roomId": room_id,
+                            "roomName": room_name,
+                            "locationName": rooms_map[room_id].get("locationName", ""),
+                            "devices": []
+                        }
+                    grouped[room_name]["devices"].append(device)
+                else:
+                    no_room_devices.append(device)
+            
+            # Convert to list and add "No Room" group if needed
+            result = list(grouped.values())
+            if no_room_devices:
+                result.append({
+                    "roomId": None,
+                    "roomName": "Senza Stanza",
+                    "locationName": "",
+                    "devices": no_room_devices
+                })
+            
+            # Sort by room name
+            result.sort(key=lambda x: x["roomName"])
+            
+            total_devices = sum(len(r["devices"]) for r in result)
+            
+            return {
+                "rooms": result,
+                "totalRooms": len(result),
+                "totalDevices": total_devices
+            }
+    except httpx.HTTPError as e:
+        logger.error(f"SmartThings devices-by-room error: {e}")
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
 @api_router.get("/smartthings/devices")
 async def get_smartthings_devices():
     """Get all SmartThings devices"""
