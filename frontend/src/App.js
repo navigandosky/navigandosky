@@ -9,12 +9,48 @@ const API = `${BACKEND_URL}/api`;
 
 // Categories for attractions
 const attractionCategories = [
-  { value: "chiesa", label: "Chiesa", labelEn: "Church" },
-  { value: "monumento", label: "Monumento", labelEn: "Monument" },
-  { value: "archeologia", label: "Sito Archeologico", labelEn: "Archaeological Site" },
-  { value: "natura", label: "Natura", labelEn: "Nature" },
-  { value: "museo", label: "Museo", labelEn: "Museum" },
-  { value: "altro", label: "Altro", labelEn: "Other" }
+  // Attrazioni
+  { value: "chiesa", label: "Chiesa", labelEn: "Church", group: "attrazioni" },
+  { value: "monumento", label: "Monumento", labelEn: "Monument", group: "attrazioni" },
+  { value: "archeologia", label: "Sito Archeologico", labelEn: "Archaeological Site", group: "attrazioni" },
+  { value: "natura", label: "Natura", labelEn: "Nature", group: "attrazioni" },
+  { value: "museo", label: "Museo", labelEn: "Museum", group: "attrazioni" },
+  // Dove Mangiare
+  { value: "ristorante", label: "Ristorante", labelEn: "Restaurant", group: "mangiare", icon: "🍽️" },
+  { value: "pizzeria", label: "Pizzeria", labelEn: "Pizzeria", group: "mangiare", icon: "🍕" },
+  { value: "bar", label: "Bar / Caffè", labelEn: "Bar / Café", group: "mangiare", icon: "☕" },
+  { value: "agriturismo_rist", label: "Agriturismo", labelEn: "Farm Restaurant", group: "mangiare", icon: "🌾" },
+  // Dove Dormire
+  { value: "hotel", label: "Hotel", labelEn: "Hotel", group: "dormire", icon: "🏨" },
+  { value: "b&b", label: "B&B", labelEn: "B&B", group: "dormire", icon: "🛏️" },
+  { value: "agriturismo", label: "Agriturismo", labelEn: "Farm Stay", group: "dormire", icon: "🏡" },
+  { value: "casa_vacanze", label: "Casa Vacanze", labelEn: "Holiday Home", group: "dormire", icon: "🏠" },
+  // Itinerari
+  { value: "itinerario", label: "Itinerario", labelEn: "Itinerary", group: "itinerari", icon: "🚶" },
+  // Altro
+  { value: "altro", label: "Altro", labelEn: "Other", group: "altro" }
+];
+
+const cuisineTypes = [
+  { value: "sarda", label: "Cucina Sarda" },
+  { value: "italiana", label: "Cucina Italiana" },
+  { value: "pizza", label: "Pizza" },
+  { value: "pesce", label: "Pesce" },
+  { value: "carne", label: "Carne" },
+  { value: "vegetariano", label: "Vegetariano" },
+  { value: "misto", label: "Misto" }
+];
+
+const priceRanges = [
+  { value: "€", label: "€ - Economico" },
+  { value: "€€", label: "€€ - Medio" },
+  { value: "€€€", label: "€€€ - Alto" }
+];
+
+const difficultyLevels = [
+  { value: "facile", label: "Facile", labelEn: "Easy" },
+  { value: "medio", label: "Medio", labelEn: "Medium" },
+  { value: "difficile", label: "Difficile", labelEn: "Hard" }
 ];
 
 // Translations
