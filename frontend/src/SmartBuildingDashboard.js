@@ -592,7 +592,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                         <Camera size={48} className="mx-auto text-slate-600 mb-4" />
                         <p className="text-slate-400">Telecamere Ezviz non disponibili</p>
                         <p className="text-sm text-slate-500 mt-2">
-                          L'integrazione con Ezviz non è attualmente attiva.
+                          L&apos;integrazione con Ezviz non è attualmente attiva.
                           <br />Verifica le credenziali o riprova più tardi.
                         </p>
                       </CardContent>
