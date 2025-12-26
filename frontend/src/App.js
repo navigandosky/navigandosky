@@ -937,12 +937,19 @@ const ContactSection = () => {
 // =============================================================================
 
 const Footer = () => {
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const quickLinks = [
-    { name: "Home", href: "#home" },
-    { name: "Servizi", href: "#servizi" },
-    { name: "Chi Siamo", href: "#chi-siamo" },
-    { name: "Progetti", href: "#progetti" },
-    { name: "Contatti", href: "#contatti" },
+    { name: "Home", id: "home" },
+    { name: "Servizi", id: "servizi" },
+    { name: "Chi Siamo", id: "chi-siamo" },
+    { name: "Progetti", id: "progetti" },
+    { name: "Contatti", id: "contatti" },
   ];
 
   const services = [
@@ -962,14 +969,14 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           <div>
-            <a href="#home" className="flex items-center mb-6">
+            <button onClick={() => scrollToSection('home')} className="flex items-center mb-6">
               <img 
                 src="https://customer-assets.emergentagent.com/job_trivor-agent/artifacts/5wu3c3nj_logo%20trivor%20heritage%20digitale.png" 
                 alt="Trivor - Heritage Digitale" 
                 className="h-12 w-auto"
                 style={{ transform: 'scale(1.4)', transformOrigin: 'left center' }}
               />
-            </a>
+            </button>
             <p className="text-gray-400 text-sm leading-relaxed">
               Consulenza, Digitalizzazione, Gemelli Digitali e Sviluppo Applicazioni per la tua trasformazione digitale.
             </p>
@@ -980,9 +987,12 @@ const Footer = () => {
             <ul className="space-y-3">
               {quickLinks.map((link, index) => (
                 <li key={index}>
-                  <a href={link.href} className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">
+                  <button 
+                    onClick={() => scrollToSection(link.id)} 
+                    className="text-gray-400 hover:text-cyan-400 transition-colors text-sm"
+                  >
                     {link.name}
-                  </a>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -1007,7 +1017,8 @@ const Footer = () => {
                   <a 
                     href={item.href} 
                     className="text-gray-400 hover:text-cyan-400 transition-colors text-sm"
-                    target={item.href.startsWith('http') ? '_blank' : undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
                   >
                     {item.name}
