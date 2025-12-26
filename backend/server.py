@@ -1784,8 +1784,8 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
         # Sincronizza stato
         if data.stato:
             stato_ticket = data.stato.value if hasattr(data.stato, 'value') else data.stato
-            if stato_ticket == "risolto":
-                manutenzione_update["stato"] = "completata"
+            if stato_ticket == "completato":
+                manutenzione_update["stato"] = "completato"
                 manutenzione_update["data_completamento"] = datetime.now(timezone.utc).isoformat()
             elif stato_ticket == "in_lavorazione":
                 manutenzione_update["stato"] = "in_corso"
