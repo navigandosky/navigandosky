@@ -1,9 +1,10 @@
 # 📋 ARCHIVIO COMMESSE - SMARTBUILDING
 
 **Progetto:** SmartBuilding - Gestione Immobili Intelligente  
+**Sottocomponente:** smartdomo-central  
 **Cliente:** Trivor.it  
 **Avvio:** Dicembre 2024  
-**Ultimo aggiornamento:** 27 Dicembre 2024
+**Ultimo aggiornamento:** 28 Dicembre 2024
 
 ---
 
@@ -17,6 +18,20 @@ Applicazione web per la gestione intelligente di immobili con:
 - Integrazione SmartThings (22 dispositivi)
 - Integrazione telecamere Ezviz (in sospeso)
 - Architettura multi-tenant (multi-utente)
+
+---
+
+## 🆕 FASE 2.1 - MIGLIORAMENTI UX E WORKFLOW (28/12/2024) - IN CORSO
+
+### Modifiche Completate ✅
+- [x] Icone colorate nell'header di navigazione (ogni tab ha colore distintivo)
+- [x] Gestione aggiornamento stato ticket (modale dedicata con workflow)
+- [x] Campo costo manutenzioni: input libero da tastiera
+- [x] Creazione automatica ticket quando si pianifica manutenzione
+
+### Da Completare
+- [ ] Formattare tutte le date in formato gg.mm.aaaa
+- [ ] Calendario default su data corrente (già implementato, da verificare)
 
 ---
 
