@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from "date-fns";
+import { it } from "date-fns/locale";
 import {
   Building2,
   Zap,
@@ -25,6 +27,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Settings,
   BarChart3,
   Search,
@@ -38,7 +42,12 @@ import {
   Download,
   ExternalLink,
   HelpCircle,
-  Loader2
+  Loader2,
+  Ticket,
+  QrCode,
+  Printer,
+  Star,
+  Bell
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
