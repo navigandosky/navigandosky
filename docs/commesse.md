@@ -84,6 +84,54 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ---
 
+## 📅 FASE 1.6 - CALENDARIO, TICKET E QR CODE (COMPLETATA)
+
+### Calendario Manutenzioni ✅
+- [x] Vista calendario mensile interattiva
+- [x] Visualizzazione manutenzioni programmate
+- [x] Visualizzazione scadenze garanzie
+- [x] Visualizzazione ticket aperti
+- [x] Panel "Prossimi 14 giorni"
+- [x] Navigazione mese precedente/successivo
+- [x] Click su evento per dettagli
+
+### Sistema Ticket Assistenza ✅
+- [x] Apertura ticket per manutenzione straordinaria
+- [x] Assegnazione priorità (bassa, media, alta, urgente)
+- [x] Collegamento automatico a elettrodomestico e centro assistenza
+- [x] Stati ticket (aperto, contattato, in_lavorazione, risolto, annullato)
+- [x] Contatto automatico via WhatsApp (link precompilato)
+- [x] Contatto automatico via Email (SMTP o copia messaggio)
+- [x] Numero ticket progressivo (TKT-2025-0001)
+- [x] Chiusura ticket con:
+  - [x] Costo intervento
+  - [x] Valutazione servizio (1-5 stelle)
+  - [x] Note risoluzione
+  - [x] Creazione automatica manutenzione nell'archivio
+
+### QR Code Elettrodomestici ✅
+- [x] Generazione QR Code per ogni elettrodomestico
+- [x] Card stampabile con:
+  - [x] QR Code
+  - [x] Nome, marca, modello
+  - [x] Numero di serie
+  - [x] Centro assistenza e telefono
+- [x] Pulsante stampa diretta
+- [x] Link a scheda elettrodomestico
+
+### API Backend (tutte funzionanti)
+- `POST /api/tickets` - Crea ticket
+- `GET /api/tickets` - Lista ticket
+- `PUT /api/tickets/{id}` - Aggiorna ticket
+- `POST /api/tickets/{id}/contatta` - Contatta assistenza (email/whatsapp)
+- `POST /api/tickets/{id}/chiudi` - Chiudi ticket e crea manutenzione
+- `GET /api/elettrodomestici/{id}/qrcode` - Genera QR PNG
+- `GET /api/elettrodomestici/{id}/qrcode-card` - Dati per card stampabile
+- `GET /api/calendario/eventi` - Eventi per calendario
+- `GET /api/calendario/prossimi` - Prossimi N giorni
+
+---
+
 ## ⏳ FASE 2 - INTEGRAZIONE MATTERPORT SDK (IN ATTESA)
 
 ### Richiesto a Matterport
