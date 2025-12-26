@@ -50,7 +50,10 @@ import {
   Trees,
   Lamp,
   Armchair,
-  ExternalLink
+  ExternalLink,
+  Monitor,
+  Smartphone,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
