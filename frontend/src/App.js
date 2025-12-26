@@ -1297,10 +1297,10 @@ function App() {
               { id: "assistente", label: "Assistente AI", icon: Bot },
               { id: "calendario", label: "Calendario", icon: Calendar },
               { id: "tickets", label: "Ticket", icon: Ticket },
+              { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
               { id: "planimetria", label: "Planimetria", icon: Map },
               { id: "matterport", label: "Vista 3D", icon: Eye },
               { id: "elettrodomestici", label: "Elettrodomestici", icon: Zap },
-              { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
               { id: "centri", label: "Centri Assistenza", icon: Users },
             ].map((tab) => {
               // Colori specifici per ogni tab
