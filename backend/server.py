@@ -132,6 +132,21 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
+# Download endpoint for files
+from fastapi.responses import FileResponse
+
+@api_router.get("/download/{filename}")
+async def download_file(filename: str):
+    """Download a file from uploads folder"""
+    file_path = UPLOADS_DIR / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File non trovato")
+    return FileResponse(
+        path=str(file_path),
+        filename=filename,
+        media_type="application/octet-stream"
+    )
+
 # Projects - Public endpoints
 @api_router.get("/projects", response_model=List[Project])
 async def get_projects():
