@@ -56,6 +56,38 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ---
 
+## 🤖 FASE 1.5 - ASSISTENTE AI SMARTBUILDING (IN SVILUPPO)
+
+### Funzionalità Assistente
+- [ ] Chat assistente nel frontend
+- [ ] Interrogazione archivi in linguaggio naturale
+  - "Quanti frigoriferi ho in casa?"
+  - "Quanto consuma la lavatrice?"
+  - "Quali manutenzioni ho in scadenza?"
+- [ ] Supporto tecnico intelligente
+  - "Come faccio la sintonia della TV?"
+  - "La lavatrice fa rumore, cosa può essere?"
+- [ ] Gestione manuali PDF
+  - [ ] Upload manuali per elettrodomestico
+  - [ ] Ricerca automatica manuali online
+  - [ ] Estrazione testo e indicizzazione
+  - [ ] Ricerca nel contenuto del manuale
+- [ ] Ricerca web automatica
+  - [ ] Cerca soluzioni se non trova nel manuale
+  - [ ] Link a video tutorial
+  - [ ] Siti produttori
+- [ ] Navigazione Matterport (quando SDK disponibile)
+  - "Portami alla lavatrice"
+- [ ] Multilingua (italiano default, poi in base all'utente)
+
+### Tecnologie
+- **LLM:** Emergent LLM Key (OpenAI/Claude)
+- **PDF Parsing:** per estrazione testo manuali
+- **Web Search:** per trovare manuali e soluzioni
+- **Vector Search:** per ricerca semantica nei manuali (futuro)
+
+---
+
 ## ⏳ FASE 2 - INTEGRAZIONE MATTERPORT SDK (IN ATTESA)
 
 ### Richiesto a Matterport
@@ -73,6 +105,7 @@ Applicazione web per la gestione intelligente di immobili con:
 - [ ] Pulsante "Vai nello spazio" → navigazione automatica al tag
 - [ ] Click su tag → visualizza info elettrodomestico associato
 - [ ] Sincronizzazione bidirezionale archivio ↔ spazio 3D
+- [ ] Integrazione con assistente AI ("Portami al dispositivo X")
 
 ---
 
