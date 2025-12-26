@@ -998,7 +998,7 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
   });
 
   // Se manutenzione è completata/annullata, non permettere modifica
-  const isReadOnly = manutenzione && (manutenzione.stato === "completata" || manutenzione.stato === "annullata");
+  const isReadOnly = manutenzione && (manutenzione.stato === "completato" || manutenzione.stato === "annullato");
 
   useEffect(() => {
     if (manutenzione) {
