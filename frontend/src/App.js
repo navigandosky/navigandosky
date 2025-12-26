@@ -437,7 +437,7 @@ const AttractionsPage = ({ lang, t }) => {
                   <div className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg">
                     <Mail size={20} className="text-amber-600 mt-0.5" />
                     <div>
-                      <p className="font-medium text-stone-800">Contatti</p>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Contatti" : "Contacts"}</p>
                       <p className="text-stone-600 text-sm">{selectedAttraction.contact}</p>
                     </div>
                   </div>
@@ -446,14 +446,130 @@ const AttractionsPage = ({ lang, t }) => {
                   <div className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg">
                     <ExternalLink size={20} className="text-amber-600 mt-0.5" />
                     <div>
-                      <p className="font-medium text-stone-800">Sito Web</p>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Sito Web" : "Website"}</p>
                       <a href={selectedAttraction.external_link} target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:underline text-sm">
-                        Visita il sito
+                        {lang === "it" ? "Visita il sito" : "Visit website"}
                       </a>
                     </div>
                   </div>
                 )}
+                {/* Restaurant specific */}
+                {selectedAttraction.cuisine_type && (
+                  <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg">
+                    <span className="text-xl">🍴</span>
+                    <div>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Tipo Cucina" : "Cuisine Type"}</p>
+                      <p className="text-stone-600 text-sm">{cuisineTypes.find(c => c.value === selectedAttraction.cuisine_type)?.label || selectedAttraction.cuisine_type}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedAttraction.price_range && (
+                  <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg">
+                    <span className="text-xl">💰</span>
+                    <div>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Fascia Prezzo" : "Price Range"}</p>
+                      <p className="text-stone-600 text-sm font-semibold">{selectedAttraction.price_range}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedAttraction.reservation_link && (
+                  <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg col-span-2">
+                    <ExternalLink size={20} className="text-orange-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Prenota" : "Book"}</p>
+                      <a href={selectedAttraction.reservation_link} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline text-sm">
+                        {lang === "it" ? "Prenota un tavolo" : "Book a table"}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {/* Accommodation specific */}
+                {selectedAttraction.stars && (
+                  <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                    <span className="text-xl">⭐</span>
+                    <div>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Classificazione" : "Rating"}</p>
+                      <p className="text-yellow-500">{"⭐".repeat(selectedAttraction.stars)}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedAttraction.amenities && (
+                  <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
+                    <span className="text-xl">🛎️</span>
+                    <div>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Servizi" : "Amenities"}</p>
+                      <p className="text-stone-600 text-sm">{selectedAttraction.amenities}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedAttraction.booking_link && (
+                  <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg col-span-2">
+                    <ExternalLink size={20} className="text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Prenota" : "Book"}</p>
+                      <a href={selectedAttraction.booking_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                        {lang === "it" ? "Prenota ora" : "Book now"}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {/* Itinerary specific */}
+                {selectedAttraction.duration && (
+                  <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                    <span className="text-xl">⏱️</span>
+                    <div>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Durata" : "Duration"}</p>
+                      <p className="text-stone-600 text-sm">{selectedAttraction.duration}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedAttraction.difficulty && (
+                  <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                    <span className="text-xl">📊</span>
+                    <div>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Difficoltà" : "Difficulty"}</p>
+                      <p className="text-stone-600 text-sm">{difficultyLevels.find(d => d.value === selectedAttraction.difficulty)?.[lang === "en" ? "labelEn" : "label"] || selectedAttraction.difficulty}</p>
+                    </div>
+                  </div>
+                )}
+                {selectedAttraction.distance && (
+                  <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                    <span className="text-xl">📏</span>
+                    <div>
+                      <p className="font-medium text-stone-800">{lang === "it" ? "Distanza" : "Distance"}</p>
+                      <p className="text-stone-600 text-sm">{selectedAttraction.distance}</p>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Itinerary Waypoints */}
+              {selectedAttraction.waypoints && selectedAttraction.waypoints.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-semibold text-stone-800 mb-4 flex items-center gap-2">
+                    <Navigation size={20} className="text-green-600" />
+                    {lang === "it" ? "Tappe dell'itinerario" : "Itinerary Stops"}
+                  </h3>
+                  <div className="space-y-3">
+                    {selectedAttraction.waypoints.map((wp, index) => (
+                      <div key={wp.id || index} className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                        <span className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                          {index + 1}
+                        </span>
+                        <div className="flex-1">
+                          <p className="font-medium text-stone-800">{wp.name}</p>
+                          {wp.description && <p className="text-stone-600 text-sm">{wp.description}</p>}
+                          {wp.google_maps_link && (
+                            <a href={wp.google_maps_link} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline text-sm flex items-center gap-1 mt-1">
+                              <MapPin size={14} /> {lang === "it" ? "Vedi su Maps" : "View on Maps"}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               {/* Map */}
               {selectedAttraction.latitude && selectedAttraction.longitude && mapsApiKey && (
