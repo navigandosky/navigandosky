@@ -486,28 +486,46 @@ const AttractionsPage = ({ lang, t }) => {
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-serif font-bold text-stone-800 mb-4">
-            {lang === "it" ? "Attrazioni" : lang === "en" ? "Attractions" : lang === "fr" ? "Attractions" : lang === "es" ? "Atracciones" : "Attraktionen"}
+            {lang === "it" ? "Scopri Tadasuni" : lang === "en" ? "Discover Tadasuni" : lang === "fr" ? "Découvrez Tadasuni" : lang === "es" ? "Descubre Tadasuni" : "Entdecken Sie Tadasuni"}
           </h1>
           <p className="text-lg text-stone-600">
-            {lang === "it" ? "Scopri i luoghi più belli di Tadasuni" : lang === "en" ? "Discover the most beautiful places in Tadasuni" : "Scopri i luoghi più belli di Tadasuni"}
+            {lang === "it" ? "Attrazioni, ristoranti, alloggi e itinerari" : lang === "en" ? "Attractions, restaurants, accommodations and itineraries" : "Attrazioni, ristoranti, alloggi e itinerari"}
           </p>
         </div>
 
-        {/* Filter */}
+        {/* Filter by group */}
         <div className="flex flex-wrap justify-center gap-2 mb-8">
           <button
             onClick={() => setFilter("all")}
             className={`px-4 py-2 rounded-full font-medium transition ${filter === "all" ? "bg-amber-600 text-white" : "bg-white text-stone-700 hover:bg-amber-50"}`}
           >
-            {lang === "it" ? "Tutti" : "All"}
+            📋 {lang === "it" ? "Tutti" : "All"}
           </button>
-          {attractionCategories.map(cat => (
-            <button
-              key={cat.value}
-              onClick={() => setFilter(cat.value)}
-              className={`px-4 py-2 rounded-full font-medium transition ${filter === cat.value ? "bg-amber-600 text-white" : "bg-white text-stone-700 hover:bg-amber-50"}`}
-            >
-              {lang === "en" ? cat.labelEn : cat.label}
+          <button
+            onClick={() => setFilter("attrazioni")}
+            className={`px-4 py-2 rounded-full font-medium transition ${filter === "attrazioni" ? "bg-amber-600 text-white" : "bg-white text-stone-700 hover:bg-amber-50"}`}
+          >
+            🏛️ {lang === "it" ? "Attrazioni" : "Attractions"}
+          </button>
+          <button
+            onClick={() => setFilter("mangiare")}
+            className={`px-4 py-2 rounded-full font-medium transition ${filter === "mangiare" ? "bg-amber-600 text-white" : "bg-white text-stone-700 hover:bg-amber-50"}`}
+          >
+            🍽️ {lang === "it" ? "Dove Mangiare" : "Where to Eat"}
+          </button>
+          <button
+            onClick={() => setFilter("dormire")}
+            className={`px-4 py-2 rounded-full font-medium transition ${filter === "dormire" ? "bg-amber-600 text-white" : "bg-white text-stone-700 hover:bg-amber-50"}`}
+          >
+            🏨 {lang === "it" ? "Dove Dormire" : "Where to Stay"}
+          </button>
+          <button
+            onClick={() => setFilter("itinerario")}
+            className={`px-4 py-2 rounded-full font-medium transition ${filter === "itinerario" ? "bg-amber-600 text-white" : "bg-white text-stone-700 hover:bg-amber-50"}`}
+          >
+            🚶 {lang === "it" ? "Itinerari" : "Itineraries"}
+          </button>
+        </div>
             </button>
           ))}
         </div>
