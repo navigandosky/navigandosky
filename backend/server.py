@@ -1983,7 +1983,7 @@ async def chiudi_ticket(
         {"id": ticket_id},
         {
             "$set": {
-                "stato": StatoTicket.RISOLTO.value,
+                "stato": StatoTicket.COMPLETATO.value,
                 "data_risoluzione": datetime.now(timezone.utc).isoformat(),
                 "costo_intervento": costo,
                 "valutazione": valutazione,
