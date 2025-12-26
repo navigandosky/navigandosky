@@ -701,6 +701,160 @@ async def delete_elettrodomestico(elettrodomestico_id: str):
     return {"message": "Elettrodomestico eliminato"}
 
 
+# ------------ FILE UPLOAD ------------
+
+UPLOAD_DIR = Path("/app/uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+@api_router.post("/upload/{tipo}")
+async def upload_file(
+    tipo: str,
+    file: UploadFile = File(...),
+    elettrodomestico_id: Optional[str] = Form(None)
+):
+    """
+    Upload file per elettrodomestici
+    tipo: fattura, foto, manuale, video, pdf_istruzioni, documento
+    """
+    allowed_types = {
+        'fattura': ['.pdf', '.jpg', '.jpeg', '.png'],
+        'foto': ['.jpg', '.jpeg', '.png', '.webp'],
+        'manuale': ['.pdf'],
+        'video': ['.mp4', '.mov', '.avi', '.webm'],
+        'pdf_istruzioni': ['.pdf'],
+        'documento': ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
+    }
+    
+    if tipo not in allowed_types:
+        raise HTTPException(status_code=400, detail=f"Tipo non valido. Usa: {list(allowed_types.keys())}")
+    
+    # Check file extension
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed_types[tipo]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Estensione {ext} non permessa per {tipo}. Permesse: {allowed_types[tipo]}"
+        )
+    
+    # Create subdirectory for type
+    type_dir = UPLOAD_DIR / tipo
+    type_dir.mkdir(exist_ok=True)
+    
+    # Generate unique filename
+    unique_id = str(uuid.uuid4())[:8]
+    safe_filename = f"{unique_id}_{file.filename}"
+    file_path = type_dir / safe_filename
+    
+    # Save file
+    async with aiofiles.open(file_path, 'wb') as f:
+        content = await file.read()
+        await f.write(content)
+    
+    # Generate URL
+    file_url = f"/api/files/{tipo}/{safe_filename}"
+    
+    # If elettrodomestico_id provided, update the record
+    if elettrodomestico_id:
+        field_map = {
+            'fattura': 'fattura_url',
+            'foto': 'foto_url',
+            'manuale': 'manuali_urls',
+            'video': 'video_istruzioni',
+            'pdf_istruzioni': 'pdf_istruzioni',
+            'documento': 'documenti_acquisto'
+        }
+        
+        field = field_map.get(tipo)
+        if field:
+            # Check if it's a list field or single field
+            list_fields = ['manuali_urls', 'video_istruzioni', 'pdf_istruzioni', 'documenti_acquisto', 'foto_lista']
+            if field in list_fields:
+                await db.elettrodomestici.update_one(
+                    {"id": elettrodomestico_id},
+                    {"$push": {field: file_url}}
+                )
+            else:
+                await db.elettrodomestici.update_one(
+                    {"id": elettrodomestico_id},
+                    {"$set": {field: file_url}}
+                )
+    
+    return {
+        "success": True,
+        "url": file_url,
+        "filename": safe_filename,
+        "tipo": tipo
+    }
+
+
+@api_router.get("/files/{tipo}/{filename}")
+async def get_file(tipo: str, filename: str):
+    """Serve uploaded files"""
+    file_path = UPLOAD_DIR / tipo / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File non trovato")
+    
+    # Determine content type
+    ext = file_path.suffix.lower()
+    content_types = {
+        '.pdf': 'application/pdf',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.mp4': 'video/mp4',
+        '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo',
+        '.webm': 'video/webm'
+    }
+    
+    return FileResponse(file_path, media_type=content_types.get(ext, 'application/octet-stream'))
+
+
+# ------------ CATEGORIE CUSTOM ------------
+
+@api_router.get("/categorie-custom")
+async def get_categorie_custom(user_id: str = DEFAULT_USER_ID):
+    """Get custom categories added by user"""
+    categorie = await db.categorie_custom.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+    return categorie
+
+
+@api_router.post("/categorie-custom")
+async def add_categoria_custom(nome: str = Form(...), user_id: str = DEFAULT_USER_ID):
+    """Add a custom category"""
+    categoria = {
+        "id": str(uuid.uuid4()),
+        "nome": nome,
+        "user_id": user_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.categorie_custom.insert_one(categoria)
+    return {"id": categoria["id"], "nome": nome}
+
+
+# ------------ MARCHE CUSTOM ------------
+
+@api_router.get("/marche-custom")
+async def get_marche_custom(user_id: str = DEFAULT_USER_ID):
+    """Get custom brands added by user"""
+    marche = await db.marche_custom.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+    return marche
+
+
+@api_router.post("/marche-custom")
+async def add_marca_custom(nome: str = Form(...), user_id: str = DEFAULT_USER_ID):
+    """Add a custom brand"""
+    marca = {
+        "id": str(uuid.uuid4()),
+        "nome": nome,
+        "user_id": user_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.marche_custom.insert_one(marca)
+    return {"id": marca["id"], "nome": nome}
+
+
 # ------------ MANUTENZIONI ------------
 
 @api_router.post("/manutenzioni", response_model=Manutenzione)
