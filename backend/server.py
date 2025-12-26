@@ -2193,7 +2193,7 @@ async def get_prossimi_eventi(
     # Manutenzioni programmate
     manutenzioni = await db.manutenzioni.find({
         "user_id": user_id,
-        "stato": {"$in": ["pianificata", "in_corso"]},
+        "stato": {"$in": ["aperto", "in_lavorazione"]},
         "data_programmata": {"$gte": oggi_str, "$lte": fine_str}
     }, {"_id": 0}).to_list(50)
     
