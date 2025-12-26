@@ -566,6 +566,97 @@ async def get_centri_assistenza(user_id: str = DEFAULT_USER_ID):
     return [deserialize_datetime(c) for c in centri]
 
 
+# ------------ RICERCA CENTRI ASSISTENZA WEB (deve essere PRIMA di {centro_id}) ------------
+
+# Lista brand principali elettrodomestici
+BRAND_PRINCIPALI = [
+    "Samsung", "LG", "Bosch", "Siemens", "Whirlpool", "Electrolux",
+    "Miele", "AEG", "Philips", "Sony", "Panasonic", "Haier",
+    "Candy", "Indesit", "Beko", "Hotpoint", "De'Longhi", "Smeg",
+    "Daikin", "Mitsubishi", "Hisense", "TCL", "Ariston", "Zanussi",
+    "Liebherr", "Gorenje", "Bauknecht", "Neff", "Gaggenau", "Teka",
+    "Franke", "Rex", "Ignis", "Hoover", "Rowenta", "Tefal", "Moulinex",
+    "Braun", "Dyson", "iRobot", "Roborock", "Xiaomi", "Huawei",
+    "Apple", "Microsoft", "HP", "Dell", "Lenovo", "Asus", "Acer"
+]
+
+@api_router.get("/centri-assistenza/brands")
+async def get_brand_list():
+    """Get list of major appliance brands for search"""
+    return {"brands": sorted(BRAND_PRINCIPALI)}
+
+
+@api_router.get("/centri-assistenza/cerca-web")
+async def cerca_centri_assistenza_web(
+    marca: str = Query(..., description="Brand/marca da cercare"),
+    localita: str = Query(..., description="Città o zona di ricerca")
+):
+    """
+    Cerca centri assistenza tramite web search
+    Restituisce risultati dalla ricerca web
+    """
+    try:
+        # Costruisci query di ricerca
+        search_query = f"centro assistenza {marca} {localita} Italia telefono indirizzo"
+        
+        # Restituisci link di ricerca diretti (più affidabile)
+        results = [
+            {
+                "titolo": f"Cerca su Google: Centro Assistenza {marca} {localita}",
+                "url": f"https://www.google.com/search?q=centro+assistenza+{quote(marca)}+{quote(localita)}",
+                "descrizione": f"Clicca per cercare centri assistenza {marca} nella zona di {localita}",
+                "marca": marca,
+                "localita": localita,
+                "tipo": "link_ricerca"
+            },
+            {
+                "titolo": f"Google Maps - Assistenza {marca} vicino a {localita}",
+                "url": f"https://www.google.com/maps/search/centro+assistenza+{quote(marca)}+{quote(localita)}",
+                "descrizione": f"Trova centri assistenza {marca} su Google Maps con indicazioni stradali",
+                "marca": marca,
+                "localita": localita,
+                "tipo": "link_ricerca"
+            },
+            {
+                "titolo": f"Pagine Gialle - {marca} {localita}",
+                "url": f"https://www.paginegialle.it/ricerca/assistenza%20{quote(marca)}/{quote(localita)}",
+                "descrizione": f"Cerca su Pagine Gialle centri assistenza {marca}",
+                "marca": marca,
+                "localita": localita,
+                "tipo": "link_ricerca"
+            },
+            {
+                "titolo": f"Sito ufficiale {marca} - Assistenza Italia",
+                "url": f"https://www.google.com/search?q={quote(marca)}+assistenza+clienti+italia+sito+ufficiale",
+                "descrizione": f"Trova il sito ufficiale {marca} per assistenza e supporto",
+                "marca": marca,
+                "localita": localita,
+                "tipo": "link_ricerca"
+            },
+            {
+                "titolo": f"Numero Verde {marca}",
+                "url": f"https://www.google.com/search?q={quote(marca)}+numero+verde+assistenza+clienti",
+                "descrizione": f"Cerca il numero verde e contatti diretti {marca}",
+                "marca": marca,
+                "localita": localita,
+                "tipo": "link_ricerca"
+            }
+        ]
+        
+        return {
+            "query": f"{marca} {localita}",
+            "risultati": results,
+            "totale": len(results),
+            "suggerimento": f"Clicca sui link per cercare centri assistenza {marca} a {localita}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Errore ricerca centri assistenza: {e}")
+        raise HTTPException(status_code=500, detail=f"Errore nella ricerca: {str(e)}")
+
+
+# ------------ CENTRI ASSISTENZA - ROUTES CON ID ------------
+
 @api_router.get("/centri-assistenza/{centro_id}", response_model=CentroAssistenza)
 async def get_centro_assistenza(centro_id: str):
     centro = await db.centri_assistenza.find_one({"id": centro_id}, {"_id": 0})
