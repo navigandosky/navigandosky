@@ -261,14 +261,16 @@ const Navbar = ({ showAdminLink = true }) => {
         {mobileMenuOpen && (
           <div className="md:hidden bg-[#0a0a0b]/95 backdrop-blur-md pb-4">
             {navItems.map((item) => (
-              <a
+              <button
                 key={item.name}
-                href={item.href}
-                className="block py-3 px-4 text-gray-300 hover:text-white hover:bg-gray-800/50"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => {
+                  scrollToSection(item.id);
+                  setMobileMenuOpen(false);
+                }}
+                className="block w-full text-left py-3 px-4 text-gray-300 hover:text-white hover:bg-gray-800/50"
               >
                 {item.name}
-              </a>
+              </button>
             ))}
             {showAdminLink && (
               <a
