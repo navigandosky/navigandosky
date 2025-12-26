@@ -258,11 +258,12 @@ Applicazione web per la gestione intelligente di immobili con:
 | 1 | Struttura Base | ✅ Completata | 100% |
 | 1.5 | Assistente AI | ✅ Completata | 90% |
 | 1.6 | Calendario/Ticket/QR | ✅ Completata | 100% |
+| 1.7 | Planimetria/Proattivo | ✅ Completata | 100% |
 | 2 | Matterport SDK | ⏳ In attesa credenziali | 10% |
 | 3 | Multi-Utente | 📋 Pianificata | 0% |
 | 4 | Smart Home | 📋 Futura | 0% |
 
-**Avanzamento globale:** ~65%
+**Avanzamento globale:** ~75%
 
 ---
 
