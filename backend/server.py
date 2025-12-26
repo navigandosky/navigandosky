@@ -2737,6 +2737,74 @@ async def smartthings_switch_control(device_id: str, action: str):
     return await send_smartthings_command(device_id, command)
 
 
+@api_router.get("/smartthings/clima")
+async def get_smartthings_clima():
+    """Get climate data from SmartThings temperature sensor (Temperatura living)"""
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings token not configured")
+    
+    try:
+        # First find the temperature sensor device
+        async with httpx.AsyncClient() as client:
+            devices_response = await client.get(
+                f"{SMARTTHINGS_API_URL}/devices",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            devices_response.raise_for_status()
+            devices = devices_response.json().get("items", [])
+            
+            # Find temperature sensor
+            temp_device = None
+            for d in devices:
+                name = (d.get("label") or d.get("name", "")).lower()
+                caps = []
+                if d.get("components"):
+                    for comp in d.get("components", []):
+                        caps.extend([c.get("id") for c in comp.get("capabilities", [])])
+                
+                if "temperaturemeasurement" in [c.lower() for c in caps]:
+                    temp_device = d
+                    break
+            
+            if not temp_device:
+                return {
+                    "temperatura": None,
+                    "umidita": None,
+                    "device_name": None,
+                    "error": "Nessun sensore temperatura trovato"
+                }
+            
+            # Get device status
+            device_id = temp_device.get("deviceId")
+            status_response = await client.get(
+                f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            status_response.raise_for_status()
+            status = status_response.json()
+            
+            # Extract temperature and humidity
+            main = status.get("components", {}).get("main", {})
+            
+            temp_data = main.get("temperatureMeasurement", {}).get("temperature", {})
+            humidity_data = main.get("relativeHumidityMeasurement", {}).get("humidity", {})
+            
+            return {
+                "temperatura": temp_data.get("value"),
+                "temperatura_unit": temp_data.get("unit", "C"),
+                "umidita": humidity_data.get("value"),
+                "umidita_unit": humidity_data.get("unit", "%"),
+                "device_id": device_id,
+                "device_name": temp_device.get("label") or temp_device.get("name"),
+                "timestamp": temp_data.get("timestamp"),
+                "online": True
+            }
+            
+    except httpx.HTTPError as e:
+        logger.error(f"SmartThings clima error: {e}")
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
 # ============== EZVIZ CAMERA INTEGRATION ==============
 
 EZVIZ_USERNAME = os.environ.get('EZVIZ_USERNAME', '')
