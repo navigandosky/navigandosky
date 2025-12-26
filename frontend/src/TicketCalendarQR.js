@@ -63,12 +63,14 @@ const PRIORITA_TICKET = [
 export const AggiornaTicketDialog = ({ open, onOpenChange, ticket, onUpdate }) => {
   const [nuovoStato, setNuovoStato] = useState("");
   const [note, setNote] = useState("");
+  const [costo, setCosto] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (ticket) {
       setNuovoStato(ticket.stato || "aperto");
       setNote("");
+      setCosto(ticket.costo_intervento || "");
     }
   }, [ticket]);
 
@@ -76,7 +78,8 @@ export const AggiornaTicketDialog = ({ open, onOpenChange, ticket, onUpdate }) =
     e.preventDefault();
     setLoading(true);
     try {
-      await onUpdate(ticket.id, nuovoStato, note);
+      const costoNum = costo ? parseFloat(costo.toString().replace(',', '.')) : null;
+      await onUpdate(ticket.id, nuovoStato, note, costoNum);
       onOpenChange(false);
     } catch (error) {
       toast.error("Errore nell'aggiornamento");
