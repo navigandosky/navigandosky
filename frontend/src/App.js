@@ -761,6 +761,7 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
     ricorrente: false,
     frequenza_giorni: null,
     note: "",
+    crea_ticket_automatico: false,
   });
 
   useEffect(() => {
@@ -771,6 +772,7 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
         centro_assistenza_id: manutenzione.centro_assistenza_id || "",
         costo: manutenzione.costo || null,
         frequenza_giorni: manutenzione.frequenza_giorni || null,
+        crea_ticket_automatico: false,
       });
     } else {
       setFormData({
@@ -786,6 +788,7 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
         ricorrente: false,
         frequenza_giorni: null,
         note: "",
+        crea_ticket_automatico: false,
       });
     }
   }, [manutenzione]);
