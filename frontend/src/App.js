@@ -1510,6 +1510,9 @@ const ProjectFormModal = ({ project, onClose, onSave, getAuthHeader }) => {
     order: project?.order || 0,
   });
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1525,6 +1528,48 @@ const ProjectFormModal = ({ project, onClose, onSave, getAuthHeader }) => {
       console.error('Error saving project:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('File troppo grande. Massimo 5MB.');
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Tipo file non supportato. Usa: JPG, PNG, GIF, WEBP');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError('');
+
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+
+      const response = await axios.post(`${API}/admin/upload`, formDataUpload, {
+        headers: {
+          ...getAuthHeader(),
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Construct full URL for the uploaded image
+      const imageUrl = `${BACKEND_URL}${response.data.url}`;
+      setFormData({ ...formData, image_url: imageUrl });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      setUploadError('Errore durante il caricamento. Riprova.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -1599,16 +1644,87 @@ const ProjectFormModal = ({ project, onClose, onSave, getAuthHeader }) => {
               className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none resize-none"
             />
           </div>
+          
+          {/* Image Upload Section */}
           <div>
-            <label className="block text-white text-sm font-medium mb-2">URL Immagine</label>
-            <input
-              type="url"
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              placeholder="https://..."
-              className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none"
-            />
+            <label className="block text-white text-sm font-medium mb-2">Immagine Progetto</label>
+            <div className="space-y-3">
+              {/* Preview */}
+              {formData.image_url && (
+                <div className="relative w-full h-40 bg-gray-800 rounded-lg overflow-hidden">
+                  <img 
+                    src={formData.image_url} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, image_url: '' })}
+                    className="absolute top-2 right-2 p-1 bg-red-500 hover:bg-red-600 text-white rounded-full"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+              
+              {/* Upload Button */}
+              <div className="flex items-center space-x-3">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center space-x-2 px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/30 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {uploading ? (
+                    <>
+                      <RefreshCw size={18} className="animate-spin" />
+                      <span>Caricamento...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Image size={18} />
+                      <span>📤 Carica Immagine</span>
+                    </>
+                  )}
+                </button>
+                <span className="text-gray-500 text-xs">JPG, PNG, GIF, WEBP (max 5MB)</span>
+              </div>
+              
+              {/* Error Message */}
+              {uploadError && (
+                <p className="text-red-400 text-sm">{uploadError}</p>
+              )}
+              
+              {/* Or URL Input */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-700"></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="px-2 bg-[#111214] text-gray-500 text-xs">oppure inserisci URL</span>
+                </div>
+              </div>
+              
+              <input
+                type="url"
+                value={formData.image_url}
+                onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                placeholder="https://..."
+                className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
           </div>
+          
           <div>
             <label className="block text-white text-sm font-medium mb-2">Link Progetto</label>
             <input
