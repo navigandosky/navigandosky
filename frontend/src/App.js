@@ -463,7 +463,7 @@ const AboutSection = () => {
 const PortfolioSection = () => {
   const projects = [
     {
-      image: "https://buildingdash.preview.emergentagent.com/api/uploads/showcase/5aca6982-4dc8-4259-bd04-c3dfeee360a7.jpg",
+      image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&q=80",
       category: "Smart Building",
       title: "Smart Building Dashboard",
       client: "Navigandosky",
@@ -471,7 +471,7 @@ const PortfolioSection = () => {
       color: "cyan",
     },
     {
-      image: "https://buildingdash.preview.emergentagent.com/api/uploads/showcase/3f8ddd73-94b6-4cc3-90cb-218a9370aee3.jpg",
+      image: "https://images.unsplash.com/photo-1539768942893-daf53e448371?w=600&q=80",
       category: "Beni Culturali",
       title: "Tour Virtuali Sardegna",
       client: "Regione Sardegna",
@@ -479,7 +479,7 @@ const PortfolioSection = () => {
       color: "teal",
     },
     {
-      image: "https://buildingdash.preview.emergentagent.com/api/uploads/showcase/090b3d27-70f7-4773-9b40-ddb20c40b1f9.png",
+      image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&q=80",
       category: "Gestionale",
       title: "CMS Tracciamento Progetti",
       client: "Trivor SRL",
