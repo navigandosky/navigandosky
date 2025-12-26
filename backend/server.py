@@ -942,7 +942,7 @@ async def get_context_data(user_id: str = DEFAULT_USER_ID, elettrodomestico_id: 
 async def chat_with_assistant(request: ChatRequest):
     """Chat con l'assistente AI SmartBuilding"""
     
-    if not openai_client:
+    if not EMERGENT_LLM_KEY:
         raise HTTPException(
             status_code=503, 
             detail="Assistente AI non configurato. Manca EMERGENT_LLM_KEY."
@@ -973,25 +973,27 @@ REGOLE:
 DATI DISPONIBILI:
 """ + context
     
-    # Costruisci messaggi
-    messages = [{"role": "system", "content": system_prompt}]
-    
-    # Aggiungi storia conversazione
-    for msg in request.conversation_history[-10:]:  # Ultimi 10 messaggi
-        messages.append({"role": msg.role, "content": msg.content})
-    
-    # Aggiungi messaggio utente
-    messages.append({"role": "user", "content": request.message})
-    
     try:
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=1000,
-            temperature=0.7
+        # Crea sessione chat
+        session_id = str(uuid.uuid4())
+        
+        # Prepara messaggi iniziali dalla history
+        initial_messages = []
+        for msg in request.conversation_history[-10:]:
+            initial_messages.append({
+                "role": msg.role,
+                "content": msg.content
+            })
+        
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message=system_prompt,
+            initial_messages=initial_messages if initial_messages else None
         )
         
-        ai_response = response.choices[0].message.content
+        # Invia messaggio
+        ai_response = await chat.send_message(UserMessage(text=request.message))
         
         # Determina le fonti usate
         sources = []
