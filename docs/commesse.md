@@ -3,7 +3,7 @@
 **Progetto:** SmartBuilding - Gestione Immobili Intelligente  
 **Cliente:** Trivor.it  
 **Avvio:** Dicembre 2024  
-**Ultimo aggiornamento:** 26 Dicembre 2024
+**Ultimo aggiornamento:** 27 Dicembre 2024
 
 ---
 
