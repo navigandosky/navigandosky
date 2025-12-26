@@ -95,13 +95,14 @@ const API = `${BACKEND_URL}/api`;
 
 // Categories and Enums
 const CATEGORIE_ELETTRODOMESTICI = [
-  { value: "cucina", label: "Cucina", icon: "🍳" },
-  { value: "lavanderia", label: "Lavanderia", icon: "🧺" },
   { value: "climatizzazione", label: "Climatizzazione", icon: "❄️" },
+  { value: "cucina", label: "Cucina", icon: "🍳" },
+  { value: "lavanderia", label: "Lavanderia", icon: "👕" },
   { value: "intrattenimento", label: "Intrattenimento", icon: "📺" },
   { value: "illuminazione", label: "Illuminazione", icon: "💡" },
-  { value: "pulizia", label: "Pulizia", icon: "🧹" },
   { value: "sicurezza", label: "Sicurezza", icon: "🔒" },
+  { value: "riscaldamento", label: "Riscaldamento", icon: "🔥" },
+  { value: "pulizia", label: "Pulizia", icon: "🧹" },
   { value: "altro", label: "Altro", icon: "📦" },
 ];
 
