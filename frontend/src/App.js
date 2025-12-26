@@ -887,9 +887,61 @@ const AttractionsAdminPanel = () => {
       price: attraction.price || "",
       contact: attraction.contact || "",
       external_link: attraction.external_link || "",
-      published: attraction.published !== false
+      published: attraction.published !== false,
+      // Restaurant fields
+      cuisine_type: attraction.cuisine_type || "",
+      price_range: attraction.price_range || "",
+      reservation_link: attraction.reservation_link || "",
+      // Accommodation fields
+      accommodation_type: attraction.accommodation_type || "",
+      stars: attraction.stars || null,
+      booking_link: attraction.booking_link || "",
+      amenities: attraction.amenities || "",
+      // Itinerary fields
+      duration: attraction.duration || "",
+      difficulty: attraction.difficulty || "",
+      distance: attraction.distance || "",
+      waypoints: attraction.waypoints || []
     });
     setShowForm(true);
+  };
+
+  // Helper to check category group
+  const getCategoryGroup = (category) => {
+    const cat = attractionCategories.find(c => c.value === category);
+    return cat?.group || "altro";
+  };
+
+  const isRestaurant = (category) => getCategoryGroup(category) === "mangiare";
+  const isAccommodation = (category) => getCategoryGroup(category) === "dormire";
+  const isItinerary = (category) => category === "itinerario";
+
+  // Waypoint management
+  const addWaypoint = () => {
+    setFormData({
+      ...formData,
+      waypoints: [...(formData.waypoints || []), { id: Date.now().toString(), name: "", description: "", google_maps_link: "", order: (formData.waypoints?.length || 0) }]
+    });
+  };
+
+  const updateWaypoint = (index, field, value) => {
+    const newWaypoints = [...(formData.waypoints || [])];
+    newWaypoints[index] = { ...newWaypoints[index], [field]: value };
+    setFormData({ ...formData, waypoints: newWaypoints });
+  };
+
+  const removeWaypoint = (index) => {
+    const newWaypoints = (formData.waypoints || []).filter((_, i) => i !== index);
+    setFormData({ ...formData, waypoints: newWaypoints });
+  };
+
+  const moveWaypoint = (index, direction) => {
+    const newWaypoints = [...(formData.waypoints || [])];
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= newWaypoints.length) return;
+    [newWaypoints[index], newWaypoints[newIndex]] = [newWaypoints[newIndex], newWaypoints[index]];
+    newWaypoints.forEach((wp, i) => wp.order = i);
+    setFormData({ ...formData, waypoints: newWaypoints });
   };
 
   const handleImageUpload = async (attractionId, file) => {
