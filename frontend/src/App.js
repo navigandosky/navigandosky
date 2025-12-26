@@ -1276,21 +1276,39 @@ function App() {
               { id: "elettrodomestici", label: "Elettrodomestici", icon: Zap },
               { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
               { id: "centri", label: "Centri Assistenza", icon: Users },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                }`}
-                data-testid={`nav-${tab.id}`}
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
-              </button>
-            ))}
+            ].map((tab) => {
+              // Colori specifici per ogni tab
+              const tabColors = {
+                smartdomo: { active: "text-cyan-500 border-cyan-500", icon: "text-cyan-500" },
+                dashboard: { active: "text-blue-600 border-blue-600", icon: "text-blue-500" },
+                suggerimenti: { active: "text-yellow-500 border-yellow-500", icon: "text-yellow-500" },
+                assistente: { active: "text-purple-600 border-purple-600", icon: "text-purple-500" },
+                calendario: { active: "text-green-600 border-green-600", icon: "text-green-500" },
+                tickets: { active: "text-orange-600 border-orange-600", icon: "text-orange-500" },
+                planimetria: { active: "text-indigo-600 border-indigo-600", icon: "text-indigo-500" },
+                matterport: { active: "text-pink-600 border-pink-600", icon: "text-pink-500" },
+                elettrodomestici: { active: "text-amber-600 border-amber-600", icon: "text-amber-500" },
+                manutenzioni: { active: "text-red-600 border-red-600", icon: "text-red-500" },
+                centri: { active: "text-teal-600 border-teal-600", icon: "text-teal-500" },
+              };
+              const colors = tabColors[tab.id] || { active: "text-blue-600 border-blue-600", icon: "text-gray-500" };
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? colors.active
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                  data-testid={`nav-${tab.id}`}
+                >
+                  <tab.icon className={`h-4 w-4 ${activeTab === tab.id ? '' : colors.icon}`} />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </nav>
