@@ -1536,6 +1536,17 @@ function App() {
           <Dashboard stats={stats} consumiPerCategoria={consumiPerCategoria} />
         )}
 
+        {/* Assistente AI Tab */}
+        {activeTab === "assistente" && (
+          <AssistenteAI 
+            elettrodomestici={elettrodomestici}
+            onNavigateToElettrodomestico={(id) => {
+              setActiveTab("matterport");
+              // Qui potremmo navigare al tag specifico quando avremo SDK Matterport
+            }}
+          />
+        )}
+
         {/* Matterport Tab */}
         {activeTab === "matterport" && config && (
           <div className="space-y-4">
