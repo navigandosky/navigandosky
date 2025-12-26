@@ -498,18 +498,30 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
               {/* CLIMA TAB */}
               <TabsContent value="clima" className="mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Current Temperature Card */}
+                  {/* Current Temperature Card - from SmartThings sensor */}
                   <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/20">
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-green-400/70">Temperatura Interna</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="text-sm text-green-400/70">Temperatura Interna</p>
+                            {climaData?.online && (
+                              <Badge variant="outline" className="text-xs border-green-500/50 text-green-400">
+                                LIVE
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-5xl font-bold text-green-400 mt-2">
-                            {weather?.current?.temperature || '--'}°C
+                            {climaData?.temperatura !== null ? climaData?.temperatura?.toFixed(1) : '--'}°C
                           </p>
                           <p className="text-sm text-slate-400 mt-2">
-                            Umidità: {weather?.current?.humidity || '--'}%
+                            Umidità: {climaData?.umidita !== null ? climaData?.umidita : '--'}%
                           </p>
+                          {climaData?.device_name && (
+                            <p className="text-xs text-slate-500 mt-2">
+                              📍 {climaData.device_name}
+                            </p>
+                          )}
                         </div>
                         <Thermometer size={64} className="text-green-500/30" />
                       </div>
