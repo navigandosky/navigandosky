@@ -643,15 +643,17 @@ export default function ElettrodomesticoDialog({
             <TabsContent value="consumi" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="consumo_orario_kw">Consumo Orario (kW)</Label>
+                  <Label htmlFor="consumo_orario_w">Consumo Orario (W)</Label>
                   <Input
-                    id="consumo_orario_kw"
+                    id="consumo_orario_w"
                     type="number"
-                    step="0.01"
+                    step="1"
                     min="0"
-                    value={formData.consumo_orario_kw}
-                    onChange={(e) => setFormData({ ...formData, consumo_orario_kw: parseFloat(e.target.value) || 0 })}
+                    value={Math.round(formData.consumo_orario_kw * 1000) || 0}
+                    onChange={(e) => setFormData({ ...formData, consumo_orario_kw: (parseFloat(e.target.value) || 0) / 1000 })}
+                    placeholder="es. 1500 W"
                   />
+                  <p className="text-xs text-gray-500">Inserisci la potenza in Watt (es. 1500W = 1.5kW)</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="ore_uso_giornaliero_stimate">Ore Uso/Giorno Stimate</Label>
@@ -672,7 +674,11 @@ export default function ElettrodomesticoDialog({
                   <h4 className="font-medium mb-2 flex items-center gap-2">
                     <Zap className="h-4 w-4" /> Consumi Stimati
                   </h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-500">Potenza</p>
+                      <p className="font-bold">{Math.round(formData.consumo_orario_kw * 1000)} W</p>
+                    </div>
                     <div>
                       <p className="text-gray-500">Giornaliero</p>
                       <p className="font-bold">{consumoGiornaliero.toFixed(2)} kWh</p>
@@ -682,8 +688,8 @@ export default function ElettrodomesticoDialog({
                       <p className="font-bold">{consumoMensile.toFixed(2)} kWh</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Costo/Mese</p>
-                      <p className="font-bold">€{(consumoMensile * 0.25).toFixed(2)}</p>
+                      <p className="text-gray-500">Costo/Mese (€0.25/kWh)</p>
+                      <p className="font-bold text-green-700">€{(consumoMensile * 0.25).toFixed(2)}</p>
                     </div>
                   </div>
                 </CardContent>
