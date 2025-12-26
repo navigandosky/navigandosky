@@ -512,9 +512,9 @@ const PortfolioSection = () => {
               <div 
                 className={`relative h-48 overflow-hidden bg-gradient-to-br ${project.gradient} flex items-center justify-center`}
               >
-                <project.icon className="w-20 h-20 text-cyan-400/50 group-hover:text-cyan-400/70 transition-colors" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#111214] via-transparent to-transparent" />
-                <span className="absolute bottom-4 left-4 px-3 py-1 bg-cyan-500/90 text-white text-xs font-semibold rounded-full">
+                <project.icon className="w-20 h-20 text-cyan-400 opacity-30 group-hover:opacity-50 transition-opacity relative z-10" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#111214] via-transparent to-transparent z-20" />
+                <span className="absolute bottom-4 left-4 px-3 py-1 bg-cyan-500/90 text-white text-xs font-semibold rounded-full z-30">
                   {project.category}
                 </span>
               </div>
