@@ -22,6 +22,7 @@ import {
   Power,
   TrendingUp,
   AlertTriangle,
+  AlertCircle,
   CheckCircle,
   Clock,
   X,
