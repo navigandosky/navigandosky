@@ -581,6 +581,7 @@ export const TicketList = ({ elettrodomestici, centriAssistenza }) => {
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
   const [chiudiDialogOpen, setChiudiDialogOpen] = useState(false);
   const [aggiornaDialogOpen, setAggiornaDialogOpen] = useState(false);
+  const [dettaglioDialogOpen, setDettaglioDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [filtroStato, setFiltroStato] = useState("");
 
