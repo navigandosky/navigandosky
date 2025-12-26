@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import {
   Lightbulb,
@@ -16,8 +16,6 @@ import {
   Palmtree,
   Users,
   MapPin,
-  CircleDot,
-  Handshake,
   Mail,
   Phone,
   MessageCircle,
@@ -26,10 +24,27 @@ import {
   Check,
   Menu,
   X,
+  Lock,
+  LogOut,
+  FolderOpen,
+  Inbox,
+  BarChart3,
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Image,
+  RefreshCw,
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// =============================================================================
+// HOOKS
+// =============================================================================
 
 // Counter animation hook
 const useCountUp = (end, duration = 2000, start = 0) => {
@@ -55,7 +70,65 @@ const useCountUp = (end, duration = 2000, start = 0) => {
   return [count, startCounting];
 };
 
-// Stats Counter Component
+// Auth hook
+const useAuth = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const creds = localStorage.getItem('trivor_admin_creds');
+    if (creds) {
+      verifyAuth(creds);
+    } else {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const verifyAuth = async (creds) => {
+    try {
+      await axios.get(`${API}/admin/verify`, {
+        headers: { Authorization: `Basic ${creds}` }
+      });
+      setIsAuthenticated(true);
+    } catch (e) {
+      localStorage.removeItem('trivor_admin_creds');
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const login = async (username, password) => {
+    const creds = btoa(`${username}:${password}`);
+    try {
+      await axios.get(`${API}/admin/verify`, {
+        headers: { Authorization: `Basic ${creds}` }
+      });
+      localStorage.setItem('trivor_admin_creds', creds);
+      setIsAuthenticated(true);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('trivor_admin_creds');
+    setIsAuthenticated(false);
+  };
+
+  const getAuthHeader = () => {
+    const creds = localStorage.getItem('trivor_admin_creds');
+    return creds ? { Authorization: `Basic ${creds}` } : {};
+  };
+
+  return { isAuthenticated, isLoading, login, logout, getAuthHeader };
+};
+
+// =============================================================================
+// STATS COUNTER COMPONENT
+// =============================================================================
+
 const StatsCounter = ({ value, suffix, label }) => {
   const [count, startCounting] = useCountUp(value, 2000);
   const ref = useRef(null);
@@ -87,36 +160,42 @@ const StatsCounter = ({ value, suffix, label }) => {
   );
 };
 
-// Navbar Component
-const Navbar = () => {
+// =============================================================================
+// NAVBAR COMPONENT
+// =============================================================================
+
+const Navbar = ({ showAdminLink = true }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("home");
+  const location = useLocation();
+  const isHomePage = location.pathname === "/" || location.pathname === "/trivor" || location.pathname === "/trivor/";
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
       
-      // Update active section based on scroll position
-      const sections = ["home", "servizi", "chi-siamo", "progetti", "contatti"];
-      for (const section of sections.reverse()) {
-        const element = document.getElementById(section);
-        if (element && window.scrollY >= element.offsetTop - 100) {
-          setActiveSection(section);
-          break;
+      if (isHomePage) {
+        const sections = ["home", "servizi", "chi-siamo", "progetti", "contatti"];
+        for (const section of sections.reverse()) {
+          const element = document.getElementById(section);
+          if (element && window.scrollY >= element.offsetTop - 100) {
+            setActiveSection(section);
+            break;
+          }
         }
       }
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [isHomePage]);
 
   const navItems = [
-    { name: "Home", href: "#home", id: "home" },
-    { name: "Servizi", href: "#servizi", id: "servizi" },
-    { name: "Chi Siamo", href: "#chi-siamo", id: "chi-siamo" },
-    { name: "Progetti", href: "#progetti", id: "progetti" },
-    { name: "Contatti", href: "#contatti", id: "contatti" },
+    { name: "Home", href: isHomePage ? "#home" : "/trivor#home", id: "home" },
+    { name: "Servizi", href: isHomePage ? "#servizi" : "/trivor#servizi", id: "servizi" },
+    { name: "Chi Siamo", href: isHomePage ? "#chi-siamo" : "/trivor#chi-siamo", id: "chi-siamo" },
+    { name: "Progetti", href: isHomePage ? "#progetti" : "/trivor#progetti", id: "progetti" },
+    { name: "Contatti", href: isHomePage ? "#contatti" : "/trivor#contatti", id: "contatti" },
   ];
 
   return (
@@ -127,7 +206,7 @@ const Navbar = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 md:h-20">
-          <a href="#home" className="flex items-center space-x-3">
+          <a href="/trivor" className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">T</span>
             </div>
@@ -141,7 +220,7 @@ const Navbar = () => {
                 key={item.name}
                 href={item.href}
                 className={`text-sm font-medium transition-colors ${
-                  activeSection === item.id
+                  isHomePage && activeSection === item.id
                     ? "text-white border-b-2 border-cyan-400 pb-1"
                     : "text-gray-300 hover:text-white"
                 }`}
@@ -149,6 +228,15 @@ const Navbar = () => {
                 {item.name}
               </a>
             ))}
+            {showAdminLink && (
+              <a
+                href="/trivor/admin"
+                className="flex items-center space-x-1 text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
+              >
+                <Lock size={14} />
+                <span>Area Riservata</span>
+              </a>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -173,6 +261,16 @@ const Navbar = () => {
                 {item.name}
               </a>
             ))}
+            {showAdminLink && (
+              <a
+                href="/trivor/admin"
+                className="flex items-center space-x-2 py-3 px-4 text-cyan-400 hover:text-cyan-300 hover:bg-gray-800/50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Lock size={16} />
+                <span>Area Riservata</span>
+              </a>
+            )}
           </div>
         )}
       </div>
@@ -180,14 +278,16 @@ const Navbar = () => {
   );
 };
 
-// Hero Section
+// =============================================================================
+// HERO SECTION
+// =============================================================================
+
 const HeroSection = () => {
   return (
     <section
       id="home"
       className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden"
     >
-      {/* Background with gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0a1a1a] via-[#0a0f12] to-[#0a0a0b]">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-cyan-900/20 to-transparent" />
         <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-gradient-to-tr from-teal-900/10 to-transparent" />
@@ -228,7 +328,6 @@ const HeroSection = () => {
           </a>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
           <StatsCounter value={9} suffix="+" label="Anni di Esperienza" />
           <StatsCounter value={48} suffix="+" label="Progetti Completati" />
@@ -239,7 +338,10 @@ const HeroSection = () => {
   );
 };
 
-// Services Section
+// =============================================================================
+// SERVICES SECTION
+// =============================================================================
+
 const ServicesSection = () => {
   const services = [
     {
@@ -247,14 +349,12 @@ const ServicesSection = () => {
       title: "Consulenza IT",
       description: "Analisi strategica e consulenza per ottimizzare i tuoi processi aziendali attraverso la tecnologia.",
       features: ["Analisi dei requisiti", "Strategia digitale", "Ottimizzazione processi"],
-      color: "cyan",
     },
     {
       icon: Box,
       title: "Gemelli Digitali",
       description: "Replica virtuale dei tuoi spazi fisici con tecnologia Matterport per visite immersive e gestione smart.",
       features: ["Scansione 3D professionale", "Tour virtuali interattivi", "Integrazione IoT"],
-      color: "cyan",
       badge: "Più Richiesto",
     },
     {
@@ -262,28 +362,24 @@ const ServicesSection = () => {
       title: "Digitalizzazione",
       description: "Trasformazione digitale completa: dalla dematerializzazione alla gestione documentale avanzata.",
       features: ["Automazione workflow", "Cloud solutions", "Data management"],
-      color: "cyan",
     },
     {
       icon: Smartphone,
       title: "Sviluppo App",
       description: "Creazione di applicazioni mobile e web personalizzate con tecnologie all'avanguardia.",
       features: ["App native e ibride", "Web application", "API integration"],
-      color: "cyan",
     },
     {
       icon: Globe,
       title: "Web App & Integrazioni",
       description: "Sviluppo di piattaforme web con integrazioni AI e gemelli digitali per soluzioni innovative.",
       features: ["Dashboard interattive", "Integrazione AI", "Smart Building"],
-      color: "cyan",
     },
     {
       icon: GraduationCap,
       title: "Formazione",
       description: "Corsi e workshop per il tuo team sulla digitalizzazione e le nuove tecnologie.",
       features: ["Training personalizzato", "Workshop tecnologici", "Supporto continuo"],
-      color: "cyan",
     },
   ];
 
@@ -338,7 +434,10 @@ const ServicesSection = () => {
   );
 };
 
-// Clients Section
+// =============================================================================
+// CLIENTS SECTION
+// =============================================================================
+
 const ClientsSection = () => {
   const clients = [
     { icon: Landmark, name: "Enti Culturali" },
@@ -381,7 +480,10 @@ const ClientsSection = () => {
   );
 };
 
-// About Section
+// =============================================================================
+// ABOUT SECTION
+// =============================================================================
+
 const AboutSection = () => {
   const features = [
     "Esperienza pluriennale",
@@ -459,34 +561,73 @@ const AboutSection = () => {
   );
 };
 
-// Portfolio Section
+// =============================================================================
+// PORTFOLIO SECTION (Dynamic from CMS)
+// =============================================================================
+
 const PortfolioSection = () => {
-  const projects = [
-    {
-      icon: Building2,
-      gradient: "from-cyan-500/20 to-teal-500/20",
-      category: "Smart Building",
-      title: "Smart Building Dashboard",
-      client: "Navigandosky",
-      description: "Piattaforma di gestione edifici smart con gemelli digitali Matterport, monitoraggio manutenzioni e domotica integrata.",
-    },
-    {
-      icon: Gem,
-      gradient: "from-teal-500/20 to-emerald-500/20",
-      category: "Beni Culturali",
-      title: "Tour Virtuali Sardegna",
-      client: "Regione Sardegna",
-      description: "Digitalizzazione di siti archeologici e grotte con tour virtuali 360° per la valorizzazione del patrimonio culturale sardo.",
-    },
-    {
-      icon: Monitor,
-      gradient: "from-emerald-500/20 to-cyan-500/20",
-      category: "Gestionale",
-      title: "CMS Tracciamento Progetti",
-      client: "Trivor SRL",
-      description: "Sistema di gestione progetti con tracking ore, crediti, sessioni di lavoro ed export dati per monitoraggio attività.",
-    },
-  ];
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await axios.get(`${API}/projects/featured`);
+      setProjects(response.data);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      // Fallback to default projects if API fails
+      setProjects([
+        {
+          id: '1',
+          title: 'Smart Building Dashboard',
+          client: 'Navigandosky',
+          category: 'Smart Building',
+          description: 'Piattaforma di gestione edifici smart con gemelli digitali Matterport, monitoraggio manutenzioni e domotica integrata.',
+          image_url: null,
+        },
+        {
+          id: '2',
+          title: 'Tour Virtuali Sardegna',
+          client: 'Regione Sardegna',
+          category: 'Beni Culturali',
+          description: 'Digitalizzazione di siti archeologici e grotte con tour virtuali 360° per la valorizzazione del patrimonio culturale sardo.',
+          image_url: null,
+        },
+        {
+          id: '3',
+          title: 'CMS Tracciamento Progetti',
+          client: 'Trivor SRL',
+          category: 'Gestionale',
+          description: 'Sistema di gestione progetti con tracking ore, crediti, sessioni di lavoro ed export dati per monitoraggio attività.',
+          image_url: null,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCategoryIcon = (category) => {
+    const icons = {
+      'Smart Building': Building2,
+      'Beni Culturali': Gem,
+      'Gestionale': Monitor,
+    };
+    return icons[category] || Globe;
+  };
+
+  const getCategoryGradient = (category) => {
+    const gradients = {
+      'Smart Building': 'from-cyan-500/20 to-teal-500/20',
+      'Beni Culturali': 'from-teal-500/20 to-emerald-500/20',
+      'Gestionale': 'from-emerald-500/20 to-cyan-500/20',
+    };
+    return gradients[category] || 'from-gray-500/20 to-gray-600/20';
+  };
 
   return (
     <section id="progetti" className="py-24 bg-[#0d0e10]">
@@ -503,29 +644,62 @@ const PortfolioSection = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {projects.map((project, index) => (
-            <div
-              key={index}
-              className="bg-[#111214] border border-gray-800 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all group"
-            >
-              <div 
-                className={`relative h-48 overflow-hidden bg-gradient-to-br ${project.gradient} flex items-center justify-center`}
-              >
-                <project.icon className="w-20 h-20 text-cyan-400 opacity-30 group-hover:opacity-50 transition-opacity relative z-10" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#111214] via-transparent to-transparent z-20" />
-                <span className="absolute bottom-4 left-4 px-3 py-1 bg-cyan-500/90 text-white text-xs font-semibold rounded-full z-30">
-                  {project.category}
-                </span>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-white mb-2">{project.title}</h3>
-                <p className="text-cyan-400 text-sm font-medium mb-3">{project.client}</p>
-                <p className="text-gray-400 text-sm leading-relaxed">{project.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {projects.map((project) => {
+              const IconComponent = getCategoryIcon(project.category);
+              return (
+                <div
+                  key={project.id}
+                  className="bg-[#111214] border border-gray-800 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all group"
+                >
+                  <div 
+                    className={`relative h-48 overflow-hidden bg-gradient-to-br ${getCategoryGradient(project.category)} flex items-center justify-center`}
+                  >
+                    {project.image_url ? (
+                      <img 
+                        src={project.image_url} 
+                        alt={project.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className={`${project.image_url ? 'hidden' : 'flex'} items-center justify-center w-full h-full`}>
+                      <IconComponent className="w-20 h-20 text-cyan-400 opacity-30 group-hover:opacity-50 transition-opacity" />
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#111214] via-transparent to-transparent z-10" />
+                    <span className="absolute bottom-4 left-4 px-3 py-1 bg-cyan-500/90 text-white text-xs font-semibold rounded-full z-20">
+                      {project.category}
+                    </span>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-white mb-2">{project.title}</h3>
+                    <p className="text-cyan-400 text-sm font-medium mb-3">{project.client}</p>
+                    <p className="text-gray-400 text-sm leading-relaxed">{project.description}</p>
+                    {project.link && (
+                      <a 
+                        href={project.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center mt-4 text-cyan-400 text-sm hover:text-cyan-300 transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-1" />
+                        Visita il progetto
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div className="text-center mt-12">
           <p className="text-gray-400 mb-4">Vuoi vedere tutti i nostri progetti o discutere della tua idea?</p>
@@ -541,7 +715,10 @@ const PortfolioSection = () => {
   );
 };
 
-// Contact Section
+// =============================================================================
+// CONTACT SECTION
+// =============================================================================
+
 const ContactSection = () => {
   const [formData, setFormData] = useState({
     name: "",
@@ -552,18 +729,20 @@ const ContactSection = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     
     try {
-      // Here you would normally send the form data to your backend
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await axios.post(`${API}/contact`, formData);
       setSubmitted(true);
       setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
-    } catch (error) {
-      console.error("Error submitting form:", error);
+    } catch (err) {
+      setError("Errore nell'invio del messaggio. Riprova più tardi.");
+      console.error("Error submitting form:", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -616,7 +795,6 @@ const ContactSection = () => {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-12">
-          {/* Contact Info */}
           <div className="space-y-6">
             {contactInfo.map((info, index) => (
               <div key={index} className="flex items-start space-x-4">
@@ -642,7 +820,6 @@ const ContactSection = () => {
             ))}
           </div>
 
-          {/* Contact Form */}
           <div className="bg-[#111214] border border-gray-800 rounded-xl p-8">
             {submitted ? (
               <div className="text-center py-12">
@@ -654,6 +831,11 @@ const ContactSection = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                    {error}
+                  </div>
+                )}
                 <div>
                   <label className="block text-white text-sm font-medium mb-2">
                     Nome e Cognome *
@@ -736,7 +918,10 @@ const ContactSection = () => {
   );
 };
 
-// Footer Component
+// =============================================================================
+// FOOTER
+// =============================================================================
+
 const Footer = () => {
   const quickLinks = [
     { name: "Home", href: "#home" },
@@ -754,16 +939,15 @@ const Footer = () => {
   ];
 
   const reserved = [
-    { name: "🔐 Accedi all'Area Riservata", href: "#" },
+    { name: "🔐 Accedi all'Area Riservata", href: "/trivor/admin" },
     { name: "Portfolio / Catalogo", href: "#progetti" },
-    { name: "Smart Building Dashboard", href: "#" },
+    { name: "Smart Building Dashboard", href: "https://buildingdash.preview.emergentagent.com" },
   ];
 
   return (
     <footer className="bg-[#0d0e10] border-t border-gray-800 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-          {/* Brand */}
           <div>
             <a href="#home" className="flex items-center space-x-3 mb-6">
               <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-lg flex items-center justify-center">
@@ -776,7 +960,6 @@ const Footer = () => {
             </p>
           </div>
 
-          {/* Quick Links */}
           <div>
             <h4 className="text-white font-semibold mb-4">Link Rapidi</h4>
             <ul className="space-y-3">
@@ -790,7 +973,6 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Services */}
           <div>
             <h4 className="text-white font-semibold mb-4">Servizi</h4>
             <ul className="space-y-3">
@@ -802,13 +984,17 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Reserved Area */}
           <div>
             <h4 className="text-white font-semibold mb-4">Area Riservata</h4>
             <ul className="space-y-3">
               {reserved.map((item, index) => (
                 <li key={index}>
-                  <a href={item.href} className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">
+                  <a 
+                    href={item.href} 
+                    className="text-gray-400 hover:text-cyan-400 transition-colors text-sm"
+                    target={item.href.startsWith('http') ? '_blank' : undefined}
+                    rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  >
                     {item.name}
                   </a>
                 </li>
@@ -827,7 +1013,10 @@ const Footer = () => {
   );
 };
 
-// Scroll to Top Button
+// =============================================================================
+// SCROLL TO TOP & WHATSAPP BUTTONS
+// =============================================================================
+
 const ScrollToTop = () => {
   const [visible, setVisible] = useState(false);
 
@@ -855,7 +1044,6 @@ const ScrollToTop = () => {
   );
 };
 
-// WhatsApp Button
 const WhatsAppButton = () => {
   return (
     <a
@@ -869,7 +1057,626 @@ const WhatsAppButton = () => {
   );
 };
 
-// Main Home Component
+// =============================================================================
+// ADMIN - LOGIN PAGE
+// =============================================================================
+
+const AdminLogin = ({ onLogin }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    
+    const success = await onLogin(username, password);
+    if (!success) {
+      setError('Credenziali non valide');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center px-4">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">Area Riservata</h1>
+          <p className="text-gray-400">Accedi per gestire i contenuti del sito</p>
+        </div>
+
+        <div className="bg-[#111214] border border-gray-800 rounded-xl p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm text-center">
+                {error}
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">
+                Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none transition-colors"
+                placeholder="admin"
+              />
+            </div>
+
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none transition-colors pr-12"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            >
+              {loading ? (
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <Lock size={18} />
+                  <span>Accedi</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        <div className="text-center mt-6">
+          <a href="/trivor" className="text-gray-400 hover:text-cyan-400 text-sm transition-colors">
+            ← Torna al sito
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// ADMIN - DASHBOARD
+// =============================================================================
+
+const AdminDashboard = ({ onLogout, getAuthHeader }) => {
+  const [activeTab, setActiveTab] = useState('projects');
+  const [stats, setStats] = useState({ projects: 0, messages: 0, unread_messages: 0 });
+  const [projects, setProjects] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingProject, setEditingProject] = useState(null);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [statsRes, projectsRes, messagesRes] = await Promise.all([
+        axios.get(`${API}/admin/stats`, { headers: getAuthHeader() }),
+        axios.get(`${API}/projects`),
+        axios.get(`${API}/admin/messages`, { headers: getAuthHeader() })
+      ]);
+      setStats(statsRes.data);
+      setProjects(projectsRes.data);
+      setMessages(messagesRes.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSeedData = async () => {
+    try {
+      await axios.post(`${API}/admin/seed`, {}, { headers: getAuthHeader() });
+      fetchData();
+    } catch (error) {
+      console.error('Error seeding data:', error);
+    }
+  };
+
+  const handleDeleteProject = async (id) => {
+    if (!window.confirm('Sei sicuro di voler eliminare questo progetto?')) return;
+    try {
+      await axios.delete(`${API}/admin/projects/${id}`, { headers: getAuthHeader() });
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting project:', error);
+    }
+  };
+
+  const handleDeleteMessage = async (id) => {
+    if (!window.confirm('Sei sicuro di voler eliminare questo messaggio?')) return;
+    try {
+      await axios.delete(`${API}/admin/messages/${id}`, { headers: getAuthHeader() });
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting message:', error);
+    }
+  };
+
+  const handleMarkRead = async (id) => {
+    try {
+      await axios.put(`${API}/admin/messages/${id}/read`, {}, { headers: getAuthHeader() });
+      fetchData();
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0b]">
+      {/* Admin Header */}
+      <header className="bg-[#111214] border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-4">
+              <a href="/trivor" className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-xs">T</span>
+                </div>
+                <span className="text-xl font-bold text-white">TRIVOR</span>
+              </a>
+              <span className="text-gray-500">|</span>
+              <span className="text-gray-400">Area Riservata</span>
+            </div>
+            <button
+              onClick={onLogout}
+              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+            >
+              <LogOut size={18} />
+              <span>Esci</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-[#111214] border border-gray-800 rounded-xl p-6">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center">
+                <FolderOpen className="w-6 h-6 text-cyan-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Progetti</p>
+                <p className="text-2xl font-bold text-white">{stats.projects}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-[#111214] border border-gray-800 rounded-xl p-6">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center">
+                <Inbox className="w-6 h-6 text-green-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Messaggi</p>
+                <p className="text-2xl font-bold text-white">{stats.messages}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-[#111214] border border-gray-800 rounded-xl p-6">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
+                <Mail className="w-6 h-6 text-amber-400" />
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm">Non letti</p>
+                <p className="text-2xl font-bold text-white">{stats.unread_messages}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex space-x-4 mb-6">
+          <button
+            onClick={() => setActiveTab('projects')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'projects'
+                ? 'bg-cyan-500 text-white'
+                : 'bg-[#111214] text-gray-400 hover:text-white'
+            }`}
+          >
+            <FolderOpen className="w-4 h-4 inline mr-2" />
+            Progetti
+          </button>
+          <button
+            onClick={() => setActiveTab('messages')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'messages'
+                ? 'bg-cyan-500 text-white'
+                : 'bg-[#111214] text-gray-400 hover:text-white'
+            }`}
+          >
+            <Inbox className="w-4 h-4 inline mr-2" />
+            Messaggi
+            {stats.unread_messages > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-amber-500 text-white text-xs rounded-full">
+                {stats.unread_messages}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="flex justify-center items-center py-12">
+            <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
+          </div>
+        ) : (
+          <>
+            {activeTab === 'projects' && (
+              <div className="bg-[#111214] border border-gray-800 rounded-xl">
+                <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+                  <h2 className="text-lg font-semibold text-white">Gestione Progetti</h2>
+                  <div className="flex space-x-2">
+                    {projects.length === 0 && (
+                      <button
+                        onClick={handleSeedData}
+                        className="flex items-center space-x-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                      >
+                        <RefreshCw size={16} />
+                        <span>Popola DB</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setEditingProject(null);
+                        setShowProjectForm(true);
+                      }}
+                      className="flex items-center space-x-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg transition-colors"
+                    >
+                      <Plus size={16} />
+                      <span>Nuovo Progetto</span>
+                    </button>
+                  </div>
+                </div>
+                <div className="divide-y divide-gray-800">
+                  {projects.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                      Nessun progetto presente. Clicca "Popola DB" per aggiungere i progetti iniziali.
+                    </div>
+                  ) : (
+                    projects.map((project) => (
+                      <div key={project.id} className="p-4 flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 bg-cyan-500/10 rounded-lg flex items-center justify-center">
+                            {project.image_url ? (
+                              <img src={project.image_url} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                            ) : (
+                              <Image className="w-6 h-6 text-cyan-400" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-white font-medium">{project.title}</h3>
+                            <p className="text-gray-400 text-sm">{project.client} • {project.category}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            project.featured ? 'bg-green-500/20 text-green-400' : 'bg-gray-700 text-gray-400'
+                          }`}>
+                            {project.featured ? 'In evidenza' : 'Normale'}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setEditingProject(project);
+                              setShowProjectForm(true);
+                            }}
+                            className="p-2 text-gray-400 hover:text-cyan-400 transition-colors"
+                          >
+                            <Edit size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProject(project.id)}
+                            className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'messages' && (
+              <div className="bg-[#111214] border border-gray-800 rounded-xl">
+                <div className="p-4 border-b border-gray-800">
+                  <h2 className="text-lg font-semibold text-white">Messaggi Ricevuti</h2>
+                </div>
+                <div className="divide-y divide-gray-800">
+                  {messages.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                      Nessun messaggio ricevuto.
+                    </div>
+                  ) : (
+                    messages.map((msg) => (
+                      <div key={msg.id} className={`p-4 ${!msg.read ? 'bg-cyan-500/5' : ''}`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 className="text-white font-medium flex items-center">
+                              {msg.name}
+                              {!msg.read && (
+                                <span className="ml-2 w-2 h-2 bg-cyan-400 rounded-full"></span>
+                              )}
+                            </h3>
+                            <p className="text-gray-400 text-sm">{msg.email}</p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-gray-500 text-xs">
+                              {new Date(msg.created_at).toLocaleDateString('it-IT')}
+                            </span>
+                            {!msg.read && (
+                              <button
+                                onClick={() => handleMarkRead(msg.id)}
+                                className="p-1 text-gray-400 hover:text-green-400 transition-colors"
+                                title="Segna come letto"
+                              >
+                                <Check size={16} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-cyan-400 text-sm font-medium mb-1">{msg.subject}</p>
+                        <p className="text-gray-300 text-sm">{msg.message}</p>
+                        {msg.phone && (
+                          <p className="text-gray-500 text-xs mt-2">Tel: {msg.phone}</p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Project Form Modal */}
+        {showProjectForm && (
+          <ProjectFormModal
+            project={editingProject}
+            onClose={() => {
+              setShowProjectForm(false);
+              setEditingProject(null);
+            }}
+            onSave={() => {
+              setShowProjectForm(false);
+              setEditingProject(null);
+              fetchData();
+            }}
+            getAuthHeader={getAuthHeader}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// PROJECT FORM MODAL
+// =============================================================================
+
+const ProjectFormModal = ({ project, onClose, onSave, getAuthHeader }) => {
+  const [formData, setFormData] = useState({
+    title: project?.title || '',
+    client: project?.client || '',
+    category: project?.category || '',
+    description: project?.description || '',
+    image_url: project?.image_url || '',
+    link: project?.link || '',
+    featured: project?.featured || false,
+    order: project?.order || 0,
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (project) {
+        await axios.put(`${API}/admin/projects/${project.id}`, formData, { headers: getAuthHeader() });
+      } else {
+        await axios.post(`${API}/admin/projects`, formData, { headers: getAuthHeader() });
+      }
+      onSave();
+    } catch (error) {
+      console.error('Error saving project:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#111214] border border-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-800 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-white">
+            {project ? 'Modifica Progetto' : 'Nuovo Progetto'}
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <X size={24} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">Titolo *</label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">Cliente *</label>
+              <input
+                type="text"
+                value={formData.client}
+                onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">Categoria *</label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                required
+                className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none"
+              >
+                <option value="">Seleziona...</option>
+                <option value="Smart Building">Smart Building</option>
+                <option value="Beni Culturali">Beni Culturali</option>
+                <option value="Gestionale">Gestionale</option>
+                <option value="Web App">Web App</option>
+                <option value="Mobile App">Mobile App</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-white text-sm font-medium mb-2">Ordine</label>
+              <input
+                type="number"
+                value={formData.order}
+                onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
+                className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">Descrizione *</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              required
+              rows={3}
+              className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">URL Immagine</label>
+            <input
+              type="url"
+              value={formData.image_url}
+              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+              placeholder="https://..."
+              className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-white text-sm font-medium mb-2">Link Progetto</label>
+            <input
+              type="url"
+              value={formData.link}
+              onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+              placeholder="https://..."
+              className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+          <div className="flex items-center space-x-3">
+            <input
+              type="checkbox"
+              id="featured"
+              checked={formData.featured}
+              onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+              className="w-5 h-5 rounded border-gray-700 bg-[#0a0a0b] text-cyan-500 focus:ring-cyan-500"
+            />
+            <label htmlFor="featured" className="text-white">Mostra in evidenza nella homepage</label>
+          </div>
+          <div className="flex justify-end space-x-4 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
+            >
+              Annulla
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg transition-all disabled:opacity-50"
+            >
+              {loading ? 'Salvataggio...' : 'Salva'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// ADMIN PAGE WRAPPER
+// =============================================================================
+
+const AdminPage = () => {
+  const { isAuthenticated, isLoading, login, logout, getAuthHeader } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AdminLogin onLogin={login} />;
+  }
+
+  return <AdminDashboard onLogout={logout} getAuthHeader={getAuthHeader} />;
+};
+
+// =============================================================================
+// HOME PAGE
+// =============================================================================
+
 const Home = () => {
   return (
     <div className="bg-[#0a0a0b] min-h-screen">
@@ -887,6 +1694,10 @@ const Home = () => {
   );
 };
 
+// =============================================================================
+// APP
+// =============================================================================
+
 function App() {
   return (
     <div className="App">
@@ -895,6 +1706,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/trivor" element={<Home />} />
           <Route path="/trivor/" element={<Home />} />
+          <Route path="/trivor/admin" element={<AdminPage />} />
+          <Route path="/trivor/admin/" element={<AdminPage />} />
         </Routes>
       </BrowserRouter>
     </div>
