@@ -121,6 +121,21 @@ const TIPI_MANUTENZIONE = [
   { value: "sostituzione", label: "Sostituzione" },
 ];
 
+const STATI_TICKET = [
+  { value: "aperto", label: "Aperto", color: "bg-blue-500" },
+  { value: "contattato", label: "Contattato", color: "bg-yellow-500" },
+  { value: "in_lavorazione", label: "In Lavorazione", color: "bg-orange-500" },
+  { value: "risolto", label: "Risolto", color: "bg-green-500" },
+  { value: "annullato", label: "Annullato", color: "bg-gray-500" },
+];
+
+const PRIORITA_TICKET = [
+  { value: "bassa", label: "Bassa", color: "bg-gray-400" },
+  { value: "media", label: "Media", color: "bg-blue-400" },
+  { value: "alta", label: "Alta", color: "bg-orange-500" },
+  { value: "urgente", label: "Urgente", color: "bg-red-500" },
+];
+
 // Matterport Viewer Component
 const MatterportViewer = ({ spaceId }) => {
   return (
