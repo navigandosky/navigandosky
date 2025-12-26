@@ -169,12 +169,12 @@ Applicazione web per la gestione intelligente di immobili con:
 | Fase | Descrizione | Stato | % |
 |------|-------------|-------|---|
 | 1 | Struttura Base | ✅ Completata | 100% |
-| 1.5 | Assistente AI | 🔄 In sviluppo | 0% |
+| 1.5 | Assistente AI | ✅ Completata | 90% |
 | 2 | Matterport SDK | ⏳ In attesa credenziali | 10% |
 | 3 | Multi-Utente | 📋 Pianificata | 0% |
 | 4 | Smart Home | 📋 Futura | 0% |
 
-**Avanzamento globale:** ~25%
+**Avanzamento globale:** ~50%
 
 ---
 
