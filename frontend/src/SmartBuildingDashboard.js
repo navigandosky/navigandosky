@@ -513,10 +513,10 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                             )}
                           </div>
                           <p className="text-5xl font-bold text-green-400 mt-2">
-                            {climaData?.temperatura !== null ? climaData?.temperatura?.toFixed(1) : '--'}°C
+                            {climaData?.temperature !== null ? climaData?.temperature?.toFixed(1) : '--'}°C
                           </p>
                           <p className="text-sm text-slate-400 mt-2">
-                            Umidità: {climaData?.umidita !== null ? climaData?.umidita : '--'}%
+                            Umidità: {climaData?.humidity !== null ? climaData?.humidity : '--'}%
                           </p>
                           {climaData?.device_name && (
                             <p className="text-xs text-slate-500 mt-2">
