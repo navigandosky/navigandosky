@@ -132,6 +132,45 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ---
 
+## 🗺️ FASE 1.7 - PLANIMETRIE E ASSISTENTE PROATTIVO (COMPLETATA)
+
+### Planimetria Interattiva 2D ✅
+- [x] Upload planimetria (PNG, JPG, WEBP, PDF)
+- [x] Gestione multi-planimetria (es. piani diversi)
+- [x] Modalità modifica per posizionare elettrodomestici
+- [x] Drag & click per posizionare icone sulla mappa
+- [x] Click su icona → apre scheda elettrodomestico
+- [x] Legenda con lista elettrodomestici posizionati
+- [x] Salvataggio posizioni in database
+- [x] Coesiste con Matterport (non si escludono)
+
+### Assistente Proattivo ✅
+- [x] Analisi automatica dati elettrodomestici
+- [x] Badge notifiche nell'header con conteggio
+- [x] Suggerimenti per tipo:
+  - 🔧 **Manutenzione**: interventi in ritardo, controlli consigliati
+  - 🛡️ **Garanzia**: scadenze imminenti o già scadute
+  - 💰 **Risparmio**: consumi elevati, ottimizzazione orari
+  - ♻️ **Sostituzione**: elettrodomestici datati
+- [x] Priorità: Urgente (rosso) / Attenzione (arancione) / Info (blu)
+- [x] Azioni suggerite per ogni avviso
+- [x] Pulsante "Nascondi" per dismissare suggerimenti
+- [x] Filtro per priorità
+- [x] Refresh automatico conteggio ogni minuto
+
+### API Backend (tutte funzionanti)
+- `POST /api/planimetrie` - Carica planimetria
+- `GET /api/planimetrie` - Lista planimetrie
+- `GET /api/planimetrie/{id}` - Dettagli con punti
+- `GET /api/planimetrie/{id}/image` - Immagine planimetria
+- `PUT /api/planimetrie/{id}/punti` - Salva posizioni elettrodomestici
+- `POST /api/planimetrie/{id}/punti` - Aggiungi punto
+- `DELETE /api/planimetrie/{id}/punti/{elettro_id}` - Rimuovi punto
+- `GET /api/suggerimenti` - Lista suggerimenti proattivi
+- `GET /api/suggerimenti/count` - Conteggio per badge
+
+---
+
 ## ⏳ FASE 2 - INTEGRAZIONE MATTERPORT SDK (IN ATTESA)
 
 ### Richiesto a Matterport
