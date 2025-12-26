@@ -717,12 +717,12 @@ const PortfolioSection = () => {
 
         <div className="text-center mt-12">
           <p className="text-gray-400 mb-4">Vuoi vedere tutti i nostri progetti o discutere della tua idea?</p>
-          <a
-            href="#contatti"
+          <button
+            onClick={() => document.getElementById('contatti')?.scrollIntoView({ behavior: 'smooth' })}
             className="inline-block px-8 py-4 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg transition-all"
           >
             Parliamone Insieme
-          </a>
+          </button>
         </div>
       </div>
     </section>
