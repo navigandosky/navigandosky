@@ -1010,8 +1010,24 @@ const AttractionsAdminPanel = () => {
 
   const getCategoryLabel = (value) => {
     const cat = attractionCategories.find(c => c.value === value);
-    return cat ? cat.label : value;
+    return cat ? (cat.icon ? `${cat.icon} ${cat.label}` : cat.label) : value;
   };
+
+  const getCategoryIcon = (value) => {
+    const cat = attractionCategories.find(c => c.value === value);
+    return cat?.icon || "📍";
+  };
+
+  // Filter attractions by category group
+  const filteredAttractions = categoryFilter === "all" 
+    ? attractions 
+    : attractions.filter(a => {
+        if (categoryFilter === "attrazioni") return ["chiesa", "monumento", "archeologia", "natura", "museo"].includes(a.category);
+        if (categoryFilter === "mangiare") return ["ristorante", "pizzeria", "bar", "agriturismo_rist"].includes(a.category);
+        if (categoryFilter === "dormire") return ["hotel", "b&b", "agriturismo", "casa_vacanze"].includes(a.category);
+        if (categoryFilter === "itinerari") return a.category === "itinerario";
+        return a.category === categoryFilter;
+      });
 
   if (!isLoggedIn) {
     return (
