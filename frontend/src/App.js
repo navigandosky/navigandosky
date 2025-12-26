@@ -943,10 +943,9 @@ const Footer = () => {
     "Sviluppo App",
   ];
 
-  const reserved = [
-    { name: "🔐 Accedi all'Area Riservata", href: "#/admin" },
-    { name: "Portfolio / Catalogo", href: "#progetti" },
-    { name: "Smart Building Dashboard", href: "https://building-brain.preview.emergentagent.com/" },
+  const tools = [
+    { name: "📊 Gestione Commesse", href: "https://trivor-workspace.preview.emergentagent.com/gestione-commesse" },
+    { name: "🖼️ Showcase Progetti", href: "https://trivor-workspace.preview.emergentagent.com/showcase" },
   ];
 
   return (
@@ -992,9 +991,9 @@ const Footer = () => {
           </div>
 
           <div>
-            <h4 className="text-white font-semibold mb-4">Area Riservata</h4>
+            <h4 className="text-white font-semibold mb-4">Strumenti</h4>
             <ul className="space-y-3">
-              {reserved.map((item, index) => (
+              {tools.map((item, index) => (
                 <li key={index}>
                   <a 
                     href={item.href} 
