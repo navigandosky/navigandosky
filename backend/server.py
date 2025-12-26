@@ -2951,23 +2951,23 @@ async def get_ezviz_token():
 
 
 async def ezviz_api_request(endpoint: str, method: str = "GET", data: dict = None):
-    """Make authenticated request to Ezviz Open Platform API"""
+    """Make authenticated request to Ezviz Open Platform API (EU)"""
     import httpx
     
     token = await get_ezviz_api_token()
     base_url = EZVIZ_API_URLS.get(EZVIZ_REGION.lower(), EZVIZ_API_URLS['eu'])
     url = f"{base_url}{endpoint}"
     
-    headers = {
-        "Content-Type": "application/json",
-        "accessToken": token
-    }
+    # L'API EU Ezviz richiede accessToken nel form-data, non nell'header
+    request_data = data.copy() if data else {}
+    request_data['accessToken'] = token
     
     async with httpx.AsyncClient(timeout=30.0) as client:
         if method.upper() == "GET":
-            response = await client.get(url, headers=headers, params=data)
+            response = await client.get(url, params=request_data)
         else:
-            response = await client.post(url, headers=headers, json=data or {})
+            # Usa form-data invece di JSON per API EU
+            response = await client.post(url, data=request_data)
         
         return response.json()
 
