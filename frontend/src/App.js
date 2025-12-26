@@ -951,11 +951,13 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           <div>
-            <a href="#home" className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">T</span>
-              </div>
-              <span className="text-2xl font-bold text-white">TRIVOR</span>
+            <a href="#home" className="flex items-center mb-6">
+              <img 
+                src="https://customer-assets.emergentagent.com/job_trivor-agent/artifacts/5wu3c3nj_logo%20trivor%20heritage%20digitale.png" 
+                alt="Trivor - Heritage Digitale" 
+                className="h-12 w-auto"
+                style={{ transform: 'scale(1.4)', transformOrigin: 'left center' }}
+              />
             </a>
             <p className="text-gray-400 text-sm leading-relaxed">
               Consulenza, Digitalizzazione, Gemelli Digitali e Sviluppo Applicazioni per la tua trasformazione digitale.
