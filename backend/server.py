@@ -1684,12 +1684,19 @@ async def create_ticket(data: TicketCreate):
 async def get_tickets(
     user_id: str = DEFAULT_USER_ID,
     stato: Optional[StatoTicket] = None,
-    elettrodomestico_id: Optional[str] = None
+    elettrodomestico_id: Optional[str] = None,
+    include_completati: bool = False
 ):
-    """Ottieni tutti i ticket"""
+    """Ottieni tutti i ticket (esclude completati di default, vanno nel registro manutenzioni)"""
     query = {"user_id": user_id}
+    
     if stato:
+        # Se richiesto uno stato specifico, usa quello
         query["stato"] = stato.value
+    elif not include_completati:
+        # Di default escludi completati e annullati (rimangono solo nel registro manutenzioni)
+        query["stato"] = {"$nin": ["completato", "annullato"]}
+    
     if elettrodomestico_id:
         query["elettrodomestico_id"] = elettrodomestico_id
     
