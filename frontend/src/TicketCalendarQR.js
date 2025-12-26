@@ -212,23 +212,9 @@ export const AggiornaTicketDialog = ({ open, onOpenChange, ticket, onUpdate }) =
     }
   };
 
-  // Determina quali stati sono disponibili in base allo stato corrente
+  // Mostra tutti gli stati disponibili (come nel filtro manutenzioni)
   const statiDisponibili = () => {
-    const statoCorrente = ticket?.stato || "aperto";
-    switch (statoCorrente) {
-      case "aperto":
-        return ["contattato", "in_lavorazione", "annullato"];
-      case "contattato":
-        return ["in_lavorazione", "completato", "annullato"];
-      case "in_lavorazione":
-        return ["contattato", "completato", "annullato"];
-      case "completato":
-        return []; // Non si può cambiare
-      case "annullato":
-        return ["aperto"]; // Si può riaprire
-      default:
-        return STATI_TICKET.map(s => s.value);
-    }
+    return STATI_TICKET.map(s => s.value);
   };
 
   const statoCorrente = STATI_TICKET.find(s => s.value === ticket?.stato);
