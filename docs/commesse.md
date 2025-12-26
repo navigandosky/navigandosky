@@ -275,6 +275,12 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ## 📝 NOTE E DECISIONI
 
+### 27/12/2024
+- Configurato SMTP Gmail per invio email automatico
+- Account: navigandosky@gmail.com
+- Generata Password per le App (sicurezza Google)
+- Sistema ticket ora può inviare email reali ai centri assistenza
+
 ### 26/12/2024
 - Completata struttura base con tutti i CMS
 - Aggiunto calcolo consumi automatico (kW/h × ore = consumo giornaliero/mensile/annuale)
