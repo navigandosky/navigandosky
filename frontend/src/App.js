@@ -29,7 +29,16 @@ import {
   BarChart3,
   Search,
   Filter,
-  Eye
+  Eye,
+  MessageCircle,
+  Send,
+  Bot,
+  FileText,
+  Upload,
+  Download,
+  ExternalLink,
+  HelpCircle,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
