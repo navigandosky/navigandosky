@@ -312,6 +312,20 @@ class AttractionResponse(BaseModel):
     published: bool = True
     created_at: str
     updated_at: str
+    # Restaurant specific fields
+    cuisine_type: Optional[str] = None
+    price_range: Optional[str] = None
+    reservation_link: Optional[str] = None
+    # Accommodation specific fields
+    accommodation_type: Optional[str] = None
+    stars: Optional[int] = None
+    booking_link: Optional[str] = None
+    amenities: Optional[str] = None
+    # Itinerary specific fields
+    duration: Optional[str] = None
+    difficulty: Optional[str] = None
+    distance: Optional[str] = None
+    waypoints: Optional[List[dict]] = None
 
 # Tadasuni knowledge base
 TADASUNI_CONTEXT = """
