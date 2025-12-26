@@ -186,19 +186,40 @@ const CameraCard = ({ camera }) => {
 export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], elettrodomestici = [] }) {
   const [activeTab, setActiveTab] = useState('clima');
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
+  const [devicesByRoom, setDevicesByRoom] = useState([]);
   const [ezvizCameras, setEzvizCameras] = useState([]);
   const [weather, setWeather] = useState(null);
   const [systemStatus, setSystemStatus] = useState({ ok: 0, attenzione: 0, critici: 0, totali: 0 });
   const [loading, setLoading] = useState(true);
   const [matterportSpaceId, setMatterportSpaceId] = useState('j1r4zUjanif');
+  const [expandedRooms, setExpandedRooms] = useState({});
+
+  // Toggle room expansion
+  const toggleRoom = (roomName) => {
+    setExpandedRooms(prev => ({
+      ...prev,
+      [roomName]: !prev[roomName]
+    }));
+  };
 
   // Fetch all data
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch SmartThings devices
+      // Fetch SmartThings devices grouped by room
+      const devicesByRoomRes = await axios.get(`${API_URL}/api/smartthings/devices-by-room`);
+      setDevicesByRoom(devicesByRoomRes.data.rooms || []);
+      
+      // Also fetch flat list for other uses
       const devicesRes = await axios.get(`${API_URL}/api/smartthings/devices`);
       setSmartThingsDevices(devicesRes.data.devices || []);
+      
+      // Expand all rooms by default
+      const expanded = {};
+      (devicesByRoomRes.data.rooms || []).forEach(room => {
+        expanded[room.roomName] = true;
+      });
+      setExpandedRooms(expanded);
       
       // Fetch Ezviz cameras (may fail)
       try {
