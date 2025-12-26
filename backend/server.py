@@ -2207,6 +2207,352 @@ async def get_suggerimenti_count(user_id: str = DEFAULT_USER_ID):
     }
 
 
+# ============== SMARTTHINGS INTEGRATION ==============
+
+SMARTTHINGS_TOKEN = os.environ.get('SMARTTHINGS_TOKEN', '')
+SMARTTHINGS_API_URL = "https://api.smartthings.com/v1"
+
+@api_router.get("/smartthings/devices")
+async def get_smartthings_devices():
+    """Get all SmartThings devices"""
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings token not configured")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{SMARTTHINGS_API_URL}/devices",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            devices = []
+            for item in data.get("items", []):
+                device = {
+                    "id": item.get("deviceId"),
+                    "name": item.get("label") or item.get("name"),
+                    "type": item.get("deviceTypeName", "Unknown"),
+                    "status": "online",
+                    "capabilities": [cap.get("id") for cap in item.get("components", [{}])[0].get("capabilities", [])],
+                    "roomId": item.get("roomId"),
+                    "locationId": item.get("locationId")
+                }
+                devices.append(device)
+            
+            return {"devices": devices, "count": len(devices)}
+    except httpx.HTTPError as e:
+        logger.error(f"SmartThings API error: {e}")
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
+@api_router.get("/smartthings/device/{device_id}/status")
+async def get_smartthings_device_status(device_id: str):
+    """Get status of a specific SmartThings device"""
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings token not configured")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as e:
+        logger.error(f"SmartThings device status error: {e}")
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
+@api_router.post("/smartthings/device/{device_id}/command")
+async def send_smartthings_command(device_id: str, command: dict):
+    """Send a command to a SmartThings device"""
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings token not configured")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{SMARTTHINGS_API_URL}/devices/{device_id}/commands",
+                headers={
+                    "Authorization": f"Bearer {SMARTTHINGS_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={"commands": [command]}
+            )
+            response.raise_for_status()
+            return {"status": "success", "result": response.json()}
+    except httpx.HTTPError as e:
+        logger.error(f"SmartThings command error: {e}")
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
+@api_router.post("/smartthings/device/{device_id}/switch/{action}")
+async def smartthings_switch_control(device_id: str, action: str):
+    """Turn on/off a SmartThings switch device"""
+    if action not in ["on", "off"]:
+        raise HTTPException(status_code=400, detail="Action must be 'on' or 'off'")
+    
+    command = {
+        "component": "main",
+        "capability": "switch",
+        "command": action,
+        "arguments": []
+    }
+    return await send_smartthings_command(device_id, command)
+
+
+# ============== EZVIZ CAMERA INTEGRATION ==============
+
+EZVIZ_USERNAME = os.environ.get('EZVIZ_USERNAME', '')
+EZVIZ_PASSWORD = os.environ.get('EZVIZ_PASSWORD', '')
+EZVIZ_REGION = os.environ.get('EZVIZ_REGION', 'eu')
+
+# Ezviz session cache
+ezviz_client = None
+ezviz_token = None
+
+async def get_ezviz_token():
+    """Get Ezviz API token using pyezvizapi"""
+    global ezviz_client, ezviz_token
+    
+    if not EZVIZ_USERNAME or not EZVIZ_PASSWORD:
+        raise HTTPException(status_code=500, detail="Ezviz credentials not configured")
+    
+    try:
+        from pyezvizapi import EzvizClient
+        
+        if ezviz_client is None:
+            ezviz_client = EzvizClient(EZVIZ_USERNAME, EZVIZ_PASSWORD, EZVIZ_REGION)
+            ezviz_client.login()
+        
+        return ezviz_client
+    except Exception as e:
+        logger.error(f"Ezviz login error: {e}")
+        ezviz_client = None
+        raise HTTPException(status_code=500, detail=f"Ezviz authentication error: {str(e)}")
+
+
+@api_router.get("/ezviz/cameras")
+async def get_ezviz_cameras():
+    """Get all Ezviz cameras"""
+    try:
+        client = await get_ezviz_token()
+        cameras_data = client.get_all_cameras_info()
+        
+        cameras = []
+        online_count = 0
+        offline_count = 0
+        
+        for cam_info in cameras_data.values():
+            status = "online" if cam_info.get("status", 0) == 1 else "offline"
+            if status == "online":
+                online_count += 1
+            else:
+                offline_count += 1
+            
+            camera = {
+                "id": cam_info.get("serial"),
+                "serial": cam_info.get("serial"),
+                "name": cam_info.get("name", "Camera"),
+                "model": cam_info.get("device_type", "Unknown"),
+                "status": status,
+                "image_url": cam_info.get("cover", "")
+            }
+            cameras.append(camera)
+        
+        return {
+            "cameras": cameras,
+            "total": len(cameras),
+            "online": online_count,
+            "offline": offline_count
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ezviz cameras error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ezviz API error: {str(e)}")
+
+
+@api_router.get("/ezviz/camera/{serial}/snapshot")
+async def get_ezviz_camera_snapshot(serial: str):
+    """Get latest snapshot from Ezviz camera"""
+    try:
+        client = await get_ezviz_token()
+        cameras_data = client.get_all_cameras_info()
+        
+        if serial in cameras_data:
+            cover_url = cameras_data[serial].get("cover", "")
+            return {"serial": serial, "image_url": cover_url}
+        
+        raise HTTPException(status_code=404, detail="Camera not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ezviz snapshot error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ezviz API error: {str(e)}")
+
+
+@api_router.get("/ezviz/camera/{serial}/stream")
+async def get_ezviz_camera_stream_url(serial: str):
+    """Get stream URL for Ezviz camera"""
+    try:
+        client = await get_ezviz_token()
+        
+        # Try to get live stream URL
+        try:
+            url = client.get_camera_live_url(serial)
+            return {"serial": serial, "stream_url": url}
+        except:
+            # Fallback - return the cover image URL
+            cameras_data = client.get_all_cameras_info()
+            if serial in cameras_data:
+                return {"serial": serial, "stream_url": cameras_data[serial].get("cover", "")}
+            raise HTTPException(status_code=404, detail="Camera not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ezviz stream error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ezviz API error: {str(e)}")
+
+
+# ============== WEATHER API ==============
+
+WEATHER_CITY = os.environ.get('WEATHER_CITY', 'Nuoro')
+WEATHER_LAT = os.environ.get('WEATHER_LAT', '40.3125')
+WEATHER_LON = os.environ.get('WEATHER_LON', '9.3125')
+
+@api_router.get("/weather")
+async def get_weather():
+    """Get current weather and forecast using Open-Meteo API"""
+    try:
+        async with httpx.AsyncClient() as client:
+            # Current weather
+            current_url = f"https://api.open-meteo.com/v1/forecast?latitude={WEATHER_LAT}&longitude={WEATHER_LON}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=Europe/Rome"
+            current_response = await client.get(current_url)
+            current_data = current_response.json()
+            
+            # Forecast
+            forecast_url = f"https://api.open-meteo.com/v1/forecast?latitude={WEATHER_LAT}&longitude={WEATHER_LON}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe/Rome&forecast_days=7"
+            forecast_response = await client.get(forecast_url)
+            forecast_data = forecast_response.json()
+            
+            # Weather code to description and icon mapping
+            weather_codes = {
+                0: ("Sereno", "☀️"),
+                1: ("Prevalentemente sereno", "🌤️"),
+                2: ("Parzialmente nuvoloso", "⛅"),
+                3: ("Nuvoloso", "☁️"),
+                45: ("Nebbia", "🌫️"),
+                48: ("Nebbia con brina", "🌫️"),
+                51: ("Pioviggine leggera", "🌧️"),
+                53: ("Pioviggine moderata", "🌧️"),
+                55: ("Pioviggine intensa", "🌧️"),
+                61: ("Pioggia leggera", "🌧️"),
+                63: ("Pioggia moderata", "🌧️"),
+                65: ("Pioggia intensa", "🌧️"),
+                71: ("Neve leggera", "🌨️"),
+                73: ("Neve moderata", "🌨️"),
+                75: ("Neve intensa", "🌨️"),
+                80: ("Rovesci leggeri", "🌦️"),
+                81: ("Rovesci moderati", "🌦️"),
+                82: ("Rovesci violenti", "🌦️"),
+                95: ("Temporale", "⛈️"),
+                96: ("Temporale con grandine", "⛈️"),
+                99: ("Temporale violento", "⛈️")
+            }
+            
+            current_code = current_data.get("current", {}).get("weather_code", 0)
+            weather_desc, weather_icon = weather_codes.get(current_code, ("Sconosciuto", "❓"))
+            
+            # Build current weather object
+            current = {
+                "city": WEATHER_CITY,
+                "latitude": float(WEATHER_LAT),
+                "longitude": float(WEATHER_LON),
+                "elevation": current_data.get("elevation", 0),
+                "temperature": current_data.get("current", {}).get("temperature_2m", 0),
+                "humidity": current_data.get("current", {}).get("relative_humidity_2m", 0),
+                "wind_speed": current_data.get("current", {}).get("wind_speed_10m", 0),
+                "weather_code": current_code,
+                "weather_description": weather_desc,
+                "weather_icon": weather_icon
+            }
+            
+            # Build forecast
+            daily = forecast_data.get("daily", {})
+            forecast = []
+            if daily.get("time"):
+                for i in range(min(7, len(daily["time"]))):
+                    code = daily.get("weather_code", [0])[i] if i < len(daily.get("weather_code", [])) else 0
+                    desc, icon = weather_codes.get(code, ("Sconosciuto", "❓"))
+                    forecast.append({
+                        "date": daily["time"][i],
+                        "temp_max": daily.get("temperature_2m_max", [0])[i] if i < len(daily.get("temperature_2m_max", [])) else 0,
+                        "temp_min": daily.get("temperature_2m_min", [0])[i] if i < len(daily.get("temperature_2m_min", [])) else 0,
+                        "weather_code": code,
+                        "weather_description": desc,
+                        "weather_icon": icon
+                    })
+            
+            return {
+                "current": current,
+                "forecast": forecast,
+                "city": WEATHER_CITY
+            }
+    except Exception as e:
+        logger.error(f"Weather API error: {e}")
+        raise HTTPException(status_code=500, detail=f"Weather API error: {str(e)}")
+
+
+# ============== SYSTEM STATUS ==============
+
+@api_router.get("/system/status")
+async def get_system_status():
+    """Get overall system status"""
+    status = {
+        "ok": 0,
+        "attenzione": 0,
+        "critici": 0,
+        "totali": 0,
+        "smartthings_connected": bool(SMARTTHINGS_TOKEN),
+        "ezviz_connected": bool(EZVIZ_USERNAME and EZVIZ_PASSWORD),
+        "matterport_configured": bool(MATTERPORT_SPACE_ID)
+    }
+    
+    # Check SmartThings devices
+    if SMARTTHINGS_TOKEN:
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(
+                    f"{SMARTTHINGS_API_URL}/devices",
+                    headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+                )
+                if response.status_code == 200:
+                    devices = response.json().get("items", [])
+                    status["totali"] += len(devices)
+                    status["ok"] += len(devices)  # Assume all connected devices are OK
+        except:
+            pass
+    
+    # Check Ezviz cameras
+    if EZVIZ_USERNAME and EZVIZ_PASSWORD:
+        try:
+            client = await get_ezviz_token()
+            cameras = client.get_all_cameras_info()
+            for cam in cameras.values():
+                status["totali"] += 1
+                if cam.get("status", 0) == 1:
+                    status["ok"] += 1
+                else:
+                    status["critici"] += 1
+        except:
+            pass
+    
+    return status
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
