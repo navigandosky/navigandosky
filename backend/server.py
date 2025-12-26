@@ -1770,7 +1770,11 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
     if data.stato:
         stato_ticket = data.stato.value if hasattr(data.stato, 'value') else data.stato
     
+    # Stati che richiedono manutenzione nel registro
+    stati_con_manutenzione = ["contattato", "in_lavorazione", "completato"]
+    
     if manutenzione_id:
+        # Aggiorna manutenzione esistente
         manutenzione_update = {"updated_at": datetime.now(timezone.utc).isoformat()}
         
         # Sincronizza costo
@@ -1779,7 +1783,6 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
         
         # Sincronizza note
         if data.note_interne:
-            # Aggiungi nota alla manutenzione
             manutenzione = await db.manutenzioni.find_one({"id": manutenzione_id}, {"_id": 0})
             if manutenzione:
                 note_esistenti = manutenzione.get('note', '') or ''
@@ -1793,6 +1796,8 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
                 manutenzione_update["data_completamento"] = datetime.now(timezone.utc).isoformat()
             elif stato_ticket == "in_lavorazione":
                 manutenzione_update["stato"] = "in_lavorazione"
+            elif stato_ticket == "contattato":
+                manutenzione_update["stato"] = "contattato"
             elif stato_ticket == "annullato":
                 manutenzione_update["stato"] = "annullato"
         
@@ -1802,8 +1807,14 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
                 {"$set": manutenzione_update}
             )
     
-    # Se il ticket viene completato e NON ha manutenzione, creane una nuova
-    elif stato_ticket == "completato":
+    # Se il ticket passa a contattato/in_lavorazione/completato e NON ha manutenzione, creane una
+    elif stato_ticket in stati_con_manutenzione:
+        # Determina lo stato della manutenzione
+        stato_manutenzione = stato_ticket
+        data_completamento = None
+        if stato_ticket == "completato":
+            data_completamento = datetime.now(timezone.utc).isoformat()
+        
         # Crea nuova manutenzione dal ticket
         nuova_manutenzione = {
             "id": str(uuid.uuid4()),
@@ -1812,9 +1823,9 @@ async def update_ticket(ticket_id: str, data: TicketUpdate):
             "centro_assistenza_id": ticket.get('centro_assistenza_id'),
             "tipo": "riparazione",
             "descrizione": ticket.get('descrizione', ticket.get('titolo', 'Intervento da ticket')),
-            "stato": "completato",
+            "stato": stato_manutenzione,
             "data_programmata": ticket.get('created_at'),
-            "data_completamento": datetime.now(timezone.utc).isoformat(),
+            "data_completamento": data_completamento,
             "costo": data.costo_intervento if data.costo_intervento else None,
             "note": f"Creato da ticket {ticket.get('numero_ticket')}\n{data.note_interne or ''}",
             "ticket_id": ticket_id,
