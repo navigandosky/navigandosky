@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { HashRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import {
   Lightbulb,
