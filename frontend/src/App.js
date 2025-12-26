@@ -2117,6 +2117,14 @@ function App() {
         onSave={handleSaveManut}
       />
 
+      <DettaglioManutenzioneDialog
+        open={dettaglioManutOpen}
+        onOpenChange={setDettaglioManutOpen}
+        manutenzione={viewingManut}
+        elettrodomestici={elettrodomestici}
+        centriAssistenza={centriAssistenza}
+      />
+
       <QRCodeDialog
         open={qrDialogOpen}
         onOpenChange={setQrDialogOpen}
