@@ -281,6 +281,88 @@ class DashboardStats(BaseModel):
     elettrodomestici_garanzia_scaduta: int = 0
 
 
+# ============== TICKET MODELS ==============
+
+class StatoTicket(str, Enum):
+    APERTO = "aperto"
+    CONTATTATO = "contattato"
+    IN_LAVORAZIONE = "in_lavorazione"
+    RISOLTO = "risolto"
+    ANNULLATO = "annullato"
+
+
+class PrioritaTicket(str, Enum):
+    BASSA = "bassa"
+    MEDIA = "media"
+    ALTA = "alta"
+    URGENTE = "urgente"
+
+
+class TicketBase(BaseModel):
+    elettrodomestico_id: str
+    titolo: str
+    descrizione: str
+    priorita: PrioritaTicket = PrioritaTicket.MEDIA
+    centro_assistenza_id: Optional[str] = None
+    contatto_preferito: str = "email"  # "email", "whatsapp", "telefono"
+    note_interne: Optional[str] = None
+
+
+class TicketCreate(TicketBase):
+    pass
+
+
+class TicketUpdate(BaseModel):
+    titolo: Optional[str] = None
+    descrizione: Optional[str] = None
+    stato: Optional[StatoTicket] = None
+    priorita: Optional[PrioritaTicket] = None
+    centro_assistenza_id: Optional[str] = None
+    contatto_preferito: Optional[str] = None
+    note_interne: Optional[str] = None
+    data_contatto: Optional[str] = None
+    data_intervento: Optional[str] = None
+    data_risoluzione: Optional[str] = None
+    costo_intervento: Optional[float] = None
+    valutazione: Optional[int] = None  # 1-5
+    note_risoluzione: Optional[str] = None
+
+
+class Ticket(TicketBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str = DEFAULT_USER_ID
+    stato: StatoTicket = StatoTicket.APERTO
+    numero_ticket: str = ""  # Generato automaticamente
+    data_contatto: Optional[str] = None
+    data_intervento: Optional[str] = None
+    data_risoluzione: Optional[str] = None
+    costo_intervento: Optional[float] = None
+    valutazione: Optional[int] = None
+    note_risoluzione: Optional[str] = None
+    manutenzione_id: Optional[str] = None  # Collegamento a manutenzione creata
+    messaggi_inviati: List[Dict[str, Any]] = []
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class TicketConDettagli(Ticket):
+    """Ticket con dettagli elettrodomestico e centro assistenza"""
+    elettrodomestico: Optional[Dict] = None
+    centro_assistenza: Optional[Dict] = None
+
+
+# Calendar Event Model
+class CalendarEvent(BaseModel):
+    id: str
+    title: str
+    start: str
+    end: Optional[str] = None
+    tipo: str  # "manutenzione", "garanzia", "ticket"
+    color: str
+    extendedProps: Dict[str, Any] = {}
+
+
 # ============== HELPER FUNCTIONS ==============
 
 def serialize_datetime(obj):
@@ -303,6 +385,54 @@ def deserialize_datetime(doc: dict) -> dict:
         if key in doc and isinstance(doc[key], str):
             doc[key] = datetime.fromisoformat(doc[key])
     return doc
+
+
+async def generate_ticket_number() -> str:
+    """Generate unique ticket number like TKT-2024-0001"""
+    year = datetime.now().year
+    count = await db.tickets.count_documents({"numero_ticket": {"$regex": f"^TKT-{year}"}})
+    return f"TKT-{year}-{str(count + 1).zfill(4)}"
+
+
+async def send_email_notification(to_email: str, subject: str, body_html: str) -> bool:
+    """Send email notification"""
+    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD]):
+        logger.warning("SMTP not configured, skipping email")
+        return False
+    
+    try:
+        message = MIMEMultipart("alternative")
+        message["From"] = SMTP_FROM or SMTP_USER
+        message["To"] = to_email
+        message["Subject"] = subject
+        
+        message.attach(MIMEText(body_html, "html"))
+        
+        await aiosmtplib.send(
+            message,
+            hostname=SMTP_HOST,
+            port=SMTP_PORT,
+            username=SMTP_USER,
+            password=SMTP_PASSWORD,
+            use_tls=True
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error sending email: {e}")
+        return False
+
+
+def generate_whatsapp_link(phone: str, message: str) -> str:
+    """Generate WhatsApp click-to-chat link"""
+    # Pulisci il numero di telefono
+    clean_phone = ''.join(filter(str.isdigit, phone))
+    if clean_phone.startswith('0'):
+        clean_phone = '39' + clean_phone[1:]  # Italia
+    elif not clean_phone.startswith('39'):
+        clean_phone = '39' + clean_phone
+    
+    encoded_message = quote(message)
+    return f"https://wa.me/{clean_phone}?text={encoded_message}"
 
 
 # ============== ROUTES ==============
