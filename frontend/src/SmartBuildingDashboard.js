@@ -429,7 +429,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                         <Clock size={14} className="text-cyan-400" />
                         <div className="flex-1 truncate">
                           <p className="text-white truncate">{m.descrizione}</p>
-                          <p className="text-xs text-slate-400">{m.data_programmata}</p>
+                          <p className="text-xs text-slate-400">{formatDateIT(m.data_programmata)}</p>
                         </div>
                       </div>
                     ))}
