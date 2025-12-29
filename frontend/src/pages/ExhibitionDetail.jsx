@@ -406,7 +406,7 @@ export default function ExhibitionDetail() {
             <div className="matterport-frame rounded-sm overflow-hidden" style={{ aspectRatio: "16/9" }}>
               <iframe
                 ref={iframeRef}
-                src={`https://my.matterport.com/show/?m=${space.model_id}&play=1&applicationKey=${MATTERPORT_SDK_KEY}`}
+                src={`https://my.matterport.com/show/?m=${space.model_id}&play=1`}
                 title={getTranslation(space.name, language)}
                 className="w-full h-full"
                 allow="xr-spatial-tracking; fullscreen"
