@@ -212,9 +212,9 @@ export default function Layout() {
       </div>
 
       {/* Trivor Copyright */}
-      <div className="fixed bottom-4 left-4 z-40">
-        <p className="font-sans text-xs text-[#666058]/70">
-          Realizzato da Trivor srl ©
+      <div className="fixed bottom-5 left-5 z-40 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-sm shadow-md border border-[#C5A059]/30">
+        <p className="font-sans text-sm font-medium text-[#2A2A2A]">
+          Realizzato da <span className="text-[#C5A059] font-semibold">Trivor srl</span> ©
         </p>
       </div>
     </div>
