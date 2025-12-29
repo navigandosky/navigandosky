@@ -948,6 +948,7 @@ const SpaceEditModal = ({ space, onClose, onSave }) => {
     name: space.name || { it: '', en: '', fr: '', de: '' },
     description: space.description || { it: '', en: '', fr: '', de: '' },
     matterport_model_id: space.matterport_model_id || '',
+    external_tour_url: space.external_tour_url || '',
     images: space.images || [],
     is_active: space.is_active !== false,
     order: space.order || 0
@@ -1103,6 +1104,24 @@ const SpaceEditModal = ({ space, onClose, onSave }) => {
               placeholder="e.g., UqskS4cg92b"
               data-testid="space-model-id"
             />
+          </div>
+
+          {/* External Tour URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              {lang === 'it' ? 'Link Tour Esterno (mpskin, overlay, ecc.)' : 'External Tour Link (mpskin, overlay, etc.)'}
+            </label>
+            <input
+              type="url"
+              value={form.external_tour_url}
+              onChange={(e) => setForm({ ...form, external_tour_url: e.target.value })}
+              className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none"
+              placeholder="https://mpskin.com/tour/..."
+              data-testid="space-external-url"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {lang === 'it' ? 'Se specificato, verrà usato al posto dell\'embed Matterport standard' : 'If specified, will be used instead of standard Matterport embed'}
+            </p>
           </div>
 
           {/* Images */}
