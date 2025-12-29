@@ -106,7 +106,7 @@ export default function ExhibitionDetail() {
   const [newPoiPosition, setNewPoiPosition] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [newPoiData, setNewPoiData] = useState({ name: "", description: "" });
+  const [newPoiData, setNewPoiData] = useState({ name: "", description: "", tagId: "" });
   
   const iframeRef = useRef(null);
   const audioRef = useRef(null);
@@ -122,62 +122,11 @@ export default function ExhibitionDetail() {
     fetchData();
   }, [id]);
 
-  // Initialize Matterport SDK
+  // Initialize Matterport SDK (optional - for future SDK features)
   useEffect(() => {
     if (!space || !iframeRef.current) return;
-
-    const initSdk = async () => {
-      try {
-        // Wait for iframe to load
-        const iframe = iframeRef.current;
-        
-        // Use the connect method for iframe-based SDK
-        const connectSdk = async () => {
-          if (window.MP_SDK) {
-            try {
-              const sdk = await window.MP_SDK.connect(iframe, MATTERPORT_SDK_KEY, '');
-              setMpSdk(sdk);
-              setSdkReady(true);
-              console.log("Matterport SDK connected successfully");
-              
-              // Set up click handler for creating POIs
-              sdk.Pointer.intersection.subscribe((intersection) => {
-                if (createMode && intersection) {
-                  setNewPoiPosition({
-                    x: intersection.position.x,
-                    y: intersection.position.y,
-                    z: intersection.position.z
-                  });
-                  setDialogOpen(true);
-                }
-              });
-            } catch (err) {
-              console.log("SDK connect error, using standard embed:", err);
-            }
-          }
-        };
-
-        // Load SDK script if not already loaded
-        if (!window.MP_SDK) {
-          const script = document.createElement('script');
-          script.src = 'https://static.matterport.com/showcase-sdk/latest/sdk.js';
-          script.async = true;
-          script.onload = () => {
-            setTimeout(connectSdk, 2000); // Wait for iframe to be ready
-          };
-          document.head.appendChild(script);
-        } else {
-          setTimeout(connectSdk, 2000);
-        }
-      } catch (error) {
-        console.error("Error initializing Matterport SDK:", error);
-      }
-    };
-
-    // Delay SDK init to let iframe load first
-    const timer = setTimeout(initSdk, 3000);
-    return () => clearTimeout(timer);
-  }, [space, createMode]);
+    // SDK initialization code here if needed
+  }, [space]);
 
   const fetchData = async () => {
     try {
@@ -191,6 +140,33 @@ export default function ExhibitionDetail() {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Method 2: Import tags via Matterport API
+  const importTagsViaAPI = async () => {
+    if (!space) return;
+    
+    setImporting(true);
+    try {
+      const response = await axios.post(`${API}/import-matterport-tags`, {
+        space_id: id,
+        model_id: space.model_id
+      });
+      
+      if (response.data.success) {
+        toast.success(response.data.message || `Importati ${response.data.imported} tag`);
+        if (response.data.imported > 0) {
+          fetchData(); // Refresh POIs list
+        }
+      } else {
+        toast.error(response.data.message || "Errore nell'importazione");
+      }
+    } catch (error) {
+      console.error("Error importing tags:", error);
+      toast.error("Errore nella connessione all'API Matterport");
+    } finally {
+      setImporting(false);
     }
   };
 
