@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { useLanguage, getTranslation } from "../hooks/useLanguage";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const MATTERPORT_SDK_KEY = "59wwqhip77fxkqiurcae74fed";
 
 const translations = {
   it: {
