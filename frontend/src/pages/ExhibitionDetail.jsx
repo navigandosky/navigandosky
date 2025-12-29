@@ -131,6 +131,11 @@ export default function ExhibitionDetail() {
   const [createMode, setCreateMode] = useState(false);
   const [matterportTags, setMatterportTags] = useState([]);
   const [generatingAudio, setGeneratingAudio] = useState({}); // { poiId_lang: true }
+  const [audioProgress, setAudioProgress] = useState({}); // { poiId: { currentTime, duration } }
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadingPoi, setUploadingPoi] = useState(null);
+  const [uploadingLang, setUploadingLang] = useState(null);
+  const [uploading, setUploading] = useState(false);
   
   const iframeRef = useRef(null);
   const audioRef = useRef(null);
