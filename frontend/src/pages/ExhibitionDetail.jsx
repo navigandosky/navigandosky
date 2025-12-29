@@ -439,40 +439,44 @@ export default function ExhibitionDetail() {
 
               {/* Admin Actions */}
               {isAdmin && (
-                <div className="flex gap-2 mb-4">
+                <div className="space-y-3 mb-6 p-4 bg-[#F2F0EB] rounded-sm">
+                  <p className="font-sans text-xs text-[#666058] font-medium uppercase tracking-wide">Strumenti Admin</p>
+                  
+                  {/* Method 2: Import via API */}
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={importMatterportTags}
-                    disabled={importing || !sdkReady}
-                    className="flex-1 text-xs"
-                    data-testid="import-tags-btn"
+                    onClick={importTagsViaAPI}
+                    disabled={importing}
+                    className="w-full text-xs border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-white"
+                    data-testid="import-api-btn"
                   >
                     {importing ? (
-                      <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                      <Loader2 className="w-3 h-3 animate-spin mr-2" />
                     ) : (
-                      <RefreshCw className="w-3 h-3 mr-1" />
+                      <RefreshCw className="w-3 h-3 mr-2" />
                     )}
-                    {t.importTags}
+                    Importa Tag via API
                   </Button>
+                  
+                  {/* Method 3: Manual Add */}
                   <Button
                     size="sm"
-                    onClick={() => setCreateMode(!createMode)}
-                    className={`flex-1 text-xs ${createMode ? 'bg-red-500 hover:bg-red-600' : 'btn-gold'}`}
-                    data-testid="add-poi-btn"
+                    onClick={() => {
+                      setNewPoiData({ name: "", description: "", tagId: "" });
+                      setDialogOpen(true);
+                    }}
+                    className="w-full text-xs btn-gold"
+                    data-testid="add-poi-manual-btn"
                   >
-                    {createMode ? (
-                      <>
-                        <X className="w-3 h-3 mr-1" />
-                        {t.cancelCreate}
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-3 h-3 mr-1" />
-                        {t.addPoi}
-                      </>
-                    )}
+                    <Plus className="w-3 h-3 mr-2" />
+                    Aggiungi POI Manuale
                   </Button>
+                  
+                  <p className="font-sans text-[10px] text-[#666058] mt-2">
+                    💡 Usa "Importa Tag via API" per importare automaticamente tutti i tag Matterport esistenti, 
+                    oppure "Aggiungi POI Manuale" per creare nuovi punti di interesse.
+                  </p>
                 </div>
               )}
 
