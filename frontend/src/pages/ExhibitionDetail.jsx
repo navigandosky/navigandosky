@@ -130,6 +130,7 @@ export default function ExhibitionDetail() {
   const [mpSdk, setMpSdk] = useState(null);
   const [createMode, setCreateMode] = useState(false);
   const [matterportTags, setMatterportTags] = useState([]);
+  const [generatingAudio, setGeneratingAudio] = useState({}); // { poiId_lang: true }
   
   const iframeRef = useRef(null);
   const audioRef = useRef(null);
