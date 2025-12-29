@@ -195,6 +195,121 @@ async def delete_poi(poi_id: str):
         raise HTTPException(status_code=404, detail="POI non trovato")
     return {"success": True}
 
+# ============== MATTERPORT API IMPORT ==============
+
+class ImportTagsRequest(BaseModel):
+    space_id: str
+    model_id: str
+
+@api_router.post("/import-matterport-tags")
+async def import_matterport_tags(request: ImportTagsRequest):
+    """
+    Importa i Mattertag da uno spazio Matterport via API.
+    Usa l'API Graph di Matterport per recuperare i tag.
+    """
+    try:
+        # Matterport API endpoint
+        api_url = f"https://api.matterport.com/api/models/{request.model_id}"
+        
+        headers = {
+            "Authorization": f"Bearer {MATTERPORT_API_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            # Try to get model data with mattertags
+            response = await client.get(
+                f"https://my.matterport.com/api/v1/player/models/{request.model_id}/mattertags",
+                headers={"x-matterport-token": MATTERPORT_API_TOKEN},
+                timeout=30.0
+            )
+            
+            if response.status_code != 200:
+                # Try alternative API endpoint
+                response = await client.get(
+                    f"https://api.matterport.com/api/models/{request.model_id}",
+                    headers=headers,
+                    timeout=30.0
+                )
+            
+            if response.status_code == 200:
+                data = response.json()
+                mattertags = data.get("mattertags", data.get("tags", []))
+                
+                if not mattertags:
+                    # Return info about what we found
+                    return {
+                        "success": True,
+                        "imported": 0,
+                        "message": "Nessun tag trovato tramite API. Usa l'importazione manuale o SDK.",
+                        "api_response": str(data)[:500]
+                    }
+                
+                imported_count = 0
+                skipped_count = 0
+                
+                for tag in mattertags:
+                    tag_sid = tag.get("sid") or tag.get("id") or str(uuid.uuid4())
+                    
+                    # Check if already exists
+                    existing = await db.pois.find_one({
+                        "space_id": request.space_id,
+                        "matterport_tag_id": tag_sid
+                    })
+                    
+                    if existing:
+                        skipped_count += 1
+                        continue
+                    
+                    # Create POI from tag
+                    label = tag.get("label") or tag.get("name") or f"Tag {tag_sid[:8]}"
+                    description = tag.get("description") or ""
+                    
+                    poi_data = {
+                        "id": str(uuid.uuid4()),
+                        "space_id": request.space_id,
+                        "matterport_tag_id": tag_sid,
+                        "name": {
+                            "it": label,
+                            "en": label,
+                            "fr": label,
+                            "de": label
+                        },
+                        "description": {
+                            "it": description,
+                            "en": description,
+                            "fr": description,
+                            "de": description
+                        },
+                        "position": tag.get("anchorPosition") or tag.get("position"),
+                        "audio_url": None,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
+                    
+                    await db.pois.insert_one(poi_data)
+                    imported_count += 1
+                
+                return {
+                    "success": True,
+                    "imported": imported_count,
+                    "skipped": skipped_count,
+                    "message": f"Importati {imported_count} tag, {skipped_count} già esistenti"
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Errore API Matterport: {response.status_code}",
+                    "detail": response.text[:500]
+                }
+                
+    except Exception as e:
+        logging.error(f"Error importing Matterport tags: {e}")
+        return {
+            "success": False,
+            "message": str(e)
+        }
+
 # ============== COSTUMES ==============
 
 @api_router.get("/costumes", response_model=List[Costume])
