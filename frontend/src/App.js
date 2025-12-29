@@ -911,6 +911,16 @@ const AdminPage = () => {
             <MapPin size={20} />
             <span>POI</span>
           </button>
+          <button
+            onClick={() => setActiveTab('costumi')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+              activeTab === 'costumi' ? 'bg-cyan-600/30 text-cyan-400' : 'text-gray-400 hover:text-white'
+            }`}
+            data-testid="tab-costumi"
+          >
+            <Archive size={20} />
+            <span>{lang === 'it' ? 'Archivio Costumi' : 'Costumes Archive'}</span>
+          </button>
         </div>
 
         {loading ? (
