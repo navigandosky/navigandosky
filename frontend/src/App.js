@@ -829,7 +829,9 @@ const AdminPage = () => {
                         </div>
                         <div>
                           <h3 className="font-medium text-white">{space.name[lang] || space.name.it}</h3>
-                          <p className="text-gray-500 text-sm">Model ID: {space.matterport_model_id || '-'}</p>
+                          <p className="text-gray-500 text-sm">
+                            {space.external_tour_url ? 'Link esterno' : `Model ID: ${space.matterport_model_id || '-'}`}
+                          </p>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${space.is_active ? 'bg-green-600/30 text-green-400' : 'bg-red-600/30 text-red-400'}`}>
                             {space.is_active ? 'Active' : 'Inactive'}
                           </span>
