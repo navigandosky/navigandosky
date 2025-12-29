@@ -204,7 +204,128 @@ class SpokeGalaverasAPITester:
         print("\n=== TESTING POIS ENDPOINTS ===")
         
         # Get all POIs
-        self.run_test("Get All POIs", "GET", "pois", 200)
+        success, pois = self.run_test("Get All POIs", "GET", "pois", 200)
+        
+        # Create a test space first for POI testing
+        test_space_data = {
+            "model_id": "test_poi_space",
+            "name": {"it": "Spazio per POI Test", "en": "POI Test Space", "fr": "Espace Test POI", "de": "POI Test Raum"},
+            "description": {"it": "Test", "en": "Test", "fr": "Test", "de": "Test"},
+            "is_active": True
+        }
+        
+        success_space, created_space = self.run_test(
+            "Create Space for POI Test",
+            "POST",
+            "spaces",
+            201,
+            data=test_space_data
+        )
+        
+        if success_space and 'id' in created_space:
+            space_id = created_space['id']
+            
+            # Create a test POI
+            test_poi_data = {
+                "space_id": space_id,
+                "matterport_tag_id": "test_tag_123",
+                "name": {
+                    "it": "POI Test",
+                    "en": "Test POI",
+                    "fr": "POI Test",
+                    "de": "Test POI"
+                },
+                "description": {
+                    "it": "Descrizione POI per test audio",
+                    "en": "POI description for audio test",
+                    "fr": "Description POI pour test audio",
+                    "de": "POI Beschreibung für Audio Test"
+                },
+                "audio_url": {
+                    "it": "/api/audio/test_it.mp3",
+                    "en": "/api/audio/test_en.mp3"
+                }
+            }
+            
+            success_poi, created_poi = self.run_test(
+                "Create POI with audio_url",
+                "POST",
+                "pois",
+                201,
+                data=test_poi_data
+            )
+            
+            if success_poi and 'id' in created_poi:
+                poi_id = created_poi['id']
+                
+                # Verify audio_url is returned correctly
+                if 'audio_url' in created_poi and created_poi['audio_url'].get('it') == "/api/audio/test_it.mp3":
+                    print("✅ POI audio_url field correctly saved")
+                    self.passed_tests.append("POI audio_url creation verification")
+                else:
+                    self.failed_tests.append({
+                        "test": "POI audio_url creation verification",
+                        "error": f"audio_url not found or incorrect: {created_poi.get('audio_url')}"
+                    })
+                
+                # Update POI with new audio URLs
+                updated_poi_data = test_poi_data.copy()
+                updated_poi_data['audio_url'] = {
+                    "it": "/api/audio/updated_it.mp3",
+                    "en": "/api/audio/updated_en.mp3",
+                    "fr": "/api/audio/updated_fr.mp3",
+                    "de": "/api/audio/updated_de.mp3"
+                }
+                
+                success_update, updated_poi = self.run_test(
+                    "Update POI audio_url",
+                    "PUT",
+                    f"pois/{poi_id}",
+                    200,
+                    data=updated_poi_data
+                )
+                
+                if success_update and updated_poi.get('audio_url', {}).get('fr') == "/api/audio/updated_fr.mp3":
+                    print("✅ POI audio_url field correctly updated")
+                    self.passed_tests.append("POI audio_url update verification")
+                else:
+                    self.failed_tests.append({
+                        "test": "POI audio_url update verification",
+                        "error": f"audio_url not updated correctly: {updated_poi.get('audio_url')}"
+                    })
+                
+                # Get specific POI to verify persistence
+                success_get, poi_data = self.run_test(
+                    "Get Specific POI (verify audio_url)",
+                    "GET",
+                    f"pois/{poi_id}",
+                    200
+                )
+                
+                if success_get and poi_data.get('audio_url', {}).get('de') == "/api/audio/updated_de.mp3":
+                    print("✅ POI audio_url field correctly persisted")
+                    self.passed_tests.append("POI audio_url persistence verification")
+                else:
+                    self.failed_tests.append({
+                        "test": "POI audio_url persistence verification",
+                        "error": f"audio_url not persisted correctly: {poi_data.get('audio_url')}"
+                    })
+                
+                # Clean up - delete POI
+                self.run_test(
+                    "Delete Test POI",
+                    "DELETE",
+                    f"pois/{poi_id}",
+                    200
+                )
+            
+            # Clean up - delete space
+            self.run_test(
+                "Delete Test Space",
+                "DELETE",
+                f"spaces/{space_id}",
+                200
+            )
 
     def test_project_endpoints(self):
         """Test project content endpoints"""
