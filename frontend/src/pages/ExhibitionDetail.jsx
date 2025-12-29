@@ -613,47 +613,58 @@ export default function ExhibitionDetail() {
                     🛠️ Strumenti Admin
                   </p>
                   
-                  {/* Import existing tags */}
-                  <Button
-                    size="sm"
-                    onClick={importMatterportTags}
-                    disabled={importing || sdkStatus !== 'connected'}
-                    className="w-full mb-2 bg-[#C5A059] hover:bg-[#B08D45] text-white"
-                    data-testid="import-tags-btn"
-                  >
-                    {importing ? (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    ) : (
-                      <Download className="w-4 h-4 mr-2" />
-                    )}
-                    {importing ? t.importing : t.importTags}
-                  </Button>
-                  
-                  {/* Create new tag by clicking */}
-                  <Button
-                    size="sm"
-                    onClick={() => setCreateMode(!createMode)}
-                    disabled={sdkStatus !== 'connected'}
-                    className={`w-full ${createMode ? 'bg-red-500 hover:bg-red-600' : 'bg-green-600 hover:bg-green-700'} text-white`}
-                    data-testid="create-tag-btn"
-                  >
-                    {createMode ? (
-                      <>
-                        <X className="w-4 h-4 mr-2" />
-                        {t.cancelCreate}
-                      </>
-                    ) : (
-                      <>
-                        <MousePointer className="w-4 h-4 mr-2" />
-                        {t.clickToCreate}
-                      </>
-                    )}
-                  </Button>
+                  {/* Import existing tags - Solo se NON usa mpskin */}
+                  {!space.mpskin_url && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={importMatterportTags}
+                        disabled={importing || sdkStatus !== 'connected'}
+                        className="w-full mb-2 bg-[#C5A059] hover:bg-[#B08D45] text-white"
+                        data-testid="import-tags-btn"
+                      >
+                        {importing ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <Download className="w-4 h-4 mr-2" />
+                        )}
+                        {importing ? t.importing : t.importTags}
+                      </Button>
+                      
+                      {/* Create new tag by clicking */}
+                      <Button
+                        size="sm"
+                        onClick={() => setCreateMode(!createMode)}
+                        disabled={sdkStatus !== 'connected'}
+                        className={`w-full ${createMode ? 'bg-red-500 hover:bg-red-600' : 'bg-green-600 hover:bg-green-700'} text-white`}
+                        data-testid="create-tag-btn"
+                      >
+                        {createMode ? (
+                          <>
+                            <X className="w-4 h-4 mr-2" />
+                            {t.cancelCreate}
+                          </>
+                        ) : (
+                          <>
+                            <MousePointer className="w-4 h-4 mr-2" />
+                            {t.clickToCreate}
+                          </>
+                        )}
+                      </Button>
 
-                  <p className="text-[10px] text-white/60 mt-3 leading-relaxed">
-                    <strong>Importa Tag:</strong> Scarica tutti i Mattertag esistenti nello spazio.<br/>
-                    <strong>Attiva Creazione:</strong> Clicca su un punto nel tour 3D per creare un nuovo POI.
-                  </p>
+                      <p className="text-[10px] text-white/60 mt-3 leading-relaxed">
+                        <strong>Importa Tag:</strong> Scarica tutti i Mattertag esistenti nello spazio.<br/>
+                        <strong>Attiva Creazione:</strong> Clicca su un punto nel tour 3D per creare un nuovo POI.
+                      </p>
+                    </>
+                  )}
+                  
+                  {/* Messaggio per Mpskin */}
+                  {space.mpskin_url && (
+                    <p className="text-[10px] text-white/60 leading-relaxed">
+                      <strong>Modalità Mpskin:</strong> L'importazione tag SDK non è disponibile con overlay Mpskin. Usa la gestione POI manuale nel pannello admin.
+                    </p>
+                  )}
                 </div>
               )}
 
