@@ -409,6 +409,7 @@ const SpacePage = () => {
   const [pois, setPois] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentAudio, setCurrentAudio] = useState(null);
+  const [currentPoi, setCurrentPoi] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
 
@@ -430,6 +431,25 @@ const SpacePage = () => {
     fetchData();
   }, [id]);
 
+  const playAudioLang = (poi, language) => {
+    const audioUrl = poi.audio_files[language];
+    if (audioUrl) {
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+      const fullUrl = audioUrl.startsWith('http') ? audioUrl : `${BACKEND_URL}${audioUrl}`;
+      const audio = new Audio(fullUrl);
+      audio.play();
+      setCurrentAudio(audio);
+      setCurrentPoi(poi.id);
+      setIsPlaying(true);
+      audio.onended = () => {
+        setIsPlaying(false);
+        setCurrentPoi(null);
+      };
+    }
+  };
+
   const playAudio = (poi) => {
     const audioUrl = poi.audio_files[lang] || poi.audio_files.it;
     if (audioUrl) {
@@ -441,8 +461,12 @@ const SpacePage = () => {
       const audio = new Audio(fullUrl);
       audio.play();
       setCurrentAudio(audio);
+      setCurrentPoi(poi.id);
       setIsPlaying(true);
-      audio.onended = () => setIsPlaying(false);
+      audio.onended = () => {
+        setIsPlaying(false);
+        setCurrentPoi(null);
+      };
     }
   };
 
