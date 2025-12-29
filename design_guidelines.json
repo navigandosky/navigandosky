@@ -1,0 +1,175 @@
+{
+  "identity": {
+    "name": "Spoke Ghivine",
+    "persona": "E1 - The Anti-AI Designer",
+    "tone": "Elegant, Immersive, Technological, Authoritative",
+    "archetype": "Jewel & Luxury (Cultural) mixed with Electric & Neon (Tech)",
+    "principles": [
+      "Fusion over Imitation: Mix ancient heritage aesthetics with futuristic tech UI.",
+      "Emotion First: Evoke mystery and discovery through dark mode and lighting.",
+      "Content is King: The 3D spaces and artifacts are the heroes; UI is the frame.",
+      "Negative Space: Use deep black space to let the content breathe."
+    ]
+  },
+  "typography": {
+    "headings": {
+      "family": "Playfair Display, serif",
+      "usage": "Hero titles, Section headers, Cultural context",
+      "weights": ["400", "700"],
+      "tracking": "tracking-tight"
+    },
+    "body": {
+      "family": "Manrope, sans-serif",
+      "usage": "UI elements, Descriptions, CMS data, Navigation",
+      "weights": ["300", "400", "500", "600"],
+      "tracking": "tracking-normal"
+    },
+    "mono": {
+      "family": "JetBrains Mono, monospace",
+      "usage": "Technical data, Coordinates, SDK debug info",
+      "weights": ["400"]
+    }
+  },
+  "colors": {
+    "palette": {
+      "background": {
+        "default": "#020204",
+        "paper": "#0A0A0A",
+        "subtle": "#121212"
+      },
+      "primary": {
+        "DEFAULT": "#06b6d4",
+        "hover": "#0891b2",
+        "foreground": "#ffffff"
+      },
+      "secondary": {
+        "DEFAULT": "#1e293b",
+        "foreground": "#f8fafc"
+      },
+      "accent": {
+        "cyan": "#22d3ee",
+        "blue": "#3b82f6",
+        "gold": "#d4af37"
+      },
+      "text": {
+        "primary": "#f8fafc",
+        "secondary": "#94a3b8",
+        "muted": "#64748b"
+      },
+      "border": {
+        "default": "#27272a",
+        "active": "#06b6d4"
+      }
+    },
+    "gradients": {
+      "hero": "linear-gradient(to bottom, rgba(2,2,4,0) 0%, #020204 100%)",
+      "glow": "radial-gradient(circle at center, rgba(6,182,212,0.15) 0%, rgba(0,0,0,0) 70%)"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": {
+      "overlay": "bg-black/60 backdrop-blur-xl border border-white/10 shadow-2xl",
+      "panel": "bg-[#0A0A0A]/80 backdrop-blur-md border border-white/5"
+    },
+    "borders": {
+      "tech": "1px solid rgba(6, 182, 212, 0.3)",
+      "subtle": "1px solid rgba(255, 255, 255, 0.08)"
+    },
+    "shadows": {
+      "neon": "0 0 20px rgba(6, 182, 212, 0.2)",
+      "deep": "0 20px 40px -10px rgba(0, 0, 0, 0.8)"
+    }
+  },
+  "layout_strategies": {
+    "grid_system": "Bento Grid (Mode A for Gallery, Mode B for CMS)",
+    "spacing": "Generous (2x standard). Use p-8, p-12, p-24.",
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "z_index": {
+      "viewer": 0,
+      "overlay": 10,
+      "modal": 50,
+      "toast": 100
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-8 py-6 text-lg font-medium transition-all duration-300 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]",
+      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-full px-6 py-4 border border-white/10",
+      "ghost": "hover:bg-white/5 text-white/70 hover:text-white"
+    },
+    "cards": {
+      "feature": "group relative overflow-hidden rounded-2xl bg-white/5 border border-white/10 hover:border-primary/50 transition-colors duration-500",
+      "cms": "bg-card text-card-foreground rounded-xl border border-border shadow-sm"
+    },
+    "inputs": {
+      "style": "bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20 rounded-lg h-12"
+    },
+    "matterport_overlay": {
+      "container": "absolute inset-0 pointer-events-none",
+      "controls": "pointer-events-auto bg-black/80 backdrop-blur-md border border-white/10 rounded-xl p-4 text-white"
+    }
+  },
+  "assets": {
+    "logos": [
+      {
+        "name": "Spoke 2 Uniss",
+        "url": "https://customer-assets.emergentagent.com/job_ghivine-spoke/artifacts/mfjfnz1n_Logo%20firma%20Spoke%202%20Uniss.png",
+        "type": "institutional"
+      },
+      {
+        "name": "Spoke 2 Completo",
+        "url": "https://customer-assets.emergentagent.com/job_ghivine-spoke/artifacts/cbw6ifjt_Logo%20firma%20Spoke2%20completo.png",
+        "type": "institutional"
+      }
+    ],
+    "images": {
+      "hero_backgrounds": [
+        "https://images.unsplash.com/photo-1630936933794-7e99a010f676?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1749239404815-5bf49b670db9?crop=entropy&cs=srgb&fm=jpg&q=85"
+      ],
+      "gallery_thumbnails": [
+        "https://images.unsplash.com/photo-1725261231524-951aa18930c3?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1729414047818-4c6221b42d0e?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1761641062457-bc8603350eb0?crop=entropy&cs=srgb&fm=jpg&q=85"
+      ],
+      "placeholders": [
+        "https://images.unsplash.com/photo-1647803238650-7997a3a6b807?crop=entropy&cs=srgb&fm=jpg&q=85",
+        "https://images.unsplash.com/photo-1645810338750-61b05184d891?crop=entropy&cs=srgb&fm=jpg&q=85"
+      ]
+    }
+  },
+  "page_specific_guidelines": {
+    "home": {
+      "structure": "Hero (Full height, video/3D bg) -> Intro (Text + Logos) -> Spaces Grid (Bento) -> Footer",
+      "key_elements": "Animated entrance for logos, Parallax scroll for ruins images, 'Enter Experience' primary CTA."
+    },
+    "matterport_viewer": {
+      "structure": "Full-screen iframe/SDK container. Overlay UI for: Language Switcher, POI List (Sidebar), Audio Controls.",
+      "interaction": "Sidebar should be collapsible. POIs in sidebar should trigger camera fly-to in 3D model.",
+      "sdk_config": {
+        "model_id": "UqskS4cg92b",
+        "application_key": "59wwqhip77fxkqiurcae74fed"
+      }
+    },
+    "cms_admin": {
+      "structure": "Sidebar Navigation (Left) -> Main Content Area (Right).",
+      "style": "Clean, functional, high contrast. Use Shadcn Data Tables for Space/POI lists. Forms for editing translations.",
+      "features": "Language tabs for text fields (IT, EN, FR, DE). Image upload dropzones."
+    }
+  },
+  "universal_guidelines": {
+    "accessibility": "Ensure contrast ratios > 4.5:1 for text. Use aria-labels for all icon buttons.",
+    "motion": "Use framer-motion for page transitions. Stagger children for lists. Smooth scroll (Lenis) is mandatory.",
+    "responsive": "Mobile-first. Stack grids on mobile. Hide non-essential 3D elements on small screens if performance lags.",
+    "testing": "All interactive elements must have data-testid attributes (e.g., 'nav-home-link', 'viewer-play-btn')."
+  },
+  "instructions_to_main_agent": [
+    "1. Install dependencies: framer-motion, lucide-react, clsx, tailwind-merge, @radix-ui/react-*, sonner.",
+    "2. Configure Tailwind with the custom colors and fonts defined above.",
+    "3. Create the Layout component with the global Navbar and Footer.",
+    "4. Implement the Matterport Viewer component using the SDK (mock if SDK fails locally, but structure for real integration).",
+    "5. Build the CMS pages using Shadcn components (Table, Form, Dialog, Tabs).",
+    "6. Ensure the 'Dark Mode' is default and permanent (force 'dark' class on html/body).",
+    "7. Use the provided Image URLs for the initial content population."
+  ]
+}
