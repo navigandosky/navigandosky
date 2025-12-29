@@ -1165,6 +1165,15 @@ const AdminPage = () => {
             onSave={() => { setEditingPoi(null); fetchData(); }}
           />
         )}
+
+        {/* Costume Edit Modal */}
+        {editingCostume && (
+          <CostumeEditModal 
+            costume={editingCostume}
+            onClose={() => setEditingCostume(null)} 
+            onSave={() => { setEditingCostume(null); fetchData(); }}
+          />
+        )}
       </div>
     </div>
   );
