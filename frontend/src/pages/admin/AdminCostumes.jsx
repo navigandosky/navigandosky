@@ -395,14 +395,14 @@ export default function AdminCostumes() {
                   Spazio Matterport
                 </label>
                 <Select
-                  value={formData.space_id}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, space_id: value }))}
+                  value={formData.space_id || "none"}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, space_id: value === "none" ? "" : value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleziona uno spazio" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessuno</SelectItem>
+                    <SelectItem value="none">Nessuno</SelectItem>
                     {spaces.map((space) => (
                       <SelectItem key={space.id} value={space.id}>
                         {space.name?.it || space.model_id}
