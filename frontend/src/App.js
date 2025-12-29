@@ -198,7 +198,7 @@ const HomePage = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url(https://images.unsplash.com/photo-1630936933794-7e99a010f676?crop=entropy&cs=srgb&fm=jpg&q=85)`,
+            backgroundImage: `url(https://images.unsplash.com/photo-1604321886510-1a923c8427d2?crop=entropy&cs=srgb&fm=jpg&q=85)`,
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-[#020204]" />
