@@ -482,14 +482,14 @@ export default function ExhibitionDetail() {
             >
               <iframe
                 ref={iframeRef}
-                src={`https://my.matterport.com/show/?m=${space.model_id}&play=1&qs=1`}
+                src={`https://my.matterport.com/show/?m=${space.model_id}&play=1&qs=1&applicationKey=${MATTERPORT_SDK_KEY}`}
                 title={getTranslation(space.name, language)}
                 className="w-full h-full"
                 style={{ minHeight: "600px" }}
                 allow="xr-spatial-tracking; fullscreen"
                 allowFullScreen
                 frameBorder="0"
-                id="matterport-iframe"
+                id="showcase-iframe"
                 data-testid="matterport-iframe"
               />
             </div>
