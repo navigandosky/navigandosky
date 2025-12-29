@@ -1,34 +1,90 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* Spoke Galaveras - Global Styles */
+/* Additional styles for App.css */
+
+.App {
+  min-height: 100vh;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.App-link {
-    color: #61dafb;
+/* Prose styling for project content */
+.prose p {
+  margin-bottom: 1.5em;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.prose h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.5rem;
+  margin-top: 2em;
+  margin-bottom: 1em;
+  color: #2A2A2A;
+}
+
+.prose h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.25rem;
+  margin-top: 1.5em;
+  margin-bottom: 0.75em;
+  color: #2A2A2A;
+}
+
+.prose ul, .prose ol {
+  margin-left: 1.5em;
+  margin-bottom: 1em;
+}
+
+.prose li {
+  margin-bottom: 0.5em;
+}
+
+.prose a {
+  color: #C5A059;
+  text-decoration: underline;
+}
+
+.prose a:hover {
+  color: #B08D45;
+}
+
+/* Custom scrollbar for dialogs */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: #F2F0EB;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #C5A059;
+  border-radius: 3px;
+}
+
+/* Admin table hover */
+tbody tr:hover {
+  background-color: #F9F8F6;
+}
+
+/* Focus styles */
+input:focus, textarea:focus, select:focus, button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.2);
+}
+
+/* Transition for all interactive elements */
+button, a, input, textarea {
+  transition: all 0.2s ease;
 }
