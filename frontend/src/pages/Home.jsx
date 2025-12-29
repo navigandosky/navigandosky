@@ -3,7 +3,7 @@ import { ArrowRight, Eye, Archive, BookOpen } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useLanguage } from "../hooks/useLanguage";
 
-const HERO_IMAGE = "https://images.pexels.com/photos/26618079/pexels-photo-26618079.jpeg";
+const HERO_IMAGE = "https://customer-assets.emergentagent.com/job_matterport-tours/artifacts/rt6113ik_loc_sito-web.jpg";
 const TEXTURE_IMAGE = "https://images.pexels.com/photos/8758357/pexels-photo-8758357.jpeg";
 
 const translations = {
