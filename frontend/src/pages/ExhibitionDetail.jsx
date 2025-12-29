@@ -495,7 +495,7 @@ export default function ExhibitionDetail() {
             </div>
             
             {/* SDK Status */}
-            <div className="mt-3 flex items-center gap-4">
+            <div className="mt-3 flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className={`w-3 h-3 rounded-full ${
                   sdkStatus === 'connected' ? 'bg-green-500' : 
@@ -511,6 +511,11 @@ export default function ExhibitionDetail() {
               {matterportTags.length > 0 && (
                 <span className="text-sm text-[#C5A059]">
                   {matterportTags.length} Mattertag nello spazio
+                </span>
+              )}
+              {sdkStatus === 'error' && isAdmin && (
+                <span className="text-xs text-red-500">
+                  Verifica configurazione domini in Matterport Developer Tools
                 </span>
               )}
             </div>
