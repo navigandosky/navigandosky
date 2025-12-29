@@ -475,7 +475,14 @@ const SpacePage = () => {
     <div className="min-h-screen pt-16">
       {/* Matterport Viewer or Placeholder */}
       <div className="relative h-[45vh] bg-black">
-        {space.matterport_model_id ? (
+        {space.external_tour_url ? (
+          <iframe
+            src={space.external_tour_url}
+            className="w-full h-full"
+            allowFullScreen
+            data-testid="external-tour-viewer"
+          />
+        ) : space.matterport_model_id ? (
           <iframe
             src={`https://my.matterport.com/show/?m=${space.matterport_model_id}&play=1&qs=1`}
             className="w-full h-full"
