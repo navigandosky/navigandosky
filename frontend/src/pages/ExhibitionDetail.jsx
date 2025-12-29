@@ -279,24 +279,6 @@ export default function ExhibitionDetail() {
         </div>
       </div>
 
-      {/* Create Mode Banner */}
-      {createMode && (
-        <div className="bg-[#C5A059] text-white py-3">
-          <div className="max-w-7xl mx-auto px-6 md:px-12 flex items-center justify-between">
-            <span className="font-sans">{t.createMode}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCreateMode(false)}
-              className="text-white hover:bg-white/20"
-            >
-              <X className="w-4 h-4 mr-2" />
-              {t.cancelCreate}
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Main Content */}
       <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-6">
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
