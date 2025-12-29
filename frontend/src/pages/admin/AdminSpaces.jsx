@@ -42,7 +42,8 @@ export default function AdminSpaces() {
     name: { ...EMPTY_TRANSLATION },
     description: { ...EMPTY_TRANSLATION },
     cover_image: "",
-    is_active: true
+    is_active: true,
+    mpskin_url: ""
   });
 
   useEffect(() => {
