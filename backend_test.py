@@ -609,6 +609,7 @@ def main():
     tester.test_project_endpoints()
     tester.test_translation_service()
     tester.test_tts_service()
+    tester.test_new_features()  # Test the newly implemented features
     
     # Print summary
     tester.print_summary()
