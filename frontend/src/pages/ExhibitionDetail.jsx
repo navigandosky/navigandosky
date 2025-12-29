@@ -172,18 +172,6 @@ export default function ExhibitionDetail() {
       audioRef.current.pause();
       setPlayingAudio(null);
     }
-
-    // Navigate to POI in Matterport if SDK is ready
-    if (mpSdk && poi.position) {
-      try {
-        mpSdk.Camera.lookAt({
-          position: poi.position,
-          transition: mpSdk.Camera.Transition.FLY
-        });
-      } catch (e) {
-        console.log("Camera navigation not available");
-      }
-    }
   };
 
   const playAudio = (poi) => {
