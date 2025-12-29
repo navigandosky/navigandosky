@@ -15,10 +15,13 @@ import AdminCostumes from "./pages/admin/AdminCostumes";
 import AdminProject from "./pages/admin/AdminProject";
 import "./App.css";
 
+// Base path for deployment
+const basename = process.env.PUBLIC_URL || "";
+
 function App() {
   return (
     <div className="App min-h-screen bg-[#F9F8F6]">
-      <BrowserRouter>
+      <BrowserRouter basename={basename}>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />

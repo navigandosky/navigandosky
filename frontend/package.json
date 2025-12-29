@@ -2,6 +2,7 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/spokegalaveras",
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
     "@matterport/sdk": "^1.6.0",
