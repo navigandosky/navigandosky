@@ -436,7 +436,9 @@ const SpacePage = () => {
       if (currentAudio) {
         currentAudio.pause();
       }
-      const audio = new Audio(`${BACKEND_URL}${audioUrl}`);
+      // Use full URL if it starts with http, otherwise prepend BACKEND_URL
+      const fullUrl = audioUrl.startsWith('http') ? audioUrl : `${BACKEND_URL}${audioUrl}`;
+      const audio = new Audio(fullUrl);
       audio.play();
       setCurrentAudio(audio);
       setIsPlaying(true);
