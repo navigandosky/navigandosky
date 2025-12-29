@@ -99,13 +99,10 @@ export default function ExhibitionDetail() {
   const [loading, setLoading] = useState(true);
   const [selectedPoi, setSelectedPoi] = useState(null);
   const [playingAudio, setPlayingAudio] = useState(null);
-  const [sdkReady, setSdkReady] = useState(false);
-  const [mpSdk, setMpSdk] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [createMode, setCreateMode] = useState(false);
-  const [newPoiPosition, setNewPoiPosition] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [newPoiPosition, setNewPoiPosition] = useState(null);
   const [newPoiData, setNewPoiData] = useState({ name: "", description: "", tagId: "" });
   
   const iframeRef = useRef(null);
