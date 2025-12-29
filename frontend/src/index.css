@@ -214,7 +214,7 @@ audio::-webkit-media-controls-panel {
 /* Logo fixed position */
 .logo-fixed {
   position: fixed;
-  bottom: 20px;
+  bottom: 40px;
   left: 20px;
   z-index: 50;
   opacity: 0.9;
