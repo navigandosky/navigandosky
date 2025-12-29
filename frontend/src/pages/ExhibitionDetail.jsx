@@ -694,19 +694,59 @@ export default function ExhibitionDetail() {
                         {getTranslation(poi.description, language)}
                       </p>
                       
-                      {poi.audio_url && (poi.audio_url[language] || poi.audio_url.it) && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="w-full text-xs border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-white"
-                          onClick={(e) => { e.stopPropagation(); playAudio(poi); }}
-                        >
-                          {playingAudio === poi.id ? (
-                            <><Pause className="w-3 h-3 mr-1" />{t.pauseAudio}</>
-                          ) : (
-                            <><Volume2 className="w-3 h-3 mr-1" />{t.playAudio}</>
-                          )}
-                        </Button>
+                      {/* Audio controls */}
+                      <div className="flex flex-wrap gap-2">
+                        {poi.audio_url && (poi.audio_url[language] || poi.audio_url.it) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-white"
+                            onClick={(e) => { e.stopPropagation(); playAudio(poi); }}
+                          >
+                            {playingAudio === poi.id ? (
+                              <><Pause className="w-3 h-3 mr-1" />{t.pauseAudio}</>
+                            ) : (
+                              <><Volume2 className="w-3 h-3 mr-1" />{t.playAudio}</>
+                            )}
+                          </Button>
+                        )}
+                        
+                        {/* Pulsante Genera Audio TTS - Solo per admin */}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs border-green-500 text-green-600 hover:bg-green-500 hover:text-white"
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              generateAudioForPoi(poi, language);
+                            }}
+                            disabled={generatingAudio[`${poi.id}_${language}`] || !poi.description?.[language]}
+                            data-testid={`generate-audio-${poi.id}`}
+                          >
+                            {generatingAudio[`${poi.id}_${language}`] ? (
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />{t.generating}</>
+                            ) : (
+                              <><Mic className="w-3 h-3 mr-1" />{t.generateAudio}</>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Audio status indicators */}
+                      {isAdmin && (
+                        <div className="flex gap-1 mt-2">
+                          {["it", "en", "fr", "de"].map((lang) => (
+                            <span
+                              key={lang}
+                              className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                poi.audio_url?.[lang] ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                              }`}
+                            >
+                              {lang.toUpperCase()}
+                            </span>
+                          ))}
+                        </div>
                       )}
 
                       {poi.matterport_tag_id && (
