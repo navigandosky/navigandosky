@@ -142,9 +142,8 @@ const Footer = () => {
     <footer className="bg-black/50 border-t border-white/10 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-start">
-          <p className="text-gray-400 text-sm mb-3">Realizzato da TRIVOR SRL</p>
           <img src={LOGO_SPOKE} alt="Spoke Ghivine" className="h-20 w-auto object-contain" />
-          <p className="text-gray-500 text-xs mt-4">© {new Date().getFullYear()} Tutti i diritti riservati</p>
+          <p className="text-gray-500 text-xs mt-4">Realizzato da TRIVOR SRL © per Coop. Ghivine - Tutti i diritti riservati</p>
         </div>
       </div>
     </footer>
@@ -198,7 +197,7 @@ const HomePage = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url(https://images.unsplash.com/photo-1604321886510-1a923c8427d2?crop=entropy&cs=srgb&fm=jpg&q=85)`,
+            backgroundImage: `url(https://customer-assets.emergentagent.com/job_ghivine-spoke/artifacts/f50qoo8w_grotta%20bue%20marino_ingresso.jpg)`,
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-[#020204]" />
