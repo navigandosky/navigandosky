@@ -267,9 +267,9 @@ export default function ExhibitionDetail() {
     }
   };
 
-  // Create new POI at clicked position
+  // Method 3: Create new POI manually
   const createNewPoi = async () => {
-    if (!newPoiData.name || !newPoiPosition) {
+    if (!newPoiData.name) {
       toast.error("Inserisci almeno il nome del POI");
       return;
     }
@@ -277,7 +277,7 @@ export default function ExhibitionDetail() {
     try {
       const poiData = {
         space_id: id,
-        matterport_tag_id: null,
+        matterport_tag_id: newPoiData.tagId || null,
         name: {
           it: newPoiData.name,
           en: newPoiData.name,
@@ -294,13 +294,13 @@ export default function ExhibitionDetail() {
       };
 
       await axios.post(`${API}/pois`, poiData);
-      toast.success("POI creato con successo");
+      toast.success("POI creato con successo! Vai su Admin > POI per tradurre e generare l'audio.");
       
       // Reset state
       setDialogOpen(false);
       setCreateMode(false);
       setNewPoiPosition(null);
-      setNewPoiData({ name: "", description: "" });
+      setNewPoiData({ name: "", description: "", tagId: "" });
       fetchData();
     } catch (error) {
       toast.error("Errore nella creazione del POI");
