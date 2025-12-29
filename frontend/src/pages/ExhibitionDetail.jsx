@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, MapPin, Volume2, Pause, Loader2, Plus, Save, X, RefreshCw } from "lucide-react";
+import { ArrowLeft, MapPin, Volume2, Pause, Loader2, Plus, Save, Download, MousePointer, X } from "lucide-react";
 import axios from "axios";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useLanguage, getTranslation } from "../hooks/useLanguage";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const MATTERPORT_SDK_KEY = "59wwqhip77fxkqiurcae74fed";
 
 const translations = {
   it: {
@@ -25,14 +26,17 @@ const translations = {
     playAudio: "Riproduci audioguida",
     pauseAudio: "Pausa",
     addPoi: "Aggiungi POI",
-    importTags: "Importa Tag",
+    importTags: "Importa Tag da Matterport",
+    createMode: "MODALITÀ CREAZIONE: Clicca su un punto nello spazio 3D",
     cancelCreate: "Annulla",
     savePoi: "Salva POI",
     poiName: "Nome del POI",
     poiDescription: "Descrizione",
-    importingTags: "Importazione tag...",
-    tagsImported: "Tag importati",
-    noTagsFound: "Nessun tag trovato nello spazio"
+    sdkConnecting: "Connessione SDK...",
+    sdkConnected: "SDK Connesso",
+    sdkError: "SDK non disponibile",
+    clickToCreate: "Attiva Creazione Tag",
+    importing: "Importazione in corso..."
   },
   en: {
     back: "Back to exhibitions",
@@ -42,14 +46,17 @@ const translations = {
     playAudio: "Play audio guide",
     pauseAudio: "Pause",
     addPoi: "Add POI",
-    importTags: "Import Tags",
+    importTags: "Import Tags from Matterport",
+    createMode: "CREATION MODE: Click on a point in the 3D space",
     cancelCreate: "Cancel",
     savePoi: "Save POI",
     poiName: "POI Name",
     poiDescription: "Description",
-    importingTags: "Importing tags...",
-    tagsImported: "Tags imported",
-    noTagsFound: "No tags found in space"
+    sdkConnecting: "Connecting SDK...",
+    sdkConnected: "SDK Connected",
+    sdkError: "SDK not available",
+    clickToCreate: "Enable Tag Creation",
+    importing: "Importing..."
   },
   fr: {
     back: "Retour aux expositions",
@@ -59,14 +66,17 @@ const translations = {
     playAudio: "Lire l'audioguide",
     pauseAudio: "Pause",
     addPoi: "Ajouter POI",
-    importTags: "Importer Tags",
+    importTags: "Importer Tags de Matterport",
+    createMode: "MODE CRÉATION: Cliquez sur un point dans l'espace 3D",
     cancelCreate: "Annuler",
     savePoi: "Enregistrer",
     poiName: "Nom du POI",
     poiDescription: "Description",
-    importingTags: "Importation...",
-    tagsImported: "Tags importés",
-    noTagsFound: "Aucun tag trouvé"
+    sdkConnecting: "Connexion SDK...",
+    sdkConnected: "SDK Connecté",
+    sdkError: "SDK non disponible",
+    clickToCreate: "Activer création",
+    importing: "Importation..."
   },
   de: {
     back: "Zurück zu Ausstellungen",
@@ -76,14 +86,17 @@ const translations = {
     playAudio: "Audioguide abspielen",
     pauseAudio: "Pause",
     addPoi: "POI hinzufügen",
-    importTags: "Tags importieren",
+    importTags: "Tags von Matterport importieren",
+    createMode: "ERSTELLUNGSMODUS: Klicken Sie auf einen Punkt im 3D-Raum",
     cancelCreate: "Abbrechen",
     savePoi: "Speichern",
     poiName: "POI-Name",
     poiDescription: "Beschreibung",
-    importingTags: "Importiere...",
-    tagsImported: "Tags importiert",
-    noTagsFound: "Keine Tags gefunden"
+    sdkConnecting: "SDK verbinden...",
+    sdkConnected: "SDK Verbunden",
+    sdkError: "SDK nicht verfügbar",
+    clickToCreate: "Tag-Erstellung aktivieren",
+    importing: "Importiere..."
   }
 };
 
@@ -99,14 +112,18 @@ export default function ExhibitionDetail() {
   const [importing, setImporting] = useState(false);
   const [newPoiPosition, setNewPoiPosition] = useState(null);
   const [newPoiData, setNewPoiData] = useState({ name: "", description: "", tagId: "" });
-  const [sdkReady, setSdkReady] = useState(false);
+  
+  // SDK State
+  const [sdkStatus, setSdkStatus] = useState("disconnected"); // disconnected, connecting, connected, error
+  const [mpSdk, setMpSdk] = useState(null);
+  const [createMode, setCreateMode] = useState(false);
+  const [matterportTags, setMatterportTags] = useState([]);
   
   const iframeRef = useRef(null);
   const audioRef = useRef(null);
   const { language } = useLanguage();
   const t = translations[language];
 
-  // Check if admin is logged in
   useEffect(() => {
     setIsAdmin(localStorage.getItem("admin_authenticated") === "true");
   }, []);
@@ -115,11 +132,85 @@ export default function ExhibitionDetail() {
     fetchData();
   }, [id]);
 
-  // Initialize Matterport SDK (optional - for future SDK features)
+  // Initialize Matterport SDK when space is loaded
   useEffect(() => {
-    if (!space || !iframeRef.current) return;
-    // SDK initialization code here if needed
+    if (!space || !iframeRef.current || sdkStatus === "connected") return;
+
+    const initSdk = async () => {
+      setSdkStatus("connecting");
+      
+      try {
+        // Load SDK script
+        if (!window.MP_SDK) {
+          const script = document.createElement('script');
+          script.src = 'https://static.matterport.com/showcase-sdk/latest/sdk.js';
+          script.async = true;
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
+        // Wait for iframe to be ready
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Connect to SDK
+        const iframe = iframeRef.current;
+        if (window.MP_SDK && iframe) {
+          try {
+            const sdk = await window.MP_SDK.connect(iframe, MATTERPORT_SDK_KEY, '');
+            setMpSdk(sdk);
+            setSdkStatus("connected");
+            console.log("✅ Matterport SDK connected!");
+
+            // Get existing Mattertags
+            try {
+              const tags = await sdk.Mattertag.getData();
+              console.log("📍 Found Mattertags:", tags);
+              setMatterportTags(tags || []);
+            } catch (e) {
+              console.log("Could not get Mattertags:", e);
+            }
+
+          } catch (err) {
+            console.log("SDK connect error:", err);
+            setSdkStatus("error");
+          }
+        }
+      } catch (error) {
+        console.error("Error loading SDK:", error);
+        setSdkStatus("error");
+      }
+    };
+
+    const timer = setTimeout(initSdk, 2000);
+    return () => clearTimeout(timer);
   }, [space]);
+
+  // Handle click events when in create mode
+  useEffect(() => {
+    if (!mpSdk || !createMode) return;
+
+    const subscription = mpSdk.Pointer.intersection.subscribe((intersection) => {
+      if (intersection && createMode) {
+        console.log("📍 Click position:", intersection.position);
+        setNewPoiPosition({
+          x: intersection.position.x,
+          y: intersection.position.y,
+          z: intersection.position.z
+        });
+        setDialogOpen(true);
+        setCreateMode(false);
+      }
+    });
+
+    return () => {
+      if (subscription) {
+        subscription.cancel();
+      }
+    };
+  }, [mpSdk, createMode]);
 
   const fetchData = async () => {
     try {
@@ -136,58 +227,75 @@ export default function ExhibitionDetail() {
     }
   };
 
-  // Method 2: Import tags via Matterport API
-  const importTagsViaAPI = async () => {
-    if (!space) return;
-    
+  // FUNZIONE 1: Importa tutti i Mattertag esistenti dallo spazio
+  const importMatterportTags = async () => {
+    if (!mpSdk) {
+      toast.error("SDK non connesso. Attendi la connessione.");
+      return;
+    }
+
     setImporting(true);
     try {
-      const response = await axios.post(`${API}/import-matterport-tags`, {
-        space_id: id,
-        model_id: space.model_id
-      });
-      
-      if (response.data.success) {
-        toast.success(response.data.message || `Importati ${response.data.imported} tag`);
-        if (response.data.imported > 0) {
-          fetchData(); // Refresh POIs list
-        }
-      } else {
-        toast.error(response.data.message || "Errore nell'importazione");
+      // Get all Mattertags from SDK
+      const tags = await mpSdk.Mattertag.getData();
+      console.log("Tags found:", tags);
+
+      if (!tags || tags.length === 0) {
+        toast.info("Nessun Mattertag trovato nello spazio Matterport");
+        setImporting(false);
+        return;
       }
+
+      let importedCount = 0;
+      let skippedCount = 0;
+
+      for (const tag of tags) {
+        // Check if already exists
+        const exists = pois.some(p => p.matterport_tag_id === tag.sid);
+        if (exists) {
+          skippedCount++;
+          continue;
+        }
+
+        // Create POI from Mattertag
+        const poiData = {
+          space_id: id,
+          matterport_tag_id: tag.sid,
+          name: {
+            it: tag.label || `Tag ${tag.sid.substring(0, 8)}`,
+            en: tag.label || `Tag ${tag.sid.substring(0, 8)}`,
+            fr: tag.label || `Tag ${tag.sid.substring(0, 8)}`,
+            de: tag.label || `Tag ${tag.sid.substring(0, 8)}`
+          },
+          description: {
+            it: tag.description || "",
+            en: tag.description || "",
+            fr: tag.description || "",
+            de: tag.description || ""
+          },
+          position: tag.anchorPosition || null
+        };
+
+        try {
+          await axios.post(`${API}/pois`, poiData);
+          importedCount++;
+        } catch (e) {
+          console.error("Error creating POI:", e);
+        }
+      }
+
+      toast.success(`✅ Importati ${importedCount} tag! (${skippedCount} già esistenti)`);
+      fetchData(); // Refresh list
+
     } catch (error) {
       console.error("Error importing tags:", error);
-      toast.error("Errore nella connessione all'API Matterport");
+      toast.error("Errore nell'importazione dei tag");
     } finally {
       setImporting(false);
     }
   };
 
-  const handlePoiClick = (poi) => {
-    setSelectedPoi(poi);
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setPlayingAudio(null);
-    }
-  };
-
-  const playAudio = (poi) => {
-    const audioUrl = poi.audio_url?.[language] || poi.audio_url?.it;
-    if (!audioUrl) return;
-
-    if (playingAudio === poi.id) {
-      audioRef.current?.pause();
-      setPlayingAudio(null);
-    } else {
-      if (audioRef.current) {
-        audioRef.current.src = audioUrl.startsWith('http') ? audioUrl : `${process.env.REACT_APP_BACKEND_URL}${audioUrl}`;
-        audioRef.current.play();
-        setPlayingAudio(poi.id);
-      }
-    }
-  };
-
-  // Method 3: Create new POI manually
+  // FUNZIONE 2: Crea nuovo POI dalla posizione cliccata
   const createNewPoi = async () => {
     if (!newPoiData.name) {
       toast.error("Inserisci almeno il nome del POI");
@@ -195,6 +303,7 @@ export default function ExhibitionDetail() {
     }
 
     try {
+      // Create POI in database
       const poiData = {
         space_id: id,
         matterport_tag_id: newPoiData.tagId || null,
@@ -214,15 +323,70 @@ export default function ExhibitionDetail() {
       };
 
       await axios.post(`${API}/pois`, poiData);
-      toast.success("POI creato con successo! Vai su Admin > POI per tradurre e generare l'audio.");
-      
-      // Reset state
+
+      // Optionally create Mattertag in Matterport space
+      if (mpSdk && newPoiPosition) {
+        try {
+          await mpSdk.Mattertag.add([{
+            label: newPoiData.name,
+            description: newPoiData.description,
+            anchorPosition: newPoiPosition,
+            stemVector: { x: 0, y: 0.5, z: 0 }
+          }]);
+          toast.success("✅ POI creato e tag aggiunto allo spazio Matterport!");
+        } catch (e) {
+          toast.success("✅ POI creato! (Tag Matterport non aggiunto - permessi)");
+        }
+      } else {
+        toast.success("✅ POI creato con successo!");
+      }
+
+      // Reset
       setDialogOpen(false);
       setNewPoiPosition(null);
       setNewPoiData({ name: "", description: "", tagId: "" });
       fetchData();
+
     } catch (error) {
+      console.error("Error creating POI:", error);
       toast.error("Errore nella creazione del POI");
+    }
+  };
+
+  const handlePoiClick = (poi) => {
+    setSelectedPoi(poi);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setPlayingAudio(null);
+    }
+
+    // Navigate to POI in Matterport if SDK is ready and position exists
+    if (mpSdk && poi.position) {
+      try {
+        mpSdk.Camera.lookAt({
+          position: poi.position,
+          transition: mpSdk.Camera.Transition.FLY,
+          time: 1000
+        });
+      } catch (e) {
+        console.log("Camera navigation error:", e);
+      }
+    }
+  };
+
+  const playAudio = (poi) => {
+    const audioUrl = poi.audio_url?.[language] || poi.audio_url?.it;
+    if (!audioUrl) return;
+
+    if (playingAudio === poi.id) {
+      audioRef.current?.pause();
+      setPlayingAudio(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.src = audioUrl.startsWith('http') ? audioUrl : `${process.env.REACT_APP_BACKEND_URL}${audioUrl}`;
+        audioRef.current.play();
+        setPlayingAudio(poi.id);
+      }
     }
   };
 
@@ -239,51 +403,62 @@ export default function ExhibitionDetail() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center">
         <p className="font-sans text-[#666058] mb-4">{t.notFound}</p>
-        <Link to="/exhibitions" className="text-[#C5A059] hover:underline">
-          {t.back}
-        </Link>
+        <Link to="/exhibitions" className="text-[#C5A059] hover:underline">{t.back}</Link>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen">
-      {/* Hidden audio element */}
-      <audio 
-        ref={audioRef} 
-        onEnded={() => setPlayingAudio(null)}
-        className="hidden"
-      />
+      <audio ref={audioRef} onEnded={() => setPlayingAudio(null)} className="hidden" />
 
       {/* Header */}
-      <div className="bg-[#1A1918] text-white py-8">
-        <div className="max-w-7xl mx-auto px-6 md:px-12">
-          <Link 
-            to="/exhibitions" 
-            className="inline-flex items-center text-[#C5A059] hover:text-white transition-colors mb-6"
-            data-testid="back-link"
-          >
+      <div className="bg-[#1A1918] text-white py-6">
+        <div className="max-w-[1800px] mx-auto px-4 md:px-8">
+          <Link to="/exhibitions" className="inline-flex items-center text-[#C5A059] hover:text-white transition-colors mb-4" data-testid="back-link">
             <ArrowLeft className="w-4 h-4 mr-2" />
             {t.back}
           </Link>
-          <h1 className="font-serif text-3xl md:text-4xl" data-testid="space-title">
+          <h1 className="font-serif text-2xl md:text-3xl" data-testid="space-title">
             {getTranslation(space.name, language)}
           </h1>
-          <p className="font-sans text-white/70 mt-3 max-w-2xl">
-            {getTranslation(space.description, language)}
-          </p>
         </div>
       </div>
+
+      {/* Create Mode Banner */}
+      {createMode && (
+        <div className="bg-[#C5A059] text-white py-3 animate-pulse">
+          <div className="max-w-[1800px] mx-auto px-4 md:px-8 flex items-center justify-between">
+            <span className="font-sans font-medium flex items-center">
+              <MousePointer className="w-5 h-5 mr-2" />
+              {t.createMode}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCreateMode(false)}
+              className="text-white hover:bg-white/20"
+            >
+              <X className="w-4 h-4 mr-2" />
+              {t.cancelCreate}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-6">
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          {/* Matterport Viewer - Much Larger */}
+          
+          {/* Matterport Viewer */}
           <div className="xl:col-span-3">
-            <div className="matterport-frame rounded-sm overflow-hidden" style={{ aspectRatio: "16/9", minHeight: "600px" }}>
+            <div 
+              className={`matterport-frame rounded-sm overflow-hidden ${createMode ? 'ring-4 ring-[#C5A059] ring-offset-2' : ''}`} 
+              style={{ aspectRatio: "16/9", minHeight: "600px" }}
+            >
               <iframe
                 ref={iframeRef}
-                src={`https://my.matterport.com/show/?m=${space.model_id}&play=1`}
+                src={`https://my.matterport.com/show/?m=${space.model_id}&play=1&qs=1&applicationKey=${MATTERPORT_SDK_KEY}`}
                 title={getTranslation(space.name, language)}
                 className="w-full h-full"
                 style={{ minHeight: "600px" }}
@@ -295,17 +470,85 @@ export default function ExhibitionDetail() {
             </div>
             
             {/* SDK Status */}
-            <div className="mt-2 text-xs text-[#666058] flex items-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${sdkReady ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
-              {sdkReady ? "SDK connesso" : "SDK in connessione..."}
+            <div className="mt-3 flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className={`w-3 h-3 rounded-full ${
+                  sdkStatus === 'connected' ? 'bg-green-500' : 
+                  sdkStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' : 
+                  sdkStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+                }`}></span>
+                <span className="text-sm text-[#666058]">
+                  {sdkStatus === 'connected' ? t.sdkConnected : 
+                   sdkStatus === 'connecting' ? t.sdkConnecting : 
+                   sdkStatus === 'error' ? t.sdkError : 'SDK'}
+                </span>
+              </div>
+              {matterportTags.length > 0 && (
+                <span className="text-sm text-[#C5A059]">
+                  {matterportTags.length} Mattertag nello spazio
+                </span>
+              )}
             </div>
           </div>
 
-          {/* POIs Sidebar */}
+          {/* Sidebar */}
           <div className="xl:col-span-1">
-            <div className="bg-white rounded-sm border border-[#E5E0D8] p-6 sticky top-24 max-h-[80vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-serif text-xl text-[#2A2A2A] flex items-center gap-2">
+            <div className="bg-white rounded-sm border border-[#E5E0D8] p-5 sticky top-24">
+              
+              {/* Admin Tools */}
+              {isAdmin && (
+                <div className="mb-6 p-4 bg-[#1A1918] rounded-sm">
+                  <p className="font-sans text-xs text-[#C5A059] font-bold uppercase tracking-wide mb-3">
+                    🛠️ Strumenti Admin
+                  </p>
+                  
+                  {/* Import existing tags */}
+                  <Button
+                    size="sm"
+                    onClick={importMatterportTags}
+                    disabled={importing || sdkStatus !== 'connected'}
+                    className="w-full mb-2 bg-[#C5A059] hover:bg-[#B08D45] text-white"
+                    data-testid="import-tags-btn"
+                  >
+                    {importing ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Download className="w-4 h-4 mr-2" />
+                    )}
+                    {importing ? t.importing : t.importTags}
+                  </Button>
+                  
+                  {/* Create new tag by clicking */}
+                  <Button
+                    size="sm"
+                    onClick={() => setCreateMode(!createMode)}
+                    disabled={sdkStatus !== 'connected'}
+                    className={`w-full ${createMode ? 'bg-red-500 hover:bg-red-600' : 'bg-green-600 hover:bg-green-700'} text-white`}
+                    data-testid="create-tag-btn"
+                  >
+                    {createMode ? (
+                      <>
+                        <X className="w-4 h-4 mr-2" />
+                        {t.cancelCreate}
+                      </>
+                    ) : (
+                      <>
+                        <MousePointer className="w-4 h-4 mr-2" />
+                        {t.clickToCreate}
+                      </>
+                    )}
+                  </Button>
+
+                  <p className="text-[10px] text-white/60 mt-3 leading-relaxed">
+                    <strong>Importa Tag:</strong> Scarica tutti i Mattertag esistenti nello spazio.<br/>
+                    <strong>Attiva Creazione:</strong> Clicca su un punto nel tour 3D per creare un nuovo POI.
+                  </p>
+                </div>
+              )}
+
+              {/* POIs Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-serif text-lg text-[#2A2A2A] flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-[#C5A059]" />
                   {t.pois}
                 </h2>
@@ -314,59 +557,18 @@ export default function ExhibitionDetail() {
                 </span>
               </div>
 
-              {/* Admin Actions */}
-              {isAdmin && (
-                <div className="space-y-3 mb-6 p-4 bg-[#F2F0EB] rounded-sm">
-                  <p className="font-sans text-xs text-[#666058] font-medium uppercase tracking-wide">Strumenti Admin</p>
-                  
-                  {/* Method 2: Import via API */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={importTagsViaAPI}
-                    disabled={importing}
-                    className="w-full text-xs border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-white"
-                    data-testid="import-api-btn"
-                  >
-                    {importing ? (
-                      <Loader2 className="w-3 h-3 animate-spin mr-2" />
-                    ) : (
-                      <RefreshCw className="w-3 h-3 mr-2" />
-                    )}
-                    Importa Tag via API
-                  </Button>
-                  
-                  {/* Method 3: Manual Add */}
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setNewPoiData({ name: "", description: "", tagId: "" });
-                      setDialogOpen(true);
-                    }}
-                    className="w-full text-xs btn-gold"
-                    data-testid="add-poi-manual-btn"
-                  >
-                    <Plus className="w-3 h-3 mr-2" />
-                    Aggiungi POI Manuale
-                  </Button>
-                  
-                  <p className="font-sans text-[10px] text-[#666058] mt-2">
-                    💡 Usa &ldquo;Importa Tag via API&rdquo; per importare automaticamente tutti i tag Matterport esistenti, 
-                    oppure &ldquo;Aggiungi POI Manuale&rdquo; per creare nuovi punti di interesse.
-                  </p>
-                </div>
-              )}
-
+              {/* POIs List */}
               {pois.length === 0 ? (
-                <p className="font-sans text-sm text-[#666058]">
-                  Nessun punto di interesse disponibile
+                <p className="font-sans text-sm text-[#666058] text-center py-8">
+                  Nessun POI.<br/>
+                  {isAdmin && sdkStatus === 'connected' && "Usa gli strumenti sopra per importare o creare."}
                 </p>
               ) : (
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-3 max-h-[50vh] overflow-y-auto">
                   {pois.map((poi) => (
                     <div
                       key={poi.id}
-                      className={`p-4 rounded-sm border transition-all cursor-pointer ${
+                      className={`p-3 rounded-sm border transition-all cursor-pointer ${
                         selectedPoi?.id === poi.id
                           ? "border-[#C5A059] bg-[#F9F8F6]"
                           : "border-[#E5E0D8] hover:border-[#C5A059]/50"
@@ -374,43 +576,31 @@ export default function ExhibitionDetail() {
                       onClick={() => handlePoiClick(poi)}
                       data-testid={`poi-${poi.id}`}
                     >
-                      <h3 className="font-serif text-lg text-[#2A2A2A] mb-2">
+                      <h3 className="font-serif text-base text-[#2A2A2A] mb-1">
                         {getTranslation(poi.name, language)}
                       </h3>
-                      <p className="font-sans text-sm text-[#666058] line-clamp-2 mb-3">
+                      <p className="font-sans text-xs text-[#666058] line-clamp-2 mb-2">
                         {getTranslation(poi.description, language)}
                       </p>
                       
-                      {/* Audio button */}
                       {poi.audio_url && (poi.audio_url[language] || poi.audio_url.it) && (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="w-full border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            playAudio(poi);
-                          }}
-                          data-testid={`play-audio-${poi.id}`}
+                          className="w-full text-xs border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-white"
+                          onClick={(e) => { e.stopPropagation(); playAudio(poi); }}
                         >
                           {playingAudio === poi.id ? (
-                            <>
-                              <Pause className="w-4 h-4 mr-2" />
-                              {t.pauseAudio}
-                            </>
+                            <><Pause className="w-3 h-3 mr-1" />{t.pauseAudio}</>
                           ) : (
-                            <>
-                              <Volume2 className="w-4 h-4 mr-2" />
-                              {t.playAudio}
-                            </>
+                            <><Volume2 className="w-3 h-3 mr-1" />{t.playAudio}</>
                           )}
                         </Button>
                       )}
 
-                      {/* Tag ID */}
                       {poi.matterport_tag_id && (
-                        <p className="font-mono text-xs text-[#666058]/70 mt-2">
-                          Tag: {poi.matterport_tag_id}
+                        <p className="font-mono text-[10px] text-[#666058]/70 mt-2">
+                          Tag: {poi.matterport_tag_id.substring(0, 12)}...
                         </p>
                       )}
                     </div>
@@ -427,62 +617,61 @@ export default function ExhibitionDetail() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="font-serif text-xl">
-              {t.addPoi}
+              Crea nuovo Punto di Interesse
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {newPoiPosition && (
+              <div className="bg-green-50 border border-green-200 p-3 rounded-sm">
+                <p className="font-sans text-sm text-green-700 font-medium">
+                  📍 Posizione catturata!
+                </p>
+                <p className="font-mono text-xs text-green-600 mt-1">
+                  X: {newPoiPosition.x.toFixed(2)}, Y: {newPoiPosition.y.toFixed(2)}, Z: {newPoiPosition.z.toFixed(2)}
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="block font-sans text-sm text-[#666058] mb-2">
-                {t.poiName} *
+                Nome del POI *
               </label>
               <Input
                 value={newPoiData.name}
                 onChange={(e) => setNewPoiData(prev => ({ ...prev, name: e.target.value }))}
                 className="border-[#E5E0D8] focus:border-[#C5A059]"
-                placeholder="Es: Costume tradizionale di Oliena"
+                placeholder="Es: Scialle ricamato tradizionale"
                 data-testid="poi-name-input"
               />
             </div>
 
             <div>
               <label className="block font-sans text-sm text-[#666058] mb-2">
-                Tag ID Matterport (opzionale)
-              </label>
-              <Input
-                value={newPoiData.tagId}
-                onChange={(e) => setNewPoiData(prev => ({ ...prev, tagId: e.target.value }))}
-                className="border-[#E5E0D8] focus:border-[#C5A059]"
-                placeholder="Es: abcd1234 (lo trovi cliccando sul tag)"
-                data-testid="poi-tagid-input"
-              />
-              <p className="text-xs text-[#666058] mt-1">
-                Per collegare questo POI a un tag esistente nello spazio Matterport
-              </p>
-            </div>
-
-            <div>
-              <label className="block font-sans text-sm text-[#666058] mb-2">
-                {t.poiDescription}
+                Descrizione
               </label>
               <Textarea
                 value={newPoiData.description}
                 onChange={(e) => setNewPoiData(prev => ({ ...prev, description: e.target.value }))}
                 rows={4}
                 className="border-[#E5E0D8] focus:border-[#C5A059]"
-                placeholder="Descrizione del punto di interesse..."
+                placeholder="Descrivi questo punto di interesse..."
                 data-testid="poi-description-input"
               />
             </div>
+
+            <p className="text-xs text-[#666058]">
+              💡 Dopo il salvataggio, vai su <strong>Admin → Punti di Interesse</strong> per tradurre in altre lingue e generare le audioguide.
+            </p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-[#E5E0D8]">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              {t.cancelCreate}
+            <Button variant="outline" onClick={() => { setDialogOpen(false); setNewPoiPosition(null); }}>
+              Annulla
             </Button>
             <Button onClick={createNewPoi} className="btn-gold">
               <Save className="w-4 h-4 mr-2" />
-              {t.savePoi}
+              Salva POI
             </Button>
           </div>
         </DialogContent>
