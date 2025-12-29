@@ -140,29 +140,32 @@ export default function ExhibitionDetail() {
       setSdkStatus("connecting");
       
       try {
-        // Load SDK script
+        // Wait for iframe to fully load
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        const iframe = iframeRef.current;
+        
+        // Try new SDK 3.0 method first
         if (!window.MP_SDK) {
+          // Load SDK bootstrap
           const script = document.createElement('script');
-          script.src = 'https://static.matterport.com/showcase-sdk/latest/sdk.js';
-          script.async = true;
-          await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-          });
+          script.type = 'module';
+          script.innerHTML = `
+            import { connect } from 'https://static.matterport.com/showcase-sdk/latest/sdk.es.js';
+            window.mpConnect = connect;
+          `;
+          document.head.appendChild(script);
+          
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
-        // Wait for iframe to be ready
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        // Connect to SDK
-        const iframe = iframeRef.current;
-        if (window.MP_SDK && iframe) {
+        // Try to connect
+        if (window.mpConnect) {
           try {
-            const sdk = await window.MP_SDK.connect(iframe, MATTERPORT_SDK_KEY, '');
+            const sdk = await window.mpConnect(iframe);
             setMpSdk(sdk);
             setSdkStatus("connected");
-            console.log("✅ Matterport SDK connected!");
+            console.log("✅ Matterport SDK 3.0 connected!");
 
             // Get existing Mattertags
             try {
@@ -172,11 +175,40 @@ export default function ExhibitionDetail() {
             } catch (e) {
               console.log("Could not get Mattertags:", e);
             }
-
+            return;
           } catch (err) {
-            console.log("SDK connect error:", err);
+            console.log("SDK 3.0 connect error:", err);
+          }
+        }
+
+        // Fallback to legacy SDK
+        if (!window.MP_SDK) {
+          const legacyScript = document.createElement('script');
+          legacyScript.src = 'https://static.matterport.com/showcase-sdk/latest/sdk.js';
+          legacyScript.async = true;
+          await new Promise((resolve, reject) => {
+            legacyScript.onload = resolve;
+            legacyScript.onerror = reject;
+            document.head.appendChild(legacyScript);
+          });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        if (window.MP_SDK && iframe) {
+          try {
+            const sdk = await window.MP_SDK.connect(iframe, MATTERPORT_SDK_KEY, '');
+            setMpSdk(sdk);
+            setSdkStatus("connected");
+            console.log("✅ Matterport Legacy SDK connected!");
+
+            const tags = await sdk.Mattertag.getData();
+            setMatterportTags(tags || []);
+          } catch (err) {
+            console.log("Legacy SDK connect error:", err.message);
             setSdkStatus("error");
           }
+        } else {
+          setSdkStatus("error");
         }
       } catch (error) {
         console.error("Error loading SDK:", error);
@@ -184,7 +216,7 @@ export default function ExhibitionDetail() {
       }
     };
 
-    const timer = setTimeout(initSdk, 2000);
+    const timer = setTimeout(initSdk, 3000);
     return () => clearTimeout(timer);
   }, [space]);
 
