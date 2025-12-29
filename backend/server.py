@@ -251,6 +251,68 @@ async def delete_poi(poi_id: str):
         raise HTTPException(status_code=404, detail="POI not found")
     return {"message": "POI deleted successfully"}
 
+# Costume endpoints
+@api_router.get("/costumi", response_model=List[Costume])
+async def get_costumi(tipo: Optional[str] = None):
+    if db is None:
+        return []
+    query = {}
+    if tipo:
+        query["tipo"] = tipo
+    costumi = await db.costumi.find(query, {"_id": 0}).sort("codice", 1).to_list(500)
+    return costumi
+
+@api_router.get("/costumi/{costume_id}", response_model=Costume)
+async def get_costume(costume_id: str):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    costume = await db.costumi.find_one({"id": costume_id}, {"_id": 0})
+    if not costume:
+        raise HTTPException(status_code=404, detail="Costume not found")
+    return costume
+
+@api_router.post("/costumi", response_model=Costume)
+async def create_costume(costume: CostumeCreate):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    costume_obj = Costume(**costume.model_dump())
+    doc = costume_obj.model_dump()
+    await db.costumi.insert_one(doc)
+    return costume_obj
+
+@api_router.put("/costumi/{costume_id}", response_model=Costume)
+async def update_costume(costume_id: str, costume: CostumeUpdate):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    update_data = {k: v for k, v in costume.model_dump().items() if v is not None}
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    result = await db.costumi.find_one_and_update(
+        {"id": costume_id},
+        {"$set": update_data},
+        return_document=True
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Costume not found")
+    result.pop('_id', None)
+    return result
+
+@api_router.delete("/costumi/{costume_id}")
+async def delete_costume(costume_id: str):
+    if db is None:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    result = await db.costumi.delete_one({"id": costume_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Costume not found")
+    return {"message": "Costume deleted successfully"}
+
+@api_router.get("/costumi-tipi")
+async def get_tipi_costume():
+    """Get all unique costume types"""
+    if db is None:
+        return []
+    tipi = await db.costumi.distinct("tipo")
+    return tipi
+
 # Translation endpoint
 @api_router.post("/translate")
 async def translate_text(request: TranslationRequest):
