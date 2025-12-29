@@ -1073,6 +1073,77 @@ const AdminPage = () => {
                 </div>
               </div>
             )}
+
+            {/* Costumi Tab */}
+            {activeTab === 'costumi' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold">{lang === 'it' ? 'Archivio Costumi' : 'Costumes Archive'}</h2>
+                  <button
+                    onClick={() => setEditingCostume({})}
+                    className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg transition-colors"
+                    data-testid="add-costume"
+                  >
+                    <Plus size={20} />
+                    <span>{lang === 'it' ? 'Nuovo Elemento' : 'New Item'}</span>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {costumi.map((costume) => (
+                    <div 
+                      key={costume.id}
+                      className="p-4 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between"
+                      data-testid={`admin-costume-${costume.id}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-black/30">
+                          {costume.images[0] ? (
+                            <img src={costume.images[0]} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Image size={24} className="text-gray-600" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-xs text-gray-500">Cod: {costume.codice} | {costume.tipo}</span>
+                          <h3 className="font-medium text-white">{costume.nome[lang] || costume.nome.it}</h3>
+                          {costume.ricamatrice && (
+                            <p className="text-sm text-cyan-400">✂️ {costume.ricamatrice}</p>
+                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${costume.is_active ? 'bg-green-600/30 text-green-400' : 'bg-red-600/30 text-red-400'}`}>
+                            {costume.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditingCostume(costume)}
+                          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                          data-testid={`edit-costume-${costume.id}`}
+                        >
+                          <Edit size={18} className="text-gray-400" />
+                        </button>
+                        <button
+                          onClick={() => deleteCostume(costume.id)}
+                          className="p-2 hover:bg-red-600/20 rounded-lg transition-colors"
+                          data-testid={`delete-costume-${costume.id}`}
+                        >
+                          <Trash2 size={18} className="text-red-400" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {costumi.length === 0 && (
+                    <div className="text-center text-gray-500 py-8">
+                      <Archive size={48} className="mx-auto mb-2 opacity-50" />
+                      <p>{lang === 'it' ? 'Nessun elemento nell\'archivio' : 'No items in archive'}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
 
