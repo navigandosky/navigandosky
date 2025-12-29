@@ -139,19 +139,12 @@ const Navbar = () => {
 // Footer Component
 const Footer = () => {
   return (
-    <footer className="bg-black/50 border-t border-white/10 py-12">
+    <footer className="bg-black/50 border-t border-white/10 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="flex flex-col items-center md:items-start gap-4">
-            <img src={LOGO_SPOKE} alt="Spoke Ghivine" className="h-16 w-auto object-contain" />
-            <p className="text-gray-500 text-sm">e.INS Spoke 2 - Ecosystem Of Innovation For Next Generation Sardinia</p>
-          </div>
-          <div className="flex items-center">
-            <img src={LOGO_UNISS} alt="Partner Logos" className="h-12 w-auto object-contain" />
-          </div>
-        </div>
-        <div className="mt-8 pt-8 border-t border-white/10 text-center text-gray-500 text-sm">
-          © {new Date().getFullYear()} Spoke Ghivine - Digital Twin Heritage
+        <div className="flex flex-col items-start">
+          <p className="text-gray-400 text-sm mb-3">Realizzato da TRIVOR SRL</p>
+          <img src={LOGO_SPOKE} alt="Spoke Ghivine" className="h-14 w-auto object-contain" />
+          <p className="text-gray-500 text-xs mt-4">© {new Date().getFullYear()} Tutti i diritti riservati</p>
         </div>
       </div>
     </footer>
@@ -317,15 +310,6 @@ const HomePage = () => {
         </section>
       )}
 
-      {/* Logos Section */}
-      <section className="py-16 border-t border-white/10">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-wrap justify-center items-center gap-8">
-            <img src={LOGO_SPOKE} alt="Spoke 2" className="h-16 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-            <img src={LOGO_UNISS} alt="Partner Logos" className="h-12 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity" />
-          </div>
-        </div>
-      </section>
     </div>
   );
 };
@@ -490,7 +474,7 @@ const SpacePage = () => {
   return (
     <div className="min-h-screen pt-16">
       {/* Matterport Viewer or Placeholder */}
-      <div className="relative h-[70vh] bg-black">
+      <div className="relative h-[55vh] bg-black">
         {space.matterport_model_id ? (
           <iframe
             src={`https://my.matterport.com/show/?m=${space.matterport_model_id}&play=1&qs=1`}
