@@ -770,78 +770,143 @@ export default function ExhibitionDetail() {
                   {isAdmin && sdkStatus === 'connected' && "Usa gli strumenti sopra per importare o creare."}
                 </p>
               ) : (
-                <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
                   {pois.map((poi) => (
                     <div
                       key={poi.id}
-                      className={`p-3 rounded-sm border transition-all cursor-pointer ${
+                      className={`p-4 rounded-lg border transition-all ${
                         selectedPoi?.id === poi.id
-                          ? "border-[#C5A059] bg-[#F9F8F6]"
-                          : "border-[#E5E0D8] hover:border-[#C5A059]/50"
+                          ? "border-[#C5A059] bg-[#F9F8F6] shadow-md"
+                          : "border-[#E5E0D8] hover:border-[#C5A059]/50 hover:shadow-sm"
                       }`}
-                      onClick={() => handlePoiClick(poi)}
                       data-testid={`poi-${poi.id}`}
                     >
-                      <h3 className="font-serif text-base text-[#2A2A2A] mb-1">
-                        {getTranslation(poi.name, language)}
-                      </h3>
-                      <p className="font-sans text-xs text-[#666058] line-clamp-2 mb-2">
-                        {getTranslation(poi.description, language)}
-                      </p>
-                      
-                      {/* Audio controls */}
-                      <div className="flex flex-wrap gap-2">
-                        {poi.audio_url && (poi.audio_url[language] || poi.audio_url.it) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-white"
-                            onClick={(e) => { e.stopPropagation(); playAudio(poi); }}
-                          >
-                            {playingAudio === poi.id ? (
-                              <><Pause className="w-3 h-3 mr-1" />{t.pauseAudio}</>
-                            ) : (
-                              <><Volume2 className="w-3 h-3 mr-1" />{t.playAudio}</>
-                            )}
-                          </Button>
-                        )}
-                        
-                        {/* Pulsante Genera Audio TTS - Solo per admin */}
-                        {isAdmin && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs border-green-500 text-green-600 hover:bg-green-500 hover:text-white"
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              generateAudioForPoi(poi, language);
-                            }}
-                            disabled={generatingAudio[`${poi.id}_${language}`] || !poi.description?.[language]}
-                            data-testid={`generate-audio-${poi.id}`}
-                          >
-                            {generatingAudio[`${poi.id}_${language}`] ? (
-                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />{t.generating}</>
-                            ) : (
-                              <><Mic className="w-3 h-3 mr-1" />{t.generateAudio}</>
-                            )}
-                          </Button>
-                        )}
+                      {/* POI Header - cliccabile per navigazione */}
+                      <div 
+                        className="cursor-pointer mb-3"
+                        onClick={() => handlePoiClick(poi)}
+                      >
+                        <h3 className="font-serif text-base text-[#2A2A2A] mb-1">
+                          {getTranslation(poi.name, language)}
+                        </h3>
+                        <p className="font-sans text-xs text-[#666058] line-clamp-2">
+                          {getTranslation(poi.description, language)}
+                        </p>
                       </div>
-
-                      {/* Audio status indicators */}
+                      
+                      {/* Audioguide Section - Stile Ghivine */}
                       {isAdmin && (
-                        <div className="flex gap-1 mt-2">
-                          {["it", "en", "fr", "de"].map((lang) => (
-                            <span
-                              key={lang}
-                              className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                poi.audio_url?.[lang] ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                              }`}
+                        <div className="bg-[#1A1918] rounded-lg p-3 mt-2">
+                          <p className="text-xs text-[#C5A059] font-semibold mb-3">Audioguide</p>
+                          
+                          {/* Language tabs */}
+                          <div className="flex gap-1 mb-3">
+                            {["it", "en", "fr", "de"].map((lang) => (
+                              <button
+                                key={lang}
+                                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${
+                                  poi.audio_url?.[lang] 
+                                    ? "bg-green-600/20 text-green-400 border border-green-600/30" 
+                                    : "bg-white/5 text-white/50 border border-white/10"
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (poi.audio_url?.[lang]) playAudio(poi, lang);
+                                }}
+                              >
+                                {lang.toUpperCase()}
+                                {poi.audio_url?.[lang] && <Check className="w-3 h-3 text-green-400" />}
+                              </button>
+                            ))}
+                          </div>
+                          
+                          {/* Audio Player - Se c'è audio per la lingua corrente */}
+                          {poi.audio_url?.[language] && (
+                            <div className="bg-white/5 rounded-lg p-2 mb-3">
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); playAudio(poi, language); }}
+                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                                >
+                                  {playingAudio === `${poi.id}_${language}` ? (
+                                    <Pause className="w-4 h-4 text-white" />
+                                  ) : (
+                                    <Play className="w-4 h-4 text-white ml-0.5" />
+                                  )}
+                                </button>
+                                
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 text-xs text-white/60">
+                                    <span>{formatTime(audioProgress[`${poi.id}_${language}`]?.currentTime || 0)}</span>
+                                    <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full bg-[#C5A059] transition-all"
+                                        style={{ 
+                                          width: `${audioProgress[`${poi.id}_${language}`]?.duration 
+                                            ? (audioProgress[`${poi.id}_${language}`].currentTime / audioProgress[`${poi.id}_${language}`].duration) * 100 
+                                            : 0}%` 
+                                        }}
+                                      />
+                                    </div>
+                                    <span>{formatTime(audioProgress[`${poi.id}_${language}`]?.duration || 0)}</span>
+                                  </div>
+                                </div>
+                                
+                                <Volume2 className="w-4 h-4 text-white/40" />
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Action buttons - TTS e Upload */}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                generateAudioForPoi(poi, language);
+                              }}
+                              disabled={generatingAudio[`${poi.id}_${language}`] || !poi.description?.[language]}
+                              className="flex-1 bg-[#2A6B6B] hover:bg-[#1F5555] text-white text-xs h-8"
+                              data-testid={`generate-audio-${poi.id}`}
                             >
-                              {lang.toUpperCase()}
-                            </span>
-                          ))}
+                              {generatingAudio[`${poi.id}_${language}`] ? (
+                                <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                              ) : (
+                                <Mic className="w-3 h-3 mr-1" />
+                              )}
+                              TTS
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                openUploadDialog(poi, language);
+                              }}
+                              className="flex-1 border-white/20 text-white/80 hover:bg-white/10 text-xs h-8"
+                            >
+                              <Upload className="w-3 h-3 mr-1" />
+                              Upload
+                            </Button>
+                          </div>
                         </div>
+                      )}
+                      
+                      {/* Audio player per utenti non-admin */}
+                      {!isAdmin && poi.audio_url?.[language] && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full text-xs border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-white mt-2"
+                          onClick={(e) => { e.stopPropagation(); playAudio(poi, language); }}
+                        >
+                          {playingAudio === `${poi.id}_${language}` ? (
+                            <><Pause className="w-3 h-3 mr-1" />{t.pauseAudio}</>
+                          ) : (
+                            <><Volume2 className="w-3 h-3 mr-1" />{t.playAudio}</>
+                          )}
+                        </Button>
                       )}
 
                       {poi.matterport_tag_id && (
@@ -857,6 +922,38 @@ export default function ExhibitionDetail() {
           </div>
         </div>
       </div>
+
+      {/* Upload Audio Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl">
+              Carica Audio {uploadingLang?.toUpperCase()}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-sm text-[#666058] mb-4">
+              Seleziona un file audio MP3 per il POI "{uploadingPoi?.name?.[language] || uploadingPoi?.name?.it}"
+            </p>
+            
+            <input
+              type="file"
+              accept="audio/mp3,audio/mpeg"
+              onChange={handleAudioUpload}
+              disabled={uploading}
+              className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:bg-[#C5A059] file:text-white hover:file:bg-[#B08D45] file:cursor-pointer"
+            />
+            
+            {uploading && (
+              <div className="flex items-center gap-2 mt-3 text-sm text-[#666058]">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Caricamento in corso...
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create POI Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
