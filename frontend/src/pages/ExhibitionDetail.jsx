@@ -577,7 +577,18 @@ export default function ExhibitionDetail() {
 
   return (
     <div className="min-h-screen">
-      <audio ref={audioRef} onEnded={() => setPlayingAudio(null)} className="hidden" />
+      <audio 
+        ref={audioRef} 
+        onEnded={() => setPlayingAudio(null)} 
+        onTimeUpdate={() => {
+          if (playingAudio) {
+            const [poiId, lang] = playingAudio.split('_');
+            const poi = pois.find(p => p.id === poiId);
+            if (poi) handleAudioTimeUpdate(poi, lang);
+          }
+        }}
+        className="hidden" 
+      />
 
       {/* Header */}
       <div className="bg-[#1A1918] text-white py-6">
