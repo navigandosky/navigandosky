@@ -399,16 +399,17 @@ export default function ExhibitionDetail() {
       )}
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 md:px-12 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Matterport Viewer */}
-          <div className="lg:col-span-2">
-            <div className="matterport-frame rounded-sm overflow-hidden" style={{ aspectRatio: "16/9" }}>
+      <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-6">
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          {/* Matterport Viewer - Much Larger */}
+          <div className="xl:col-span-3">
+            <div className="matterport-frame rounded-sm overflow-hidden" style={{ aspectRatio: "16/9", minHeight: "600px" }}>
               <iframe
                 ref={iframeRef}
                 src={`https://my.matterport.com/show/?m=${space.model_id}&play=1`}
                 title={getTranslation(space.name, language)}
                 className="w-full h-full"
+                style={{ minHeight: "600px" }}
                 allow="xr-spatial-tracking; fullscreen"
                 allowFullScreen
                 frameBorder="0"
@@ -424,8 +425,8 @@ export default function ExhibitionDetail() {
           </div>
 
           {/* POIs Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-sm border border-[#E5E0D8] p-6 sticky top-24">
+          <div className="xl:col-span-1">
+            <div className="bg-white rounded-sm border border-[#E5E0D8] p-6 sticky top-24 max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="font-serif text-xl text-[#2A2A2A] flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-[#C5A059]" />
