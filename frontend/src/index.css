@@ -195,6 +195,11 @@ code, pre {
     @apply bg-black/30 backdrop-blur-md rounded-xl p-4 border border-white/10;
 }
 
+/* Hide Emergent badge */
+#emergent-badge {
+  display: none !important;
+}
+
 /* Debug wrapper */
 [data-debug-wrapper="true"] {
     display: contents !important;
