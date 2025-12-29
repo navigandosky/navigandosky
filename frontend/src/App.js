@@ -474,7 +474,7 @@ const SpacePage = () => {
   return (
     <div className="min-h-screen pt-16">
       {/* Matterport Viewer or Placeholder */}
-      <div className="relative h-[55vh] bg-black">
+      <div className="relative h-[45vh] bg-black">
         {space.matterport_model_id ? (
           <iframe
             src={`https://my.matterport.com/show/?m=${space.matterport_model_id}&play=1&qs=1`}
