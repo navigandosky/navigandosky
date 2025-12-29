@@ -60,7 +60,6 @@ const translations = {
     pauseAudio: "Pause",
     addPoi: "Ajouter POI",
     importTags: "Importer Tags",
-    createMode: "Cliquez sur l'espace pour placer le POI",
     cancelCreate: "Annuler",
     savePoi: "Enregistrer",
     poiName: "Nom du POI",
