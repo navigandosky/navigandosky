@@ -828,6 +828,18 @@ const AdminPage = () => {
     }
   };
 
+  const deleteCostume = async (id) => {
+    if (window.confirm(lang === 'it' ? 'Sei sicuro di voler eliminare questo elemento?' : 'Are you sure you want to delete this item?')) {
+      try {
+        await axios.delete(`${API}/costumi/${id}`);
+        toast.success(lang === 'it' ? 'Elemento eliminato' : 'Item deleted');
+        fetchData();
+      } catch (err) {
+        toast.error('Delete failed');
+      }
+    }
+  };
+
   // Login Form
   if (!isAuthenticated) {
     return (
