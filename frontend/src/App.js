@@ -782,12 +782,14 @@ const AdminPage = () => {
 
   const fetchData = async () => {
     try {
-      const [spacesRes, poisRes] = await Promise.all([
+      const [spacesRes, poisRes, costumiRes] = await Promise.all([
         axios.get(`${API}/spaces`),
-        axios.get(`${API}/pois`)
+        axios.get(`${API}/pois`),
+        axios.get(`${API}/costumi`)
       ]);
       setSpaces(spacesRes.data);
       setPois(poisRes.data);
+      setCostumi(costumiRes.data);
       setLoading(false);
     } catch (err) {
       console.error(err);
