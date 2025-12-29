@@ -550,9 +550,10 @@ export default function ExhibitionDetail() {
               className={`matterport-frame rounded-sm overflow-hidden ${createMode ? 'ring-4 ring-[#C5A059] ring-offset-2' : ''}`} 
               style={{ aspectRatio: "16/9", minHeight: "600px" }}
             >
+              {/* Usa mpskin_url se disponibile, altrimenti Matterport standard */}
               <iframe
                 ref={iframeRef}
-                src={`https://my.matterport.com/show/?m=${space.model_id}&play=1&qs=1`}
+                src={space.mpskin_url || `https://my.matterport.com/show/?m=${space.model_id}&play=1&qs=1`}
                 title={getTranslation(space.name, language)}
                 className="w-full h-full"
                 style={{ minHeight: "600px" }}
@@ -564,31 +565,41 @@ export default function ExhibitionDetail() {
               />
             </div>
             
-            {/* SDK Status */}
-            <div className="mt-3 flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${
-                  sdkStatus === 'connected' ? 'bg-green-500' : 
-                  sdkStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' : 
-                  sdkStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
-                }`}></span>
-                <span className="text-sm text-[#666058]">
-                  {sdkStatus === 'connected' ? t.sdkConnected : 
-                   sdkStatus === 'connecting' ? t.sdkConnecting : 
-                   sdkStatus === 'error' ? t.sdkError : 'SDK'}
-                </span>
+            {/* SDK Status - mostra solo se non usa mpskin */}
+            {!space.mpskin_url && (
+              <div className="mt-3 flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className={`w-3 h-3 rounded-full ${
+                    sdkStatus === 'connected' ? 'bg-green-500' : 
+                    sdkStatus === 'connecting' ? 'bg-yellow-500 animate-pulse' : 
+                    sdkStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+                  }`}></span>
+                  <span className="text-sm text-[#666058]">
+                    {sdkStatus === 'connected' ? t.sdkConnected : 
+                     sdkStatus === 'connecting' ? t.sdkConnecting : 
+                     sdkStatus === 'error' ? t.sdkError : 'SDK'}
+                  </span>
+                </div>
+                {matterportTags.length > 0 && (
+                  <span className="text-sm text-[#C5A059]">
+                    {matterportTags.length} Mattertag nello spazio
+                  </span>
+                )}
+                {sdkStatus === 'error' && isAdmin && (
+                  <span className="text-xs text-red-500">
+                    Verifica configurazione domini in Matterport Developer Tools
+                  </span>
+                )}
               </div>
-              {matterportTags.length > 0 && (
-                <span className="text-sm text-[#C5A059]">
-                  {matterportTags.length} Mattertag nello spazio
-                </span>
-              )}
-              {sdkStatus === 'error' && isAdmin && (
-                <span className="text-xs text-red-500">
-                  Verifica configurazione domini in Matterport Developer Tools
-                </span>
-              )}
-            </div>
+            )}
+            
+            {/* Mpskin indicator */}
+            {space.mpskin_url && (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                <span className="text-sm text-[#666058]">Visualizzazione Mpskin attiva</span>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
