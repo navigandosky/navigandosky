@@ -103,7 +103,7 @@ class SpokeGalaverasAPITester:
         # Get all spaces
         success, spaces = self.run_test("Get All Spaces", "GET", "spaces", 200)
         
-        # Create a test space
+        # Create a test space with mpskin_url
         test_space_data = {
             "model_id": "test_model_123",
             "name": {
@@ -118,7 +118,8 @@ class SpokeGalaverasAPITester:
                 "fr": "Description test",
                 "de": "Test Beschreibung"
             },
-            "is_active": True
+            "is_active": True,
+            "mpskin_url": "https://example.com/mpskin-overlay"
         }
         
         success, created_space = self.run_test(
