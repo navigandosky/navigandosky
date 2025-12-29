@@ -758,9 +758,11 @@ const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('spaces');
   const [spaces, setSpaces] = useState([]);
   const [pois, setPois] = useState([]);
+  const [costumi, setCostumi] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingSpace, setEditingSpace] = useState(null);
   const [editingPoi, setEditingPoi] = useState(null);
+  const [editingCostume, setEditingCostume] = useState(null);
 
   const handleLogin = (e) => {
     e.preventDefault();
