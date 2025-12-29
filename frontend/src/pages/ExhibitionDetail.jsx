@@ -190,67 +190,6 @@ export default function ExhibitionDetail() {
     }
   };
 
-  // Import existing Mattertags from space
-  const importMatterportTags = async () => {
-    if (!mpSdk) {
-      toast.error("SDK non connesso. Riprova tra qualche secondo.");
-      return;
-    }
-
-    setImporting(true);
-    try {
-      // Get all Mattertags from the space
-      const mattertags = await mpSdk.Mattertag.getData();
-      
-      if (!mattertags || mattertags.length === 0) {
-        toast.info(t.noTagsFound);
-        setImporting(false);
-        return;
-      }
-
-      let importedCount = 0;
-      for (const tag of mattertags) {
-        // Check if tag already exists in our POIs
-        const exists = pois.some(p => p.matterport_tag_id === tag.sid);
-        if (exists) continue;
-
-        // Create POI from Mattertag
-        const poiData = {
-          space_id: id,
-          matterport_tag_id: tag.sid,
-          name: {
-            it: tag.label || `Tag ${tag.sid}`,
-            en: tag.label || `Tag ${tag.sid}`,
-            fr: tag.label || `Tag ${tag.sid}`,
-            de: tag.label || `Tag ${tag.sid}`
-          },
-          description: {
-            it: tag.description || "",
-            en: tag.description || "",
-            fr: tag.description || "",
-            de: tag.description || ""
-          },
-          position: tag.anchorPosition ? {
-            x: tag.anchorPosition.x,
-            y: tag.anchorPosition.y,
-            z: tag.anchorPosition.z
-          } : null
-        };
-
-        await axios.post(`${API}/pois`, poiData);
-        importedCount++;
-      }
-
-      toast.success(`${t.tagsImported}: ${importedCount}`);
-      fetchData(); // Refresh POIs list
-    } catch (error) {
-      console.error("Error importing tags:", error);
-      toast.error("Errore nell'importazione dei tag");
-    } finally {
-      setImporting(false);
-    }
-  };
-
   // Method 3: Create new POI manually
   const createNewPoi = async () => {
     if (!newPoiData.name) {
