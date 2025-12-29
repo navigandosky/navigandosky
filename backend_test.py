@@ -123,7 +123,7 @@ class SpokeGalaverasAPITester:
         }
         
         success, created_space = self.run_test(
-            "Create Space",
+            "Create Space with mpskin_url",
             "POST",
             "spaces",
             201,
@@ -133,24 +133,53 @@ class SpokeGalaverasAPITester:
         if success and 'id' in created_space:
             space_id = created_space['id']
             
-            # Get specific space
-            self.run_test(
-                "Get Specific Space",
+            # Verify mpskin_url is returned in response
+            if 'mpskin_url' in created_space and created_space['mpskin_url'] == "https://example.com/mpskin-overlay":
+                print("✅ mpskin_url field correctly saved and returned")
+                self.passed_tests.append("mpskin_url field verification")
+            else:
+                self.failed_tests.append({
+                    "test": "mpskin_url field verification",
+                    "error": f"mpskin_url not found or incorrect in response: {created_space.get('mpskin_url')}"
+                })
+            
+            # Get specific space and verify mpskin_url
+            success_get, space_data = self.run_test(
+                "Get Specific Space (verify mpskin_url)",
                 "GET",
                 f"spaces/{space_id}",
                 200
             )
             
-            # Update space
+            if success_get and space_data.get('mpskin_url') == "https://example.com/mpskin-overlay":
+                print("✅ mpskin_url field correctly retrieved")
+                self.passed_tests.append("mpskin_url GET verification")
+            else:
+                self.failed_tests.append({
+                    "test": "mpskin_url GET verification",
+                    "error": f"mpskin_url not found or incorrect in GET response: {space_data.get('mpskin_url')}"
+                })
+            
+            # Update space with different mpskin_url
             updated_data = test_space_data.copy()
             updated_data['name']['it'] = "Spazio Aggiornato"
-            self.run_test(
-                "Update Space",
+            updated_data['mpskin_url'] = "https://example.com/updated-mpskin"
+            success_update, updated_space = self.run_test(
+                "Update Space (with mpskin_url)",
                 "PUT",
                 f"spaces/{space_id}",
                 200,
                 data=updated_data
             )
+            
+            if success_update and updated_space.get('mpskin_url') == "https://example.com/updated-mpskin":
+                print("✅ mpskin_url field correctly updated")
+                self.passed_tests.append("mpskin_url PUT verification")
+            else:
+                self.failed_tests.append({
+                    "test": "mpskin_url PUT verification", 
+                    "error": f"mpskin_url not updated correctly: {updated_space.get('mpskin_url')}"
+                })
             
             # Delete space
             self.run_test(
