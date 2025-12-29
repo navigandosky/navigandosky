@@ -47,6 +47,7 @@ class SpaceCreate(BaseModel):
     description: Translation
     cover_image: Optional[str] = None
     is_active: bool = True
+    mpskin_url: Optional[str] = None  # URL alternativo per overlay (es. Mpskin)
 
 class Space(SpaceCreate):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
