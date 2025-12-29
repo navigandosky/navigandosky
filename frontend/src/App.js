@@ -1641,6 +1641,272 @@ const POIEditModal = ({ poi, spaces, onClose, onSave }) => {
   );
 };
 
+// Archivio Costumi Page
+const ArchivioPage = () => {
+  const { lang } = useLanguage();
+  const [costumi, setCostumi] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [tipi, setTipi] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [costumiRes, tipiRes] = await Promise.all([
+          axios.get(`${API}/costumi`),
+          axios.get(`${API}/costumi-tipi`)
+        ]);
+        setCostumi(costumiRes.data.filter(c => c.is_active));
+        setTipi(tipiRes.data);
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const filteredCostumi = filtroTipo 
+    ? costumi.filter(c => c.tipo === filtroTipo)
+    : costumi;
+
+  const title = {
+    it: 'Archivio Elementi Identitari',
+    en: 'Traditional Heritage Archive',
+    fr: 'Archives du Patrimoine Traditionnel',
+    de: 'Archiv des traditionellen Erbes'
+  };
+
+  const subtitle = {
+    it: 'Collezione del Costume Tradizionale Sardo',
+    en: 'Collection of Traditional Sardinian Costumes',
+    fr: 'Collection des Costumes Traditionnels Sardes',
+    de: 'Sammlung traditioneller sardischer Trachten'
+  };
+
+  return (
+    <div className="min-h-screen pt-24 pb-16 px-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold mb-4" data-testid="archive-title">
+            {title[lang] || title.it}
+          </h1>
+          <p className="text-xl text-cyan-400">{subtitle[lang] || subtitle.it}</p>
+        </div>
+
+        {/* Filtro per tipo */}
+        {tipi.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            <button
+              onClick={() => setFiltroTipo('')}
+              className={`px-4 py-2 rounded-full transition-colors ${
+                !filtroTipo ? 'bg-cyan-600 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              }`}
+            >
+              {lang === 'it' ? 'Tutti' : 'All'}
+            </button>
+            {tipi.map(tipo => (
+              <button
+                key={tipo}
+                onClick={() => setFiltroTipo(tipo)}
+                className={`px-4 py-2 rounded-full transition-colors ${
+                  filtroTipo === tipo ? 'bg-cyan-600 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                }`}
+              >
+                {tipo}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <RefreshCw className="animate-spin text-cyan-500" size={32} />
+          </div>
+        ) : filteredCostumi.length === 0 ? (
+          <div className="text-center text-gray-500 py-16">
+            <Archive size={64} className="mx-auto mb-4 opacity-50" />
+            <p>{lang === 'it' ? 'Nessun elemento trovato' : 'No items found'}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCostumi.map((costume) => (
+              <Link
+                key={costume.id}
+                to={`/archivio/${costume.id}`}
+                className="group rounded-2xl overflow-hidden bg-white/5 border border-white/10 hover:border-cyan-500/50 transition-all duration-500"
+                data-testid={`costume-${costume.id}`}
+              >
+                <div className="aspect-[4/3] relative overflow-hidden">
+                  {costume.images[0] ? (
+                    <img 
+                      src={costume.images[0]} 
+                      alt={costume.nome[lang] || costume.nome.it} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-cyan-900/30 to-blue-900/30 flex items-center justify-center">
+                      <Image size={48} className="text-cyan-500/50" />
+                    </div>
+                  )}
+                  <div className="absolute top-3 left-3">
+                    <span className="px-3 py-1 bg-black/60 backdrop-blur-sm text-cyan-400 text-sm rounded-full">
+                      {costume.tipo}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <p className="text-gray-500 text-sm mb-1">Cod: {costume.codice}</p>
+                  <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-cyan-400 transition-colors">
+                    {costume.nome[lang] || costume.nome.it}
+                  </h3>
+                  <p className="text-gray-400 text-sm line-clamp-2">
+                    {costume.descrizione[lang] || costume.descrizione.it}
+                  </p>
+                  {costume.ricamatrice && (
+                    <p className="text-cyan-400 text-sm mt-3">
+                      ✂️ {costume.ricamatrice}
+                    </p>
+                  )}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Costume Detail Page
+const CostumePage = () => {
+  const { id } = useParams();
+  const { lang } = useLanguage();
+  const [costume, setCostume] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(0);
+
+  useEffect(() => {
+    axios.get(`${API}/costumi/${id}`)
+      .then(res => {
+        setCostume(res.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <RefreshCw className="animate-spin text-cyan-500" size={48} />
+      </div>
+    );
+  }
+
+  if (!costume) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">{lang === 'it' ? 'Elemento non trovato' : 'Item not found'}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen pt-24 pb-16 px-4">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          {/* Gallery */}
+          <div>
+            <div className="aspect-square rounded-2xl overflow-hidden bg-white/5 mb-4">
+              {costume.images[selectedImage] ? (
+                <img 
+                  src={costume.images[selectedImage]} 
+                  alt={costume.nome[lang] || costume.nome.it}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Image size={80} className="text-cyan-500/50" />
+                </div>
+              )}
+            </div>
+            {costume.images.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {costume.images.map((img, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedImage(i)}
+                    className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${
+                      selectedImage === i ? 'border-cyan-500' : 'border-transparent'
+                    }`}
+                  >
+                    <img src={img} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Info */}
+          <div>
+            <span className="inline-block px-4 py-1 bg-cyan-600/30 text-cyan-400 rounded-full mb-4">
+              {costume.tipo}
+            </span>
+            <h1 className="text-3xl font-bold mb-2">
+              {costume.nome[lang] || costume.nome.it}
+            </h1>
+            <p className="text-gray-500 mb-6">Cod: {costume.codice}</p>
+
+            <div className="prose prose-invert max-w-none mb-8">
+              <p className="text-gray-300 text-lg leading-relaxed">
+                {costume.descrizione[lang] || costume.descrizione.it}
+              </p>
+            </div>
+
+            <div className="space-y-4 p-6 bg-white/5 rounded-2xl border border-white/10">
+              {costume.ricamatrice && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">{lang === 'it' ? 'Ricamatrice' : 'Embroiderer'}</span>
+                  <span className="text-white font-medium">{costume.ricamatrice}</span>
+                </div>
+              )}
+              {costume.provenienza && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">{lang === 'it' ? 'Provenienza' : 'Origin'}</span>
+                  <span className="text-white font-medium">{costume.provenienza}</span>
+                </div>
+              )}
+              {costume.epoca && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">{lang === 'it' ? 'Epoca' : 'Period'}</span>
+                  <span className="text-white font-medium">{costume.epoca}</span>
+                </div>
+              )}
+              {costume.valore && (
+                <div className="flex justify-between border-t border-white/10 pt-4 mt-4">
+                  <span className="text-gray-400">{lang === 'it' ? 'Valore stimato' : 'Estimated value'}</span>
+                  <span className="text-cyan-400 font-semibold">{costume.valore}</span>
+                </div>
+              )}
+            </div>
+
+            <Link
+              to="/archivio"
+              className="inline-flex items-center gap-2 mt-8 text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              ← {lang === 'it' ? 'Torna all\'archivio' : 'Back to archive'}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Main App Component
 function App() {
   return (
