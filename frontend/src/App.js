@@ -74,10 +74,10 @@ const Navbar = () => {
   const { lang } = useLanguage();
 
   const navItems = {
-    it: { home: 'Home', spaces: 'Spazi', project: 'Progetto', admin: 'Admin' },
-    en: { home: 'Home', spaces: 'Spaces', project: 'Project', admin: 'Admin' },
-    fr: { home: 'Accueil', spaces: 'Espaces', project: 'Projet', admin: 'Admin' },
-    de: { home: 'Home', spaces: 'Räume', project: 'Projekt', admin: 'Admin' }
+    it: { home: 'Home', spaces: 'Spazi', archive: 'Archivio', project: 'Progetto', admin: 'Admin' },
+    en: { home: 'Home', spaces: 'Spaces', archive: 'Archive', project: 'Project', admin: 'Admin' },
+    fr: { home: 'Accueil', spaces: 'Espaces', archive: 'Archives', project: 'Projet', admin: 'Admin' },
+    de: { home: 'Home', spaces: 'Räume', archive: 'Archiv', project: 'Projekt', admin: 'Admin' }
   };
 
   const t = navItems[lang] || navItems.it;
@@ -96,6 +96,7 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-8">
             <Link to="/" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-home">{t.home}</Link>
             <Link to="/spaces" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-spaces">{t.spaces}</Link>
+            <Link to="/archivio" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-archive">{t.archive}</Link>
             <Link to="/project" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-project">{t.project}</Link>
             <Link to="/admin" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-admin">{t.admin}</Link>
             <LanguageSelector />
