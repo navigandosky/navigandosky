@@ -36,7 +36,10 @@ const translations = {
     sdkConnected: "SDK Connesso",
     sdkError: "SDK non disponibile",
     clickToCreate: "Attiva Creazione Tag",
-    importing: "Importazione in corso..."
+    importing: "Importazione in corso...",
+    generateAudio: "Genera Audio",
+    generating: "Generazione...",
+    noDescription: "Inserisci prima una descrizione"
   },
   en: {
     back: "Back to exhibitions",
@@ -56,7 +59,10 @@ const translations = {
     sdkConnected: "SDK Connected",
     sdkError: "SDK not available",
     clickToCreate: "Enable Tag Creation",
-    importing: "Importing..."
+    importing: "Importing...",
+    generateAudio: "Generate Audio",
+    generating: "Generating...",
+    noDescription: "Please enter a description first"
   },
   fr: {
     back: "Retour aux expositions",
@@ -76,7 +82,10 @@ const translations = {
     sdkConnected: "SDK Connecté",
     sdkError: "SDK non disponible",
     clickToCreate: "Activer création",
-    importing: "Importation..."
+    importing: "Importation...",
+    generateAudio: "Générer Audio",
+    generating: "Génération...",
+    noDescription: "Veuillez d'abord entrer une description"
   },
   de: {
     back: "Zurück zu Ausstellungen",
@@ -96,7 +105,10 @@ const translations = {
     sdkConnected: "SDK Verbunden",
     sdkError: "SDK nicht verfügbar",
     clickToCreate: "Tag-Erstellung aktivieren",
-    importing: "Importiere..."
+    importing: "Importiere...",
+    generateAudio: "Audio generieren",
+    generating: "Generiere...",
+    noDescription: "Bitte geben Sie zuerst eine Beschreibung ein"
   }
 };
 
