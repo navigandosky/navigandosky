@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Globe, Play, Pause, Volume2, VolumeX, ChevronRight, 
   Menu, X, MapPin, Home, Settings, Layers, AudioLines,
-  Plus, Edit, Trash2, Upload, Languages, RefreshCw
+  Plus, Edit, Trash2, Upload, Languages, RefreshCw, Archive, Image
 } from "lucide-react";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
