@@ -474,109 +474,9 @@ const SpacePage = () => {
   }
 
   return (
-    <div className="min-h-screen pt-16">
-      {/* Matterport Viewer or Placeholder */}
-      <div className="relative h-[35vh] bg-black">
-        {space.external_tour_url ? (
-          <iframe
-            src={space.external_tour_url}
-            className="w-full h-full"
-            allowFullScreen
-            data-testid="external-tour-viewer"
-          />
-        ) : space.matterport_model_id ? (
-          <iframe
-            src={`https://my.matterport.com/show/?m=${space.matterport_model_id}&play=1&qs=1`}
-            className="w-full h-full"
-            allowFullScreen
-            data-testid="matterport-viewer"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-900/20 to-blue-900/20">
-            <div className="text-center">
-              <Layers size={80} className="text-cyan-500/50 mx-auto mb-4" />
-              <p className="text-gray-400 text-lg">
-                {lang === 'it' ? 'Tour virtuale in arrivo' : 'Virtual tour coming soon'}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Sidebar Toggle */}
-        <button
-          onClick={() => setShowSidebar(!showSidebar)}
-          className="absolute top-4 right-4 z-20 p-3 glass-overlay rounded-full"
-          data-testid="sidebar-toggle"
-        >
-          <MapPin size={20} className="text-white" />
-        </button>
-
-        {/* POI Sidebar */}
-        <AnimatePresence>
-          {showSidebar && pois.length > 0 && (
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              className="absolute top-4 right-16 bottom-4 w-80 glass-overlay rounded-2xl overflow-hidden"
-            >
-              <div className="p-4 border-b border-white/10">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <AudioLines size={20} className="text-cyan-400" />
-                  {lang === 'it' ? 'Punti di Interesse' : 'Points of Interest'}
-                </h3>
-              </div>
-              <div className="p-4 space-y-3 overflow-y-auto max-h-[calc(100%-60px)]">
-                {pois.map((poi) => (
-                  <div 
-                    key={poi.id}
-                    className="p-4 bg-white/5 rounded-xl border border-white/10 hover:border-cyan-500/50 transition-all"
-                    data-testid={`poi-${poi.id}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <span className="inline-block px-2 py-0.5 bg-cyan-600/30 text-cyan-400 text-xs rounded-full mb-2">
-                          POI #{poi.poi_number}
-                        </span>
-                        <h4 className="text-white font-medium">
-                          {poi.name[lang] || poi.name.it}
-                        </h4>
-                        <p className="text-gray-400 text-sm mt-1 line-clamp-2">
-                          {poi.description[lang] || poi.description.it}
-                        </p>
-                      </div>
-                      {(poi.audio_files[lang] || poi.audio_files.it) && (
-                        <button
-                          onClick={() => playAudio(poi)}
-                          className="p-2 bg-cyan-600/30 hover:bg-cyan-600/50 rounded-full transition-colors"
-                          data-testid={`play-poi-${poi.id}`}
-                        >
-                          <Volume2 size={18} className="text-cyan-400" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Audio Controls */}
-        {currentAudio && (
-          <div className="absolute bottom-4 left-4 glass-overlay rounded-full px-4 py-2 flex items-center gap-3">
-            <button onClick={toggleAudio} data-testid="audio-toggle">
-              {isPlaying ? <Pause size={20} className="text-cyan-400" /> : <Play size={20} className="text-cyan-400" />}
-            </button>
-            <span className="text-white text-sm">
-              {isPlaying ? (lang === 'it' ? 'In riproduzione...' : 'Playing...') : (lang === 'it' ? 'In pausa' : 'Paused')}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Space Info */}
-      <section className="py-12 px-4">
+    <div className="min-h-screen pt-20 pb-16">
+      {/* Space Info - PRIMA */}
+      <section className="px-4 mb-8">
         <div className="max-w-5xl mx-auto">
           <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="space-title">
             {space.name[lang] || space.name.it}
@@ -587,7 +487,7 @@ const SpacePage = () => {
 
           {/* Image Gallery */}
           {space.images.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               {space.images.map((img, i) => (
                 <div key={i} className="aspect-square rounded-xl overflow-hidden">
                   <img src={img} alt="" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
@@ -597,6 +497,125 @@ const SpacePage = () => {
           )}
         </div>
       </section>
+
+      {/* Matterport Viewer - DOPO, più piccolo */}
+      {(space.external_tour_url || space.matterport_model_id) && (
+        <section className="px-4 mb-8">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-xl font-semibold mb-4 text-cyan-400">
+              {lang === 'it' ? 'Tour Virtuale 3D' : 'Virtual 3D Tour'}
+            </h2>
+            <div className="relative rounded-2xl overflow-hidden" style={{height: '400px'}}>
+              {space.external_tour_url ? (
+                <iframe
+                  src={space.external_tour_url}
+                  className="w-full h-full"
+                  allowFullScreen
+                  data-testid="external-tour-viewer"
+                />
+              ) : (
+                <iframe
+                  src={`https://my.matterport.com/show/?m=${space.matterport_model_id}&play=1&qs=1`}
+                  className="w-full h-full"
+                  allowFullScreen
+                  data-testid="matterport-viewer"
+                />
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* POI Section with Audio Flags */}
+      {pois.length > 0 && (
+        <section className="px-4">
+          <div className="max-w-5xl mx-auto">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <AudioLines size={24} className="text-cyan-400" />
+              {lang === 'it' ? 'Audioguide' : 'Audio Guides'}
+            </h2>
+            <div className="space-y-4">
+              {pois.map((poi) => (
+                <div 
+                  key={poi.id}
+                  className="p-6 bg-white/5 rounded-2xl border border-white/10"
+                  data-testid={`poi-${poi.id}`}
+                >
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="flex-1">
+                      <span className="inline-block px-3 py-1 bg-cyan-600/30 text-cyan-400 text-sm rounded-full mb-2">
+                        POI #{poi.poi_number}
+                      </span>
+                      <h3 className="text-xl text-white font-semibold mb-2">
+                        {poi.name[lang] || poi.name.it}
+                      </h3>
+                      <p className="text-gray-400">
+                        {poi.description[lang] || poi.description.it}
+                      </p>
+                    </div>
+                    
+                    {/* Language Flags for Audio */}
+                    <div className="flex items-center gap-2">
+                      {poi.audio_files.it && (
+                        <button
+                          onClick={() => playAudioLang(poi, 'it')}
+                          className="flex items-center gap-1 px-3 py-2 bg-white/10 hover:bg-cyan-600/30 rounded-lg transition-colors"
+                          title="Italiano"
+                        >
+                          <span className="text-lg">🇮🇹</span>
+                          <Volume2 size={16} className="text-cyan-400" />
+                        </button>
+                      )}
+                      {poi.audio_files.en && (
+                        <button
+                          onClick={() => playAudioLang(poi, 'en')}
+                          className="flex items-center gap-1 px-3 py-2 bg-white/10 hover:bg-cyan-600/30 rounded-lg transition-colors"
+                          title="English"
+                        >
+                          <span className="text-lg">🇬🇧</span>
+                          <Volume2 size={16} className="text-cyan-400" />
+                        </button>
+                      )}
+                      {poi.audio_files.fr && (
+                        <button
+                          onClick={() => playAudioLang(poi, 'fr')}
+                          className="flex items-center gap-1 px-3 py-2 bg-white/10 hover:bg-cyan-600/30 rounded-lg transition-colors"
+                          title="Français"
+                        >
+                          <span className="text-lg">🇫🇷</span>
+                          <Volume2 size={16} className="text-cyan-400" />
+                        </button>
+                      )}
+                      {poi.audio_files.de && (
+                        <button
+                          onClick={() => playAudioLang(poi, 'de')}
+                          className="flex items-center gap-1 px-3 py-2 bg-white/10 hover:bg-cyan-600/30 rounded-lg transition-colors"
+                          title="Deutsch"
+                        >
+                          <span className="text-lg">🇩🇪</span>
+                          <Volume2 size={16} className="text-cyan-400" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Audio Player */}
+                  {currentAudio && currentPoi === poi.id && (
+                    <div className="mt-4 p-3 bg-black/30 rounded-xl flex items-center gap-3">
+                      <button onClick={toggleAudio}>
+                        {isPlaying ? <Pause size={24} className="text-cyan-400" /> : <Play size={24} className="text-cyan-400" />}
+                      </button>
+                      <span className="text-white text-sm">
+                        {isPlaying ? (lang === 'it' ? 'In riproduzione...' : 'Playing...') : (lang === 'it' ? 'In pausa' : 'Paused')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 };
