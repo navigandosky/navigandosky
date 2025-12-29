@@ -1747,6 +1747,228 @@ const POIEditModal = ({ poi, spaces, onClose, onSave }) => {
   );
 };
 
+// Costume Edit Modal
+const CostumeEditModal = ({ costume, onClose, onSave }) => {
+  const { lang } = useLanguage();
+  const isNew = !costume.id;
+  const [form, setForm] = useState({
+    codice: costume.codice || '',
+    nome: costume.nome || { it: '', en: '', fr: '', de: '' },
+    descrizione: costume.descrizione || { it: '', en: '', fr: '', de: '' },
+    tipo: costume.tipo || '',
+    ricamatrice: costume.ricamatrice || '',
+    valore: costume.valore || '',
+    provenienza: costume.provenienza || '',
+    epoca: costume.epoca || '',
+    images: costume.images || [],
+    is_active: costume.is_active !== false
+  });
+  const [saving, setSaving] = useState(false);
+  const [translating, setTranslating] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.codice || !form.tipo) {
+      toast.error(lang === 'it' ? 'Codice e Tipo sono obbligatori' : 'Code and Type are required');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (isNew) {
+        await axios.post(`${API}/costumi`, form);
+        toast.success(lang === 'it' ? 'Elemento creato' : 'Item created');
+      } else {
+        await axios.put(`${API}/costumi/${costume.id}`, form);
+        toast.success(lang === 'it' ? 'Elemento aggiornato' : 'Item updated');
+      }
+      onSave();
+    } catch (err) {
+      toast.error('Save failed');
+    }
+    setSaving(false);
+  };
+
+  const translateField = async (field) => {
+    const sourceText = form[field].it;
+    if (!sourceText) {
+      toast.error(lang === 'it' ? 'Inserisci prima il testo italiano' : 'Enter Italian text first');
+      return;
+    }
+    setTranslating(true);
+    try {
+      const translations = await Promise.all(
+        ['en', 'fr', 'de'].map(targetLang => 
+          axios.post(`${API}/translate`, { text: sourceText, source_lang: 'it', target_lang: targetLang })
+        )
+      );
+      const newFieldData = { ...form[field] };
+      ['en', 'fr', 'de'].forEach((targetLang, i) => {
+        newFieldData[targetLang] = translations[i].data.translation;
+      });
+      setForm({ ...form, [field]: newFieldData });
+      toast.success(lang === 'it' ? 'Traduzione completata' : 'Translation complete');
+    } catch (err) {
+      toast.error('Translation failed');
+    }
+    setTranslating(false);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await axios.post(`${API}/upload/image`, formData);
+      const imageUrl = res.data.url.startsWith('http') ? res.data.url : `${BACKEND_URL}${res.data.url}`;
+      setForm({ ...form, images: [...form.images, imageUrl] });
+      toast.success(lang === 'it' ? 'Immagine caricata' : 'Image uploaded');
+    } catch (err) {
+      toast.error('Upload failed');
+    }
+  };
+
+  const tipiCostume = ['Gonna', 'Corpetto', 'Scialle', 'Camicia', 'Grembiule', 'Copricapo', 'Gioiello', 'Accessorio', 'Completo', 'Altro'];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-3xl my-8 bg-[#0A0A0A] rounded-2xl border border-white/10">
+        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+          <h2 className="text-xl font-semibold">
+            {isNew ? (lang === 'it' ? 'Nuovo Elemento' : 'New Item') : (lang === 'it' ? 'Modifica Elemento' : 'Edit Item')}
+          </h2>
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg">
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          {/* Codice e Tipo */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{lang === 'it' ? 'Codice' : 'Code'} *</label>
+              <input
+                type="text"
+                value={form.codice}
+                onChange={(e) => setForm({ ...form, codice: e.target.value })}
+                className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none"
+                placeholder="ES: GHV-001"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{lang === 'it' ? 'Tipo' : 'Type'} *</label>
+              <select
+                value={form.tipo}
+                onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+                className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none"
+                required
+              >
+                <option value="">{lang === 'it' ? 'Seleziona...' : 'Select...'}</option>
+                {tipiCostume.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Nome */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-300">{lang === 'it' ? 'Nome' : 'Name'}</label>
+              <button type="button" onClick={() => translateField('nome')} disabled={translating} className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300">
+                <Languages size={14} /> {translating ? '...' : (lang === 'it' ? 'Traduci' : 'Translate')}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {['it', 'en', 'fr', 'de'].map(l => (
+                <div key={l}>
+                  <span className="text-xs text-gray-500 uppercase">{l}</span>
+                  <input type="text" value={form.nome[l] || ''} onChange={(e) => setForm({ ...form, nome: { ...form.nome, [l]: e.target.value } })} className="w-full mt-1 px-3 py-2 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Descrizione */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-300">{lang === 'it' ? 'Descrizione' : 'Description'}</label>
+              <button type="button" onClick={() => translateField('descrizione')} disabled={translating} className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300">
+                <Languages size={14} /> {translating ? '...' : (lang === 'it' ? 'Traduci' : 'Translate')}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {['it', 'en', 'fr', 'de'].map(l => (
+                <div key={l}>
+                  <span className="text-xs text-gray-500 uppercase">{l}</span>
+                  <textarea value={form.descrizione[l] || ''} onChange={(e) => setForm({ ...form, descrizione: { ...form.descrizione, [l]: e.target.value } })} rows={3} className="w-full mt-1 px-3 py-2 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none resize-none" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Dettagli */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{lang === 'it' ? 'Ricamatrice' : 'Embroiderer'}</label>
+              <input type="text" value={form.ricamatrice} onChange={(e) => setForm({ ...form, ricamatrice: e.target.value })} className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{lang === 'it' ? 'Valore Stimato' : 'Estimated Value'}</label>
+              <input type="text" value={form.valore} onChange={(e) => setForm({ ...form, valore: e.target.value })} className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none" placeholder="€ 500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{lang === 'it' ? 'Provenienza' : 'Origin'}</label>
+              <input type="text" value={form.provenienza} onChange={(e) => setForm({ ...form, provenienza: e.target.value })} className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none" placeholder="Dorgali" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">{lang === 'it' ? 'Epoca' : 'Period'}</label>
+              <input type="text" value={form.epoca} onChange={(e) => setForm({ ...form, epoca: e.target.value })} className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none" placeholder="XIX secolo" />
+            </div>
+          </div>
+
+          {/* Immagini */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">{lang === 'it' ? 'Immagini (max 6)' : 'Images (max 6)'}</label>
+            <div className="flex flex-wrap gap-3 mb-3">
+              {form.images.map((img, i) => (
+                <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden group">
+                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => setForm({ ...form, images: form.images.filter((_, idx) => idx !== i) })} className="absolute inset-0 bg-red-600/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {form.images.length < 6 && (
+              <label className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg cursor-pointer transition-colors">
+                <Upload size={18} />
+                <span>{lang === 'it' ? 'Carica Immagine' : 'Upload Image'}</span>
+                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+              </label>
+            )}
+          </div>
+
+          {/* Active */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 rounded border-white/30 bg-black/30 text-cyan-500 focus:ring-cyan-500" />
+            <span className="text-gray-300">{lang === 'it' ? 'Attivo' : 'Active'}</span>
+          </label>
+
+          {/* Submit */}
+          <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+            <button type="button" onClick={onClose} className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+              {lang === 'it' ? 'Annulla' : 'Cancel'}
+            </button>
+            <button type="submit" disabled={saving} className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg transition-colors disabled:opacity-50">
+              {saving ? '...' : (lang === 'it' ? 'Salva' : 'Save')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // Archivio Costumi Page
 const ArchivioPage = () => {
   const { lang } = useLanguage();
