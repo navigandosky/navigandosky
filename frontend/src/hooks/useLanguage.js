@@ -22,17 +22,7 @@ export function LanguageProvider({ children }) {
 export function useLanguage() {
   const context = useContext(LanguageContext);
   if (!context) {
-    // Fallback for when used outside provider
-    const [language, setLanguage] = useState(() => {
-      const saved = localStorage.getItem("spoke-language");
-      return saved || "it";
-    });
-
-    useEffect(() => {
-      localStorage.setItem("spoke-language", language);
-    }, [language]);
-
-    return { language, setLanguage };
+    throw new Error("useLanguage must be used within a LanguageProvider");
   }
   return context;
 }
