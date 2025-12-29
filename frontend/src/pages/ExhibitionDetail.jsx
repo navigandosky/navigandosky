@@ -440,8 +440,25 @@ export default function ExhibitionDetail() {
                 value={newPoiData.name}
                 onChange={(e) => setNewPoiData(prev => ({ ...prev, name: e.target.value }))}
                 className="border-[#E5E0D8] focus:border-[#C5A059]"
-                placeholder="Es: Costume tradizionale"
+                placeholder="Es: Costume tradizionale di Oliena"
+                data-testid="poi-name-input"
               />
+            </div>
+
+            <div>
+              <label className="block font-sans text-sm text-[#666058] mb-2">
+                Tag ID Matterport (opzionale)
+              </label>
+              <Input
+                value={newPoiData.tagId}
+                onChange={(e) => setNewPoiData(prev => ({ ...prev, tagId: e.target.value }))}
+                className="border-[#E5E0D8] focus:border-[#C5A059]"
+                placeholder="Es: abcd1234 (lo trovi cliccando sul tag)"
+                data-testid="poi-tagid-input"
+              />
+              <p className="text-xs text-[#666058] mt-1">
+                Per collegare questo POI a un tag esistente nello spazio Matterport
+              </p>
             </div>
 
             <div>
@@ -454,16 +471,9 @@ export default function ExhibitionDetail() {
                 rows={4}
                 className="border-[#E5E0D8] focus:border-[#C5A059]"
                 placeholder="Descrizione del punto di interesse..."
+                data-testid="poi-description-input"
               />
             </div>
-
-            {newPoiPosition && (
-              <div className="bg-[#F2F0EB] p-3 rounded-sm">
-                <p className="font-mono text-xs text-[#666058]">
-                  Posizione: X={newPoiPosition.x.toFixed(2)}, Y={newPoiPosition.y.toFixed(2)}, Z={newPoiPosition.z.toFixed(2)}
-                </p>
-              </div>
-            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-[#E5E0D8]">
