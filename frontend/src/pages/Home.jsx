@@ -1,7 +1,13 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Eye, Archive, BookOpen } from "lucide-react";
+import { ArrowRight, Eye, Archive, BookOpen, Globe } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useLanguage } from "../hooks/useLanguage";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 
 const HERO_IMAGE = "https://customer-assets.emergentagent.com/job_matterport-tours/artifacts/rt6113ik_loc_sito-web.jpg";
 const TEXTURE_IMAGE = "https://images.pexels.com/photos/8758357/pexels-photo-8758357.jpeg";
@@ -109,8 +115,15 @@ const translations = {
   }
 };
 
+const languages = [
+  { code: "it", name: "Italiano", flag: "🇮🇹" },
+  { code: "en", name: "English", flag: "🇬🇧" },
+  { code: "fr", name: "Français", flag: "🇫🇷" },
+  { code: "de", name: "Deutsch", flag: "🇩🇪" }
+];
+
 export default function Home() {
-  const { language } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const t = translations[language];
 
   const sections = [
