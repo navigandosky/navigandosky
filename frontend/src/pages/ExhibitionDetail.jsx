@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, MapPin, Volume2, Pause, Loader2, Plus, Save, Download, MousePointer, X, Mic } from "lucide-react";
+import { ArrowLeft, MapPin, Volume2, Pause, Loader2, Plus, Save, Download, MousePointer, X, Mic, Upload, Play, Check } from "lucide-react";
 import axios from "axios";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
