@@ -103,6 +103,47 @@ class POIUpdate(BaseModel):
     is_active: Optional[bool] = None
     audio_files: Optional[Dict[str, str]] = None
 
+# Costume/Elemento Identitario Model
+class Costume(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    codice: str  # Codice identificativo
+    nome: TranslatedText
+    descrizione: TranslatedText
+    tipo: str  # Es: "Gonna", "Corpetto", "Scialle", etc.
+    ricamatrice: str = ""
+    valore: str = ""  # Valore stimato
+    provenienza: str = ""  # Località di provenienza
+    epoca: str = ""  # Periodo storico
+    images: List[str] = []
+    is_active: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class CostumeCreate(BaseModel):
+    codice: str
+    nome: TranslatedText
+    descrizione: TranslatedText
+    tipo: str
+    ricamatrice: str = ""
+    valore: str = ""
+    provenienza: str = ""
+    epoca: str = ""
+    images: List[str] = []
+    is_active: bool = True
+
+class CostumeUpdate(BaseModel):
+    codice: Optional[str] = None
+    nome: Optional[TranslatedText] = None
+    descrizione: Optional[TranslatedText] = None
+    tipo: Optional[str] = None
+    ricamatrice: Optional[str] = None
+    valore: Optional[str] = None
+    provenienza: Optional[str] = None
+    epoca: Optional[str] = None
+    images: Optional[List[str]] = None
+    is_active: Optional[bool] = None
+
 class TranslationRequest(BaseModel):
     text: str
     source_lang: str = "it"
