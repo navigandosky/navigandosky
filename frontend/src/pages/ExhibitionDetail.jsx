@@ -490,7 +490,7 @@ export default function ExhibitionDetail() {
             >
               <iframe
                 ref={iframeRef}
-                src={`https://my.matterport.com/show/?m=${space.model_id}&play=1&qs=1&sr=-2.87,.44&ss=51&applicationKey=${MATTERPORT_SDK_KEY}`}
+                src={`https://my.matterport.com/show/?m=${space.model_id}&play=1&qs=1`}
                 title={getTranslation(space.name, language)}
                 className="w-full h-full"
                 style={{ minHeight: "600px" }}
