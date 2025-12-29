@@ -473,20 +473,88 @@ export default function ExhibitionDetail() {
     }
   };
 
-  const playAudio = (poi) => {
-    const audioUrl = poi.audio_url?.[language] || poi.audio_url?.it;
+  const playAudio = (poi, lang = null) => {
+    const targetLang = lang || language;
+    const audioUrl = poi.audio_url?.[targetLang];
     if (!audioUrl) return;
 
-    if (playingAudio === poi.id) {
+    const playKey = `${poi.id}_${targetLang}`;
+    
+    if (playingAudio === playKey) {
       audioRef.current?.pause();
       setPlayingAudio(null);
     } else {
       if (audioRef.current) {
         audioRef.current.src = audioUrl.startsWith('http') ? audioUrl : `${process.env.REACT_APP_BACKEND_URL}${audioUrl}`;
         audioRef.current.play();
-        setPlayingAudio(poi.id);
+        setPlayingAudio(playKey);
       }
     }
+  };
+
+  // Gestisce il progresso dell'audio
+  const handleAudioTimeUpdate = (poi, lang) => {
+    if (audioRef.current) {
+      setAudioProgress(prev => ({
+        ...prev,
+        [`${poi.id}_${lang}`]: {
+          currentTime: audioRef.current.currentTime,
+          duration: audioRef.current.duration || 0
+        }
+      }));
+    }
+  };
+
+  // Formatta i secondi in mm:ss
+  const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Upload audio file
+  const handleAudioUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadingPoi || !uploadingLang) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const uploadRes = await axios.post(`${API}/upload/audio`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      // Aggiorna il POI con il nuovo audio URL
+      const updatedAudioUrl = {
+        ...(uploadingPoi.audio_url || {}),
+        [uploadingLang]: uploadRes.data.url
+      };
+
+      await axios.put(`${API}/pois/${uploadingPoi.id}`, {
+        ...uploadingPoi,
+        audio_url: updatedAudioUrl
+      });
+
+      toast.success(`✅ Audio ${uploadingLang.toUpperCase()} caricato!`);
+      fetchData();
+      setUploadDialogOpen(false);
+
+    } catch (error) {
+      console.error("Error uploading audio:", error);
+      toast.error("Errore nel caricamento audio");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Apri dialog upload per una lingua specifica
+  const openUploadDialog = (poi, lang) => {
+    setUploadingPoi(poi);
+    setUploadingLang(lang);
+    setUploadDialogOpen(true);
   };
 
   if (loading) {
