@@ -270,6 +270,23 @@ export default function AdminSpaces() {
               />
             </div>
 
+            {/* Mpskin URL - Overlay Alternativo */}
+            <div>
+              <label className="block font-sans text-sm text-[#666058] mb-2">
+                URL Mpskin (Overlay Alternativo)
+              </label>
+              <Input
+                value={formData.mpskin_url}
+                onChange={(e) => setFormData(prev => ({ ...prev, mpskin_url: e.target.value }))}
+                placeholder="https://mpskin.com/... (se valorizzato, sostituisce Matterport)"
+                className="border-[#E5E0D8] focus:border-[#C5A059]"
+                data-testid="space-mpskin-url"
+              />
+              <p className="text-xs text-[#666058] mt-1">
+                Se questo campo è compilato, verrà usato al posto dell'iframe Matterport standard
+              </p>
+            </div>
+
             {/* Name (multilingual) */}
             <div>
               <div className="flex items-center justify-between mb-2">
