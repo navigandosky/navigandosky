@@ -47,6 +47,7 @@ class Space(BaseModel):
     name: TranslatedText
     description: TranslatedText
     matterport_model_id: str
+    external_tour_url: str = ""  # Link esterno (mpskin, overlay, ecc.)
     images: List[str] = []
     is_active: bool = True
     order: int = 0
@@ -57,6 +58,7 @@ class SpaceCreate(BaseModel):
     name: TranslatedText
     description: TranslatedText
     matterport_model_id: str
+    external_tour_url: str = ""
     images: List[str] = []
     is_active: bool = True
     order: int = 0
@@ -65,6 +67,7 @@ class SpaceUpdate(BaseModel):
     name: Optional[TranslatedText] = None
     description: Optional[TranslatedText] = None
     matterport_model_id: Optional[str] = None
+    external_tour_url: Optional[str] = None
     images: Optional[List[str]] = None
     is_active: Optional[bool] = None
     order: Optional[int] = None
