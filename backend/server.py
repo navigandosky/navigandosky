@@ -103,6 +103,7 @@ class TTSRequest(BaseModel):
 
 ADMIN_USER = os.environ.get('ADMIN_USER', 'Galaveras2025')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Gala2025$')
+MATTERPORT_API_TOKEN = os.environ.get('MATTERPORT_API_TOKEN', '24d3cb54e67b9246')
 
 @api_router.post("/admin/login")
 async def admin_login(credentials: AdminLogin):
