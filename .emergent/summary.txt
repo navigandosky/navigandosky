@@ -1,0 +1,173 @@
+<analysis>**original_problem_statement:** The user wants to create a website called Spoke Galaveras to showcase Matterport virtual tours.
+PRODUCT REQUIREMENTS:
+- A CMS to manage Matterport spaces, including model ID, photos, and descriptions in four languages (Italian, English, French, German).
+- A Points of Interest (POI) system with audioguides automatically generated using Text-to-Speech (TTS).
+- Automatic translation for descriptions.
+- A Costume Archive section to catalog costumes and their elements with fields: ID_risorsa, Descrizione, Ricamatrice, Proprietà, Valore, Data realizzazione, archivio fotografico, ID Tag Matterport, and the ID of the space it belongs to.
+- A password-protected admin panel with fixed credentials (, ).
+- The tech stack is FastAPI, React, and MongoDB.
+- The user provided MongoDB Atlas credentials and specified that the Matterport SDK should be used for interacting with tags, based on a recent response from Matterport support.
+- The user provided content and assets from  and later provided SDK keys, API tokens, and specific Matterport tour IDs to be preloaded.
+
+**User's preferred language**: Italian
+
+**what currently exists?**
+A full-stack application has been built based on the user's requirements.
+- **Backend (FastAPI)**: The server is set up with endpoints for managing Spaces, POIs, and Costumes (CRUD operations). It includes admin authentication, automatic translation, and TTS audio generation using OpenAI services. The database connection to the user's MongoDB Atlas cluster is configured and working.
+- **Frontend (React)**: The user interface is built with pages for the public-facing site (Homepage, Exhibitions, Costume Archive, Project) and a complete admin panel for content management. Most of the user's UI/UX requests (custom background, copyright notice, logos, text content) have been implemented. The Matterport viewer is embedded and successfully displays the 3D tours.
+
+The core functionality for interacting with Matterport tags (importing existing tags, creating new ones) is currently **not working**.
+
+**Last working item**:
+- Last item agent was working: The agent was performing an in-depth debugging of the Matterport SDK integration. After numerous tests, the root cause of the failure was identified: Matterport's server returns an  error when the application tries to load the SDK script. This indicates an authorization issue with the user's SDK Key or account, despite the domain being correctly listed in their Matterport developer settings. The agent provided the user with a detailed email template to send to Matterport's human support to resolve this account-level issue.
+- Status: BLOCKED
+- Agent Testing Done: Y
+- Which testing method agent to use? The issue is external (Matterport account configuration). No further testing can be done until the user receives a resolution from Matterport support. The next step is to wait for user input.
+- User Testing Done: Y
+
+**All Pending/In progress Issue list**:
+- Issue 1: (P0) Matterport SDK Integration Failure
+- Issue 2: (P1) Matterport API Token for Tag Import is Invalid
+
+Issues Detail:
+- Issue 1:
+- Description: The application cannot connect to the Matterport SDK. This prevents the implementation of features for automatically importing existing Mattertags and creating new ones from within the tour.
+- Attempted fixes:
+    - Multiple SDK connection methods were tested (, ).
+    - The  was added and removed from the iframe URL.
+    - A standalone HTML test page () was created to isolate the problem.
+    - All tests confirmed the same root cause: the browser receives an  error when trying to download the SDK script ().
+- Next debug checklist: The issue is not in the code but with the user's Matterport account authorization. The next step is to **wait for the user to provide an update from Matterport's human support team**. The agent should not attempt to re-debug this issue. Once Matterport resolves the access issue, the agent can re-test the connection using the existing  page.
+- Why fix this issue and what will be achieved with the fix? This is the primary blocker for core functionality. Fixing it will enable the user to manage POIs by importing them directly from the Matterport space and creating new ones interactively, which is a key requirement.
+- Status: BLOCKED
+- Is recurring issue? Y
+- Should Test frontend/backend/both after fix? Frontend
+- Blocked on other issue: Blocked on external dependency (Matterport Support).
+
+- Issue 2:
+- Description: An attempt to use the user-provided Matterport API Token () to import tags via a backend endpoint resulted in a  error.
+- Attempted fixes: A single attempt was made via a  command from the agent, which failed.
+- Next debug checklist: This is a lower priority issue than the SDK. If the SDK issue cannot be resolved, the agent can investigate if the user has a different type of API token or needs to generate a new one with the correct permissions for the GraphQL API used for fetching tags.
+- Why fix this issue and what will be achieved with the fix? This provides an alternative, server-side method for importing Matterport tags if the client-side SDK integration remains problematic.
+- Status: NOT STARTED
+- Is recurring issue? N
+- Should Test frontend/backend/both after fix? Backend
+- Blocked on other issue: No, but it's secondary to Issue 1.
+
+**In progress Task List**:
+There are no in-progress tasks. All development related to interactive POIs is blocked by the Matterport SDK issue.
+
+**Upcoming and Future Tasks**
+- **Upcoming Tasks**:
+  - (P0) **Enable SDK-based POI Management**: Once the SDK connection is fixed by Matterport, the agent needs to verify the functionality of the Importa Tag da Matterport and Attiva Creazione Tag buttons in .
+  - (P2) **Finalize Deployment Configuration**: Before the final build, the  property needs to be added back to .
+
+**Completed work in this session**
+- **Full Application Scaffolding**: Created the entire FastAPI backend and React frontend structure.
+- **Database Integration**: Connected the application to the user's MongoDB Atlas cluster and populated it with initial data for the Matterport spaces.
+- **CMS and Admin Panel**: Built a complete, password-protected admin section for managing Spaces, POIs, and Costumes.
+- **AI Features**: Integrated OpenAI for automatic text translation (4 languages) and TTS for audio guides.
+- **UI/UX Customization**: Implemented all user-requested visual changes:
+    - Custom homepage background image.
+    - Added Realizzato da Trivor srl © copyright and removed the Emergent badge.
+    - Adjusted logo positions and sizes.
+    - Updated exhibition card images.
+    - Added the project description text.
+    - Implemented a language selector on the homepage.
+- **Bug Fixes**:
+    - Resolved a crash in the Add Costume dialog.
+    - Fixed a local development issue caused by the  property in .
+- **Matterport Viewer**: Successfully embedded the Matterport viewer, which correctly displays the 3D tours.
+- **POI Management UI**: Created the frontend components and admin UI for managing POIs, including manual creation forms and buttons for (currently non-functional) SDK-based actions.
+
+**Earlier issues found/mentioned but not fixed**
+None. All issues raised by the user were addressed, although the primary issue is currently blocked by an external party.
+
+**Known issue recurrence from previous fork**
+N/A
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+- **Backend**: FastAPI
+- **Frontend**: React
+- **Database**: MongoDB (via MongoDB Atlas)
+- **Styling**: Tailwind CSS, direct CSS in  files.
+- **Integrations**: Matterport SDK (for embeds and interactivity), OpenAI (for TTS and translation).
+
+**key DB schema**
+- **spaces**: 
+- **pois**: 
+- **costumes**: 
+- **project**:  (stores the Il Progetto Spoke text)
+
+**changes in tech stack**
+None.
+
+**All files of reference**
+- : Contains the entire backend logic, including API routes, Pydantic models, and database interactions.
+- : The core component for displaying the Matterport tour and handling all SDK-related logic and UI elements (import/create buttons). This is the file to modify once the SDK issue is resolved.
+- : A crucial static HTML file created for isolated debugging of the Matterport SDK connection. This should be used to verify the fix from Matterport.
+- : Main HTML entry point, modified to remove the Emergent badge and set the page title.
+- : The main layout component, modified to include the custom footer with copyright and logo.
+- : Modified to add/remove the  property for deployment.
+
+**Areas that need refactoring**:
+The backend logic in  is monolithic. For future scalability, the Pydantic models, database utility functions, and API routers could be split into separate files/modules.
+
+**key api endpoints**
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+-  (exists but is non-functional due to 401 error)
+
+**Critical Info for New Agent**
+The most critical piece of information is that the project is **BLOCKED** waiting for a resolution from **Matterport Support**. The user's SDK Key is not authorized to download the SDK script, resulting in an  error. Do not waste time trying to debug the SDK connection from the code. The next action must be driven by the user providing an update from Matterport. Once the user confirms Matterport has fixed the issue, the first step should be to use the test page at  on the preview domain to verify the connection works before modifying any application code.
+
+**documents and test reports created in this job**
+- 
+- 
+- 
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **User**: Shares a screenshot from the test page confirming the SDK is not available.
+2.  **Agent**: Analyzes the screenshot, confirms the error, and provides a final, detailed email template for the user to send to a human at Matterport support.
+3.  **User**: Shares another email from Matterport's AI assistant.
+4.  **Agent**: Analyzes the email, instructs the user to reply and specifically ask for a human agent.
+5.  **Agent**: Implements a new, advanced test page () with multiple connection methods.
+6.  **User**: Confirms they have emailed Matterport to ask for a human agent.
+7.  **Agent**: Acknowledges this and asks the user how they want to proceed while waiting (continue with manual features or pause).
+8.  **User**: Replies to agent's email template (Message 277) to Matterport, with their own response.
+9.  **Agent**: Analyzes the response, confirming the issue is with domain authorization for the SDK key and advises the user to provide a screenshot of their Matterport developer tools page.
+10. **User**: Shares a screenshot of their Matterport Developer Tools configuration.
+
+**Project Health Check:**
+- **Broken**:
+    - Matterport SDK Integration: The connection to the SDK is completely broken due to a  error from Matterport's servers. This blocks all interactive POI features.
+    - Matterport API Tag Import: The backend endpoint for importing tags via API is broken due to a  error, likely from an invalid token.
+- **Mocked**: None.
+
+**3rd Party Integrations**
+- **Matterport**: Used for embedding 3D virtual tours. Integration with the SDK is currently non-functional and blocked.
+- **OpenAI (via Emergent LLM Key)**: Used for TTS and automatic translation. This integration is working.
+
+**Testing status**
+- Testing agent used after significant changes: YES (used once, early in the process)
+- Troubleshoot agent used after agent stuck in loop: NO
+- Test files created: []
+- Known regressions: The  property in  was temporarily added for deployment planning, which broke the development server. This was identified and reverted. It will need to be re-applied for production deployment.
+
+**Credentials to test flow:**
+- **Admin Login**:
+    - URL: 
+    - User: 
+    - Pass: 
+
+**What agent forgot to execute**
+The agent has not forgotten any major tasks. All work is currently dependent on the resolution of the external Matterport SDK issue.</analysis>
