@@ -119,6 +119,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Aggiunto campo mpskin_url al modello SpaceCreate. Testato tramite API."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Campo mpskin_url funziona correttamente. Testato: GET /api/spaces restituisce il campo, POST /api/spaces accetta il campo, PUT /api/spaces/{id} aggiorna il campo. Spazi possono essere creati con o senza mpskin_url. Tutti i test passati (100% success rate)."
 
   - task: "Endpoint TTS per generazione audio"
     implemented: true
@@ -131,6 +134,9 @@ backend:
       - working: true
         agent: "main"
         comment: "Endpoint /api/tts testato con curl - genera audio correttamente"
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Endpoint POST /api/tts funziona perfettamente per tutte le lingue (IT/EN/FR/DE). Genera file audio MP3 con voci appropriate per ogni lingua. Restituisce audio_url validi. Integrazione TTS + POI testata con successo."
 
   - task: "Endpoint PUT POI per aggiornare audio_url"
     implemented: true
@@ -143,6 +149,9 @@ backend:
       - working: true
         agent: "main"
         comment: "PUT /api/pois/{id} aggiorna correttamente audio_url"
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Endpoint PUT /api/pois/{id} aggiorna correttamente il campo audio_url. Testato con audio multilingue (IT/EN/FR/DE). Persistenza dati verificata. Integrazione completa TTS->POI funzionante."
 
 frontend:
   - task: "Campo Mpskin URL nel form AdminSpaces"
