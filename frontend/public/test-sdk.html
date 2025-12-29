@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test SDK Matterport</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        #status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connecting { background: #FFF3CD; color: #856404; }
+        .connected { background: #D4EDDA; color: #155724; }
+        .error { background: #F8D7DA; color: #721C24; }
+        iframe { width: 100%; height: 500px; border: 2px solid #ccc; }
+        pre { background: #f5f5f5; padding: 10px; overflow: auto; max-height: 200px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Matterport SDK</h1>
+    
+    <p><strong>SDK Key:</strong> 59wwqhip77fxkqiurcae74fed</p>
+    <p><strong>Model ID:</strong> 3JCgBo4FgT5</p>
+    <p><strong>Dominio corrente:</strong> <span id="domain"></span></p>
+    
+    <div id="status" class="connecting">⏳ Caricamento...</div>
+    
+    <h3>Tour Matterport:</h3>
+    <iframe 
+        id="showcase-iframe"
+        src="https://my.matterport.com/show/?m=3JCgBo4FgT5&play=1&qs=1&applicationKey=59wwqhip77fxkqiurcae74fed"
+        allow="xr-spatial-tracking; fullscreen"
+        allowfullscreen>
+    </iframe>
+    
+    <h3>Log Console:</h3>
+    <pre id="log"></pre>
+    
+    <h3>Mattertags trovati:</h3>
+    <pre id="tags">Nessuno ancora...</pre>
+
+    <script type="module">
+        const log = (msg) => {
+            console.log(msg);
+            document.getElementById('log').textContent += msg + '\n';
+        };
+        
+        const setStatus = (status, msg) => {
+            const el = document.getElementById('status');
+            el.className = status;
+            el.textContent = msg;
+        };
+        
+        document.getElementById('domain').textContent = window.location.hostname;
+        
+        // Wait for iframe to load
+        log('📍 Pagina caricata');
+        log('📍 Dominio: ' + window.location.hostname);
+        
+        setTimeout(async () => {
+            log('⏳ Tentativo connessione SDK...');
+            
+            try {
+                // Import SDK
+                const { connect } = await import('https://static.matterport.com/showcase-sdk/latest/sdk.es.js');
+                log('✅ SDK caricato');
+                
+                const iframe = document.getElementById('showcase-iframe');
+                log('⏳ Connessione a iframe...');
+                
+                const sdk = await connect(iframe);
+                log('✅ SDK CONNESSO!');
+                setStatus('connected', '✅ SDK Connesso con successo!');
+                
+                // Get Mattertags
+                try {
+                    const tags = await sdk.Mattertag.getData();
+                    log('📍 Trovati ' + tags.length + ' Mattertags');
+                    document.getElementById('tags').textContent = JSON.stringify(tags, null, 2);
+                } catch (e) {
+                    log('⚠️ Errore lettura tags: ' + e.message);
+                }
+                
+            } catch (e) {
+                log('❌ ERRORE: ' + e.message);
+                setStatus('error', '❌ Errore: ' + e.message);
+            }
+        }, 8000);
+    </script>
+</body>
+</html>
