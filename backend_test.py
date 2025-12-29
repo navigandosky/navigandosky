@@ -353,21 +353,100 @@ class SpokeGalaverasAPITester:
         )
 
     def test_tts_service(self):
-        """Test TTS service"""
+        """Test TTS service with multiple languages"""
         print("\n=== TESTING TTS SERVICE ===")
         
-        tts_data = {
-            "text": "Ciao, questo è un test",
+        # Test Italian TTS
+        tts_data_it = {
+            "text": "Benvenuti alla mostra di costumi storici di Galaveras",
             "lang": "it"
         }
         
-        self.run_test(
-            "TTS Service",
+        success_it, response_it = self.run_test(
+            "TTS Service (Italian)",
             "POST",
             "tts",
             200,
-            data=tts_data
+            data=tts_data_it
         )
+        
+        if success_it and 'audio_url' in response_it:
+            print(f"✅ Italian TTS generated audio: {response_it['audio_url']}")
+            self.passed_tests.append("TTS Italian audio generation")
+        else:
+            self.failed_tests.append({
+                "test": "TTS Italian audio generation",
+                "error": f"No audio_url in response: {response_it}"
+            })
+        
+        # Test English TTS
+        tts_data_en = {
+            "text": "Welcome to the historic costume exhibition of Galaveras",
+            "lang": "en"
+        }
+        
+        success_en, response_en = self.run_test(
+            "TTS Service (English)",
+            "POST",
+            "tts",
+            200,
+            data=tts_data_en
+        )
+        
+        if success_en and 'audio_url' in response_en:
+            print(f"✅ English TTS generated audio: {response_en['audio_url']}")
+            self.passed_tests.append("TTS English audio generation")
+        else:
+            self.failed_tests.append({
+                "test": "TTS English audio generation",
+                "error": f"No audio_url in response: {response_en}"
+            })
+        
+        # Test French TTS
+        tts_data_fr = {
+            "text": "Bienvenue à l'exposition de costumes historiques de Galaveras",
+            "lang": "fr"
+        }
+        
+        success_fr, response_fr = self.run_test(
+            "TTS Service (French)",
+            "POST",
+            "tts",
+            200,
+            data=tts_data_fr
+        )
+        
+        if success_fr and 'audio_url' in response_fr:
+            print(f"✅ French TTS generated audio: {response_fr['audio_url']}")
+            self.passed_tests.append("TTS French audio generation")
+        else:
+            self.failed_tests.append({
+                "test": "TTS French audio generation",
+                "error": f"No audio_url in response: {response_fr}"
+            })
+        
+        # Test German TTS
+        tts_data_de = {
+            "text": "Willkommen zur historischen Kostümausstellung von Galaveras",
+            "lang": "de"
+        }
+        
+        success_de, response_de = self.run_test(
+            "TTS Service (German)",
+            "POST",
+            "tts",
+            200,
+            data=tts_data_de
+        )
+        
+        if success_de and 'audio_url' in response_de:
+            print(f"✅ German TTS generated audio: {response_de['audio_url']}")
+            self.passed_tests.append("TTS German audio generation")
+        else:
+            self.failed_tests.append({
+                "test": "TTS German audio generation",
+                "error": f"No audio_url in response: {response_de}"
+            })
 
     def print_summary(self):
         """Print test summary"""
