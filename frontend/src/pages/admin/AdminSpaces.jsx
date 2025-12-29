@@ -68,7 +68,8 @@ export default function AdminSpaces() {
       name: { ...EMPTY_TRANSLATION },
       description: { ...EMPTY_TRANSLATION },
       cover_image: "",
-      is_active: true
+      is_active: true,
+      mpskin_url: ""
     });
     setDialogOpen(true);
   };
@@ -80,7 +81,8 @@ export default function AdminSpaces() {
       name: space.name || { ...EMPTY_TRANSLATION },
       description: space.description || { ...EMPTY_TRANSLATION },
       cover_image: space.cover_image || "",
-      is_active: space.is_active
+      is_active: space.is_active,
+      mpskin_url: space.mpskin_url || ""
     });
     setDialogOpen(true);
   };
