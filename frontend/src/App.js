@@ -822,6 +822,55 @@ const AdminPage = () => {
     }
   };
 
+  // Login Form
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen pt-24 pb-16 px-4 flex items-center justify-center">
+        <div className="w-full max-w-md">
+          <div className="bg-white/5 rounded-2xl border border-white/10 p-8">
+            <h1 className="text-2xl font-bold text-center mb-6">
+              {lang === 'it' ? 'Accesso Admin' : 'Admin Login'}
+            </h1>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                <input
+                  type="text"
+                  value={loginForm.username}
+                  onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none"
+                  placeholder="Username"
+                  data-testid="admin-username"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                <input
+                  type="password"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg focus:border-cyan-500 focus:outline-none"
+                  placeholder="Password"
+                  data-testid="admin-password"
+                />
+              </div>
+              {loginError && (
+                <p className="text-red-400 text-sm text-center">{loginError}</p>
+              )}
+              <button
+                type="submit"
+                className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-semibold transition-colors"
+                data-testid="admin-login-btn"
+              >
+                {lang === 'it' ? 'Accedi' : 'Login'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pt-24 pb-16 px-4">
       <div className="max-w-7xl mx-auto">
@@ -829,6 +878,13 @@ const AdminPage = () => {
           <h1 className="text-3xl font-bold" data-testid="admin-title">
             {lang === 'it' ? 'Pannello di Amministrazione' : 'Admin Panel'}
           </h1>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-red-600/30 hover:bg-red-600/50 text-red-400 rounded-lg transition-colors"
+            data-testid="admin-logout"
+          >
+            {lang === 'it' ? 'Esci' : 'Logout'}
+          </button>
         </div>
 
         {/* Tabs */}
