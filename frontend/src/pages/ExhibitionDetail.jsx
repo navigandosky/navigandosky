@@ -390,6 +390,63 @@ export default function ExhibitionDetail() {
     }
   };
 
+  // Genera audio TTS per un POI
+  const generateAudioForPoi = async (poi, lang) => {
+    const description = poi.description?.[lang];
+    if (!description) {
+      toast.error(t.noDescription);
+      return;
+    }
+
+    const key = `${poi.id}_${lang}`;
+    setGeneratingAudio(prev => ({ ...prev, [key]: true }));
+
+    try {
+      // Genera audio TTS
+      const ttsResponse = await axios.post(`${API}/tts`, {
+        text: description,
+        lang
+      });
+
+      // Aggiorna il POI con il nuovo audio URL
+      const updatedAudioUrl = {
+        ...(poi.audio_url || {}),
+        [lang]: ttsResponse.data.audio_url
+      };
+
+      await axios.put(`${API}/pois/${poi.id}`, {
+        ...poi,
+        audio_url: updatedAudioUrl
+      });
+
+      toast.success(`✅ Audio ${lang.toUpperCase()} generato!`);
+      fetchData(); // Ricarica i POI
+
+    } catch (error) {
+      console.error("Error generating audio:", error);
+      toast.error("Errore nella generazione audio");
+    } finally {
+      setGeneratingAudio(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  // Genera audio per tutte le lingue di un POI
+  const generateAllAudioForPoi = async (poi) => {
+    const langs = ["it", "en", "fr", "de"];
+    let generated = 0;
+
+    for (const lang of langs) {
+      if (poi.description?.[lang]) {
+        await generateAudioForPoi(poi, lang);
+        generated++;
+      }
+    }
+
+    if (generated === 0) {
+      toast.error("Nessuna descrizione disponibile per generare audio");
+    }
+  };
+
   const handlePoiClick = (poi) => {
     setSelectedPoi(poi);
     if (audioRef.current) {
