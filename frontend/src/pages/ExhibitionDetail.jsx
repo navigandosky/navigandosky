@@ -351,8 +351,8 @@ export default function ExhibitionDetail() {
                   </Button>
                   
                   <p className="font-sans text-[10px] text-[#666058] mt-2">
-                    💡 Usa "Importa Tag via API" per importare automaticamente tutti i tag Matterport esistenti, 
-                    oppure "Aggiungi POI Manuale" per creare nuovi punti di interesse.
+                    💡 Usa &ldquo;Importa Tag via API&rdquo; per importare automaticamente tutti i tag Matterport esistenti, 
+                    oppure &ldquo;Aggiungi POI Manuale&rdquo; per creare nuovi punti di interesse.
                   </p>
                 </div>
               )}
