@@ -124,7 +124,7 @@ async def get_space(space_id: str):
         raise HTTPException(status_code=404, detail="Spazio non trovato")
     return space
 
-@api_router.post("/spaces", response_model=Space)
+@api_router.post("/spaces", response_model=Space, status_code=201)
 async def create_space(space_data: SpaceCreate):
     space = Space(**space_data.model_dump())
     await db.spaces.insert_one(space.model_dump())
@@ -167,7 +167,7 @@ async def get_poi(poi_id: str):
         raise HTTPException(status_code=404, detail="POI non trovato")
     return poi
 
-@api_router.post("/pois", response_model=POI)
+@api_router.post("/pois", response_model=POI, status_code=201)
 async def create_poi(poi_data: POICreate):
     poi = POI(**poi_data.model_dump())
     await db.pois.insert_one(poi.model_dump())
@@ -216,7 +216,7 @@ async def get_costume(costume_id: str):
         raise HTTPException(status_code=404, detail="Costume non trovato")
     return costume
 
-@api_router.post("/costumes", response_model=Costume)
+@api_router.post("/costumes", response_model=Costume, status_code=201)
 async def create_costume(costume_data: CostumeCreate):
     costume = Costume(**costume_data.model_dump())
     await db.costumes.insert_one(costume.model_dump())
