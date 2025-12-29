@@ -34,6 +34,7 @@ const LanguageProvider = ({ children }) => {
 };
 
 // Logos
+const LOGO_GHIVINE = "https://customer-assets.emergentagent.com/job_ghivine-spoke/artifacts/59y7es77_logo%20ghivine.png";
 const LOGO_SPOKE = "https://customer-assets.emergentagent.com/job_ghivine-spoke/artifacts/cbw6ifjt_Logo%20firma%20Spoke2%20completo.png";
 const LOGO_UNISS = "https://customer-assets.emergentagent.com/job_ghivine-spoke/artifacts/mfjfnz1n_Logo%20firma%20Spoke%202%20Uniss.png";
 
@@ -87,7 +88,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-3" data-testid="nav-logo">
             <div className="h-14 w-auto">
-              <img src={LOGO_SPOKE} alt="Spoke Ghivine" className="h-full w-auto object-contain" />
+              <img src={LOGO_GHIVINE} alt="Coop. Ghivine" className="h-full w-auto object-contain" />
             </div>
           </Link>
 
