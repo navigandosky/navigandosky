@@ -448,6 +448,128 @@ class SpokeGalaverasAPITester:
                 "error": f"No audio_url in response: {response_de}"
             })
 
+    def test_new_features(self):
+        """Test the newly implemented features: mpskin_url and TTS integration"""
+        print("\n=== TESTING NEW FEATURES (MPSKIN_URL & TTS INTEGRATION) ===")
+        
+        # Test 1: Create space without mpskin_url (should work)
+        space_without_mpskin = {
+            "model_id": "test_no_mpskin",
+            "name": {"it": "Spazio Senza Mpskin", "en": "Space Without Mpskin", "fr": "Espace Sans Mpskin", "de": "Raum Ohne Mpskin"},
+            "description": {"it": "Test", "en": "Test", "fr": "Test", "de": "Test"},
+            "is_active": True
+        }
+        
+        success1, space1 = self.run_test(
+            "Create Space WITHOUT mpskin_url",
+            "POST",
+            "spaces",
+            201,
+            data=space_without_mpskin
+        )
+        
+        if success1 and space1.get('mpskin_url') is None:
+            print("✅ Space created successfully without mpskin_url")
+            self.passed_tests.append("Space creation without mpskin_url")
+        else:
+            self.failed_tests.append({
+                "test": "Space creation without mpskin_url",
+                "error": f"Unexpected mpskin_url value: {space1.get('mpskin_url')}"
+            })
+        
+        # Test 2: Create space with mpskin_url
+        space_with_mpskin = {
+            "model_id": "test_with_mpskin",
+            "name": {"it": "Spazio Con Mpskin", "en": "Space With Mpskin", "fr": "Espace Avec Mpskin", "de": "Raum Mit Mpskin"},
+            "description": {"it": "Test", "en": "Test", "fr": "Test", "de": "Test"},
+            "is_active": True,
+            "mpskin_url": "https://mpskin.example.com/overlay/12345"
+        }
+        
+        success2, space2 = self.run_test(
+            "Create Space WITH mpskin_url",
+            "POST",
+            "spaces",
+            201,
+            data=space_with_mpskin
+        )
+        
+        if success2 and space2.get('mpskin_url') == "https://mpskin.example.com/overlay/12345":
+            print("✅ Space created successfully with mpskin_url")
+            self.passed_tests.append("Space creation with mpskin_url")
+        else:
+            self.failed_tests.append({
+                "test": "Space creation with mpskin_url",
+                "error": f"mpskin_url not saved correctly: {space2.get('mpskin_url')}"
+            })
+        
+        # Test 3: TTS + POI Integration Test
+        if success2 and 'id' in space2:
+            space_id = space2['id']
+            
+            # Create POI for TTS testing
+            poi_for_tts = {
+                "space_id": space_id,
+                "name": {"it": "POI per TTS", "en": "POI for TTS", "fr": "POI pour TTS", "de": "POI für TTS"},
+                "description": {"it": "Questo è un punto di interesse per testare la generazione audio TTS", "en": "This is a point of interest for testing TTS audio generation", "fr": "Ceci est un point d'intérêt pour tester la génération audio TTS", "de": "Dies ist ein Interessenspunkt zum Testen der TTS-Audiogenerierung"}
+            }
+            
+            success_poi, created_poi = self.run_test(
+                "Create POI for TTS Integration Test",
+                "POST",
+                "pois",
+                201,
+                data=poi_for_tts
+            )
+            
+            if success_poi and 'id' in created_poi:
+                poi_id = created_poi['id']
+                
+                # Generate TTS for Italian description
+                tts_request = {
+                    "text": created_poi['description']['it'],
+                    "lang": "it"
+                }
+                
+                success_tts, tts_response = self.run_test(
+                    "Generate TTS for POI Description",
+                    "POST",
+                    "tts",
+                    200,
+                    data=tts_request
+                )
+                
+                if success_tts and 'audio_url' in tts_response:
+                    # Update POI with generated audio URL
+                    updated_poi = poi_for_tts.copy()
+                    updated_poi['audio_url'] = {"it": tts_response['audio_url']}
+                    
+                    success_update, updated_poi_response = self.run_test(
+                        "Update POI with TTS Audio URL",
+                        "PUT",
+                        f"pois/{poi_id}",
+                        200,
+                        data=updated_poi
+                    )
+                    
+                    if success_update and updated_poi_response.get('audio_url', {}).get('it') == tts_response['audio_url']:
+                        print("✅ TTS + POI Integration successful")
+                        self.passed_tests.append("TTS + POI Integration")
+                    else:
+                        self.failed_tests.append({
+                            "test": "TTS + POI Integration",
+                            "error": f"POI audio_url not updated with TTS result: {updated_poi_response.get('audio_url')}"
+                        })
+                
+                # Clean up POI
+                self.run_test("Delete TTS Test POI", "DELETE", f"pois/{poi_id}", 200)
+        
+        # Clean up spaces
+        if success1 and 'id' in space1:
+            self.run_test("Delete Test Space 1", "DELETE", f"spaces/{space1['id']}", 200)
+        if success2 and 'id' in space2:
+            self.run_test("Delete Test Space 2", "DELETE", f"spaces/{space2['id']}", 200)
+
     def print_summary(self):
         """Print test summary"""
         print(f"\n{'='*50}")
