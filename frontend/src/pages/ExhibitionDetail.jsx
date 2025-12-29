@@ -221,7 +221,6 @@ export default function ExhibitionDetail() {
       
       // Reset state
       setDialogOpen(false);
-      setCreateMode(false);
       setNewPoiPosition(null);
       setNewPoiData({ name: "", description: "", tagId: "" });
       fetchData();
