@@ -149,6 +149,36 @@ export default function Home() {
 
   return (
     <div>
+      {/* Language Selector Fixed on Hero */}
+      <div className="fixed top-24 right-6 md:right-12 z-30">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="bg-white/90 backdrop-blur-sm border-[#C5A059] text-[#2A2A2A] hover:bg-[#C5A059] hover:text-white shadow-lg"
+              data-testid="home-language-selector"
+            >
+              <Globe className="w-4 h-4 mr-2" />
+              <span className="uppercase font-mono text-xs">{language}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-white border-[#E5E0D8]">
+            {languages.map((lang) => (
+              <DropdownMenuItem
+                key={lang.code}
+                onClick={() => setLanguage(lang.code)}
+                className={`cursor-pointer ${language === lang.code ? "bg-[#F2F0EB]" : ""}`}
+                data-testid={`home-lang-${lang.code}`}
+              >
+                <span className="mr-2 text-lg">{lang.flag}</span>
+                {lang.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       {/* Hero Section */}
       <section className="relative min-h-[80vh] flex items-center overflow-hidden">
         {/* Background */}
