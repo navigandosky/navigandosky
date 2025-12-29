@@ -210,6 +210,13 @@ export default function Layout() {
           className="h-12 w-auto"
         />
       </div>
+
+      {/* Trivor Copyright */}
+      <div className="fixed bottom-4 left-4 z-40">
+        <p className="font-sans text-xs text-[#666058]/70">
+          Realizzato da Trivor srl ©
+        </p>
+      </div>
     </div>
   );
 }
