@@ -99,6 +99,7 @@ export default function ExhibitionDetail() {
   const [importing, setImporting] = useState(false);
   const [newPoiPosition, setNewPoiPosition] = useState(null);
   const [newPoiData, setNewPoiData] = useState({ name: "", description: "", tagId: "" });
+  const [sdkReady, setSdkReady] = useState(false);
   
   const iframeRef = useRef(null);
   const audioRef = useRef(null);
