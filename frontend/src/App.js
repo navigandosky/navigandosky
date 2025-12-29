@@ -748,12 +748,33 @@ const ProjectPage = () => {
 const AdminPage = () => {
   const { lang } = useLanguage();
   const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('adminAuth') === 'true';
+  });
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState('spaces');
   const [spaces, setSpaces] = useState([]);
   const [pois, setPois] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingSpace, setEditingSpace] = useState(null);
   const [editingPoi, setEditingPoi] = useState(null);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (loginForm.username === 'admin' && loginForm.password === 'Ghivine205$') {
+      setIsAuthenticated(true);
+      sessionStorage.setItem('adminAuth', 'true');
+      setLoginError('');
+    } else {
+      setLoginError(lang === 'it' ? 'Credenziali non valide' : 'Invalid credentials');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('adminAuth');
+  };
 
   const fetchData = async () => {
     try {
