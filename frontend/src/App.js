@@ -1521,7 +1521,7 @@ const POIEditModal = ({ poi, spaces, onClose, onSave }) => {
 function App() {
   return (
     <LanguageProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/spokeghivine">
         <div className="App min-h-screen bg-[#020204]">
           <Toaster position="top-right" theme="dark" />
           <Navbar />
