@@ -832,6 +832,122 @@ async def get_logs(limit: int = 50, username: str = Depends(verify_trivordoc_cre
     logs = await db.trivordoc_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return logs
 
+# =============================================================================
+# CHECKDB - DATABASE MONITORING
+# =============================================================================
+
+@api_router.get("/checkdb/status")
+async def get_db_status(username: str = Depends(verify_trivordoc_credentials)):
+    """Get comprehensive database status and statistics"""
+    try:
+        # Get database stats
+        db_stats = await db.command("dbStats")
+        
+        # Get all collections
+        collections = await db.list_collection_names()
+        
+        # Get stats for each collection
+        collection_stats = []
+        for coll_name in collections:
+            try:
+                coll_stats = await db.command("collStats", coll_name)
+                collection_stats.append({
+                    "name": coll_name,
+                    "count": coll_stats.get("count", 0),
+                    "size": coll_stats.get("size", 0),
+                    "avgObjSize": coll_stats.get("avgObjSize", 0),
+                    "storageSize": coll_stats.get("storageSize", 0),
+                    "totalIndexSize": coll_stats.get("totalIndexSize", 0),
+                    "nindexes": coll_stats.get("nindexes", 0),
+                })
+            except Exception as e:
+                collection_stats.append({
+                    "name": coll_name,
+                    "count": await db[coll_name].count_documents({}),
+                    "size": 0,
+                    "error": str(e)
+                })
+        
+        # Sort by size descending
+        collection_stats.sort(key=lambda x: x.get("size", 0), reverse=True)
+        
+        return {
+            "database": {
+                "name": db.name,
+                "collections": len(collections),
+                "dataSize": db_stats.get("dataSize", 0),
+                "storageSize": db_stats.get("storageSize", 0),
+                "indexSize": db_stats.get("indexSize", 0),
+                "totalSize": db_stats.get("dataSize", 0) + db_stats.get("indexSize", 0),
+                "objects": db_stats.get("objects", 0),
+                "avgObjSize": db_stats.get("avgObjSize", 0),
+            },
+            "collections": collection_stats,
+            "server_info": {
+                "ok": db_stats.get("ok", 0),
+            }
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "database": {"name": db.name},
+            "collections": []
+        }
+
+@api_router.get("/checkdb/collections/{collection_name}")
+async def get_collection_details(collection_name: str, username: str = Depends(verify_trivordoc_credentials)):
+    """Get detailed info about a specific collection"""
+    try:
+        # Get sample documents
+        samples = await db[collection_name].find({}, {"_id": 0}).limit(5).to_list(5)
+        
+        # Get count
+        count = await db[collection_name].count_documents({})
+        
+        # Get indexes
+        indexes = []
+        async for idx in db[collection_name].list_indexes():
+            indexes.append({
+                "name": idx.get("name"),
+                "key": dict(idx.get("key", {})),
+                "unique": idx.get("unique", False)
+            })
+        
+        return {
+            "name": collection_name,
+            "count": count,
+            "indexes": indexes,
+            "sample_documents": samples,
+            "fields": list(samples[0].keys()) if samples else []
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@api_router.get("/checkdb/health")
+async def get_db_health(username: str = Depends(verify_trivordoc_credentials)):
+    """Quick health check of database connection"""
+    try:
+        # Ping the database
+        await client.admin.command('ping')
+        
+        # Get server status
+        server_info = await client.server_info()
+        
+        return {
+            "status": "healthy",
+            "connected": True,
+            "server_version": server_info.get("version", "unknown"),
+            "database": db.name,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "connected": False,
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
 # Include the router in the main app (after all routes are defined)
 app.include_router(api_router)
 
