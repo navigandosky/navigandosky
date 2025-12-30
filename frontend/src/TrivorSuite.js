@@ -623,6 +623,8 @@ const CheckDBApp = ({ onBack, getAuthHeader }) => {
                 </div>
               </div>
             </div>
+              </>
+            )}
           </div>
         )}
       </main>
