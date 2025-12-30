@@ -215,8 +215,8 @@ const DocumentForm = ({ document, onClose, onSave, getAuthHeader, categories }) 
     const file = e.target.files[0];
     if (!file || !document?.id) return;
     
-    if (allegati.length >= 5) {
-      alert("Massimo 5 allegati per documento");
+    if (allegati.length >= 20) {
+      alert("Massimo 20 allegati per documento");
       return;
     }
 

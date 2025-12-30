@@ -675,8 +675,8 @@ async def upload_attachment(
     if not doc:
         raise HTTPException(status_code=404, detail="Documento non trovato")
     
-    if len(doc.get("allegati", [])) >= 5:
-        raise HTTPException(status_code=400, detail="Massimo 5 allegati per documento")
+    if len(doc.get("allegati", [])) >= 20:
+        raise HTTPException(status_code=400, detail="Massimo 20 allegati per documento")
     
     # Save file
     file_ext = Path(file.filename).suffix.lower()
