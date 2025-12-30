@@ -1369,7 +1369,6 @@ const Home = () => {
     <div className="bg-[#0a0a0b] min-h-screen">
       <Navbar />
       <HeroSection />
-      <PartnerLogosBar />
       <ServicesSection />
       <TourVirtualiSection />
       <PortfolioSection />
