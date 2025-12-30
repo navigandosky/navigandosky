@@ -728,6 +728,8 @@ const TrivorSuitePage = () => {
   const handleSelectApp = (appId) => {
     if (appId === "trivordoc") {
       navigate("/trivordoc");
+    } else if (appId === "trivorweb") {
+      navigate("/trivorweb");
     } else if (appId === "checkdb") {
       setCurrentApp("checkdb");
     }
