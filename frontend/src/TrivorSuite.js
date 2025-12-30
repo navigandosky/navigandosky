@@ -176,6 +176,15 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
       status: "active"
     },
     {
+      id: "trivorweb",
+      name: "TrivorWEB",
+      description: "Gestione Siti Web & Hosting",
+      icon: Server,
+      color: "purple",
+      features: ["Credenziali siti", "Scadenze hosting", "Dati FTP/DB", "Costi annuali"],
+      status: "active"
+    },
+    {
       id: "checkdb",
       name: "CheckDB",
       description: "Monitoraggio Database",
@@ -189,17 +198,8 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
       name: "TrivorCRM",
       description: "Gestione Clienti e Contatti",
       icon: Briefcase,
-      color: "purple",
-      features: ["Anagrafica clienti", "Storico contatti", "Pipeline vendite"],
-      status: "coming"
-    },
-    {
-      id: "coming2",
-      name: "TrivorTask",
-      description: "Gestione Attività e Progetti",
-      icon: Settings,
       color: "orange",
-      features: ["Todo list", "Progetti", "Timeline", "Collaborazione"],
+      features: ["Anagrafica clienti", "Storico contatti", "Pipeline vendite"],
       status: "coming"
     },
   ];
