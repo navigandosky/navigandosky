@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import "@/App.css";
-import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
+import { HashRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   Lightbulb,
@@ -45,6 +45,30 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
+  Search,
+  Filter,
+  Download,
+  Share2,
+  FileText,
+  File,
+  FileSpreadsheet,
+  FileImage,
+  Calendar,
+  Tag,
+  User,
+  Briefcase,
+  BarChart3,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Upload,
+  Paperclip,
+  Grid,
+  List,
+  SlidersHorizontal,
+  Archive,
+  Send,
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
