@@ -499,6 +499,24 @@ def main():
     test_results['admin_settings'] = test_put_admin_settings()
     test_results['admin_stats'] = test_admin_stats()
     
+    # Test TRIVORDOC and CheckDB endpoints (Review Request Tests)
+    print("\n" + "=" * 60)
+    print("REVIEW REQUEST SPECIFIC TESTS")
+    print("=" * 60)
+    
+    test_results['checkdb_databases'] = test_checkdb_databases()
+    test_results['checkdb_specific_db'] = test_checkdb_specific_database()
+    
+    # Test document creation and file upload (linked tests)
+    doc_id = test_trivordoc_document_creation()
+    if doc_id and doc_id != False:
+        test_results['trivordoc_document_creation'] = True
+        test_results['trivordoc_file_upload'] = test_trivordoc_file_upload(doc_id)
+    else:
+        test_results['trivordoc_document_creation'] = False
+        test_results['trivordoc_file_upload'] = False
+        print("❌ Skipping file upload test due to document creation failure")
+    
     # Summary
     print("\n" + "=" * 60)
     print("TEST SUMMARY")
@@ -507,11 +525,34 @@ def main():
     passed = 0
     total = len(test_results)
     
-    for test_name, result in test_results.items():
-        status = "✅ PASS" if result else "❌ FAIL"
-        print(f"{test_name.upper()}: {status}")
-        if result:
-            passed += 1
+    # Group tests by category
+    basic_tests = ['health', 'settings', 'projects', 'contact']
+    admin_tests = ['admin_login', 'admin_settings', 'admin_stats']
+    review_tests = ['checkdb_databases', 'checkdb_specific_db', 'trivordoc_document_creation', 'trivordoc_file_upload']
+    
+    print("BASIC API TESTS:")
+    for test_name in basic_tests:
+        if test_name in test_results:
+            status = "✅ PASS" if test_results[test_name] else "❌ FAIL"
+            print(f"  {test_name.upper()}: {status}")
+            if test_results[test_name]:
+                passed += 1
+    
+    print("\nADMIN API TESTS:")
+    for test_name in admin_tests:
+        if test_name in test_results:
+            status = "✅ PASS" if test_results[test_name] else "❌ FAIL"
+            print(f"  {test_name.upper()}: {status}")
+            if test_results[test_name]:
+                passed += 1
+    
+    print("\nREVIEW REQUEST TESTS:")
+    for test_name in review_tests:
+        if test_name in test_results:
+            status = "✅ PASS" if test_results[test_name] else "❌ FAIL"
+            print(f"  {test_name.upper()}: {status}")
+            if test_results[test_name]:
+                passed += 1
     
     print(f"\nOverall: {passed}/{total} tests passed")
     
