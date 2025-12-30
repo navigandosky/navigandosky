@@ -66,14 +66,8 @@ const SARDEGNA_IMAGES = {
 };
 
 // =============================================================================
-// LOGHI PARTNER (dagli Spoke) - Using accessible URLs
+// LOGHI PARTNER - REMOVED
 // =============================================================================
-const PARTNER_LOGOS = [
-  { name: "Unione Europea", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Flag_of_Europe.svg/200px-Flag_of_Europe.svg.png" },
-  { name: "Regione Sardegna", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Sardegna-Stemma.svg/150px-Sardegna-Stemma.svg.png" },
-  { name: "Università Sassari", url: "https://www.uniss.it/sites/default/files/logo-uniss.png" },
-  { name: "Matterport", url: "https://matterport.com/sites/default/files/logo.svg" },
-];
 
 // =============================================================================
 // HOOKS
