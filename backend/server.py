@@ -840,17 +840,27 @@ async def get_logs(limit: int = 50, username: str = Depends(verify_trivordoc_cre
 async def get_all_databases(username: str = Depends(verify_trivordoc_credentials)):
     """Get list of all databases in the cluster"""
     try:
-        # List all databases
-        db_list = await client.list_databases()
+        # List all databases - need to convert cursor to list
+        db_list = await client.list_database_names()
         databases = []
         
-        for db_info in db_list:
-            if db_info["name"] not in ["admin", "local", "config"]:
-                databases.append({
-                    "name": db_info["name"],
-                    "sizeOnDisk": db_info.get("sizeOnDisk", 0),
-                    "empty": db_info.get("empty", False)
-                })
+        for db_name in db_list:
+            if db_name not in ["admin", "local", "config"]:
+                # Get database stats for size info
+                try:
+                    target_db = client[db_name]
+                    db_stats = await target_db.command("dbStats")
+                    databases.append({
+                        "name": db_name,
+                        "sizeOnDisk": db_stats.get("dataSize", 0) + db_stats.get("indexSize", 0),
+                        "empty": db_stats.get("objects", 0) == 0
+                    })
+                except Exception:
+                    databases.append({
+                        "name": db_name,
+                        "sizeOnDisk": 0,
+                        "empty": True
+                    })
         
         return {
             "databases": sorted(databases, key=lambda x: x["name"]),
