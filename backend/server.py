@@ -433,6 +433,408 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# TRIVORDOC - GESTIONE DOCUMENTALE
+# =============================================================================
+
+# TRIVORDOC Credentials
+TRIVORDOC_USERNAME = "Trivor_doc"
+TRIVORDOC_PASSWORD = "Doc_trivor$"
+TRIVORDOC_DELETE_PASSWORD = "Docanc"
+
+def verify_trivordoc_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, TRIVORDOC_USERNAME)
+    correct_password = secrets.compare_digest(credentials.password, TRIVORDOC_PASSWORD)
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenziali TRIVORDOC non valide",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+# TRIVORDOC Models
+class ProgettoSchema(BaseModel):
+    descrizione: str = ""
+    azione: str = ""
+    cliente: str = ""
+    valore: float = 0
+    data_inizio: Optional[str] = None
+    data_fine: Optional[str] = None
+
+class AllegatoSchema(BaseModel):
+    nome: str
+    url: str
+    tipo: str
+    size: int
+
+class DocumentoCreate(BaseModel):
+    gruppo: str
+    tipo_documento: str
+    data_creazione: str
+    autore: str
+    keywords: List[str] = []
+    categoria: str
+    descrizione: str = ""
+    progetto: Optional[ProgettoSchema] = None
+
+class DocumentoUpdate(BaseModel):
+    gruppo: Optional[str] = None
+    tipo_documento: Optional[str] = None
+    data_creazione: Optional[str] = None
+    autore: Optional[str] = None
+    keywords: Optional[List[str]] = None
+    categoria: Optional[str] = None
+    descrizione: Optional[str] = None
+    progetto: Optional[ProgettoSchema] = None
+
+class DeleteRequest(BaseModel):
+    password: str
+
+# Generate unique document ID
+async def generate_doc_id():
+    year = datetime.now().year
+    count = await db.trivordoc_documents.count_documents({})
+    return f"DOC-{year}-{str(count + 1).zfill(4)}"
+
+# TRIVORDOC API Endpoints
+
+@api_router.post("/trivordoc/login")
+async def trivordoc_login(credentials: HTTPBasicCredentials = Depends(security)):
+    """Verify TRIVORDOC login"""
+    if credentials.username == TRIVORDOC_USERNAME and credentials.password == TRIVORDOC_PASSWORD:
+        return {"success": True, "message": "Login effettuato"}
+    raise HTTPException(status_code=401, detail="Credenziali non valide")
+
+@api_router.get("/trivordoc/documents")
+async def get_documents(
+    search: Optional[str] = None,
+    categoria: Optional[str] = None,
+    tipo: Optional[str] = None,
+    autore: Optional[str] = None,
+    progetto: Optional[str] = None,
+    data_da: Optional[str] = None,
+    data_a: Optional[str] = None,
+    keyword: Optional[str] = None,
+    username: str = Depends(verify_trivordoc_credentials)
+):
+    """Get all documents with advanced filtering"""
+    query = {}
+    
+    # Text search across multiple fields
+    if search:
+        query["$or"] = [
+            {"gruppo": {"$regex": search, "$options": "i"}},
+            {"descrizione": {"$regex": search, "$options": "i"}},
+            {"autore": {"$regex": search, "$options": "i"}},
+            {"keywords": {"$regex": search, "$options": "i"}},
+            {"progetto.cliente": {"$regex": search, "$options": "i"}},
+            {"progetto.descrizione": {"$regex": search, "$options": "i"}},
+        ]
+    
+    if categoria and categoria != "all":
+        query["categoria"] = categoria
+    
+    if tipo and tipo != "all":
+        query["tipo_documento"] = tipo
+    
+    if autore:
+        query["autore"] = {"$regex": autore, "$options": "i"}
+    
+    if progetto:
+        query["progetto.cliente"] = {"$regex": progetto, "$options": "i"}
+    
+    if keyword:
+        query["keywords"] = {"$in": [keyword]}
+    
+    if data_da:
+        query["data_creazione"] = {"$gte": data_da}
+    
+    if data_a:
+        if "data_creazione" in query:
+            query["data_creazione"]["$lte"] = data_a
+        else:
+            query["data_creazione"] = {"$lte": data_a}
+    
+    documents = await db.trivordoc_documents.find(query, {"_id": 0}).sort("data_caricamento", -1).to_list(1000)
+    return documents
+
+@api_router.get("/trivordoc/documents/{doc_id}")
+async def get_document(doc_id: str, username: str = Depends(verify_trivordoc_credentials)):
+    """Get single document by ID"""
+    doc = await db.trivordoc_documents.find_one({"id": doc_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+    return doc
+
+@api_router.post("/trivordoc/documents")
+async def create_document(documento: DocumentoCreate, username: str = Depends(verify_trivordoc_credentials)):
+    """Create a new document"""
+    doc_id = await generate_doc_id()
+    
+    doc_data = {
+        "id": doc_id,
+        **documento.model_dump(),
+        "allegati": [],
+        "data_caricamento": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    
+    await db.trivordoc_documents.insert_one(doc_data)
+    
+    # Log the action
+    await db.trivordoc_logs.insert_one({
+        "action": "CREATE",
+        "doc_id": doc_id,
+        "user": username,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "details": f"Documento {doc_id} creato"
+    })
+    
+    # Add category if new
+    if documento.categoria:
+        await db.trivordoc_categories.update_one(
+            {"name": documento.categoria},
+            {"$set": {"name": documento.categoria}},
+            upsert=True
+        )
+    
+    return {"id": doc_id, "message": "Documento creato con successo"}
+
+@api_router.put("/trivordoc/documents/{doc_id}")
+async def update_document(doc_id: str, documento: DocumentoUpdate, username: str = Depends(verify_trivordoc_credentials)):
+    """Update a document"""
+    update_data = {k: v for k, v in documento.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.trivordoc_documents.update_one(
+        {"id": doc_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+    
+    # Log the action
+    await db.trivordoc_logs.insert_one({
+        "action": "UPDATE",
+        "doc_id": doc_id,
+        "user": username,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "details": f"Documento {doc_id} aggiornato"
+    })
+    
+    # Add category if new
+    if documento.categoria:
+        await db.trivordoc_categories.update_one(
+            {"name": documento.categoria},
+            {"$set": {"name": documento.categoria}},
+            upsert=True
+        )
+    
+    updated = await db.trivordoc_documents.find_one({"id": doc_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/trivordoc/documents/{doc_id}")
+async def delete_document(doc_id: str, request: DeleteRequest, username: str = Depends(verify_trivordoc_credentials)):
+    """Delete a document (requires deletion password)"""
+    if request.password != TRIVORDOC_DELETE_PASSWORD:
+        raise HTTPException(status_code=403, detail="Password di eliminazione non corretta")
+    
+    # Get document to delete its files
+    doc = await db.trivordoc_documents.find_one({"id": doc_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+    
+    # Delete associated files
+    for allegato in doc.get("allegati", []):
+        file_path = UPLOADS_DIR / allegato["url"].split("/uploads/")[-1]
+        if file_path.exists():
+            file_path.unlink()
+    
+    # Delete document
+    await db.trivordoc_documents.delete_one({"id": doc_id})
+    
+    # Log the action
+    await db.trivordoc_logs.insert_one({
+        "action": "DELETE",
+        "doc_id": doc_id,
+        "user": username,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "details": f"Documento {doc_id} eliminato"
+    })
+    
+    return {"message": "Documento eliminato con successo"}
+
+@api_router.post("/trivordoc/documents/{doc_id}/upload")
+async def upload_attachment(
+    doc_id: str,
+    file: UploadFile = File(...),
+    username: str = Depends(verify_trivordoc_credentials)
+):
+    """Upload an attachment to a document (max 5)"""
+    doc = await db.trivordoc_documents.find_one({"id": doc_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+    
+    if len(doc.get("allegati", [])) >= 5:
+        raise HTTPException(status_code=400, detail="Massimo 5 allegati per documento")
+    
+    # Save file
+    file_ext = Path(file.filename).suffix.lower()
+    file_id = str(uuid.uuid4())[:8]
+    filename = f"trivordoc_{doc_id}_{file_id}{file_ext}"
+    file_path = UPLOADS_DIR / filename
+    
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    # Determine file type
+    tipo_map = {
+        ".pdf": "pdf",
+        ".doc": "word", ".docx": "word",
+        ".xls": "excel", ".xlsx": "excel",
+        ".png": "immagine", ".jpg": "immagine", ".jpeg": "immagine", ".gif": "immagine",
+        ".txt": "testo",
+    }
+    tipo = tipo_map.get(file_ext, "altro")
+    
+    allegato = {
+        "nome": file.filename,
+        "url": f"/uploads/{filename}",
+        "tipo": tipo,
+        "size": len(content)
+    }
+    
+    await db.trivordoc_documents.update_one(
+        {"id": doc_id},
+        {
+            "$push": {"allegati": allegato},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    
+    return {"message": "Allegato caricato", "allegato": allegato}
+
+@api_router.delete("/trivordoc/documents/{doc_id}/attachments/{filename}")
+async def delete_attachment(doc_id: str, filename: str, username: str = Depends(verify_trivordoc_credentials)):
+    """Delete an attachment from a document"""
+    doc = await db.trivordoc_documents.find_one({"id": doc_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+    
+    # Remove from database
+    await db.trivordoc_documents.update_one(
+        {"id": doc_id},
+        {
+            "$pull": {"allegati": {"nome": filename}},
+            "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+        }
+    )
+    
+    return {"message": "Allegato rimosso"}
+
+@api_router.get("/trivordoc/categories")
+async def get_categories(username: str = Depends(verify_trivordoc_credentials)):
+    """Get all categories"""
+    categories = await db.trivordoc_categories.find({}, {"_id": 0}).to_list(100)
+    # Default categories
+    defaults = ["Lettere", "Preventivi", "Ordini", "Fatture", "Contratti", "Progetti", "Altro"]
+    existing = [c["name"] for c in categories]
+    for d in defaults:
+        if d not in existing:
+            categories.append({"name": d})
+    return categories
+
+@api_router.post("/trivordoc/categories")
+async def add_category(name: str, username: str = Depends(verify_trivordoc_credentials)):
+    """Add a new category"""
+    await db.trivordoc_categories.update_one(
+        {"name": name},
+        {"$set": {"name": name}},
+        upsert=True
+    )
+    return {"message": "Categoria aggiunta"}
+
+@api_router.get("/trivordoc/stats")
+async def get_stats(username: str = Depends(verify_trivordoc_credentials)):
+    """Get dashboard statistics"""
+    total_docs = await db.trivordoc_documents.count_documents({})
+    
+    # Documents by category
+    pipeline_cat = [
+        {"$group": {"_id": "$categoria", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    by_category = await db.trivordoc_documents.aggregate(pipeline_cat).to_list(20)
+    
+    # Documents by type
+    pipeline_type = [
+        {"$group": {"_id": "$tipo_documento", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    by_type = await db.trivordoc_documents.aggregate(pipeline_type).to_list(20)
+    
+    # Top keywords
+    pipeline_keywords = [
+        {"$unwind": "$keywords"},
+        {"$group": {"_id": "$keywords", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 20}
+    ]
+    top_keywords = await db.trivordoc_documents.aggregate(pipeline_keywords).to_list(20)
+    
+    # Recent documents
+    recent = await db.trivordoc_documents.find({}, {"_id": 0}).sort("data_caricamento", -1).limit(5).to_list(5)
+    
+    # Top clients/projects
+    pipeline_clients = [
+        {"$match": {"progetto.cliente": {"$ne": None, "$ne": ""}}},
+        {"$group": {"_id": "$progetto.cliente", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    top_clients = await db.trivordoc_documents.aggregate(pipeline_clients).to_list(10)
+    
+    return {
+        "total_documents": total_docs,
+        "by_category": by_category,
+        "by_type": by_type,
+        "top_keywords": top_keywords,
+        "recent_documents": recent,
+        "top_clients": top_clients
+    }
+
+@api_router.get("/trivordoc/keywords")
+async def get_keywords(username: str = Depends(verify_trivordoc_credentials)):
+    """Get all unique keywords for autocomplete"""
+    pipeline = [
+        {"$unwind": "$keywords"},
+        {"$group": {"_id": "$keywords"}},
+        {"$sort": {"_id": 1}}
+    ]
+    keywords = await db.trivordoc_documents.aggregate(pipeline).to_list(500)
+    return [k["_id"] for k in keywords]
+
+@api_router.get("/trivordoc/authors")
+async def get_authors(username: str = Depends(verify_trivordoc_credentials)):
+    """Get all unique authors for autocomplete"""
+    pipeline = [
+        {"$group": {"_id": "$autore"}},
+        {"$match": {"_id": {"$ne": None, "$ne": ""}}},
+        {"$sort": {"_id": 1}}
+    ]
+    authors = await db.trivordoc_documents.aggregate(pipeline).to_list(100)
+    return [a["_id"] for a in authors]
+
+@api_router.get("/trivordoc/logs")
+async def get_logs(limit: int = 50, username: str = Depends(verify_trivordoc_credentials)):
+    """Get recent activity logs"""
+    logs = await db.trivordoc_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+    return logs
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("Trivor API started")
