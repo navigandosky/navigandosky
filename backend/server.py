@@ -231,10 +231,10 @@ async def upload_image(file: UploadFile = File(...), username: str = Depends(ver
         raise HTTPException(status_code=500, detail=f"Errore nel salvataggio: {str(e)}")
     
     # Return the URL
-    # The URL will be served via the /uploads static mount
+    # The URL will be served via the /api/uploads static mount
     return {
         "filename": unique_filename,
-        "url": f"/uploads/{unique_filename}",
+        "url": f"/api/uploads/{unique_filename}",
         "message": "Immagine caricata con successo"
     }
 
