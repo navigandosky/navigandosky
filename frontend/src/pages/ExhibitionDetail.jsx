@@ -632,21 +632,28 @@ export default function ExhibitionDetail() {
           <div className="xl:col-span-3">
             <div 
               className={`matterport-frame rounded-sm overflow-hidden ${createMode ? 'ring-4 ring-[#C5A059] ring-offset-2' : ''}`} 
-              style={{ aspectRatio: "16/9", minHeight: "600px" }}
+              style={{ position: "relative", paddingBottom: "56.25%", height: 0, minHeight: "500px" }}
             >
               {/* Usa mpskin_url se disponibile, altrimenti Matterport standard */}
               <iframe
                 ref={iframeRef}
                 src={space.mpskin_url || `https://my.matterport.com/show/?m=${space.model_id}&play=1&qs=1`}
                 title={getTranslation(space.name, language)}
-                className="w-full h-full"
-                style={{ minHeight: "600px" }}
+                style={{ 
+                  position: "absolute", 
+                  top: 0, 
+                  left: 0, 
+                  width: "100%", 
+                  height: "100%",
+                  border: "none"
+                }}
                 allow="xr-spatial-tracking; fullscreen"
                 allowFullScreen
                 frameBorder="0"
                 id="showcase-iframe"
                 data-testid="matterport-iframe"
               />
+            </div>
             </div>
             
             {/* SDK Status - mostra solo se non usa mpskin */}
