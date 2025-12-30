@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Loader2, X, Languages } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, X, Languages, Upload, Image } from "lucide-react";
 import axios from "axios";
 import AdminLayout from "../../components/AdminLayout";
 import { Button } from "../../components/ui/button";
@@ -36,6 +36,7 @@ export default function AdminSpaces() {
   const [selectedSpace, setSelectedSpace] = useState(null);
   const [translating, setTranslating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   
   const [formData, setFormData] = useState({
     model_id: "",
