@@ -498,45 +498,72 @@ const DocumentForm = ({ document, onClose, onSave, getAuthHeader, categories }) 
             </div>
           </div>
 
-          {/* Attachments (only for editing) */}
-          {document?.id && (
-            <div className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
-              <h3 className="text-white font-medium mb-4 flex items-center justify-between">
-                <span className="flex items-center">
-                  <Paperclip className="w-5 h-5 text-blue-400 mr-2" />
-                  Allegati ({allegati.length}/20)
-                </span>
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploading || allegati.length >= 20}
-                  className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 disabled:opacity-50 flex items-center"
-                >
-                  {uploading ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />}
-                  Carica
-                </button>
-                <input type="file" ref={fileRef} onChange={handleUploadFile} className="hidden" />
-              </h3>
-              <div className="space-y-2">
-                {allegati.length === 0 ? (
-                  <p className="text-slate-500 text-sm">Nessun allegato</p>
-                ) : (
-                  allegati.map((a, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+          {/* Attachments - Available during creation and editing */}
+          <div className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
+            <h3 className="text-white font-medium mb-4 flex items-center justify-between">
+              <span className="flex items-center">
+                <Paperclip className="w-5 h-5 text-blue-400 mr-2" />
+                Allegati ({(allegati.length + pendingFiles.length)}/20)
+              </span>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading || (allegati.length + pendingFiles.length) >= 20}
+                className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 disabled:opacity-50 flex items-center"
+              >
+                {uploading ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />}
+                {document?.id ? "Carica" : "Seleziona File"}
+              </button>
+              <input type="file" ref={fileRef} onChange={handleUploadFile} className="hidden" />
+            </h3>
+            
+            {/* Info message for new documents */}
+            {!document?.id && pendingFiles.length === 0 && allegati.length === 0 && (
+              <p className="text-slate-500 text-sm mb-3 flex items-center">
+                <AlertCircle className="w-4 h-4 mr-2 text-blue-400" />
+                Seleziona i file da allegare. Verranno caricati automaticamente alla creazione del documento.
+              </p>
+            )}
+
+            <div className="space-y-2">
+              {/* Pending files for new documents */}
+              {pendingFiles.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-blue-400 text-xs font-medium mb-2 uppercase tracking-wider">File in attesa di caricamento</p>
+                  {pendingFiles.map((file, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg mb-2">
                       <div className="flex items-center space-x-3">
-                        {getDocTypeIcon(a.tipo)}
-                        <span className="text-white text-sm">{a.nome}</span>
-                        <span className="text-slate-500 text-xs">({(a.size / 1024).toFixed(1)} KB)</span>
+                        <File className="w-5 h-5 text-blue-400" />
+                        <span className="text-white text-sm">{file.name}</span>
+                        <span className="text-slate-500 text-xs">({(file.size / 1024).toFixed(1)} KB)</span>
                       </div>
-                      <a href={`${BACKEND_URL}${a.url}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
-                        <Download size={18} />
-                      </a>
+                      <button type="button" onClick={() => removePendingFile(i)} className="text-red-400 hover:text-red-300">
+                        <X size={18} />
+                      </button>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Existing attachments (for editing) */}
+              {allegati.length === 0 && pendingFiles.length === 0 ? (
+                <p className="text-slate-500 text-sm">Nessun allegato</p>
+              ) : (
+                allegati.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      {getDocTypeIcon(a.tipo)}
+                      <span className="text-white text-sm">{a.nome}</span>
+                      <span className="text-slate-500 text-xs">({(a.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                    <a href={`${BACKEND_URL}${a.url}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
+                      <Download size={18} />
+                    </a>
+                  </div>
+                ))
+              )}
             </div>
-          )}
+          </div>
 
           {/* Submit */}
           <div className="flex justify-end space-x-4 pt-4 border-t border-slate-700">
