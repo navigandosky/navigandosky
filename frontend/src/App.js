@@ -66,12 +66,13 @@ const SARDEGNA_IMAGES = {
 };
 
 // =============================================================================
-// LOGHI PARTNER (dagli Spoke)
+// LOGHI PARTNER (dagli Spoke) - Using accessible URLs
 // =============================================================================
 const PARTNER_LOGOS = [
   { name: "Unione Europea", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Flag_of_Europe.svg/200px-Flag_of_Europe.svg.png" },
-  { name: "Italia Domani", url: "https://www.italiadomani.gov.it/content/dam/sogei-ng/loghi/Logo_PNRR_esteso.png" },
-  { name: "MUR", url: "https://www.mur.gov.it/sites/default/files/logo-mur-blu.png" },
+  { name: "Regione Sardegna", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Coat_of_Arms_of_Sardinia.svg/180px-Coat_of_Arms_of_Sardinia.svg.png" },
+  { name: "UNISS", url: "https://upload.wikimedia.org/wikipedia/it/thumb/7/7f/Universit%C3%A0_di_Sassari_logo.svg/200px-Universit%C3%A0_di_Sassari_logo.svg.png" },
+  { name: "Matterport", url: "https://images.ctfassets.net/icnj41gkyohw/NjSsXj2T4ILKtEapHPmle/d66dd2a4ddd85d9ba6c4ebec99cc7cca/matterport-logo.svg" },
 ];
 
 // =============================================================================
@@ -621,9 +622,14 @@ const PortfolioSection = () => {
     { id: 'beni_culturali', label: 'Beni Culturali' },
     { id: 'smart_building', label: 'Smart Building' },
     { id: 'turismo', label: 'Turismo' },
+    { id: 'gestionale', label: 'Gestionale' },
   ];
 
-  const filteredProjects = filter === 'all' ? projects : projects.filter(p => p.category === filter);
+  // Normalize category comparison (case-insensitive, handle spaces)
+  const normalizeCategory = (cat) => cat?.toLowerCase().replace(/\s+/g, '_') || '';
+  const filteredProjects = filter === 'all' 
+    ? projects 
+    : projects.filter(p => normalizeCategory(p.category) === filter);
 
   return (
     <section id="portfolio" className="py-24 bg-[#0a0a0b]">
