@@ -836,6 +836,83 @@ async def get_logs(limit: int = 50, username: str = Depends(verify_trivordoc_cre
 # CHECKDB - DATABASE MONITORING
 # =============================================================================
 
+@api_router.get("/checkdb/databases")
+async def get_all_databases(username: str = Depends(verify_trivordoc_credentials)):
+    """Get list of all databases in the cluster"""
+    try:
+        # List all databases
+        db_list = await client.list_databases()
+        databases = []
+        
+        for db_info in db_list:
+            if db_info["name"] not in ["admin", "local", "config"]:
+                databases.append({
+                    "name": db_info["name"],
+                    "sizeOnDisk": db_info.get("sizeOnDisk", 0),
+                    "empty": db_info.get("empty", False)
+                })
+        
+        return {
+            "databases": sorted(databases, key=lambda x: x["name"]),
+            "count": len(databases)
+        }
+    except Exception as e:
+        return {"error": str(e), "databases": [], "count": 0}
+
+@api_router.get("/checkdb/database/{db_name}/status")
+async def get_specific_db_status(db_name: str, username: str = Depends(verify_trivordoc_credentials)):
+    """Get status for a specific database"""
+    try:
+        # Connect to the specific database
+        target_db = client[db_name]
+        
+        # Get database stats
+        db_stats = await target_db.command("dbStats")
+        
+        # Get all collections
+        collections = await target_db.list_collection_names()
+        
+        # Get stats for each collection
+        collection_stats = []
+        for coll_name in collections:
+            try:
+                coll_stats = await target_db.command("collStats", coll_name)
+                collection_stats.append({
+                    "name": coll_name,
+                    "count": coll_stats.get("count", 0),
+                    "size": coll_stats.get("size", 0),
+                    "avgObjSize": coll_stats.get("avgObjSize", 0),
+                    "storageSize": coll_stats.get("storageSize", 0),
+                    "totalIndexSize": coll_stats.get("totalIndexSize", 0),
+                    "nindexes": coll_stats.get("nindexes", 0),
+                })
+            except Exception as e:
+                collection_stats.append({
+                    "name": coll_name,
+                    "count": await target_db[coll_name].count_documents({}),
+                    "size": 0,
+                    "error": str(e)
+                })
+        
+        # Sort by size descending
+        collection_stats.sort(key=lambda x: x.get("size", 0), reverse=True)
+        
+        return {
+            "database": {
+                "name": db_name,
+                "collections": len(collections),
+                "dataSize": db_stats.get("dataSize", 0),
+                "storageSize": db_stats.get("storageSize", 0),
+                "indexSize": db_stats.get("indexSize", 0),
+                "totalSize": db_stats.get("dataSize", 0) + db_stats.get("indexSize", 0),
+                "objects": db_stats.get("objects", 0),
+                "avgObjSize": db_stats.get("avgObjSize", 0),
+            },
+            "collections": collection_stats,
+        }
+    except Exception as e:
+        return {"error": str(e), "database": {"name": db_name}, "collections": []}
+
 @api_router.get("/checkdb/status")
 async def get_db_status(username: str = Depends(verify_trivordoc_credentials)):
     """Get comprehensive database status and statistics"""
