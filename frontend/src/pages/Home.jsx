@@ -10,7 +10,7 @@ import {
 } from "../components/ui/dropdown-menu";
 
 const HERO_IMAGE = "https://customer-assets.emergentagent.com/job_matterport-tours/artifacts/rt6113ik_loc_sito-web.jpg";
-const TEXTURE_IMAGE = "https://images.pexels.com/photos/8758357/pexels-photo-8758357.jpeg";
+const TEXTURE_IMAGE = "https://customer-assets.emergentagent.com/job_0b437b3d-f42d-40bc-beb5-73995538a3b9/artifacts/5xnezjzt_foto%20icona%20per%202%20mostra%20home%20page.jpg";
 
 const translations = {
   it: {
