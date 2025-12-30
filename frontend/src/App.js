@@ -3,6 +3,7 @@ import "@/App.css";
 import { HashRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import TrivorDocPage from "./TrivorDoc";
+import TrivorSuitePage from "./TrivorSuite";
 import {
   Lightbulb,
   Box,
