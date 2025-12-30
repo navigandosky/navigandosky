@@ -34,10 +34,50 @@ export default function AdminProject() {
       if (response.data.content) {
         setContent(response.data.content);
       }
+      if (response.data.documents) {
+        setDocuments(response.data.documents);
+      }
     } catch (error) {
       toast.error("Errore nel caricamento");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("description", newDocDescription || file.name);
+
+      const response = await axios.post(`${API}/upload/document`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
+      setDocuments(prev => [...prev, response.data]);
+      setNewDocDescription("");
+      toast.success("Documento caricato");
+    } catch (error) {
+      toast.error("Errore nel caricamento del documento");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteDocument = async (docId) => {
+    if (!window.confirm("Eliminare questo documento?")) return;
+    
+    try {
+      await axios.delete(`${API}/documents/${docId}`);
+      setDocuments(prev => prev.filter(d => d.id !== docId));
+      toast.success("Documento eliminato");
+    } catch (error) {
+      toast.error("Errore nell'eliminazione");
     }
   };
 
