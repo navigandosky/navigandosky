@@ -233,8 +233,8 @@ export default function AdminCostumes() {
   };
 
   const handleSave = async () => {
-    if (!formData.id_risorsa || !formData.description.it) {
-      toast.error("Compila i campi obbligatori");
+    if (!formData.description.it) {
+      toast.error("Inserisci almeno la descrizione in italiano");
       return;
     }
 
@@ -244,8 +244,8 @@ export default function AdminCostumes() {
         await axios.put(`${API}/costumes/${selectedCostume.id}`, formData);
         toast.success("Costume aggiornato");
       } else {
-        await axios.post(`${API}/costumes`, formData);
-        toast.success("Costume creato");
+        const response = await axios.post(`${API}/costumes`, formData);
+        toast.success(`Costume creato con ID: ${response.data.id_risorsa}`);
       }
       setDialogOpen(false);
       fetchData();
