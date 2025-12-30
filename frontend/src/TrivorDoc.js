@@ -223,30 +223,41 @@ const DocumentForm = ({ document, onClose, onSave, getAuthHeader, categories }) 
 
   const handleUploadFile = async (e) => {
     const file = e.target.files[0];
-    if (!file || !document?.id) return;
+    if (!file) return;
     
-    if (allegati.length >= 20) {
+    const totalFiles = allegati.length + pendingFiles.length;
+    if (totalFiles >= 20) {
       alert("Massimo 20 allegati per documento");
       return;
     }
 
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`${API}/trivordoc/documents/${document.id}/upload`, {
-        method: "POST",
-        headers: getAuthHeader(),
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.allegato) {
-        setAllegati([...allegati, data.allegato]);
+    // If editing existing document, upload immediately
+    if (document?.id) {
+      setUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`${API}/trivordoc/documents/${document.id}/upload`, {
+          method: "POST",
+          headers: getAuthHeader(),
+          body: formData,
+        });
+        const data = await res.json();
+        if (data.allegato) {
+          setAllegati([...allegati, data.allegato]);
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
+      setUploading(false);
+    } else {
+      // If creating new document, queue files for upload after creation
+      setPendingFiles([...pendingFiles, file]);
     }
-    setUploading(false);
+  };
+
+  const removePendingFile = (index) => {
+    setPendingFiles(pendingFiles.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
@@ -258,18 +269,37 @@ const DocumentForm = ({ document, onClose, onSave, getAuthHeader, categories }) 
         categoria: showNewCategory ? newCategory : form.categoria,
       };
 
+      let docId = document?.id;
+
       if (document?.id) {
+        // Update existing document
         await fetch(`${API}/trivordoc/documents/${document.id}`, {
           method: "PUT",
           headers: { ...getAuthHeader(), "Content-Type": "application/json" },
           body: JSON.stringify(finalForm),
         });
       } else {
-        await fetch(`${API}/trivordoc/documents`, {
+        // Create new document
+        const res = await fetch(`${API}/trivordoc/documents`, {
           method: "POST",
           headers: { ...getAuthHeader(), "Content-Type": "application/json" },
           body: JSON.stringify(finalForm),
         });
+        const data = await res.json();
+        docId = data.id;
+
+        // Upload pending files
+        if (pendingFiles.length > 0 && docId) {
+          for (const file of pendingFiles) {
+            const formData = new FormData();
+            formData.append("file", file);
+            await fetch(`${API}/trivordoc/documents/${docId}/upload`, {
+              method: "POST",
+              headers: getAuthHeader(),
+              body: formData,
+            });
+          }
+        }
       }
       onSave();
     } catch (e) {
