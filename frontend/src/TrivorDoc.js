@@ -790,10 +790,13 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
+              <a href="#/suite" className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg" title="Torna alla Suite">
+                <ChevronRight className="w-5 h-5 rotate-180" />
+              </a>
               <div className="flex items-center space-x-3">
                 <Archive className="w-8 h-8 text-blue-400" />
                 <div>
-                  <p className="text-xs text-blue-400 font-medium tracking-wider">OFFICE TRIVOR</p>
+                  <p className="text-xs text-blue-400 font-medium tracking-wider">TRIVOR SUITE</p>
                   <h1 className="text-xl font-bold text-white">TRIVORDOC</h1>
                 </div>
               </div>
