@@ -1,0 +1,185 @@
+<analysis>**original_problem_statement:**
+The user wants to create a website called Spoke Galaveras to showcase Matterport virtual tours. The project is similar to a previous one, Spoke Ghivine.
+
+**PRODUCT REQUIREMENTS:**
+- **CMS:** To manage Matterport spaces, including model ID, photos, and descriptions in four languages (IT, EN, FR, DE).
+- **POI System:** Points of Interest with audioguides automatically generated via Text-to-Speech (TTS).
+- **Automatic Translation:** Descriptions should be automatically translatable.
+- **Costume Archive:** A section to catalog costumes and their elements with fields like , , , , , , , , and .
+- **Admin Panel:** Password-protected admin area with fixed credentials (user: , pass: ).
+- **Database:** MongoDB Atlas (cluster: Trivor, database: ).
+- **Tech Stack:** FastAPI + React + MongoDB.
+- **Matterport Integration:** The user provided details about upgrading the Matterport SDK from a deprecated version to the new SDK for Embeds, along with the SDK key. The goal is to interact with Matterport tags (read existing ones and create new ones).
+- **Content:** The initial two Matterport spaces are to be pre-loaded from links provided by the user. Content for The Project Spoke section was also provided.
+- **Branding:** A Spoke logo should be used, and a copyright notice for Trivor srl should be present in the footer, replacing the default Made with Emergent badge.
+
+**User's preferred language**: Italian (italiano). The next agent MUST respond in Italian.
+
+**what currently exists?**
+A full-stack application has been developed with a FastAPI backend and a React frontend. The application is connected to the user's MongoDB Atlas database.
+
+- **Backend:** A single  file contains all API endpoints for CRUD operations on Spaces, POIs, Costumes, and a Project text. It includes a hardcoded admin login, and endpoints for placeholder TTS and translation services.
+- **Frontend:** A complete React application with pages for Home, Exhibitions, Exhibition Detail (with Matterport viewer), Costume Archive, and The Project. A full admin section is also implemented with login, a dashboard, and management pages for all data models.
+- **Integrations:**
+    - The Matterport viewer is embedded and displays the 3D tours.
+    - The database is connected and populated with initial data.
+    - Placeholder functions for OpenAI TTS and translations are in the backend.
+- **UI:** The UI follows the user's requests, including a custom homepage background, updated exhibition photos, and a custom footer with the Trivor srl copyright and Spoke logo.
+
+**Last working item**:
+- **Last item agent was working**: The user reported that the site, when deployed as static files to their  (Aruba/IIS) hosting, is broken. It fails to load any data (Nessuna mostra disponibile). The agent correctly diagnosed this as a consequence of deploying a static build of a full-stack application without a live backend API. The agent's last action was to acknowledge this and begin verifying that the application works correctly within the Emergent development environment.
+- **Status**: IN PROGRESS
+- **Agent Testing Done**: N
+- **Which testing method agent to use?**: The agent should first use  to test all backend endpoints (, , etc.) and the  tool to verify that the main frontend pages (, ) are loading data correctly within the Emergent environment. This will confirm the application's integrity before addressing the deployment issue.
+- **User Testing Done**: Y (User tested the deployed static site and confirmed it is not working.)
+
+**All Pending/In progress Issue list**:
+- **Issue 1 (P0)**: Deployed static site on user's hosting is not functional.
+- **Issue 2 (P1)**: Matterport SDK integration is failing, blocking advanced features.
+
+**Issues Detail**:
+- **Issue 1**: Deployed static site on user's hosting is not functional.
+    - **Attempted fixes**: No fix has been implemented. The agent correctly identified the root cause: a static React build cannot communicate with a backend API that isn't running and publicly accessible. The user's IIS/Aruba hosting is only serving static files.
+    - **Next debug checklist**:
+        1.  Verify that the application works perfectly within the Emergent environment (backend APIs and frontend data fetching).
+        2.  Clearly explain to the user why the static deployment failed (static site vs. full-stack application).
+        3.  Propose and discuss solutions with the user:
+            - **Option A:** Deploy the backend separately (e.g., on a cloud service) and configure the frontend build to use the public API URL.
+            - **Option B:** Recommend a hosting provider that supports full-stack (Node.js/Python + static) deployments (e.g., Vercel, Railway).
+            - **Option C (Not Recommended):** Create a baked-in version of the site where data is included in the build, but this would sacrifice all CMS functionality.
+    - **Why fix this issue?**: The user's goal is to host the website on their server. The current deployment approach is incorrect for this type of application.
+    - **Status**: IN PROGRESS
+    - **Is recurring issue?**: N
+    - **Should Test frontend/backend/both after fix?**: Both.
+    - **Blocked on other issue**: Awaiting user decision on the preferred deployment strategy.
+
+- **Issue 2**: Matterport SDK integration is failing.
+    - **Attempted fixes**: Numerous fixes were attempted: using different SDK connection methods (, ), toggling the  in the iframe URL, creating a dedicated  page for debugging. All attempts failed with a  error when fetching the SDK script from , even though the user's domain is correctly listed in their Matterport account settings.
+    - **Next debug checklist**: This issue is confirmed to be on Matterport's side, likely related to the user's account plan or a server-side configuration issue. The user has been advised to contact Matterport's human support with a detailed ticket compiled by the agent. No further debugging should be done until the user provides an update from Matterport.
+    - **Why fix this issue?**: To enable the core requested features of importing existing Mattertags and creating new POIs directly from within the 3D tour.
+    - **Status**: BLOCKED
+    - **Is recurring issue?**: Y
+    - **Should Test frontend/backend/both after fix?**: Frontend ( page).
+    - **Blocked on other issue**: Waiting for Matterport Support to resolve the SDK access issue.
+
+**In progress Task List**:
+None. All work is currently focused on resolving the two major issues above.
+
+**Upcoming and Future Tasks**
+- **Upcoming Tasks**:
+    - **(P1, Blocked)** Complete the Matterport SDK integration in  to enable the Import Tags and Create New Tag features. This is blocked by **Issue 2**.
+
+**Completed work in this session**
+- **Recently completed**:
+  - Full-stack application structure (FastAPI/React) created.
+  - MongoDB database connected and schema designed for Spaces, POIs, Costumes, and Project.
+  - Password-protected Admin Panel with full CRUD functionality for all data models.
+  - Multilingual support (IT, EN, FR, DE) with a language switcher and backend endpoints for auto-translation and TTS.
+  - Frontend pages for all public sections (Home, Exhibitions, Costume Archive, Project).
+  - Matterport viewer embedded on the exhibition detail page.
+  - Numerous user-requested UI customizations:
+      - Homepage background image changed.
+      - Custom photos added for exhibition cards.
+      - Footer updated to remove Emergent branding and add Realizzato da Trivor srl ©.
+      - Browser tab title updated.
+  - Bug fix for the Add Costume form in the admin panel.
+  - Debugged the Matterport SDK issue to the point of identifying it as an external block by Matterport.
+
+**Earlier issues found/mentioned but not fixed**
+None, all known issues are captured in the Pending/In progress Issue list.
+
+**Known issue recurrence from previous fork**
+- **Issue recurrence in previous fork**: N/A
+- **Recurrence count**: 0
+- **Status**: N/A
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+- **Frontend**: React, React Router
+- **Backend**: FastAPI (Python)
+- **Database**: MongoDB (via MongoDB Atlas)
+- **Styling**: Tailwind CSS, pre-packaged Shadcn UI components.
+- **Authentication**: Simple hardcoded password for the admin section.
+- **Key Integrations**: Matterport SDK, OpenAI (for TTS and translation).
+
+**key DB schema**
+- **spaces**: 
+- **pois**: 
+- **costumes**: 
+- **project**: 
+
+**changes in tech stack**
+None.
+
+**All files of reference**
+- : Contains the entire backend logic, including all API endpoints and DB interactions.
+- : The file for Matterport integration. It contains the viewer and the blocked SDK logic.
+- : Contains the  key which was identified as a problem for local development and is critical for sub-directory deployment.
+- : A static HTML file created specifically to debug the Matterport SDK connection issue in isolation.
+- : Contains the main site layout, including the custom footer.
+- : The main HTML shell where the Emergent badge was removed and the page title was set.
+
+**Areas that need refactoring**:
+- The backend logic is monolithic within . For future scalability, it could be refactored into separate files for routes, models, and services. However, for the current scope, it is functional.
+
+**key api endpoints**
+- 
+- 
+- 
+- 
+- 
+- 
+- 
+-  (non-functional due to Matterport API token issue)
+
+**Critical Info for New Agent**
+- **Deployment is the top priority.** The user's immediate problem is that their deployed site is broken. You must first explain *why* it's broken (static build can't run a backend) and then guide them through choosing a proper deployment solution for a full-stack app. Do not proceed with other features until this is addressed.
+- **The Matterport SDK issue is BLOCKED.** Do not waste time trying to debug it further. The problem is on Matterport's end. Wait for the user to provide an update from Matterport's human support.
+- The user has provided all necessary credentials (MongoDB, Matterport), which are already integrated.
+- The admin credentials are hardcoded: user: , pass: .
+
+**documents and test reports created in this job**
+- 
+- 
+- 
+- 
+
+**Last 10 User Messages and any pending HUMAN messages**
+1. **User**: Provides a diagnosis of a broken deployment on . Notes that data isn't loading and APIs give a 404 error. Correctly suspects it's because the backend isn't running.
+2. **Agent**: Acknowledges the issue and starts to verify the app's health in the Emergent environment.
+3. **User**: Confirms they sent the support request to a human agent at Matterport.
+4. **Agent**: Asks the user how to proceed while waiting for Matterport support (continue with manual features or wait).
+5. **User**: Provides the final response from Matterport AI, which suggests checking the SDK version and firewall, and offers to transfer to a human agent.
+6. **Agent**: Advises the user to accept the offer to speak with a human agent and provides a template message. Tries a new SDK implementation method based on the AI's feedback.
+7. **User**: Shares another screenshot from the test page showing no sdk non disponibile.
+8. **Agent**: Confirms the SDK is not connecting and advises sending a more detailed support request to a human operator at Matterport. Asks if the user wants to implement manual POI entry in the meantime.
+9. **User**: Asks for a screenshot of the Matterport Developer Tools page.
+10. **Agent**: Posts the screenshot, confirming the domain configuration appears correct. Proposes creating a simple test page to isolate the SDK issue.
+
+**Project Health Check:**
+- **Broken**:
+    - **Deployment**: The user's deployment on their external server is completely non-functional as it lacks a running backend.
+    - **Matterport SDK Integration**: The core functionality for importing and creating tags is blocked due to a  error from the Matterport SDK service.
+- **Mocked**: None
+
+**3rd Party Integrations**
+- **Matterport SDK & API**: Requires user-provided SDK Key () and API Token (). Currently partially functional (viewer works, SDK connection is broken).
+- **OpenAI TTS**: Uses Emergent LLM Key. Integrated in backend, requires frontend implementation to call.
+- **OpenAI GPT (Translation)**: Uses Emergent LLM Key. Integrated in backend, used by admin forms.
+- **MongoDB Atlas**: Requires User-provided connection string. Fully integrated and working.
+
+**Testing status**
+- **Testing agent used after significant changes**: YES (early in the development).
+- **Troubleshoot agent used after agent stuck in loop**: NO
+- **Test files created**:
+  - 
+- **Known regressions**: The application is non-functional when deployed as a static build on the user's external hosting.
+
+**Credentials to test flow:**
+- **Admin Username**: 
+- **Admin Password**: 
+
+**What agent forgot to execute**
+The agent correctly identified that the  setting in  was causing issues for local development and removed it. However, it did not create a clear, actionable plan for the user on how and when to re-introduce this setting for a successful final deployment. This has directly contributed to the current deployment failure.</analysis>
