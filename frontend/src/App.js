@@ -607,7 +607,7 @@ const PortfolioSection = () => {
     } catch (error) {
       // Fallback projects
       setProjects([
-        { id: '1', title: 'Smart Building Dashboard', client: 'Navigandosky', category: 'smart_building', description: 'Piattaforma IoT per gestione edifici intelligenti con gemelli digitali.', image_url: SARDEGNA_IMAGES.tech, link: 'https://building-brain.preview.emergentagent.com/' },
+        { id: '1', title: 'Smart Building Dashboard', client: 'Navigandosky', category: 'smart_building', description: 'Piattaforma IoT per gestione edifici intelligenti con gemelli digitali.', image_url: SARDEGNA_IMAGES.tech, link: 'https://trivor-dashboard.preview.emergentagent.com/' },
         { id: '2', title: 'Spoke Ghivine', client: 'Regione Sardegna', category: 'beni_culturali', description: 'Digitalizzazione grotte e siti archeologici con tour virtuali 360°.', image_url: SARDEGNA_IMAGES.grotte, link: 'https://www.trivor.it/spokeghivine' },
         { id: '3', title: 'Spoke Galaveras', client: 'Manus de Oro', category: 'beni_culturali', description: 'Archivio digitale costumi tradizionali sardi e arte del ricamo.', image_url: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&q=80', link: 'https://www.trivor.it/spokegalaveras' },
       ]);
@@ -905,7 +905,7 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-semibold mb-4">Strumenti</h4>
             <ul className="space-y-2">
-              <li><a href="https://trivor-workspace.preview.emergentagent.com/gestione-commesse" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">📊 Gestione Commesse</a></li>
+              <li><a href="https://trivor-dashboard.preview.emergentagent.com/gestione-commesse" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">📊 Gestione Commesse</a></li>
               <li><a href="#/admin" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">🔐 Area Riservata</a></li>
             </ul>
           </div>
