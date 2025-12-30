@@ -926,7 +926,6 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-semibold mb-4">Strumenti</h4>
             <ul className="space-y-2">
-              <li><a href="https://trivor-dashboard.preview.emergentagent.com/gestione-commesse" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">📊 Gestione Commesse</a></li>
               <li><a href="#/admin" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">🔐 Area Riservata</a></li>
             </ul>
           </div>
