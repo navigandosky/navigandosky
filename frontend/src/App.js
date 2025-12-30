@@ -305,15 +305,30 @@ const Navbar = ({ showAdminLink = true }) => {
 };
 
 // =============================================================================
-// HERO SECTION - Con immagine Sardegna e animazioni
+// HERO SECTION - Con immagine Sardegna e animazioni (carica da CMS)
 // =============================================================================
 const HeroSection = () => {
   const [currentImage, setCurrentImage] = useState(0);
-  const images = [
+  const [images, setImages] = useState([
     { url: SARDEGNA_IMAGES.hero, title: "Costa Smeralda" },
     { url: SARDEGNA_IMAGES.grotte, title: "Grotte Marine" },
     { url: SARDEGNA_IMAGES.borgo, title: "Borghi Storici" },
-  ];
+  ]);
+
+  // Load hero images from CMS
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await axios.get(`${API}/settings`);
+        if (response.data.hero_images && response.data.hero_images.length > 0) {
+          setImages(response.data.hero_images);
+        }
+      } catch (error) {
+        console.log('Using default hero images');
+      }
+    };
+    loadSettings();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
