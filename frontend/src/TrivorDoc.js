@@ -478,7 +478,7 @@ const DocumentForm = ({ document, onClose, onSave, getAuthHeader, categories }) 
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  disabled={uploading || allegati.length >= 5}
+                  disabled={uploading || allegati.length >= 20}
                   className="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 disabled:opacity-50 flex items-center"
                 >
                   {uploading ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Upload className="w-4 h-4 mr-1" />}
