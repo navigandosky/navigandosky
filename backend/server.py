@@ -1035,6 +1035,331 @@ async def get_db_health(username: str = Depends(verify_trivordoc_credentials)):
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
+# =============================================================================
+# TRIVORWEB - GESTIONE SITI WEB E HOSTING
+# =============================================================================
+
+# TrivorWEB Models
+class DatabaseInfoSchema(BaseModel):
+    provider: str = ""  # es: Aruba, OVH, AWS, etc.
+    tipo: str = ""  # MySQL, PostgreSQL, MongoDB, etc.
+    host: str = ""
+    nome_db: str = ""
+    username: str = ""
+    password: str = ""
+    porta: int = 3306
+    spazio_mb: float = 0
+    costo_annuale: float = 0
+    note: str = ""
+
+class FtpInfoSchema(BaseModel):
+    host: str = ""
+    username: str = ""
+    password: str = ""
+    porta: int = 21
+    percorso_root: str = "/"
+
+class HostingInfoSchema(BaseModel):
+    provider: str = ""  # Aruba, SiteGround, OVH, AWS, etc.
+    tipo: str = ""  # shared, VPS, dedicato, cloud, reseller
+    piano: str = ""  # nome del piano hosting
+    spazio_gb: float = 0
+    costo_annuale: float = 0
+    data_acquisto: Optional[str] = None
+    data_scadenza: Optional[str] = None
+    alert_giorni: int = 30  # giorni prima della scadenza per l'alert
+    pannello_url: str = ""  # URL pannello di controllo
+    pannello_user: str = ""
+    pannello_password: str = ""
+    note: str = ""
+
+class ClienteInfoSchema(BaseModel):
+    nome: str = ""
+    azienda: str = ""
+    email: str = ""
+    telefono: str = ""
+    pec: str = ""
+    indirizzo: str = ""
+    partita_iva: str = ""
+    codice_fiscale: str = ""
+    note: str = ""
+
+class SitoWebCreate(BaseModel):
+    nome_progetto: str
+    dominio: str
+    stato: str = "attivo"  # attivo, in_sviluppo, sospeso, scaduto
+    cliente: ClienteInfoSchema = ClienteInfoSchema()
+    data_inizio: Optional[str] = None
+    data_online: Optional[str] = None
+    hosting: HostingInfoSchema = HostingInfoSchema()
+    ftp: FtpInfoSchema = FtpInfoSchema()
+    databases: List[DatabaseInfoSchema] = []
+    tecnologie: List[str] = []  # WordPress, React, Laravel, etc.
+    url_staging: str = ""
+    url_produzione: str = ""
+    note_tecniche: str = ""
+    note_generali: str = ""
+    costo_realizzazione: float = 0
+    costo_manutenzione_annuale: float = 0
+
+class SitoWebUpdate(BaseModel):
+    nome_progetto: Optional[str] = None
+    dominio: Optional[str] = None
+    stato: Optional[str] = None
+    cliente: Optional[ClienteInfoSchema] = None
+    data_inizio: Optional[str] = None
+    data_online: Optional[str] = None
+    hosting: Optional[HostingInfoSchema] = None
+    ftp: Optional[FtpInfoSchema] = None
+    databases: Optional[List[DatabaseInfoSchema]] = None
+    tecnologie: Optional[List[str]] = None
+    url_staging: Optional[str] = None
+    url_produzione: Optional[str] = None
+    note_tecniche: Optional[str] = None
+    note_generali: Optional[str] = None
+    costo_realizzazione: Optional[float] = None
+    costo_manutenzione_annuale: Optional[float] = None
+
+# Generate unique site ID
+async def generate_site_id():
+    year = datetime.now().year
+    count = await db.trivorweb_sites.count_documents({})
+    return f"SITE-{year}-{str(count + 1).zfill(4)}"
+
+# TrivorWEB API Endpoints
+
+@api_router.get("/trivorweb/sites")
+async def get_sites(
+    search: Optional[str] = None,
+    stato: Optional[str] = None,
+    provider: Optional[str] = None,
+    scadenza_entro_giorni: Optional[int] = None,
+    username: str = Depends(verify_trivordoc_credentials)
+):
+    """Get all sites with filtering"""
+    query = {}
+    
+    if search:
+        query["$or"] = [
+            {"nome_progetto": {"$regex": search, "$options": "i"}},
+            {"dominio": {"$regex": search, "$options": "i"}},
+            {"cliente.nome": {"$regex": search, "$options": "i"}},
+            {"cliente.azienda": {"$regex": search, "$options": "i"}},
+            {"hosting.provider": {"$regex": search, "$options": "i"}},
+        ]
+    
+    if stato and stato != "all":
+        query["stato"] = stato
+    
+    if provider:
+        query["hosting.provider"] = {"$regex": provider, "$options": "i"}
+    
+    sites = await db.trivorweb_sites.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    
+    # Filter by expiration if requested
+    if scadenza_entro_giorni:
+        from datetime import timedelta
+        oggi = datetime.now(timezone.utc).date()
+        limite = oggi + timedelta(days=scadenza_entro_giorni)
+        filtered = []
+        for site in sites:
+            if site.get("hosting", {}).get("data_scadenza"):
+                try:
+                    scadenza = datetime.fromisoformat(site["hosting"]["data_scadenza"]).date()
+                    if scadenza <= limite:
+                        filtered.append(site)
+                except:
+                    pass
+        sites = filtered
+    
+    return sites
+
+@api_router.get("/trivorweb/sites/{site_id}")
+async def get_site(site_id: str, username: str = Depends(verify_trivordoc_credentials)):
+    """Get single site by ID"""
+    site = await db.trivorweb_sites.find_one({"id": site_id}, {"_id": 0})
+    if not site:
+        raise HTTPException(status_code=404, detail="Sito non trovato")
+    return site
+
+@api_router.post("/trivorweb/sites")
+async def create_site(sito: SitoWebCreate, username: str = Depends(verify_trivordoc_credentials)):
+    """Create a new site"""
+    site_id = await generate_site_id()
+    
+    site_data = {
+        "id": site_id,
+        **sito.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    
+    await db.trivorweb_sites.insert_one(site_data)
+    
+    # Log the action
+    await db.trivorweb_logs.insert_one({
+        "action": "CREATE",
+        "site_id": site_id,
+        "user": username,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "details": f"Sito {site_id} ({sito.dominio}) creato"
+    })
+    
+    return {"id": site_id, "message": "Sito creato con successo"}
+
+@api_router.put("/trivorweb/sites/{site_id}")
+async def update_site(site_id: str, sito: SitoWebUpdate, username: str = Depends(verify_trivordoc_credentials)):
+    """Update a site"""
+    update_data = {k: v for k, v in sito.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.trivorweb_sites.update_one(
+        {"id": site_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Sito non trovato")
+    
+    # Log the action
+    await db.trivorweb_logs.insert_one({
+        "action": "UPDATE",
+        "site_id": site_id,
+        "user": username,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "details": f"Sito {site_id} aggiornato"
+    })
+    
+    updated = await db.trivorweb_sites.find_one({"id": site_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/trivorweb/sites/{site_id}")
+async def delete_site(site_id: str, request: DeleteRequest, username: str = Depends(verify_trivordoc_credentials)):
+    """Delete a site (requires deletion password)"""
+    if request.password != TRIVORDOC_DELETE_PASSWORD:
+        raise HTTPException(status_code=403, detail="Password di eliminazione non corretta")
+    
+    site = await db.trivorweb_sites.find_one({"id": site_id})
+    if not site:
+        raise HTTPException(status_code=404, detail="Sito non trovato")
+    
+    await db.trivorweb_sites.delete_one({"id": site_id})
+    
+    # Log the action
+    await db.trivorweb_logs.insert_one({
+        "action": "DELETE",
+        "site_id": site_id,
+        "user": username,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "details": f"Sito {site_id} eliminato"
+    })
+    
+    return {"message": "Sito eliminato con successo"}
+
+@api_router.get("/trivorweb/stats")
+async def get_trivorweb_stats(username: str = Depends(verify_trivordoc_credentials)):
+    """Get dashboard statistics for TrivorWEB"""
+    from datetime import timedelta
+    
+    total_sites = await db.trivorweb_sites.count_documents({})
+    
+    # Sites by status
+    pipeline_status = [
+        {"$group": {"_id": "$stato", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    by_status = await db.trivorweb_sites.aggregate(pipeline_status).to_list(10)
+    
+    # Sites by hosting provider
+    pipeline_provider = [
+        {"$group": {"_id": "$hosting.provider", "count": {"$sum": 1}}},
+        {"$match": {"_id": {"$ne": None, "$ne": ""}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 10}
+    ]
+    by_provider = await db.trivorweb_sites.aggregate(pipeline_provider).to_list(10)
+    
+    # Expiring soon (next 30 days)
+    oggi = datetime.now(timezone.utc)
+    limite_30 = (oggi + timedelta(days=30)).isoformat()[:10]
+    expiring_soon = []
+    
+    sites = await db.trivorweb_sites.find({}, {"_id": 0}).to_list(500)
+    for site in sites:
+        scadenza = site.get("hosting", {}).get("data_scadenza")
+        if scadenza and scadenza <= limite_30 and scadenza >= oggi.isoformat()[:10]:
+            expiring_soon.append({
+                "id": site["id"],
+                "nome_progetto": site["nome_progetto"],
+                "dominio": site["dominio"],
+                "data_scadenza": scadenza,
+                "provider": site.get("hosting", {}).get("provider", "N/A")
+            })
+    
+    # Already expired
+    expired = []
+    for site in sites:
+        scadenza = site.get("hosting", {}).get("data_scadenza")
+        if scadenza and scadenza < oggi.isoformat()[:10]:
+            expired.append({
+                "id": site["id"],
+                "nome_progetto": site["nome_progetto"],
+                "dominio": site["dominio"],
+                "data_scadenza": scadenza
+            })
+    
+    # Total costs
+    total_hosting_cost = sum(
+        site.get("hosting", {}).get("costo_annuale", 0) or 0 
+        for site in sites
+    )
+    total_maintenance_cost = sum(
+        site.get("costo_manutenzione_annuale", 0) or 0 
+        for site in sites
+    )
+    
+    # Recent sites
+    recent = await db.trivorweb_sites.find({}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
+    
+    return {
+        "total_sites": total_sites,
+        "by_status": by_status,
+        "by_provider": by_provider,
+        "expiring_soon": sorted(expiring_soon, key=lambda x: x["data_scadenza"]),
+        "expired": expired,
+        "total_hosting_cost": total_hosting_cost,
+        "total_maintenance_cost": total_maintenance_cost,
+        "recent_sites": recent
+    }
+
+@api_router.get("/trivorweb/providers")
+async def get_providers(username: str = Depends(verify_trivordoc_credentials)):
+    """Get all unique hosting providers"""
+    pipeline = [
+        {"$group": {"_id": "$hosting.provider"}},
+        {"$match": {"_id": {"$ne": None, "$ne": ""}}},
+        {"$sort": {"_id": 1}}
+    ]
+    providers = await db.trivorweb_sites.aggregate(pipeline).to_list(50)
+    return [p["_id"] for p in providers]
+
+@api_router.get("/trivorweb/technologies")
+async def get_technologies(username: str = Depends(verify_trivordoc_credentials)):
+    """Get all unique technologies"""
+    pipeline = [
+        {"$unwind": "$tecnologie"},
+        {"$group": {"_id": "$tecnologie"}},
+        {"$sort": {"_id": 1}}
+    ]
+    techs = await db.trivorweb_sites.aggregate(pipeline).to_list(100)
+    return [t["_id"] for t in techs]
+
+@api_router.get("/trivorweb/logs")
+async def get_trivorweb_logs(limit: int = 50, username: str = Depends(verify_trivordoc_credentials)):
+    """Get recent activity logs"""
+    logs = await db.trivorweb_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+    return logs
+
 # Include the router in the main app (after all routes are defined)
 app.include_router(api_router)
 
