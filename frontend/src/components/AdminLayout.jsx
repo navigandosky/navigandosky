@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { LayoutGrid, Map, MapPin, Shirt, FileText, LogOut, Menu, X } from "lucide-react";
+import { LayoutGrid, Map, MapPin, Shirt, FileText, LogOut, Menu, X, Home } from "lucide-react";
 
 const LOGO_URL = "https://customer-assets.emergentagent.com/job_5ab32c84-76f1-4a2b-a9a5-9ab0c1424cd8/artifacts/70h8z9e6_Logo%20firma%20Spoke2%20completo.png";
 
@@ -45,7 +45,9 @@ export default function AdminLayout({ children, title }) {
           {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
         <h1 className="font-serif text-lg">Spoke Galaveras</h1>
-        <div className="w-10" /> {/* Spacer for centering */}
+        <Link to="/" className="p-2 hover:bg-white/10 rounded-sm">
+          <Home className="w-5 h-5" />
+        </Link>
       </div>
 
       {/* Mobile Overlay */}
@@ -70,6 +72,17 @@ export default function AdminLayout({ children, title }) {
           </Link>
 
           <nav className="space-y-2">
+            {/* Link alla Home */}
+            <Link
+              to="/"
+              className="flex items-center gap-3 px-4 py-3 rounded-sm transition-all text-[#C5A059] hover:text-white hover:bg-[#C5A059]/20 border border-[#C5A059]/30"
+            >
+              <Home className="w-5 h-5" />
+              <span className="font-sans text-sm">Vai al Sito</span>
+            </Link>
+            
+            <div className="border-t border-white/10 my-3"></div>
+            
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.to;
