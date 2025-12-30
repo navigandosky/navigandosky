@@ -169,20 +169,97 @@ export default function AdminProject() {
           ))}
         </div>
 
-        <div className="mt-8 pt-6 border-t border-[#E5E0D8] flex justify-end">
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-gold"
-            data-testid="save-project-btn"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+        <div className="mt-8 pt-6 border-t border-[#E5E0D8]">
+          {/* Documents Section */}
+          <div className="mb-8">
+            <h3 className="font-serif text-lg text-[#2A2A2A] mb-4">Documenti Allegati</h3>
+            
+            {/* Upload New Document */}
+            <div className="flex gap-3 mb-4">
+              <Input
+                placeholder="Descrizione documento"
+                value={newDocDescription}
+                onChange={(e) => setNewDocDescription(e.target.value)}
+                className="flex-1 border-[#E5E0D8]"
+              />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Upload className="w-4 h-4 mr-2" />
+                )}
+                Carica File
+              </Button>
+            </div>
+
+            {/* Documents List */}
+            {documents.length > 0 ? (
+              <div className="space-y-2">
+                {documents.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between p-3 bg-[#F9F8F6] rounded border border-[#E5E0D8]">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-[#C5A059]" />
+                      <div>
+                        <p className="font-sans text-sm font-medium text-[#2A2A2A]">
+                          {doc.description || doc.original_name}
+                        </p>
+                        <p className="font-sans text-xs text-[#666058]">
+                          {doc.original_name} • {doc.file_type?.toUpperCase()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(`${API}${doc.url}`, '_blank')}
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteDocument(doc.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <Save className="w-4 h-4 mr-2" />
+              <p className="text-sm text-[#666058] italic">Nessun documento allegato</p>
             )}
-            Salva contenuto
-          </Button>
+          </div>
+
+          {/* Save Button */}
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="btn-gold"
+              data-testid="save-project-btn"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Salva contenuto
+            </Button>
+          </div>
         </div>
       </div>
     </AdminLayout>
