@@ -79,7 +79,7 @@ const PARTNER_LOGOS = [
 // HOOKS
 // =============================================================================
 
-// Scroll reveal hook
+// Scroll reveal hook - observes all elements with .scroll-reveal class
 const useScrollReveal = () => {
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -90,14 +90,33 @@ const useScrollReveal = () => {
           }
         });
       },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+      { threshold: 0.05, rootMargin: '0px 0px -20px 0px' }
     );
 
-    document.querySelectorAll('.scroll-reveal').forEach((el) => {
-      observer.observe(el);
+    // Function to observe all scroll-reveal elements
+    const observeElements = () => {
+      document.querySelectorAll('.scroll-reveal:not(.revealed)').forEach((el) => {
+        observer.observe(el);
+      });
+    };
+
+    // Initial observation
+    observeElements();
+
+    // Re-observe when DOM changes (for dynamically loaded content)
+    const mutationObserver = new MutationObserver(() => {
+      observeElements();
     });
 
-    return () => observer.disconnect();
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
   }, []);
 };
 
