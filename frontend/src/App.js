@@ -124,7 +124,6 @@ const Navbar = () => {
             <div className="px-4 py-4 space-y-3">
               <Link to="/" className="block text-gray-300 hover:text-cyan-400 py-2" onClick={() => setIsOpen(false)}>{t.home}</Link>
               <Link to="/spaces" className="block text-gray-300 hover:text-cyan-400 py-2" onClick={() => setIsOpen(false)}>{t.spaces}</Link>
-              <Link to="/archivio" className="block text-gray-300 hover:text-cyan-400 py-2" onClick={() => setIsOpen(false)}>{t.archive}</Link>
               <Link to="/project" className="block text-gray-300 hover:text-cyan-400 py-2" onClick={() => setIsOpen(false)}>{t.project}</Link>
               <Link to="/admin" className="block text-gray-300 hover:text-cyan-400 py-2" onClick={() => setIsOpen(false)}>{t.admin}</Link>
               <div className="pt-2">
