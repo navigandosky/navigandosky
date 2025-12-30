@@ -428,24 +428,6 @@ const HeroSection = () => {
 };
 
 // =============================================================================
-// PARTNER LOGOS BAR
-// =============================================================================
-const PartnerLogosBar = () => (
-  <section className="py-12 bg-white">
-    <div className="max-w-7xl mx-auto px-4">
-      <p className="text-center text-gray-500 text-sm mb-8 uppercase tracking-wider">Partner e Collaborazioni</p>
-      <div className="flex flex-wrap justify-center items-center gap-12">
-        {PARTNER_LOGOS.map((partner, index) => (
-          <div key={index} className="grayscale hover:grayscale-0 transition-all opacity-60 hover:opacity-100">
-            <img src={partner.url} alt={partner.name} className="h-12 md:h-16 w-auto object-contain" />
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-// =============================================================================
 // SERVICES SECTION - Con animazioni
 // =============================================================================
 const ServicesSection = () => {
