@@ -33,9 +33,19 @@ print(f"Testing backend at: {BACKEND_URL}")
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "Trivor2024$"
 
+# TRIVORDOC credentials
+TRIVORDOC_USERNAME = "Trivor_doc"
+TRIVORDOC_PASSWORD = "Doc_trivor$"
+
 def create_auth_header():
     """Create Basic Auth header for admin endpoints"""
     credentials = f"{ADMIN_USERNAME}:{ADMIN_PASSWORD}"
+    encoded_credentials = base64.b64encode(credentials.encode()).decode()
+    return {"Authorization": f"Basic {encoded_credentials}"}
+
+def create_trivordoc_auth_header():
+    """Create Basic Auth header for TRIVORDOC endpoints"""
+    credentials = f"{TRIVORDOC_USERNAME}:{TRIVORDOC_PASSWORD}"
     encoded_credentials = base64.b64encode(credentials.encode()).decode()
     return {"Authorization": f"Basic {encoded_credentials}"}
 
