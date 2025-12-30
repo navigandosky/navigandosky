@@ -525,36 +525,111 @@ export default function AdminCostumes() {
               </div>
             </div>
 
-            {/* Audio Generation */}
+            {/* Audio Generation - Stile Ghivine */}
             <div>
               <label className="block font-sans text-sm text-[#666058] mb-2">
-                File Audio Descrittivo (genera automaticamente)
+                Audioguide
               </label>
-              <div className="grid grid-cols-4 gap-3">
-                {["it", "en", "fr", "de"].map((lang) => (
-                  <div key={lang} className="text-center">
-                    <Button
+              
+              {/* Hidden audio element */}
+              <audio 
+                ref={audioRef} 
+                onEnded={() => setPlayingAudio(null)}
+                onTimeUpdate={() => {
+                  if (audioRef.current) {
+                    setAudioProgress({
+                      currentTime: audioRef.current.currentTime,
+                      duration: audioRef.current.duration || 0
+                    });
+                  }
+                }}
+                className="hidden"
+              />
+              
+              <div className="bg-[#1A1918] rounded-lg p-4">
+                {/* Language tabs */}
+                <div className="flex gap-2 mb-4">
+                  {["it", "en", "fr", "de"].map((lang) => (
+                    <button
+                      key={lang}
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleGenerateAudio(lang)}
-                      disabled={generatingAudio[lang] || !formData.description[lang]}
-                      className="w-full mb-2"
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                        formData.audio_url[lang] 
+                          ? "bg-green-600/20 text-green-400 border border-green-600/30" 
+                          : "bg-white/5 text-white/50 border border-white/10"
+                      }`}
+                      onClick={() => formData.audio_url[lang] && playAudio(lang)}
                     >
-                      {generatingAudio[lang] ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                      {lang.toUpperCase()}
+                      {formData.audio_url[lang] && <Check className="w-3 h-3 text-green-400" />}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Audio controls per ogni lingua */}
+                <div className="space-y-3">
+                  {["it", "en", "fr", "de"].map((lang) => (
+                    <div key={lang} className="flex items-center gap-3">
+                      {/* Player (se audio esiste) */}
+                      {formData.audio_url[lang] ? (
+                        <div className="flex-1 bg-white/5 rounded-lg p-2 flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => playAudio(lang)}
+                            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          >
+                            {playingAudio === lang ? (
+                              <Pause className="w-4 h-4 text-white" />
+                            ) : (
+                              <Play className="w-4 h-4 text-white ml-0.5" />
+                            )}
+                          </button>
+                          
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 text-xs text-white/60">
+                              <span>{playingAudio === lang ? formatTime(audioProgress.currentTime) : "0:00"}</span>
+                              <div className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-[#C5A059] transition-all"
+                                  style={{ 
+                                    width: `${playingAudio === lang && audioProgress.duration 
+                                      ? (audioProgress.currentTime / audioProgress.duration) * 100 
+                                      : 0}%` 
+                                  }}
+                                />
+                              </div>
+                              <span>{playingAudio === lang ? formatTime(audioProgress.duration) : "—"}</span>
+                            </div>
+                          </div>
+                          
+                          <Volume2 className="w-4 h-4 text-white/40" />
+                        </div>
                       ) : (
-                        <>
-                          <Volume2 className="w-4 h-4 mr-1" />
-                          {lang.toUpperCase()}
-                        </>
+                        <div className="flex-1 text-white/30 text-sm">
+                          Nessun audio {lang.toUpperCase()}
+                        </div>
                       )}
-                    </Button>
-                    {formData.audio_url[lang] && (
-                      <span className="text-xs text-green-600">Generato</span>
-                    )}
-                  </div>
-                ))}
+                      
+                      {/* Generate button */}
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleGenerateAudio(lang)}
+                        disabled={generatingAudio[lang] || !formData.description[lang]}
+                        className="bg-[#2A6B6B] hover:bg-[#1F5555] text-white text-xs h-8 px-3"
+                      >
+                        {generatingAudio[lang] ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Mic className="w-3 h-3 mr-1" />
+                            TTS
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
