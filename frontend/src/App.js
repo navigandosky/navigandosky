@@ -96,7 +96,6 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-8">
             <Link to="/" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-home">{t.home}</Link>
             <Link to="/spaces" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-spaces">{t.spaces}</Link>
-            <Link to="/archivio" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-archive">{t.archive}</Link>
             <Link to="/project" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-project">{t.project}</Link>
             <Link to="/admin" className="text-gray-300 hover:text-cyan-400 transition-colors font-medium" data-testid="nav-admin">{t.admin}</Link>
             <LanguageSelector />
