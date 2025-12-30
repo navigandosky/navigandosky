@@ -654,7 +654,6 @@ export default function ExhibitionDetail() {
                 data-testid="matterport-iframe"
               />
             </div>
-            </div>
             
             {/* SDK Status - mostra solo se non usa mpskin */}
             {!space.mpskin_url && (
