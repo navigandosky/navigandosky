@@ -257,18 +257,91 @@ export default function AdminSpaces() {
               />
             </div>
 
-            {/* Cover Image */}
+            {/* Cover Image - URL o Upload */}
             <div>
               <label className="block font-sans text-sm text-[#666058] mb-2">
-                URL Immagine di copertina
+                Immagine di copertina
               </label>
-              <Input
-                value={formData.cover_image}
-                onChange={(e) => setFormData(prev => ({ ...prev, cover_image: e.target.value }))}
-                placeholder="https://..."
-                className="border-[#E5E0D8] focus:border-[#C5A059]"
-                data-testid="space-cover-image"
-              />
+              
+              {/* Preview immagine esistente */}
+              {formData.cover_image && (
+                <div className="mb-3 relative">
+                  <img 
+                    src={formData.cover_image.startsWith('http') ? formData.cover_image : `${process.env.REACT_APP_BACKEND_URL}${formData.cover_image}`}
+                    alt="Cover preview"
+                    className="w-full h-32 object-cover rounded-sm border border-[#E5E0D8]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, cover_image: "" }))}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                {/* URL Input */}
+                <Input
+                  value={formData.cover_image}
+                  onChange={(e) => setFormData(prev => ({ ...prev, cover_image: e.target.value }))}
+                  placeholder="https://... oppure carica file"
+                  className="border-[#E5E0D8] focus:border-[#C5A059] flex-1"
+                  data-testid="space-cover-image"
+                />
+                
+                {/* Upload Button */}
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast.error("File troppo grande. Massimo 5MB.");
+                        return;
+                      }
+                      
+                      setUploadingCover(true);
+                      try {
+                        const formDataUpload = new FormData();
+                        formDataUpload.append('file', file);
+                        const res = await axios.post(`${API}/upload/cover-image`, formDataUpload, {
+                          headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+                        setFormData(prev => ({ ...prev, cover_image: res.data.url }));
+                        toast.success("✅ Immagine caricata!");
+                      } catch (err) {
+                        toast.error(err.response?.data?.detail || "Errore upload");
+                      } finally {
+                        setUploadingCover(false);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-[#C5A059] text-[#C5A059] hover:bg-[#C5A059] hover:text-white"
+                    disabled={uploadingCover}
+                    asChild
+                  >
+                    <span>
+                      {uploadingCover ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4" />
+                      )}
+                    </span>
+                  </Button>
+                </label>
+              </div>
+              <p className="text-xs text-[#666058] mt-1">
+                Formati: JPG, PNG, WEBP (max 5MB)
+              </p>
             </div>
 
             {/* Mpskin URL - Overlay Alternativo */}
