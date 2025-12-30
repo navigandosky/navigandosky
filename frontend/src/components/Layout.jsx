@@ -195,22 +195,22 @@ export default function Layout() {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-[#F9F8F6]/10 flex items-center justify-between">
-            <p className="font-sans text-xs text-[#F9F8F6]/50">
+            <p className="font-sans text-sm text-[#F9F8F6]/50">
               © {new Date().getFullYear()} Spoke Galaveras. Tutti i diritti riservati.
             </p>
             <img 
               src={LOGO_URL} 
               alt="Spoke Logo" 
-              className="h-16 w-auto opacity-90 hover:opacity-100 transition-opacity"
+              className="h-24 w-auto opacity-90 hover:opacity-100 transition-opacity"
             />
           </div>
         </div>
       </footer>
 
       {/* Trivor Copyright */}
-      <div className="fixed bottom-5 left-5 z-40 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-sm shadow-md border border-[#C5A059]/30">
-        <p className="font-sans text-sm font-medium text-[#2A2A2A]">
-          Realizzato da <span className="text-[#C5A059] font-semibold">Trivor srl</span> ©
+      <div className="fixed bottom-5 left-5 z-40 bg-white/90 backdrop-blur-sm px-5 py-3 rounded-sm shadow-md border border-[#C5A059]/30">
+        <p className="font-sans text-base font-medium text-[#2A2A2A]">
+          Realizzato da <span className="text-[#C5A059] font-semibold text-lg">Trivor srl</span> ©
         </p>
       </div>
     </div>
