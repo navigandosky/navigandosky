@@ -1429,6 +1429,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/trivordoc" element={<TrivorDocPage />} />
         </Routes>
       </HashRouter>
     </div>
