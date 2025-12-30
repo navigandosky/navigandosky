@@ -447,7 +447,14 @@ export default function AdminPOIs() {
                       )}
                     </Button>
                     {formData.audio_url[lang] && (
-                      <span className="text-xs text-green-600">Generato</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-green-600">✓</span>
+                        <audio 
+                          controls 
+                          src={`${API}${formData.audio_url[lang].startsWith('/') ? '' : '/'}${formData.audio_url[lang].replace('/api', '')}`}
+                          className="h-8 w-32"
+                        />
+                      </div>
                     )}
                   </div>
                 ))}
