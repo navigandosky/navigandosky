@@ -303,12 +303,15 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
 };
 
 // =============================================================================
-// CHECKDB - Database Monitor
+// CHECKDB - Database Monitor (Multi-Database)
 // =============================================================================
 const CheckDBApp = ({ onBack, getAuthHeader }) => {
+  const [databases, setDatabases] = useState([]);
+  const [selectedDb, setSelectedDb] = useState(null);
   const [dbStatus, setDbStatus] = useState(null);
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingDb, setLoadingDb] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [collectionDetails, setCollectionDetails] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
@@ -321,20 +324,40 @@ const CheckDBApp = ({ onBack, getAuthHeader }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const fetchData = useCallback(async () => {
+  // Fetch list of all databases
+  const fetchDatabases = useCallback(async () => {
     setLoading(true);
     try {
-      const [statusRes, healthRes] = await Promise.all([
-        fetch(`${API}/checkdb/status`, { headers: getAuthHeader() }),
+      const [dbListRes, healthRes] = await Promise.all([
+        fetch(`${API}/checkdb/databases`, { headers: getAuthHeader() }),
         fetch(`${API}/checkdb/health`, { headers: getAuthHeader() }),
       ]);
-      setDbStatus(await statusRes.json());
+      const dbList = await dbListRes.json();
+      setDatabases(dbList.databases || []);
       setHealth(await healthRes.json());
+      
+      // Auto-select first database if none selected
+      if (!selectedDb && dbList.databases?.length > 0) {
+        setSelectedDb(dbList.databases[0].name);
+      }
       setLastUpdate(new Date());
     } catch (e) {
       console.error(e);
     }
     setLoading(false);
+  }, [getAuthHeader, selectedDb]);
+
+  // Fetch specific database status
+  const fetchDbStatus = useCallback(async (dbName) => {
+    if (!dbName) return;
+    setLoadingDb(true);
+    try {
+      const res = await fetch(`${API}/checkdb/database/${dbName}/status`, { headers: getAuthHeader() });
+      setDbStatus(await res.json());
+    } catch (e) {
+      console.error(e);
+    }
+    setLoadingDb(false);
   }, [getAuthHeader]);
 
   const fetchCollectionDetails = async (collName) => {
@@ -347,8 +370,14 @@ const CheckDBApp = ({ onBack, getAuthHeader }) => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchDatabases();
+  }, [fetchDatabases]);
+
+  useEffect(() => {
+    if (selectedDb) {
+      fetchDbStatus(selectedDb);
+    }
+  }, [selectedDb, fetchDbStatus]);
 
   useEffect(() => {
     if (selectedCollection) {
