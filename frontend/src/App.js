@@ -259,7 +259,7 @@ const Navbar = ({ showAdminLink = true }) => {
             <img 
               src="https://customer-assets.emergentagent.com/job_trivor-agent/artifacts/5wu3c3nj_logo%20trivor%20heritage%20digitale.png" 
               alt="Trivor" 
-              className="h-12 md:h-14 w-auto transition-transform group-hover:scale-105"
+              className="h-16 md:h-20 w-auto transition-transform group-hover:scale-105"
             />
           </button>
 
