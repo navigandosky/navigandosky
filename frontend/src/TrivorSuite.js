@@ -432,52 +432,90 @@ const CheckDBApp = ({ onBack, getAuthHeader }) => {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Health Status */}
-            <div className="grid md:grid-cols-4 gap-4">
-              <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-400 text-sm">Stato</span>
-                  <span className={getStatusColor(health?.status)}>
-                    {getStatusIcon(health?.status)}
+            {/* Database Tabs */}
+            <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-semibold flex items-center">
+                  <Server className="w-5 h-5 text-emerald-400 mr-2" />
+                  Database Disponibili ({databases.length})
+                </h3>
+                {lastUpdate && (
+                  <span className="text-slate-500 text-xs">
+                    Aggiornato: {lastUpdate.toLocaleTimeString("it-IT")}
                   </span>
-                </div>
-                <p className={`text-2xl font-bold ${getStatusColor(health?.status)}`}>
-                  {health?.status === "healthy" ? "Online" : "Offline"}
-                </p>
+                )}
               </div>
-              
-              <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-400 text-sm">Database</span>
-                  <Server className="w-5 h-5 text-blue-400" />
-                </div>
-                <p className="text-xl font-bold text-white">{dbStatus?.database?.name}</p>
-              </div>
-              
-              <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-400 text-sm">Collections</span>
-                  <Layers className="w-5 h-5 text-purple-400" />
-                </div>
-                <p className="text-2xl font-bold text-white">{dbStatus?.database?.collections || 0}</p>
-              </div>
-              
-              <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-400 text-sm">Documenti Totali</span>
-                  <FileText className="w-5 h-5 text-orange-400" />
-                </div>
-                <p className="text-2xl font-bold text-white">{dbStatus?.database?.objects || 0}</p>
+              <div className="flex flex-wrap gap-2">
+                {databases.map((db) => (
+                  <button
+                    key={db.name}
+                    onClick={() => setSelectedDb(db.name)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center space-x-2 ${
+                      selectedDb === db.name
+                        ? "bg-emerald-500 text-white"
+                        : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                    }`}
+                  >
+                    <Database className="w-4 h-4" />
+                    <span>{db.name}</span>
+                    <span className="text-xs opacity-70">({formatBytes(db.sizeOnDisk)})</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Storage Stats */}
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-5">
-                <div className="flex items-center space-x-3 mb-4">
-                  <HardDrive className="w-6 h-6 text-emerald-400" />
-                  <h3 className="text-white font-semibold">Spazio Dati</h3>
+            {loadingDb ? (
+              <div className="flex justify-center py-12">
+                <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin" />
+              </div>
+            ) : dbStatus && (
+              <>
+                {/* Health Status */}
+                <div className="grid md:grid-cols-4 gap-4">
+                  <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-400 text-sm">Stato</span>
+                      <span className={getStatusColor(health?.status)}>
+                        {getStatusIcon(health?.status)}
+                      </span>
+                    </div>
+                    <p className={`text-2xl font-bold ${getStatusColor(health?.status)}`}>
+                      {health?.status === "healthy" ? "Online" : "Offline"}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-400 text-sm">Database Selezionato</span>
+                      <Server className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <p className="text-xl font-bold text-emerald-400">{dbStatus?.database?.name}</p>
+                  </div>
+                  
+                  <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-400 text-sm">Collections</span>
+                      <Layers className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <p className="text-2xl font-bold text-white">{dbStatus?.database?.collections || 0}</p>
+                  </div>
+                  
+                  <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-400 text-sm">Documenti Totali</span>
+                      <FileText className="w-5 h-5 text-orange-400" />
+                    </div>
+                    <p className="text-2xl font-bold text-white">{dbStatus?.database?.objects || 0}</p>
+                  </div>
                 </div>
+
+                {/* Storage Stats */}
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-5">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <HardDrive className="w-6 h-6 text-emerald-400" />
+                      <h3 className="text-white font-semibold">Spazio Dati</h3>
+                    </div>
                 <p className="text-3xl font-bold text-emerald-400">
                   {formatBytes(dbStatus?.database?.dataSize || 0)}
                 </p>
