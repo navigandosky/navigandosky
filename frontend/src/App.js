@@ -816,9 +816,10 @@ const ContactSection = () => {
 
   const contactInfo = [
     { icon: Mail, title: 'Email', value: 'trivorsrl@gmail.com', href: 'mailto:trivorsrl@gmail.com' },
+    { icon: Mail, title: 'PEC', value: 'trivorsrl@pec.it', href: 'mailto:trivorsrl@pec.it' },
     { icon: Phone, title: 'Telefono', value: '+39 393 92 55 552', href: 'tel:+393939255552' },
     { icon: MessageCircle, title: 'WhatsApp', value: 'Scrivici', href: 'https://wa.me/393939255552' },
-    { icon: MapPinIcon, title: 'Sede', value: 'Cagliari, Sardegna', href: null },
+    { icon: MapPinIcon, title: 'Sede Legale', value: 'Cagliari, Viale Trieste 93', href: null },
   ];
 
   return (
