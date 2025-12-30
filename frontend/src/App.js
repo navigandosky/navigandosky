@@ -1019,6 +1019,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
   const [showForm, setShowForm] = useState(false);
   const [showHeroForm, setShowHeroForm] = useState(false);
   const [savingHero, setSavingHero] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(null); // index of uploading image
 
   useEffect(() => { fetchData(); }, []);
 
@@ -1063,6 +1064,24 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
       alert('Errore nel salvataggio');
     }
     finally { setSavingHero(false); }
+  };
+
+  const handleHeroImageUpload = async (index, file) => {
+    if (!file) return;
+    setUploadingHero(index);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await axios.post(`${API}/admin/upload`, formData, { 
+        headers: { ...getAuthHeader(), 'Content-Type': 'multipart/form-data' } 
+      });
+      const imageUrl = `${BACKEND_URL}${res.data.url}`;
+      updateHeroImage(index, 'url', imageUrl);
+    } catch (e) { 
+      console.error(e); 
+      alert('Errore nel caricamento');
+    }
+    finally { setUploadingHero(null); }
   };
 
   const addHeroImage = () => {
