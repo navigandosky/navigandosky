@@ -175,6 +175,31 @@ export default function AdminCostumes() {
     }
   };
 
+  // Play/Pause audio
+  const playAudio = (lang) => {
+    const audioUrl = formData.audio_url[lang];
+    if (!audioUrl) return;
+    
+    if (playingAudio === lang) {
+      audioRef.current?.pause();
+      setPlayingAudio(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.src = audioUrl.startsWith('http') ? audioUrl : `${process.env.REACT_APP_BACKEND_URL}${audioUrl}`;
+        audioRef.current.play();
+        setPlayingAudio(lang);
+      }
+    }
+  };
+
+  // Format time
+  const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
