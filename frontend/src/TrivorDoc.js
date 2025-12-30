@@ -78,13 +78,13 @@ const TrivordocLogin = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
-      {/* Link to main site */}
+      {/* Link to Suite */}
       <a 
-        href="#/" 
+        href="#/suite" 
         className="absolute top-6 left-6 flex items-center space-x-2 text-blue-300 hover:text-white transition-colors"
       >
-        <Home className="w-5 h-5" />
-        <span className="text-sm font-medium">Torna al sito Trivor</span>
+        <ChevronRight className="w-5 h-5 rotate-180" />
+        <span className="text-sm font-medium">Torna alla Suite</span>
       </a>
 
       <div className="w-full max-w-md">
