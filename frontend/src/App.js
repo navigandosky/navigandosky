@@ -1148,7 +1148,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
               ))}
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'messages' ? (
           <div className="bg-[#111214] border border-gray-800 rounded-xl">
             <div className="p-4 border-b border-gray-800"><h2 className="text-lg font-semibold text-white">Messaggi</h2></div>
             <div className="divide-y divide-gray-800">
