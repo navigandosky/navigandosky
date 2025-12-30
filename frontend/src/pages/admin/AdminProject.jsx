@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { Loader2, Languages, Save } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Loader2, Languages, Save, Upload, FileText, Download, Trash2 } from "lucide-react";
 import axios from "axios";
 import AdminLayout from "../../components/AdminLayout";
 import { Button } from "../../components/ui/button";
 import { Textarea } from "../../components/ui/textarea";
+import { Input } from "../../components/ui/input";
 import { toast } from "sonner";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -15,9 +16,13 @@ export default function AdminProject() {
     fr: "",
     de: ""
   });
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [translating, setTranslating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [newDocDescription, setNewDocDescription] = useState("");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchProject();
