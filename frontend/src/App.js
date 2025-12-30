@@ -945,15 +945,6 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Partner Logos */}
-        <div className="border-t border-gray-800 pt-8 mb-8">
-          <div className="flex flex-wrap justify-center items-center gap-8">
-            {PARTNER_LOGOS.map((p, i) => (
-              <img key={i} src={p.url} alt={p.name} className="h-8 w-auto grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all" />
-            ))}
-          </div>
-        </div>
-
         <div className="text-center text-gray-500 text-sm">
           © {new Date().getFullYear()} Trivor SRL. Tutti i diritti riservati.
         </div>
