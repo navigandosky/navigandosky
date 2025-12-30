@@ -486,6 +486,46 @@ async def delete_project_document(doc_id: str):
     
     return {"success": True}
 
+# ============== COVER IMAGE UPLOAD ==============
+
+@api_router.post("/upload/cover-image")
+async def upload_cover_image(file: UploadFile = File(...)):
+    """Upload immagine di copertina per spazi Matterport (max 5MB)"""
+    
+    # Check file type
+    allowed_types = ['image/jpeg', 'image/png', 'image/webp']
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Formato non supportato. Usa JPG, PNG o WEBP.")
+    
+    # Check file size (5MB max)
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File troppo grande. Massimo 5MB.")
+    
+    # Create covers directory
+    covers_dir = UPLOAD_DIR / "covers"
+    covers_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save file
+    ext = file.filename.split('.')[-1].lower() if '.' in file.filename else 'jpg'
+    filename = f"{uuid.uuid4()}.{ext}"
+    filepath = covers_dir / filename
+    
+    async with aiofiles.open(filepath, 'wb') as f:
+        await f.write(content)
+    
+    return {"url": f"/api/covers/{filename}"}
+
+@api_router.get("/covers/{filename}")
+async def serve_cover_image(filename: str):
+    filepath = UPLOAD_DIR / "covers" / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Immagine non trovata")
+    
+    ext = filename.split('.')[-1].lower()
+    media_types = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'webp': 'image/webp'}
+    return FileResponse(filepath, media_type=media_types.get(ext, 'image/jpeg'))
+
 # ============== TRANSLATION SERVICE ==============
 
 @api_router.post("/translate")
