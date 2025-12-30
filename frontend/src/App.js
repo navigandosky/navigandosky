@@ -1236,7 +1236,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {showForm && (
           <ProjectForm
