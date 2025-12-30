@@ -130,8 +130,8 @@ export default function AdminLayout({ children, title }) {
       </main>
 
       {/* Fixed Logo - hide on mobile */}
-      <div className="hidden lg:block fixed bottom-4 right-4 opacity-50">
-        <img src={LOGO_URL} alt="Spoke Logo" className="h-10 w-auto" />
+      <div className="hidden lg:block fixed bottom-6 right-6">
+        <img src={LOGO_URL} alt="Spoke Logo" className="h-16 w-auto drop-shadow-lg" style={{ filter: 'contrast(1.2) brightness(1.1)' }} />
       </div>
     </div>
   );
