@@ -68,7 +68,7 @@ class POI(POICreate):
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class CostumeCreate(BaseModel):
-    id_risorsa: str
+    id_risorsa: Optional[str] = None  # Generato automaticamente se non fornito
     description: Translation
     ricamatrice: Optional[str] = None
     proprieta: Optional[str] = None
