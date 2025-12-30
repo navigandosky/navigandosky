@@ -101,6 +101,16 @@ class ProjectUpdate(BaseModel):
     featured: Optional[bool] = None
     order: Optional[int] = None
 
+# Site Settings Model (for Hero images, etc.)
+class SiteSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = "site_settings"
+    hero_images: List[dict] = []  # List of {url, title}
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SiteSettingsUpdate(BaseModel):
+    hero_images: Optional[List[dict]] = None
+
 # Contact Message Model
 class ContactMessage(BaseModel):
     model_config = ConfigDict(extra="ignore")
