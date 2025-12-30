@@ -5,7 +5,7 @@ import {
   Calendar, Tag, User, Briefcase, BarChart3, Clock, AlertCircle, CheckCircle,
   XCircle, Upload, Paperclip, Grid, List, SlidersHorizontal, Archive, Send,
   Plus, Edit, Trash2, Eye, X, RefreshCw, LogOut, FolderOpen, Home, ChevronRight,
-  Mail, MessageCircle, ExternalLink, Lock
+  Mail, MessageCircle, ExternalLink, Lock, ChevronLeft
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
