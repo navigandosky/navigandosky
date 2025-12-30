@@ -1172,6 +1172,70 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
               ))}
             </div>
           </div>
+        ) : activeTab === 'settings' ? (
+          <div className="bg-[#111214] border border-gray-800 rounded-xl">
+            <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Immagini Hero Homepage</h2>
+                <p className="text-gray-400 text-sm mt-1">Dimensione consigliata: 1920x1080px (16:9)</p>
+              </div>
+              <div className="flex space-x-2">
+                <button onClick={addHeroImage} className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg">
+                  <Plus size={16} /><span>Aggiungi</span>
+                </button>
+                <button onClick={handleSaveHeroImages} disabled={savingHero} className="flex items-center space-x-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg disabled:opacity-50">
+                  {savingHero ? <RefreshCw size={16} className="animate-spin" /> : <Check size={16} />}
+                  <span>{savingHero ? 'Salvataggio...' : 'Salva'}</span>
+                </button>
+              </div>
+            </div>
+            <div className="p-4 space-y-4">
+              {heroImages.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  <Image className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Nessuna immagine Hero configurata</p>
+                  <p className="text-sm mt-2">Clicca "Aggiungi" per inserire le immagini della Sardegna</p>
+                </div>
+              ) : heroImages.map((img, index) => (
+                <div key={index} className="flex items-start space-x-4 p-4 bg-[#0a0a0b] rounded-lg border border-gray-700">
+                  <div className="w-40 h-24 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
+                    {img.url ? (
+                      <img src={img.url} alt={img.title} className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Image className="w-8 h-8 text-gray-600" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <input
+                      type="text"
+                      value={img.title}
+                      onChange={(e) => updateHeroImage(index, 'title', e.target.value)}
+                      placeholder="Titolo (es: Costa Smeralda)"
+                      className="w-full px-3 py-2 bg-[#111214] border border-gray-700 rounded-lg text-white text-sm"
+                    />
+                    <input
+                      type="url"
+                      value={img.url}
+                      onChange={(e) => updateHeroImage(index, 'url', e.target.value)}
+                      placeholder="URL immagine (https://...)"
+                      className="w-full px-3 py-2 bg-[#111214] border border-gray-700 rounded-lg text-white text-sm"
+                    />
+                  </div>
+                  <button onClick={() => removeHeroImage(index)} className="p-2 text-gray-400 hover:text-red-400">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              ))}
+              <div className="mt-4 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
+                <p className="text-cyan-400 text-sm">
+                  💡 <strong>Suggerimento:</strong> Carica le tue foto della Sardegna su un servizio di hosting immagini 
+                  (come Imgur, Google Drive pubblico, o il tuo server) e incolla qui l'URL diretto dell'immagine.
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         {showForm && (
