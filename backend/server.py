@@ -362,11 +362,20 @@ async def delete_costume(costume_id: str):
 
 # ============== PROJECT CONTENT ==============
 
+class ProjectDocument(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    filename: str
+    original_name: str
+    file_type: str  # pdf, docx, xlsx, jpg
+    description: str = ""
+    url: str
+    uploaded_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
 @api_router.get("/project")
 async def get_project():
     project = await db.project.find_one({"type": "main"}, {"_id": 0})
     if not project:
-        return {"content": {"it": "", "en": "", "fr": "", "de": ""}}
+        return {"content": {"it": "", "en": "", "fr": "", "de": ""}, "documents": []}
     return project
 
 @api_router.put("/project")
@@ -376,6 +385,105 @@ async def update_project(content: ProjectContent):
         {"$set": {"content": content.content.model_dump() if hasattr(content.content, 'model_dump') else content.content, "updated_at": datetime.now(timezone.utc).isoformat(), "type": "main"}},
         upsert=True
     )
+    return {"success": True}
+
+# Upload documento progetto
+@api_router.post("/project/documents")
+async def upload_project_document(
+    file: UploadFile = File(...),
+    description: str = Form("")
+):
+    # Allowed file types
+    allowed_types = {
+        'application/pdf': 'pdf',
+        'application/msword': 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+        'application/vnd.ms-excel': 'xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+        'image/jpeg': 'jpg',
+        'image/png': 'png'
+    }
+    
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Tipo file non supportato. Usa PDF, Word, Excel o immagini.")
+    
+    file_type = allowed_types[file.content_type]
+    doc_id = str(uuid.uuid4())
+    filename = f"{doc_id}_{file.filename}"
+    
+    # Create documents directory
+    docs_dir = UPLOAD_DIR / "documents"
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    
+    filepath = docs_dir / filename
+    
+    async with aiofiles.open(filepath, 'wb') as f:
+        content = await file.read()
+        await f.write(content)
+    
+    doc = {
+        "id": doc_id,
+        "filename": filename,
+        "original_name": file.filename,
+        "file_type": file_type,
+        "description": description,
+        "url": f"/api/documents/{filename}",
+        "uploaded_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Add to project documents array
+    await db.project.update_one(
+        {"type": "main"},
+        {"$push": {"documents": doc}},
+        upsert=True
+    )
+    
+    return doc
+
+# Get document
+@api_router.get("/documents/{filename}")
+async def serve_document(filename: str):
+    filepath = UPLOAD_DIR / "documents" / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="File non trovato")
+    
+    # Determine media type
+    ext = filename.split('.')[-1].lower()
+    media_types = {
+        'pdf': 'application/pdf',
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls': 'application/vnd.ms-excel',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png'
+    }
+    
+    return FileResponse(filepath, media_type=media_types.get(ext, 'application/octet-stream'))
+
+# Delete document
+@api_router.delete("/project/documents/{doc_id}")
+async def delete_project_document(doc_id: str):
+    project = await db.project.find_one({"type": "main"})
+    if not project or "documents" not in project:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+    
+    doc = next((d for d in project.get("documents", []) if d["id"] == doc_id), None)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento non trovato")
+    
+    # Delete file
+    filepath = UPLOAD_DIR / "documents" / doc["filename"]
+    if filepath.exists():
+        filepath.unlink()
+    
+    # Remove from database
+    await db.project.update_one(
+        {"type": "main"},
+        {"$pull": {"documents": {"id": doc_id}}}
+    )
+    
     return {"success": True}
 
 # ============== TRANSLATION SERVICE ==============
