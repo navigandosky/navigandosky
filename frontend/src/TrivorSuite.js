@@ -181,7 +181,7 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
       description: "Monitoraggio Database",
       icon: Database,
       color: "emerald",
-      features: ["Stato collections", "Spazio occupato", "Statistiche", "Health check"],
+      features: ["Multi-database", "Spazio occupato", "Statistiche", "Health check"],
       status: "active"
     },
     {
