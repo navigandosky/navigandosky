@@ -329,9 +329,9 @@ const Navbar = ({ showAdminLink = true }) => {
 const HeroSection = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [images, setImages] = useState([
-    { url: SARDEGNA_IMAGES.hero, title: "Costa Smeralda" },
-    { url: SARDEGNA_IMAGES.grotte, title: "Grotte Marine" },
-    { url: SARDEGNA_IMAGES.borgo, title: "Borghi Storici" },
+    { url: "https://images.unsplash.com/photo-1539768942893-daf53e448371?w=1920&q=80", title: "Sardegna Coast" },
+    { url: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1200&q=80", title: "Mare Cristallino" },
+    { url: "https://images.unsplash.com/photo-1523531294919-4bcd7c65e216?w=1200&q=80", title: "Borghi Storici" },
   ]);
 
   // Load hero images from CMS
