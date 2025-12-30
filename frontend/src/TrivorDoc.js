@@ -473,7 +473,7 @@ const DocumentForm = ({ document, onClose, onSave, getAuthHeader, categories }) 
               <h3 className="text-white font-medium mb-4 flex items-center justify-between">
                 <span className="flex items-center">
                   <Paperclip className="w-5 h-5 text-blue-400 mr-2" />
-                  Allegati ({allegati.length}/5)
+                  Allegati ({allegati.length}/20)
                 </span>
                 <button
                   type="button"
