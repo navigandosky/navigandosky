@@ -362,14 +362,18 @@ export default function AdminCostumes() {
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <label className="block font-sans text-sm text-[#666058] mb-2">
-                  ID Risorsa *
+                  ID Risorsa
                 </label>
                 <Input
                   value={formData.id_risorsa}
                   onChange={(e) => setFormData(prev => ({ ...prev, id_risorsa: e.target.value }))}
                   className="border-[#E5E0D8] focus:border-[#C5A059]"
+                  placeholder="Lascia vuoto per generazione automatica (RIS-00001)"
                   data-testid="costume-id-risorsa"
                 />
+                <p className="text-xs text-[#666058] mt-1">
+                  Se lasci vuoto, verrà generato automaticamente un ID progressivo univoco
+                </p>
               </div>
               <div>
                 <label className="block font-sans text-sm text-[#666058] mb-2">
