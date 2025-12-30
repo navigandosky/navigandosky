@@ -70,9 +70,9 @@ const SARDEGNA_IMAGES = {
 // =============================================================================
 const PARTNER_LOGOS = [
   { name: "Unione Europea", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Flag_of_Europe.svg/200px-Flag_of_Europe.svg.png" },
-  { name: "Regione Sardegna", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Coat_of_Arms_of_Sardinia.svg/180px-Coat_of_Arms_of_Sardinia.svg.png" },
-  { name: "UNISS", url: "https://upload.wikimedia.org/wikipedia/it/thumb/7/7f/Universit%C3%A0_di_Sassari_logo.svg/200px-Universit%C3%A0_di_Sassari_logo.svg.png" },
-  { name: "Matterport", url: "https://images.ctfassets.net/icnj41gkyohw/NjSsXj2T4ILKtEapHPmle/d66dd2a4ddd85d9ba6c4ebec99cc7cca/matterport-logo.svg" },
+  { name: "Regione Sardegna", url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Sardegna-Stemma.svg/150px-Sardegna-Stemma.svg.png" },
+  { name: "Università Sassari", url: "https://www.uniss.it/sites/default/files/logo-uniss.png" },
+  { name: "Matterport", url: "https://matterport.com/sites/default/files/logo.svg" },
 ];
 
 // =============================================================================
