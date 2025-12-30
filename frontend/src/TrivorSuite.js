@@ -413,7 +413,7 @@ const CheckDBApp = ({ onBack, getAuthHeader }) => {
             </div>
             <div className="flex items-center space-x-3">
               <button
-                onClick={fetchData}
+                onClick={fetchDatabases}
                 disabled={loading}
                 className="px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm flex items-center hover:bg-emerald-500/30 transition-colors"
               >
