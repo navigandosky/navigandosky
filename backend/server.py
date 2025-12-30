@@ -415,9 +415,6 @@ async def seed_data(username: str = Depends(verify_credentials)):
     
     return {"message": "Database popolato con successo", "projects": len(initial_projects)}
 
-# Include the router in the main app
-app.include_router(api_router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
