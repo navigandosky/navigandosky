@@ -29,8 +29,8 @@ db = client[os.environ.get('DB_NAME', 'trivor_db')]
 # Create the main app without a prefix
 app = FastAPI(title="Trivor API", version="1.0.0")
 
-# Mount static files for uploads
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+# Mount static files for uploads under /api/uploads so it works with Kubernetes ingress
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
