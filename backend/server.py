@@ -321,6 +321,40 @@ async def get_admin_stats(username: str = Depends(verify_credentials)):
         "unread_messages": unread_messages
     }
 
+# Site Settings - Public endpoint
+@api_router.get("/settings")
+async def get_site_settings():
+    """Get site settings (public)"""
+    settings = await db.site_settings.find_one({"id": "site_settings"}, {"_id": 0})
+    if not settings:
+        # Return default settings
+        return {
+            "id": "site_settings",
+            "hero_images": [
+                {"url": "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=1920&q=80", "title": "Costa Smeralda"},
+                {"url": "https://images.unsplash.com/photo-1559128010-7c1ad6e1b6a5?w=1200&q=80", "title": "Grotte Marine"},
+                {"url": "https://images.unsplash.com/photo-1523531294919-4bcd7c65e216?w=1200&q=80", "title": "Borghi Storici"}
+            ]
+        }
+    return settings
+
+# Site Settings - Admin endpoint
+@api_router.put("/admin/settings")
+async def update_site_settings(input: SiteSettingsUpdate, username: str = Depends(verify_credentials)):
+    """Update site settings (admin only)"""
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+    update_data['id'] = "site_settings"
+    
+    await db.site_settings.update_one(
+        {"id": "site_settings"}, 
+        {"$set": update_data}, 
+        upsert=True
+    )
+    
+    updated = await db.site_settings.find_one({"id": "site_settings"}, {"_id": 0})
+    return updated
+
 # =============================================================================
 # SEED DATA
 # =============================================================================
