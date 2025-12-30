@@ -700,7 +700,7 @@ async def upload_attachment(
     
     allegato = {
         "nome": file.filename,
-        "url": f"/uploads/{filename}",
+        "url": f"/api/uploads/{filename}",
         "tipo": tipo,
         "size": len(content)
     }
