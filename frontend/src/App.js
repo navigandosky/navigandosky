@@ -1026,22 +1026,27 @@ const AdminLogin = ({ onLogin }) => {
 const AdminDashboard = ({ onLogout, getAuthHeader }) => {
   const [projects, setProjects] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [heroImages, setHeroImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('projects');
   const [editingProject, setEditingProject] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showHeroForm, setShowHeroForm] = useState(false);
+  const [savingHero, setSavingHero] = useState(false);
 
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [projectsRes, messagesRes] = await Promise.all([
+      const [projectsRes, messagesRes, settingsRes] = await Promise.all([
         axios.get(`${API}/projects`),
-        axios.get(`${API}/admin/messages`, { headers: getAuthHeader() })
+        axios.get(`${API}/admin/messages`, { headers: getAuthHeader() }),
+        axios.get(`${API}/settings`)
       ]);
       setProjects(projectsRes.data);
       setMessages(messagesRes.data);
+      setHeroImages(settingsRes.data.hero_images || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -1060,6 +1065,32 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
       await axios.delete(`${API}/admin/messages/${id}`, { headers: getAuthHeader() });
       fetchData();
     } catch (e) { console.error(e); }
+  };
+
+  const handleSaveHeroImages = async () => {
+    setSavingHero(true);
+    try {
+      await axios.put(`${API}/admin/settings`, { hero_images: heroImages }, { headers: getAuthHeader() });
+      alert('Immagini Hero salvate!');
+    } catch (e) { 
+      console.error(e); 
+      alert('Errore nel salvataggio');
+    }
+    finally { setSavingHero(false); }
+  };
+
+  const addHeroImage = () => {
+    setHeroImages([...heroImages, { url: '', title: '' }]);
+  };
+
+  const updateHeroImage = (index, field, value) => {
+    const updated = [...heroImages];
+    updated[index] = { ...updated[index], [field]: value };
+    setHeroImages(updated);
+  };
+
+  const removeHeroImage = (index) => {
+    setHeroImages(heroImages.filter((_, i) => i !== index));
   };
 
   return (
