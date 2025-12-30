@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Loader2, Languages, Volume2, Upload, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Pencil, Trash2, Loader2, Languages, Volume2, Upload, X, Play, Pause, Check, Mic } from "lucide-react";
 import axios from "axios";
 import AdminLayout from "../../components/AdminLayout";
 import { Button } from "../../components/ui/button";
@@ -45,6 +45,10 @@ export default function AdminCostumes() {
   const [generatingAudio, setGeneratingAudio] = useState({});
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [playingAudio, setPlayingAudio] = useState(null); // lang code
+  const [audioProgress, setAudioProgress] = useState({ currentTime: 0, duration: 0 });
+  
+  const audioRef = useRef(null);
   
   const [formData, setFormData] = useState({
     id_risorsa: "",
