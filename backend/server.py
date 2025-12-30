@@ -832,6 +832,9 @@ async def get_logs(limit: int = 50, username: str = Depends(verify_trivordoc_cre
     logs = await db.trivordoc_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return logs
 
+# Include the router in the main app (after all routes are defined)
+app.include_router(api_router)
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("Trivor API started")
