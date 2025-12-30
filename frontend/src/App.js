@@ -2236,8 +2236,6 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/spaces" element={<SpacesPage />} />
               <Route path="/space/:id" element={<SpacePage />} />
-              <Route path="/archivio" element={<ArchivioPage />} />
-              <Route path="/archivio/:id" element={<CostumePage />} />
               <Route path="/project" element={<ProjectPage />} />
               <Route path="/admin" element={<AdminPage />} />
             </Routes>
