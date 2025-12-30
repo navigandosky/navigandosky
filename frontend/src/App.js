@@ -1252,8 +1252,8 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
               ))}
               <div className="mt-4 p-4 bg-cyan-500/10 border border-cyan-500/30 rounded-lg">
                 <p className="text-cyan-400 text-sm">
-                  💡 <strong>Suggerimento:</strong> Carica le tue foto della Sardegna su un servizio di hosting immagini 
-                  (come Imgur, Google Drive pubblico, o il tuo server) e incolla qui l'URL diretto dell'immagine.
+                  💡 <strong>Suggerimento:</strong> Puoi caricare le tue foto usando il pulsante "Upload" oppure incollare un URL diretto.
+                  <br/>📐 Dimensione consigliata: <strong>1920x1080px</strong> (formato 16:9)
                 </p>
               </div>
             </div>
