@@ -1113,6 +1113,9 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
           <button onClick={() => setActiveTab('messages')} className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'messages' ? 'bg-cyan-500 text-white' : 'bg-[#111214] text-gray-400'}`}>
             <Inbox className="w-4 h-4 inline mr-2" />Messaggi ({messages.length})
           </button>
+          <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'settings' ? 'bg-cyan-500 text-white' : 'bg-[#111214] text-gray-400'}`}>
+            <Image className="w-4 h-4 inline mr-2" />Immagini Hero
+          </button>
         </div>
 
         {loading ? (
