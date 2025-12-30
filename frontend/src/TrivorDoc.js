@@ -205,6 +205,7 @@ const DocumentForm = ({ document, onClose, onSave, getAuthHeader, categories }) 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [allegati, setAllegati] = useState(document?.allegati || []);
+  const [pendingFiles, setPendingFiles] = useState([]); // Files to upload after creation
   const fileRef = useRef(null);
 
   const tipiDocumento = ["pdf", "word", "excel", "immagine", "scansione", "testo", "altro"];
