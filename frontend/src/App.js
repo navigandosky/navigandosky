@@ -1220,13 +1220,30 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
                       placeholder="Titolo (es: Costa Smeralda)"
                       className="w-full px-3 py-2 bg-[#111214] border border-gray-700 rounded-lg text-white text-sm"
                     />
-                    <input
-                      type="url"
-                      value={img.url}
-                      onChange={(e) => updateHeroImage(index, 'url', e.target.value)}
-                      placeholder="URL immagine (https://...)"
-                      className="w-full px-3 py-2 bg-[#111214] border border-gray-700 rounded-lg text-white text-sm"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={img.url}
+                        onChange={(e) => updateHeroImage(index, 'url', e.target.value)}
+                        placeholder="URL immagine (https://...)"
+                        className="flex-1 px-3 py-2 bg-[#111214] border border-gray-700 rounded-lg text-white text-sm"
+                      />
+                      <label className="flex items-center space-x-2 px-3 py-2 bg-cyan-500/20 border border-cyan-500/30 rounded-lg text-cyan-400 text-sm cursor-pointer hover:bg-cyan-500/30 transition-colors">
+                        {uploadingHero === index ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <Image size={16} />
+                        )}
+                        <span>{uploadingHero === index ? 'Caricamento...' : 'Upload'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleHeroImageUpload(index, e.target.files[0])}
+                          disabled={uploadingHero !== null}
+                        />
+                      </label>
+                    </div>
                   </div>
                   <button onClick={() => removeHeroImage(index)} className="p-2 text-gray-400 hover:text-red-400">
                     <Trash2 size={18} />
