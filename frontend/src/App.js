@@ -777,14 +777,18 @@ const AboutSection = () => {
               <img src={SARDEGNA_IMAGES.nuraghe} alt="Sardegna" className="w-full h-[500px] object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0b] via-transparent to-transparent" />
             </div>
-            <div className="absolute -bottom-6 -left-6 bg-[#111214] border border-gray-800 rounded-xl p-6 shadow-2xl">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
+            <div className="absolute -bottom-6 -left-6 bg-[#111214] border border-gray-800 rounded-xl p-6 shadow-2xl max-w-sm">
+              <div className="flex items-start space-x-4">
+                <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center flex-shrink-0">
                   <MapPinIcon className="w-6 h-6 text-cyan-400" />
                 </div>
                 <div>
-                  <p className="text-white font-semibold">Sede Principale</p>
-                  <p className="text-gray-400 text-sm">Cagliari, Sardegna</p>
+                  <p className="text-white font-semibold mb-2">Sede Legale</p>
+                  <p className="text-gray-400 text-sm">Cagliari, Viale Trieste 93</p>
+                  <p className="text-white font-semibold mt-3 mb-1">Unità Locali</p>
+                  <p className="text-gray-400 text-sm">Tortolì, Via Gramsci 1</p>
+                  <p className="text-gray-400 text-sm">Alghero</p>
+                  <p className="text-gray-400 text-sm">Urzulei, Via Umberto I 9</p>
                 </div>
               </div>
             </div>
