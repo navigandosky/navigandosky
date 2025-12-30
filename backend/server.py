@@ -336,6 +336,28 @@ async def get_costume(costume_id: str):
 
 @api_router.post("/costumes", response_model=Costume, status_code=201)
 async def create_costume(costume_data: CostumeCreate):
+    # Genera ID risorsa progressivo se non fornito
+    if not costume_data.id_risorsa:
+        # Trova l'ultimo ID numerico
+        last_costume = await db.costumes.find_one(
+            {"id_risorsa": {"$regex": "^RIS-"}},
+            {"id_risorsa": 1},
+            sort=[("id_risorsa", -1)]
+        )
+        
+        if last_costume and last_costume.get("id_risorsa"):
+            try:
+                last_num = int(last_costume["id_risorsa"].replace("RIS-", ""))
+                new_num = last_num + 1
+            except:
+                new_num = 1
+        else:
+            # Conta i costumi esistenti per partire
+            count = await db.costumes.count_documents({})
+            new_num = count + 1
+        
+        costume_data.id_risorsa = f"RIS-{new_num:05d}"
+    
     costume = Costume(**costume_data.model_dump())
     await db.costumes.insert_one(costume.model_dump())
     return costume
