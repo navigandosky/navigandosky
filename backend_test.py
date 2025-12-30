@@ -275,6 +275,209 @@ def test_admin_stats():
         print(f"❌ Error: {e}")
         return False
 
+def test_checkdb_databases():
+    """Test CheckDB Multi-Database API - GET /api/checkdb/databases"""
+    print("\n=== Testing CheckDB Multi-Database API ===")
+    try:
+        headers = create_trivordoc_auth_header()
+        response = requests.get(f"{BACKEND_URL}/api/checkdb/databases", headers=headers, timeout=10)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ CheckDB databases retrieved successfully")
+            print(f"Database count: {data.get('count', 0)}")
+            
+            databases = data.get('databases', [])
+            expected_dbs = ['trivor_db', 'spoke_galaveras', 'spoke_ghivine']
+            found_dbs = [db['name'] for db in databases]
+            
+            print(f"Found databases: {found_dbs}")
+            
+            # Check if expected databases are present
+            missing_dbs = [db for db in expected_dbs if db not in found_dbs]
+            if missing_dbs:
+                print(f"⚠️ Missing expected databases: {missing_dbs}")
+            else:
+                print(f"✅ All expected databases found")
+            
+            # Check database structure
+            for db in databases:
+                if 'name' in db and 'sizeOnDisk' in db:
+                    print(f"  Database: {db['name']} - Size: {db['sizeOnDisk']} bytes")
+                else:
+                    print(f"  ❌ Database {db.get('name', 'unknown')} missing required fields")
+            
+            return len(databases) > 0
+        elif response.status_code == 401:
+            print(f"❌ Authentication failed - Check TRIVORDOC credentials")
+            return False
+        else:
+            print(f"❌ Failed with status {response.status_code}: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+def test_checkdb_specific_database():
+    """Test CheckDB Specific Database Status - GET /api/checkdb/database/trivor_db/status"""
+    print("\n=== Testing CheckDB Specific Database Status ===")
+    try:
+        headers = create_trivordoc_auth_header()
+        response = requests.get(f"{BACKEND_URL}/api/checkdb/database/trivor_db/status", headers=headers, timeout=10)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ Database status retrieved successfully")
+            
+            database_info = data.get('database', {})
+            collections = data.get('collections', [])
+            
+            print(f"Database: {database_info.get('name', 'unknown')}")
+            print(f"Collections count: {database_info.get('collections', 0)}")
+            print(f"Total objects: {database_info.get('objects', 0)}")
+            print(f"Data size: {database_info.get('dataSize', 0)} bytes")
+            
+            if collections:
+                print(f"Collections found: {len(collections)}")
+                for coll in collections[:5]:  # Show first 5 collections
+                    print(f"  - {coll.get('name', 'unknown')}: {coll.get('count', 0)} documents")
+            else:
+                print("No collections found")
+            
+            # Verify required fields
+            required_db_fields = ['name', 'collections', 'dataSize', 'objects']
+            missing_fields = [field for field in required_db_fields if field not in database_info]
+            if missing_fields:
+                print(f"❌ Missing database fields: {missing_fields}")
+                return False
+            else:
+                print("✅ All required database fields present")
+                return True
+        elif response.status_code == 401:
+            print(f"❌ Authentication failed - Check TRIVORDOC credentials")
+            return False
+        else:
+            print(f"❌ Failed with status {response.status_code}: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+def test_trivordoc_document_creation():
+    """Test TRIVORDOC Document Creation - POST /api/trivordoc/documents"""
+    print("\n=== Testing TRIVORDOC Document Creation ===")
+    
+    document_data = {
+        "gruppo": "Test Group",
+        "tipo_documento": "pdf",
+        "data_creazione": "2025-12-30",
+        "autore": "Test User",
+        "keywords": ["test", "api"],
+        "categoria": "Altro",
+        "descrizione": "Test document created via API"
+    }
+    
+    try:
+        headers = create_trivordoc_auth_header()
+        headers["Content-Type"] = "application/json"
+        
+        response = requests.post(
+            f"{BACKEND_URL}/api/trivordoc/documents",
+            json=document_data,
+            headers=headers,
+            timeout=10
+        )
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ Document created successfully")
+            doc_id = data.get('id', '')
+            print(f"Document ID: {doc_id}")
+            print(f"Message: {data.get('message', '')}")
+            
+            # Verify document ID format (should be DOC-YYYY-XXXX)
+            if doc_id.startswith('DOC-2025-') or doc_id.startswith('DOC-2024-'):
+                print(f"✅ Document ID format is correct: {doc_id}")
+                return doc_id  # Return doc_id for file upload test
+            else:
+                print(f"❌ Document ID format unexpected: {doc_id}")
+                return False
+        elif response.status_code == 401:
+            print(f"❌ Authentication failed - Check TRIVORDOC credentials")
+            return False
+        else:
+            print(f"❌ Failed with status {response.status_code}: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
+def test_trivordoc_file_upload(doc_id):
+    """Test TRIVORDOC File Upload - POST /api/trivordoc/documents/{doc_id}/upload"""
+    print(f"\n=== Testing TRIVORDOC File Upload for Document {doc_id} ===")
+    
+    if not doc_id:
+        print("❌ No document ID provided - skipping file upload test")
+        return False
+    
+    try:
+        headers = create_trivordoc_auth_header()
+        
+        # Create a simple test file
+        test_content = "This is a test file for TRIVORDOC upload functionality.\nCreated for API testing purposes."
+        
+        files = {
+            'file': ('test_document.txt', test_content, 'text/plain')
+        }
+        
+        response = requests.post(
+            f"{BACKEND_URL}/api/trivordoc/documents/{doc_id}/upload",
+            files=files,
+            headers=headers,
+            timeout=10
+        )
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ File uploaded successfully")
+            print(f"Message: {data.get('message', '')}")
+            
+            allegato = data.get('allegato', {})
+            if allegato:
+                print(f"File name: {allegato.get('nome', '')}")
+                print(f"File URL: {allegato.get('url', '')}")
+                print(f"File type: {allegato.get('tipo', '')}")
+                print(f"File size: {allegato.get('size', 0)} bytes")
+                
+                # Verify required fields
+                required_fields = ['nome', 'url', 'tipo', 'size']
+                missing_fields = [field for field in required_fields if field not in allegato]
+                if missing_fields:
+                    print(f"❌ Missing attachment fields: {missing_fields}")
+                    return False
+                else:
+                    print("✅ All required attachment fields present")
+                    return True
+            else:
+                print("❌ No attachment info in response")
+                return False
+        elif response.status_code == 401:
+            print(f"❌ Authentication failed - Check TRIVORDOC credentials")
+            return False
+        elif response.status_code == 404:
+            print(f"❌ Document not found - Document ID may be invalid")
+            return False
+        else:
+            print(f"❌ Failed with status {response.status_code}: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
+
 def main():
     """Run all backend tests"""
     print("=" * 60)
