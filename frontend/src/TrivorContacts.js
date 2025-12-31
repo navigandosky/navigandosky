@@ -965,7 +965,7 @@ const TrivorContacts = () => {
           contact={editingContact}
           groups={groups}
           onClose={() => { setShowContactForm(false); setEditingContact(null); }}
-          onSave={() => { setShowContactForm(false); setEditingContact(null); fetchData(); }}
+          onSave={() => { setShowContactForm(false); setEditingContact(null); fetchData(false); }}
           getAuthHeader={getAuthHeader}
         />
       )}
