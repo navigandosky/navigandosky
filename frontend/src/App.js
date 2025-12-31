@@ -1435,6 +1435,7 @@ function App() {
           <Route path="/suite" element={<TrivorSuitePage />} />
           <Route path="/trivordoc" element={<TrivorDocPage />} />
           <Route path="/trivorweb" element={<TrivorWebApp />} />
+          <Route path="/contacts" element={<TrivorContacts />} />
         </Routes>
       </HashRouter>
     </div>
