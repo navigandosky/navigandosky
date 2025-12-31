@@ -54,6 +54,7 @@ const SiteForm = ({ site, onClose, onSave, getAuthHeader }) => {
     },
     databases: site?.databases || [],
     tecnologie: site?.tecnologie || [],
+    accounts: site?.accounts || [],
     url_staging: site?.url_staging || "",
     url_produzione: site?.url_produzione || "",
     note_tecniche: site?.note_tecniche || "",
