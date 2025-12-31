@@ -1433,6 +1433,176 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
             getAuthHeader={getAuthHeader}
           />
         )}
+
+        {/* Digital Twin Form Modal */}
+        {showTwinForm && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-[#111214] border border-gray-700 rounded-2xl max-w-3xl w-full my-8">
+              <div className="p-5 border-b border-gray-700 flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-white flex items-center">
+                  <Globe className="w-6 h-6 text-teal-400 mr-3" />
+                  {editingTwin ? 'Modifica Digital Twin' : 'Nuovo Digital Twin'}
+                </h2>
+                <button onClick={() => setShowTwinForm(false)} className="text-gray-400 hover:text-white p-2 hover:bg-gray-700 rounded-lg">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                {/* Immagine Copertina */}
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">Immagine di Copertina</label>
+                  <div className="flex items-center space-x-4">
+                    {twinForm.immagine_copertina ? (
+                      <img src={twinForm.immagine_copertina} alt="Copertina" className="w-40 h-24 object-cover rounded-lg" />
+                    ) : (
+                      <div className="w-40 h-24 bg-gray-700 rounded-lg flex items-center justify-center text-gray-500">
+                        <Image className="w-8 h-8" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleTwinImageUpload(e.target.files[0])}
+                        className="hidden"
+                        id="twin-image-upload"
+                      />
+                      <label htmlFor="twin-image-upload" className="cursor-pointer inline-flex items-center px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm">
+                        {uploadingTwinImage ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                        Carica Immagine
+                      </label>
+                      <p className="text-gray-500 text-xs mt-1">Oppure inserisci URL:</p>
+                      <input
+                        type="text"
+                        value={twinForm.immagine_copertina}
+                        onChange={(e) => setTwinForm({ ...twinForm, immagine_copertina: e.target.value })}
+                        placeholder="https://..."
+                        className="mt-1 w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nome IT + EN */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Nome (IT) *</label>
+                    <input
+                      type="text"
+                      value={twinForm.nome}
+                      onChange={(e) => setTwinForm({ ...twinForm, nome: e.target.value })}
+                      placeholder="Es: Museo Archeologico"
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Nome (EN)</label>
+                    <input
+                      type="text"
+                      value={twinForm.nome_en}
+                      onChange={(e) => setTwinForm({ ...twinForm, nome_en: e.target.value })}
+                      placeholder="Es: Archaeological Museum"
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white placeholder-gray-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Descrizione IT */}
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">Descrizione (IT)</label>
+                  <textarea
+                    value={twinForm.descrizione}
+                    onChange={(e) => setTwinForm({ ...twinForm, descrizione: e.target.value })}
+                    placeholder="Descrizione del tour virtuale..."
+                    rows={3}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white placeholder-gray-500 resize-none"
+                  />
+                </div>
+
+                {/* Descrizione EN */}
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">Descrizione (EN)</label>
+                  <textarea
+                    value={twinForm.descrizione_en}
+                    onChange={(e) => setTwinForm({ ...twinForm, descrizione_en: e.target.value })}
+                    placeholder="Virtual tour description..."
+                    rows={3}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white placeholder-gray-500 resize-none"
+                  />
+                </div>
+
+                {/* Matterport ID + MPSkin URL */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      <Box className="w-4 h-4 inline mr-1" />Model ID Matterport
+                    </label>
+                    <input
+                      type="text"
+                      value={twinForm.matterport_id}
+                      onChange={(e) => setTwinForm({ ...twinForm, matterport_id: e.target.value })}
+                      placeholder="Es: SxQL3iGyoDo"
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white placeholder-gray-500"
+                    />
+                    <p className="text-gray-500 text-xs mt-1">ID del modello Matterport (dalla URL)</p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      <ExternalLink className="w-4 h-4 inline mr-1" />URL MPSkin (alternativo)
+                    </label>
+                    <input
+                      type="text"
+                      value={twinForm.mpskin_url}
+                      onChange={(e) => setTwinForm({ ...twinForm, mpskin_url: e.target.value })}
+                      placeholder="https://mpskin.com/..."
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white placeholder-gray-500"
+                    />
+                    <p className="text-gray-500 text-xs mt-1">URL overlay MPSkin se disponibile</p>
+                  </div>
+                </div>
+
+                {/* Ordine + Attivo */}
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Ordine visualizzazione</label>
+                    <input
+                      type="number"
+                      value={twinForm.ordine}
+                      onChange={(e) => setTwinForm({ ...twinForm, ordine: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-xl text-white"
+                    />
+                  </div>
+                  <div className="flex items-center pt-8">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={twinForm.attivo}
+                        onChange={(e) => setTwinForm({ ...twinForm, attivo: e.target.checked })}
+                        className="w-5 h-5 rounded border-gray-600 text-teal-500 focus:ring-teal-500 bg-gray-800"
+                      />
+                      <span className="ml-3 text-gray-300">Visibile nella Gallery pubblica</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-gray-700 flex justify-end space-x-3">
+                <button onClick={() => setShowTwinForm(false)} className="px-4 py-2 text-gray-400 hover:text-white">
+                  Annulla
+                </button>
+                <button
+                  onClick={handleSaveTwin}
+                  disabled={savingTwin || !twinForm.nome}
+                  className="px-6 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg font-medium disabled:opacity-50 flex items-center"
+                >
+                  {savingTwin ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                  {editingTwin ? 'Salva Modifiche' : 'Crea Digital Twin'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
