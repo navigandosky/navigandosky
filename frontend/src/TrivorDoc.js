@@ -1156,77 +1156,87 @@ const PreviewModal = ({ document, onClose, onEdit, onDelete, onPreview, getAuthH
                   );
                 })}
               </div>
+            </div>
+          )}
 
-              {/* Share attachments panel */}
-              {showAttachmentShare && (
-                <div className="mt-4 p-4 bg-slate-800 rounded-xl border border-slate-600">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-white font-medium flex items-center">
-                      <Share2 className="w-4 h-4 text-emerald-400 mr-2" />
-                      Condividi {selectedAttachments.length} allegati
-                    </h4>
-                    <button onClick={() => setShowAttachmentShare(false)} className="text-slate-400 hover:text-white">
-                      <X size={18} />
-                    </button>
-                  </div>
-                  
-                  {/* Email/WhatsApp toggle */}
-                  <div className="flex space-x-2 mb-3">
-                    <button
-                      onClick={() => setShareType('email')}
-                      className={`flex-1 py-2 rounded-lg flex items-center justify-center space-x-2 text-sm ${
-                        shareType === 'email' ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400'
-                      }`}
-                    >
-                      <Mail size={16} /> <span>Email</span>
-                    </button>
-                    <button
-                      onClick={() => setShareType('whatsapp')}
-                      className={`flex-1 py-2 rounded-lg flex items-center justify-center space-x-2 text-sm ${
-                        shareType === 'whatsapp' ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-400'
-                      }`}
-                    >
-                      <MessageCircle size={16} /> <span>WhatsApp</span>
-                    </button>
-                  </div>
+          {/* Share panel - Always visible when showAttachmentShare is true */}
+          {showAttachmentShare && (
+            <div className="p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/30">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-white font-semibold flex items-center text-lg">
+                  <Share2 className="w-5 h-5 text-emerald-400 mr-2" />
+                  Condividi {selectedAttachments.length > 0 ? `${selectedAttachments.length} allegati` : 'documento'}
+                </h4>
+                <button onClick={() => setShowAttachmentShare(false)} className="text-slate-400 hover:text-white p-1 hover:bg-slate-700 rounded">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              {/* Email/WhatsApp toggle */}
+              <div className="flex space-x-2 mb-4">
+                <button
+                  onClick={() => setShareType('email')}
+                  className={`flex-1 py-3 rounded-lg flex items-center justify-center space-x-2 font-medium ${
+                    shareType === 'email' ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                  }`}
+                >
+                  <Mail size={18} /> <span>Email</span>
+                </button>
+                <button
+                  onClick={() => setShareType('whatsapp')}
+                  className={`flex-1 py-3 rounded-lg flex items-center justify-center space-x-2 font-medium ${
+                    shareType === 'whatsapp' ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                  }`}
+                >
+                  <MessageCircle size={18} /> <span>WhatsApp</span>
+                </button>
+              </div>
 
-                  <input
-                    type={shareType === 'email' ? 'email' : 'tel'}
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                    placeholder={shareType === 'email' ? 'email@esempio.com' : '+39 333 1234567'}
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-sm mb-2"
-                  />
-                  
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Messaggio (opzionale)"
-                    rows={2}
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-sm mb-3 resize-none"
-                  />
+              {/* Recipient input */}
+              <div className="mb-3">
+                <label className="block text-slate-300 text-sm mb-1">
+                  {shareType === 'email' ? '📧 Indirizzo Email *' : '📱 Numero WhatsApp *'}
+                </label>
+                <input
+                  type={shareType === 'email' ? 'email' : 'tel'}
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  placeholder={shareType === 'email' ? 'esempio@email.com' : '+39 333 1234567'}
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-slate-300 text-sm mb-1">💬 Messaggio (opzionale)</label>
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Aggiungi un messaggio personale..."
+                  rows={2}
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none resize-none"
+                />
+              </div>
 
-                  {sendResult && (
-                    <div className={`mb-3 p-2 rounded-lg text-sm flex items-center ${
-                      sendResult.success ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
-                    }`}>
-                      {sendResult.success ? <CheckCircle size={16} className="mr-2" /> : <AlertCircle size={16} className="mr-2" />}
-                      {sendResult.message}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleShareAttachments}
-                    disabled={sending || !recipient.trim()}
-                    className={`w-full py-2 rounded-lg flex items-center justify-center disabled:opacity-50 ${
-                      shareType === 'email' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-green-500 hover:bg-green-600'
-                    } text-white`}
-                  >
-                    {sending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Send size={16} className="mr-2" />}
-                    Invia
-                  </button>
+              {sendResult && (
+                <div className={`mb-4 p-3 rounded-lg flex items-center ${
+                  sendResult.success ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                }`}>
+                  {sendResult.success ? <CheckCircle size={18} className="mr-2" /> : <AlertCircle size={18} className="mr-2" />}
+                  <span className="font-medium">{sendResult.message}</span>
                 </div>
               )}
+
+              <button
+                onClick={handleShareAttachments}
+                disabled={sending || !recipient.trim()}
+                className={`w-full py-3 rounded-lg flex items-center justify-center font-semibold disabled:opacity-50 transition-colors ${
+                  shareType === 'email' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-green-500 hover:bg-green-600'
+                } text-white`}
+              >
+                {sending ? <RefreshCw className="w-5 h-5 animate-spin mr-2" /> : <Send size={18} className="mr-2" />}
+                {shareType === 'email' ? 'Invia Email' : 'Apri WhatsApp'}
+              </button>
             </div>
           )}
         </div>
