@@ -1,151 +1,139 @@
 # Trivor Suite - Product Requirements Document
 
 ## Original Problem Statement
-Sviluppare una suite aziendale completa per Trivor SRL che includa:
+Suite aziendale completa per Trivor SRL che include:
 1. **Sito Web Pubblico**: Landing page corporate con portfolio progetti
-2. **TrivorSuite**: Dashboard centrale per accedere alle applicazioni aziendali
-3. **TRIVORDOC**: Sistema di gestione documentale sicuro e avanzato
-4. **TrivorWEB**: CMS per gestione dati siti web clienti (credenziali, hosting, FTP)
-5. **CheckDB**: Utility per monitoraggio database MongoDB
-6. **Archivio Contatti**: Rubrica condivisa centralizzata per la suite
-7. **TrivorMEET**: Modulo videoconferenze private
+2. **TrivorSuite**: Dashboard centrale per applicazioni aziendali
+3. **TRIVORDOC**: Sistema gestione documentale avanzato
+4. **TrivorWEB**: CMS per gestione siti web clienti
+5. **CheckDB**: Utility monitoraggio database MongoDB
+6. **Archivio Contatti**: Rubrica condivisa centralizzata
+7. **TrivorMEET**: Videoconferenze con Jitsi (gratuito, senza limiti)
+8. **Gallery Digital Twin**: Tour virtuali Matterport/MPSkin dinamici
 
-## User Personas
-- **Admin Trivor**: Gestisce contenuti sito pubblico, utenti e configurazioni
-- **Utente Suite**: Accede alle applicazioni aziendali per lavoro quotidiano
+---
 
-## Core Requirements
+## Completed Features ✅
 
-### Completed Features ✅
+### Sito Pubblico (31 Dicembre 2025)
+- ✅ Landing page con Hero dinamico
+- ✅ Nuovo slogan: "Valorizziamo il Patrimonio Turistico, Ambientale Culturale"
+- ✅ Sottotitolo: "Innovazione e Tecnologia al Servizio del Turismo e della Cultura"
+- ✅ Logo oro trasparente in header e footer
+- ✅ Gallery Digital Twin (ex Tour Virtuali) - Dinamica da CMS
+- ✅ Popup viewer per tour Matterport/MPSkin a schermo intero
+- ✅ Pulsanti Admin + Trivor Suite sia in header che footer
+- ✅ Hero images più visibili (ridotta opacità overlay)
 
-#### Sito Pubblico
-- Landing page con hero dinamico
-- Sezioni: Servizi, Tour Virtuali, Portfolio, Chi Siamo, Contatti
-- Admin CMS per gestione progetti e immagini hero
+### Admin CMS (`/#/admin`)
+- ✅ Credenziali: `Trivor` / `Trivor2024$`
+- ✅ Gestione Progetti portfolio
+- ✅ **Gestione Digital Twin** (NUOVO):
+  - Immagine copertina (upload o URL)
+  - Nome multilingua (IT/EN)
+  - Descrizione multilingua
+  - Model ID Matterport
+  - URL MPSkin alternativo
+  - Ordine visualizzazione
+  - Toggle visibilità
+- ✅ Gestione Immagini Hero
+- ✅ Visualizzazione messaggi
 
-#### TrivorSuite Dashboard
-- Login con autenticazione Basic
-- Dashboard con launcher per 5 applicazioni:
+### TrivorSuite (`/#/suite`)
+- ✅ Credenziali: `Trivor` / `Trivorsuite26$`
+- ✅ Dashboard con 5 applicazioni:
   - TRIVORDOC (blu)
   - TrivorWEB (viola)
   - CheckDB (verde)
   - Archivio Contatti (cyan)
   - TrivorMEET (rosa)
 
-#### TRIVORDOC
-- Dashboard statistiche documenti
-- Griglia documenti con multi-selezione
-- Form creazione/modifica documenti completo
-- Upload multiplo allegati (max 20)
-- Condivisione via Email (Gmail SMTP) e WhatsApp
-- Preview allegati
-- Integrazione selettore contatti nel modal condivisione
+### TRIVORDOC
+- ✅ Dashboard statistiche documenti
+- ✅ Griglia documenti con multi-selezione
+- ✅ Upload multiplo allegati (max 20)
+- ✅ Condivisione via Email/WhatsApp
+- ✅ Selettore contatti integrato nel modal condivisione
+- ✅ Preview allegati
+- ✅ **Ricerca estesa ai nomi file allegati** (NUOVO)
 
-#### TrivorWEB
-- CRUD completo per siti web clienti
-- Campi: cliente, hosting, dominio, FTP, database, costi
-- Gestione scadenze hosting/dominio
+### TrivorWEB
+- ✅ CRUD siti web clienti
+- ✅ Fix lampeggio pagina (useCallback)
+- ✅ Campi URL accettano formati flessibili (www.sito.it o https://...)
+- ✅ Tab Cliente: Azienda a sx, Referente a dx
+- ✅ **Tab Account** (NUOVO):
+  - Lista credenziali servizi (Servizio, Username, Password)
+  - Copia negli appunti
+  - Mostra/nascondi password
 
-#### CheckDB
-- Monitoraggio salute cluster MongoDB
-- Statistiche per database e collezioni
-- Visualizzazione documenti esempio
+### Archivio Contatti
+- ✅ CRUD completo contatti con gruppi
+- ✅ Fix lampeggio pagina (useCallback)
+- ✅ Integrato in TRIVORDOC e TrivorMEET
 
-#### Archivio Contatti (NUOVO - Dicembre 2025)
-- CRUD completo contatti
-- Campi: nome, cognome, email, telefono, WhatsApp, azienda, ruolo, indirizzo, note
-- Gestione gruppi/categorie
-- Preferiti con toggle
-- Ricerca e filtri
-- Avatar colorati con iniziali
-- Integrato in TRIVORDOC (modal condivisione)
-- Integrato in TrivorMEET (selezione partecipanti)
+### TrivorMEET
+- ✅ Videoconferenze con Jitsi Meet
+- ✅ **Link diretto** (nessun limite di tempo)
+- ✅ Creazione riunioni con selezione partecipanti
+- ✅ Chiamata rapida da contatti
+- ✅ Condivisione link via WhatsApp/Email
+- ✅ Storico riunioni
 
-#### TrivorMEET (NUOVO - Dicembre 2025)
-- Landing page con hero e quick actions
-- Creazione nuove riunioni
-- Selezione partecipanti da Archivio Contatti
-- Meeting room con:
-  - Video webcam locale
-  - Toggle audio/video
-  - Condivisione schermo
-  - Chat integrata
-  - Copia link riunione
-- Chiamata rapida da contatti recenti
-- Storico riunioni (localStorage)
-
-## Technical Architecture
-
-### Frontend
-- React 18 con Create React App
-- TailwindCSS per styling
-- react-router-dom (HashRouter)
-- lucide-react per icone
-
-### Backend
-- FastAPI (Python)
-- Motor per MongoDB async
-- Autenticazione Basic Auth
-- SMTP Gmail per invio email
-
-### Database
-- MongoDB Atlas
-- Collezioni:
-  - `projects`, `messages`, `site_settings` (sito pubblico)
-  - `trivordoc_documents`, `trivordoc_categories`, `trivordoc_logs`
-  - `trivorweb_sites`
-  - `trivor_contacts`, `trivor_contact_groups`
-
-## API Endpoints
-
-### Contacts API (/api/contacts/*)
-- `GET /api/contacts` - Lista contatti con filtri
-- `GET /api/contacts/{id}` - Singolo contatto
-- `POST /api/contacts` - Crea contatto
-- `PUT /api/contacts/{id}` - Aggiorna contatto
-- `DELETE /api/contacts/{id}` - Elimina contatto
-- `POST /api/contacts/{id}/toggle-preferito` - Toggle preferito
-
-### Groups API (/api/contacts/groups/*)
-- `GET /api/contacts/groups` - Lista gruppi
-- `POST /api/contacts/groups` - Crea gruppo
-- `PUT /api/contacts/groups/{id}` - Aggiorna gruppo
-- `DELETE /api/contacts/groups/{id}` - Elimina gruppo
-
-## Test Results (31 Dicembre 2025)
-- Backend: 100% (16/16 test passati)
-- Frontend: 100% (tutte funzionalità verificate)
-- File test: `/app/tests/test_trivor_suite.py`
-- Report: `/app/test_reports/iteration_1.json`
+---
 
 ## Credentials
-- **TrivorSuite**: `Trivor_doc` / `Doc_trivor$`
-- **Admin CMS**: `admin` / `Trivor2024$`
-- **Password eliminazione doc**: `Docanc`
 
-## Known Limitations
-- TrivorMEET: Le videochiamate funzionano solo localmente (no WebRTC peer-to-peer)
-- File upload: Max 20 allegati per documento
-- Email: Richiede Google App Password configurata
+| Applicazione | Username | Password |
+|-------------|----------|----------|
+| Admin CMS | Trivor | Trivor2024$ |
+| TrivorSuite | Trivor | Trivorsuite26$ |
+| TRIVORDOC | Trivor | Trivorsuite26$ |
 
-## Backlog (P2-P3)
+---
 
-### P2 - Prossimi Sviluppi
-- TrivorMEET: Implementare WebRTC per videochiamate reali peer-to-peer
-- TrivorMEET: Registrazione riunioni
-- Archivio Contatti: Import/Export CSV
+## API Endpoints Principali
 
-### P3 - Futuri
-- TrivorCRM: Gestione clienti e pipeline vendite
-- TrivorTask: Gestione attività e progetti
-- Portfolio interattivo con gallery avanzata
-- Sezione Tecnologie nel sito pubblico
+- `/api/digital-twins` - CRUD Gallery Digital Twin
+- `/api/contacts` - CRUD Contatti
+- `/api/trivordoc/documents` - Documenti (ricerca include allegati)
+- `/api/trivorweb/sites` - Siti web (include tab accounts)
+
+---
 
 ## Files Reference
-- `/app/frontend/src/App.js` - Router principale
+
+### Frontend
+- `/app/frontend/src/App.js` - Sito pubblico + Admin CMS
 - `/app/frontend/src/TrivorSuite.js` - Dashboard suite
 - `/app/frontend/src/TrivorDoc.js` - Gestione documenti
 - `/app/frontend/src/TrivorWeb.js` - Gestione siti web
 - `/app/frontend/src/TrivorContacts.js` - Archivio contatti
 - `/app/frontend/src/TrivorMeet.js` - Videoconferenze
-- `/app/backend/server.py` - API backend
+
+### Backend
+- `/app/backend/server.py` - Tutte le API
+
+---
+
+## Backlog (P2-P3)
+
+### Prossimi sviluppi
+- Verifica completa pre-deploy
+- Test regressione tutte le funzionalità
+- Ottimizzazione performance
+
+### Futuri
+- TrivorCRM: Gestione clienti
+- TrivorTask: Gestione attività
+- POI (Points of Interest) per Digital Twin con audioguide
+- Import/Export CSV contatti
+
+---
+
+## Logo Assets
+- **Logo oro trasparente**: `https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png`
+
+---
+
+*Ultimo aggiornamento: 31 Dicembre 2025*
