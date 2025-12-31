@@ -611,11 +611,12 @@ const TrivorContacts = () => {
         fetch(`${API}/contacts/groups/list`, { headers: getAuthHeader() }),
         fetch(`${API}/contacts/stats/summary`, { headers: getAuthHeader() }),
       ]);
-      setContacts(await contactsRes.json());
-      setGroups(await groupsRes.json());
-      setStats(await statsRes.json());
+      
+      if (contactsRes.ok) setContacts(await contactsRes.json());
+      if (groupsRes.ok) setGroups(await groupsRes.json());
+      if (statsRes.ok) setStats(await statsRes.json());
     } catch (e) {
-      console.error(e);
+      console.error("Errore fetch contatti:", e);
     }
     setLoading(false);
   }, [getAuthHeader]);
