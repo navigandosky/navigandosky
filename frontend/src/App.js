@@ -410,7 +410,7 @@ const HeroSection = () => {
             Turistico, Ambientale
           </span>
           <span className="block bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-            e Culturale
+            Culturale
           </span>
         </h1>
 
