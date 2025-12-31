@@ -1431,26 +1431,43 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
               </div>
             ) : viewMode === "grid" ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {documents.map((doc) => (
+                {documents.map((doc) => {
+                  const isSelected = selectedDocs.some(d => d.id === doc.id);
+                  return (
                   <div
                     key={doc.id}
-                    onClick={() => setPreviewDoc(doc)}
-                    className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4 hover:border-blue-500/50 cursor-pointer transition-all hover:shadow-lg hover:shadow-blue-500/10"
+                    className={`bg-slate-800/50 backdrop-blur border rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg ${
+                      isSelected 
+                        ? 'border-emerald-500 bg-emerald-500/10 hover:shadow-emerald-500/10' 
+                        : 'border-slate-700 hover:border-blue-500/50 hover:shadow-blue-500/10'
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center">
-                          {getDocTypeIcon(doc.tipo_documento)}
+                        {/* Checkbox */}
+                        <div onClick={(e) => { e.stopPropagation(); toggleDocSelection(doc); }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="w-5 h-5 rounded border-slate-500 bg-slate-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-800 cursor-pointer"
+                          />
                         </div>
-                        <div>
-                          <p className="text-white font-medium text-sm">{doc.id}</p>
-                          <p className="text-slate-400 text-xs">{doc.tipo_documento}</p>
+                        <div onClick={() => setPreviewDoc(doc)} className="flex items-center space-x-3">
+                          <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center">
+                            {getDocTypeIcon(doc.tipo_documento)}
+                          </div>
+                          <div>
+                            <p className="text-white font-medium text-sm">{doc.id}</p>
+                            <p className="text-slate-400 text-xs">{doc.tipo_documento}</p>
+                          </div>
                         </div>
                       </div>
                       <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">{doc.categoria}</span>
                     </div>
-                    <h3 className="text-white font-medium mb-2 truncate">{doc.gruppo}</h3>
-                    {doc.descrizione && <p className="text-slate-400 text-sm mb-3 line-clamp-2">{doc.descrizione}</p>}
+                    <div onClick={() => setPreviewDoc(doc)}>
+                      <h3 className="text-white font-medium mb-2 truncate">{doc.gruppo}</h3>
+                      {doc.descrizione && <p className="text-slate-400 text-sm mb-3 line-clamp-2">{doc.descrizione}</p>}
                     <div className="flex items-center justify-between text-xs text-slate-500">
                       <span className="flex items-center"><User className="w-3 h-3 mr-1" />{doc.autore}</span>
                       <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" />{new Date(doc.data_creazione).toLocaleDateString("it-IT")}</span>
