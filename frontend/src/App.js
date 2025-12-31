@@ -289,11 +289,7 @@ const Navbar = ({ showAdminLink = true }) => {
             <img 
               src="https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/g0nvlyz1_logo%20trivor%20trasparente.png" 
               alt="Trivor" 
-              className="h-24 md:h-28 w-auto transition-transform group-hover:scale-105 rounded-lg"
-              style={{ 
-                filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))',
-                backgroundColor: 'transparent'
-              }}
+              className="h-24 md:h-28 w-auto transition-transform group-hover:scale-105"
             />
           </button>
 
