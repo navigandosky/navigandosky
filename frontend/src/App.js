@@ -1228,6 +1228,9 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
           <button onClick={() => setActiveTab('projects')} className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'projects' ? 'bg-cyan-500 text-white' : 'bg-[#111214] text-gray-400'}`}>
             <FolderOpen className="w-4 h-4 inline mr-2" />Progetti ({projects.length})
           </button>
+          <button onClick={() => setActiveTab('twins')} className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'twins' ? 'bg-teal-500 text-white' : 'bg-[#111214] text-gray-400'}`}>
+            <Globe className="w-4 h-4 inline mr-2" />Digital Twin ({digitalTwins.length})
+          </button>
           <button onClick={() => setActiveTab('messages')} className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'messages' ? 'bg-cyan-500 text-white' : 'bg-[#111214] text-gray-400'}`}>
             <Inbox className="w-4 h-4 inline mr-2" />Messaggi ({messages.length})
           </button>
