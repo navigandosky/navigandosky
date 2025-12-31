@@ -635,7 +635,7 @@ const TrivorContacts = () => {
         method: "DELETE",
         headers: getAuthHeader(),
       });
-      fetchData();
+      fetchData(false);
     } catch (e) {
       console.error(e);
     }
