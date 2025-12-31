@@ -5,6 +5,7 @@ import axios from "axios";
 import TrivorDocPage from "./TrivorDoc";
 import TrivorSuitePage from "./TrivorSuite";
 import TrivorWebApp from "./TrivorWeb";
+import TrivorContacts from "./TrivorContacts";
 import {
   Lightbulb,
   Box,
