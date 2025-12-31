@@ -1324,6 +1324,7 @@ class SitoWebUpdate(BaseModel):
     hosting: Optional[HostingInfoSchema] = None
     ftp: Optional[FtpInfoSchema] = None
     databases: Optional[List[DatabaseInfoSchema]] = None
+    accounts: Optional[List[AccountInfoSchema]] = None
     tecnologie: Optional[List[str]] = None
     url_staging: Optional[str] = None
     url_produzione: Optional[str] = None
