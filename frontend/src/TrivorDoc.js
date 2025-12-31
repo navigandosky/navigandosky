@@ -933,15 +933,74 @@ const ShareModal = ({ documents, onClose, getAuthHeader }) => {
 // DOCUMENT PREVIEW MODAL
 // =============================================================================
 const PreviewModal = ({ document, onClose, onEdit, onDelete, onPreview, getAuthHeader }) => {
-  const shareViaEmail = () => {
-    const subject = encodeURIComponent(`Documento: ${document.gruppo}`);
-    const body = encodeURIComponent(`Ti condivido il documento ${document.id}\n\nGruppo: ${document.gruppo}\nCategoria: ${document.categoria}\nAutore: ${document.autore}\nDescrizione: ${document.descrizione}`);
-    window.open(`mailto:?subject=${subject}&body=${body}`);
+  const [selectedAttachments, setSelectedAttachments] = useState([]);
+  const [showAttachmentShare, setShowAttachmentShare] = useState(false);
+  const [shareType, setShareType] = useState('email');
+  const [recipient, setRecipient] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState(null);
+
+  const toggleAttachment = (index) => {
+    setSelectedAttachments(prev => 
+      prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+    );
   };
 
-  const shareViaWhatsApp = () => {
-    const text = encodeURIComponent(`📄 Documento: ${document.gruppo}\n📁 Categoria: ${document.categoria}\n👤 Autore: ${document.autore}`);
-    window.open(`https://wa.me/?text=${text}`);
+  const selectAllAttachments = () => {
+    if (selectedAttachments.length === document.allegati?.length) {
+      setSelectedAttachments([]);
+    } else {
+      setSelectedAttachments(document.allegati?.map((_, i) => i) || []);
+    }
+  };
+
+  const handleShareAttachments = async () => {
+    if (!recipient.trim()) {
+      setSendResult({ success: false, message: 'Inserisci destinatario' });
+      return;
+    }
+    setSending(true);
+    setSendResult(null);
+
+    try {
+      if (shareType === 'email') {
+        // Get selected attachment URLs
+        const attachmentUrls = selectedAttachments.map(i => document.allegati[i]);
+        const attachmentNames = attachmentUrls.map(a => a.nome).join(', ');
+        
+        const response = await fetch(`${API}/trivordoc/share/email`, {
+          method: 'POST',
+          headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            document_ids: [document.id],
+            recipient_email: recipient,
+            subject: `Allegati da ${document.id}: ${attachmentNames}`,
+            message: message || `Ti invio i seguenti allegati dal documento ${document.id}:\n${attachmentNames}`
+          })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setSendResult({ success: true, message: `Email inviata a ${recipient}` });
+          setTimeout(() => setShowAttachmentShare(false), 2000);
+        } else {
+          setSendResult({ success: false, message: data.detail || 'Errore invio' });
+        }
+      } else {
+        // WhatsApp
+        const attachmentNames = selectedAttachments.map(i => document.allegati[i].nome).join('\n• ');
+        const text = encodeURIComponent(
+          `${message || 'Ti condivido questi allegati:'}\n\n📎 Allegati:\n• ${attachmentNames}\n\n📄 Dal documento: ${document.id}`
+        );
+        let phone = recipient.replace(/\s|-|\+/g, '');
+        if (!phone.startsWith('39') && phone.length === 10) phone = '39' + phone;
+        window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+        setSendResult({ success: true, message: 'WhatsApp aperto!' });
+      }
+    } catch (e) {
+      setSendResult({ success: false, message: 'Errore di connessione' });
+    }
+    setSending(false);
   };
 
   return (
@@ -1019,33 +1078,155 @@ const PreviewModal = ({ document, onClose, onEdit, onDelete, onPreview, getAuthH
             </div>
           )}
 
-          {/* Attachments */}
+          {/* Attachments with selection */}
           {document.allegati?.length > 0 && (
-            <div>
-              <p className="text-slate-400 text-sm mb-2">Allegati ({document.allegati.length})</p>
-              <div className="space-y-2">
-                {document.allegati.map((a, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      {getDocTypeIcon(a.tipo)}
-                      <span className="text-white text-sm">{a.nome}</span>
-                      <span className="text-slate-500 text-xs">({(a.size / 1024).toFixed(1)} KB)</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => onPreview(document.id, i, a)}
-                        className="flex items-center text-emerald-400 hover:text-emerald-300 px-2 py-1 hover:bg-emerald-500/10 rounded"
-                        title="Anteprima"
-                      >
-                        <Eye size={18} className="mr-1" /> Anteprima
-                      </button>
-                      <a href={`${BACKEND_URL}${a.url}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-400 hover:text-blue-300 px-2 py-1 hover:bg-blue-500/10 rounded">
-                        <Download size={18} className="mr-1" /> Scarica
-                      </a>
-                    </div>
-                  </div>
-                ))}
+            <div className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-white font-medium flex items-center">
+                  <Paperclip className="w-5 h-5 text-blue-400 mr-2" />
+                  Allegati ({document.allegati.length})
+                </p>
+                <div className="flex items-center space-x-2">
+                  {selectedAttachments.length > 0 && (
+                    <button
+                      onClick={() => setShowAttachmentShare(true)}
+                      className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm flex items-center"
+                    >
+                      <Share2 size={16} className="mr-1" />
+                      Condividi ({selectedAttachments.length})
+                    </button>
+                  )}
+                  <button
+                    onClick={selectAllAttachments}
+                    className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm"
+                  >
+                    {selectedAttachments.length === document.allegati.length ? 'Deseleziona' : 'Seleziona tutti'}
+                  </button>
+                </div>
               </div>
+              
+              <div className="space-y-2">
+                {document.allegati.map((a, i) => {
+                  const isSelected = selectedAttachments.includes(i);
+                  return (
+                    <div 
+                      key={i} 
+                      className={`flex items-center justify-between p-3 rounded-lg transition-all ${
+                        isSelected 
+                          ? 'bg-emerald-500/20 border border-emerald-500/50' 
+                          : 'bg-slate-800/50 border border-transparent hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        {/* Checkbox */}
+                        <div 
+                          onClick={() => toggleAttachment(i)}
+                          className={`w-6 h-6 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all flex-shrink-0 ${
+                            isSelected 
+                              ? 'bg-emerald-500 border-emerald-500' 
+                              : 'bg-slate-700 border-slate-500 hover:border-emerald-400'
+                          }`}
+                        >
+                          {isSelected && <CheckCircle className="w-4 h-4 text-white" />}
+                        </div>
+                        {getDocTypeIcon(a.tipo)}
+                        <div>
+                          <span className="text-white text-sm">{a.nome}</span>
+                          <span className="text-slate-500 text-xs ml-2">({(a.size / 1024).toFixed(1)} KB)</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => onPreview(document.id, i, a)}
+                          className="flex items-center text-emerald-400 hover:text-emerald-300 px-2 py-1 hover:bg-emerald-500/10 rounded text-sm"
+                          title="Anteprima"
+                        >
+                          <Eye size={16} className="mr-1" /> Anteprima
+                        </button>
+                        <a 
+                          href={`${BACKEND_URL}${a.url}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="flex items-center text-blue-400 hover:text-blue-300 px-2 py-1 hover:bg-blue-500/10 rounded text-sm"
+                        >
+                          <Download size={16} className="mr-1" /> Scarica
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Share attachments panel */}
+              {showAttachmentShare && (
+                <div className="mt-4 p-4 bg-slate-800 rounded-xl border border-slate-600">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-white font-medium flex items-center">
+                      <Share2 className="w-4 h-4 text-emerald-400 mr-2" />
+                      Condividi {selectedAttachments.length} allegati
+                    </h4>
+                    <button onClick={() => setShowAttachmentShare(false)} className="text-slate-400 hover:text-white">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  
+                  {/* Email/WhatsApp toggle */}
+                  <div className="flex space-x-2 mb-3">
+                    <button
+                      onClick={() => setShareType('email')}
+                      className={`flex-1 py-2 rounded-lg flex items-center justify-center space-x-2 text-sm ${
+                        shareType === 'email' ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400'
+                      }`}
+                    >
+                      <Mail size={16} /> <span>Email</span>
+                    </button>
+                    <button
+                      onClick={() => setShareType('whatsapp')}
+                      className={`flex-1 py-2 rounded-lg flex items-center justify-center space-x-2 text-sm ${
+                        shareType === 'whatsapp' ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-400'
+                      }`}
+                    >
+                      <MessageCircle size={16} /> <span>WhatsApp</span>
+                    </button>
+                  </div>
+
+                  <input
+                    type={shareType === 'email' ? 'email' : 'tel'}
+                    value={recipient}
+                    onChange={(e) => setRecipient(e.target.value)}
+                    placeholder={shareType === 'email' ? 'email@esempio.com' : '+39 333 1234567'}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-sm mb-2"
+                  />
+                  
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Messaggio (opzionale)"
+                    rows={2}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 text-sm mb-3 resize-none"
+                  />
+
+                  {sendResult && (
+                    <div className={`mb-3 p-2 rounded-lg text-sm flex items-center ${
+                      sendResult.success ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                    }`}>
+                      {sendResult.success ? <CheckCircle size={16} className="mr-2" /> : <AlertCircle size={16} className="mr-2" />}
+                      {sendResult.message}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleShareAttachments}
+                    disabled={sending || !recipient.trim()}
+                    className={`w-full py-2 rounded-lg flex items-center justify-center disabled:opacity-50 ${
+                      shareType === 'email' ? 'bg-blue-500 hover:bg-blue-600' : 'bg-green-500 hover:bg-green-600'
+                    } text-white`}
+                  >
+                    {sending ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Send size={16} className="mr-2" />}
+                    Invia
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1053,10 +1234,10 @@ const PreviewModal = ({ document, onClose, onEdit, onDelete, onPreview, getAuthH
         {/* Actions */}
         <div className="p-4 border-t border-slate-700 flex justify-between items-center bg-slate-800/30">
           <div className="flex space-x-2">
-            <button onClick={shareViaEmail} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg" title="Condividi via Email">
+            <button onClick={() => setShowAttachmentShare(true)} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg" title="Condividi via Email">
               <Mail size={20} />
             </button>
-            <button onClick={shareViaWhatsApp} className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg" title="Condividi via WhatsApp">
+            <button onClick={() => { setShareType('whatsapp'); setShowAttachmentShare(true); }} className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg" title="Condividi via WhatsApp">
               <MessageCircle size={20} />
             </button>
           </div>
