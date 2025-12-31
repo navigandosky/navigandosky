@@ -988,18 +988,6 @@ const TrivorWebApp = () => {
     return matchesSearch && matchesStatus;
   });
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <RefreshCw className="w-8 h-8 text-purple-400 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <TrivorWebLogin onLogin={login} />;
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
       {/* Header */}
