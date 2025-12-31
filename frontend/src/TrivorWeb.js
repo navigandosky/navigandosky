@@ -358,22 +358,22 @@ const SiteForm = ({ site, onClose, onSave, getAuthHeader }) => {
             <div className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-slate-300 text-sm font-medium mb-2">Nome Referente</label>
-                  <input
-                    type="text"
-                    value={form.cliente.nome}
-                    onChange={(e) => updateNested("cliente", "nome", e.target.value)}
-                    placeholder="Mario Rossi"
-                    className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
-                  />
-                </div>
-                <div>
                   <label className="block text-slate-300 text-sm font-medium mb-2">Azienda</label>
                   <input
                     type="text"
                     value={form.cliente.azienda}
                     onChange={(e) => updateNested("cliente", "azienda", e.target.value)}
                     placeholder="Azienda SRL"
+                    className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-2">Nome Referente</label>
+                  <input
+                    type="text"
+                    value={form.cliente.nome}
+                    onChange={(e) => updateNested("cliente", "nome", e.target.value)}
+                    placeholder="Mario Rossi"
                     className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
                   />
                 </div>
