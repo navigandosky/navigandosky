@@ -4,7 +4,7 @@ import {
   Archive, Database, Home, LogOut, RefreshCw, Server, HardDrive, 
   Table, FileText, Activity, CheckCircle, XCircle, AlertTriangle,
   BarChart3, PieChart, TrendingUp, Layers, Box, Lock, X, ChevronRight,
-  Briefcase, Settings, Zap
+  Briefcase, Settings, Zap, Users, Video
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -194,13 +194,22 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
       status: "active"
     },
     {
-      id: "coming1",
-      name: "TrivorCRM",
-      description: "Gestione Clienti e Contatti",
-      icon: Briefcase,
-      color: "orange",
-      features: ["Anagrafica clienti", "Storico contatti", "Pipeline vendite"],
-      status: "coming"
+      id: "contacts",
+      name: "Archivio Contatti",
+      description: "Rubrica Condivisa Aziendale",
+      icon: Users,
+      color: "cyan",
+      features: ["Rubrica centralizzata", "Gruppi contatti", "Condivisione rapida", "Preferiti"],
+      status: "active"
+    },
+    {
+      id: "trivormeet",
+      name: "TrivorMEET",
+      description: "Videoconferenze Private",
+      icon: Video,
+      color: "rose",
+      features: ["Videochiamate HD", "Condivisione schermo", "Chat integrata", "Registrazioni"],
+      status: "active"
     },
   ];
 
@@ -209,6 +218,8 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
     emerald: "from-emerald-500/20 to-emerald-600/20 border-emerald-500/30 hover:border-emerald-400",
     purple: "from-purple-500/20 to-purple-600/20 border-purple-500/30 hover:border-purple-400",
     orange: "from-orange-500/20 to-orange-600/20 border-orange-500/30 hover:border-orange-400",
+    cyan: "from-cyan-500/20 to-cyan-600/20 border-cyan-500/30 hover:border-cyan-400",
+    rose: "from-rose-500/20 to-rose-600/20 border-rose-500/30 hover:border-rose-400",
   };
 
   const iconColorClasses = {
@@ -216,6 +227,8 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
     emerald: "text-emerald-400",
     purple: "text-purple-400",
     orange: "text-orange-400",
+    cyan: "text-cyan-400",
+    rose: "text-rose-400",
   };
 
   return (
