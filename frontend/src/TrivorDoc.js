@@ -1388,15 +1388,21 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
               {/* Selection toolbar */}
               {documents.length > 0 && (
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-700">
-                  <label className="flex items-center space-x-2 text-slate-400 text-sm cursor-pointer hover:text-white">
-                    <input
-                      type="checkbox"
-                      checked={selectedDocs.length === documents.length && documents.length > 0}
-                      onChange={toggleSelectAll}
-                      className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-800"
-                    />
+                  <div 
+                    onClick={toggleSelectAll}
+                    className="flex items-center space-x-3 text-slate-400 text-sm cursor-pointer hover:text-white"
+                  >
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                      selectedDocs.length === documents.length && documents.length > 0
+                        ? 'bg-emerald-500 border-emerald-500' 
+                        : 'bg-slate-700 border-slate-500 hover:border-emerald-400'
+                    }`}>
+                      {selectedDocs.length === documents.length && documents.length > 0 && (
+                        <CheckCircle className="w-3 h-3 text-white" />
+                      )}
+                    </div>
                     <span>Seleziona tutti ({documents.length})</span>
-                  </label>
+                  </div>
                   {selectedDocs.length > 0 && (
                     <button
                       onClick={() => setSelectedDocs([])}
