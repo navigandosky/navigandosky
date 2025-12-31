@@ -1048,7 +1048,8 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-semibold mb-4">Strumenti</h4>
             <ul className="space-y-2">
-              <li><a href="#/admin" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">🔧 CMS (Gestione pagine sito)</a></li>
+              <li><a href="#/suite" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center"><Lock size={14} className="mr-2" />Trivor Suite</a></li>
+              <li><a href="#/admin" className="text-gray-400 hover:text-amber-400 transition-colors text-sm flex items-center"><Settings size={14} className="mr-2" />Admin CMS</a></li>
             </ul>
           </div>
         </div>
