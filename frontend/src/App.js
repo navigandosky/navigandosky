@@ -675,13 +675,13 @@ const TourVirtualiSection = () => {
       {/* Modal per visualizzare il Digital Twin */}
       {selectedTwin && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
-          {/* Close button - positioned outside iframe area, bottom right */}
+          {/* Close button - positioned top left, outside mpskin menu area */}
           <button 
             onClick={closeTwin}
-            className="absolute bottom-6 right-6 z-20 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-full transition-colors flex items-center space-x-2 border border-white/20"
+            className="absolute top-4 left-4 z-30 px-4 py-2 bg-red-500/90 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-lg"
           >
             <X size={20} />
-            <span className="text-sm font-medium">Chiudi</span>
+            <span className="text-sm font-medium">Chiudi Tour</span>
           </button>
 
           {/* Iframe container - full width for mpskin menu visibility */}
