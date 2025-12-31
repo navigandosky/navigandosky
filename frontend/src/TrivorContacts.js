@@ -648,7 +648,7 @@ const TrivorContacts = () => {
         method: "DELETE",
         headers: getAuthHeader(),
       });
-      fetchData();
+      fetchData(false);
     } catch (e) {
       console.error(e);
     }
@@ -660,7 +660,7 @@ const TrivorContacts = () => {
         method: "POST",
         headers: getAuthHeader(),
       });
-      fetchData();
+      fetchData(false);
     } catch (e) {
       console.error(e);
     }
