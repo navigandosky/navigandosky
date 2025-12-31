@@ -310,10 +310,20 @@ const Navbar = ({ showAdminLink = true }) => {
                 )}
               </button>
             ))}
+          </div>
+          
+          {/* Buttons on the right */}
+          <div className="hidden md:flex items-center space-x-3">
             {showAdminLink && (
               <a href="#/suite" className="flex items-center space-x-1 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-400 hover:bg-cyan-500/20 transition-all text-sm">
                 <Lock size={14} />
                 <span>Trivor Suite</span>
+              </a>
+            )}
+            {showAdminLink && (
+              <a href="#/admin" className="flex items-center space-x-1 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 hover:bg-amber-500/20 transition-all text-sm">
+                <Settings size={14} />
+                <span>Admin</span>
               </a>
             )}
           </div>
@@ -338,6 +348,12 @@ const Navbar = ({ showAdminLink = true }) => {
               <a href="#/suite" className="flex items-center space-x-2 py-3 px-4 text-cyan-400">
                 <Lock size={16} />
                 <span>Trivor Suite</span>
+              </a>
+            )}
+            {showAdminLink && (
+              <a href="#/admin" className="flex items-center space-x-2 py-3 px-4 text-amber-400">
+                <Settings size={16} />
+                <span>Admin</span>
               </a>
             )}
           </div>
