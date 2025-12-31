@@ -6,6 +6,7 @@ import TrivorDocPage from "./TrivorDoc";
 import TrivorSuitePage from "./TrivorSuite";
 import TrivorWebApp from "./TrivorWeb";
 import TrivorContacts from "./TrivorContacts";
+import TrivorMeet from "./TrivorMeet";
 import {
   Lightbulb,
   Box,
@@ -1436,6 +1437,7 @@ function App() {
           <Route path="/trivordoc" element={<TrivorDocPage />} />
           <Route path="/trivorweb" element={<TrivorWebApp />} />
           <Route path="/contacts" element={<TrivorContacts />} />
+          <Route path="/trivormeet" element={<TrivorMeet />} />
         </Routes>
       </HashRouter>
     </div>
