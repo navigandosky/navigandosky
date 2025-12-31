@@ -1258,6 +1258,11 @@ class DatabaseInfoSchema(BaseModel):
     costo_annuale: float = 0
     note: str = ""
 
+class AccountInfoSchema(BaseModel):
+    servizio: str = ""  # es: WordPress Admin, cPanel, Trivor Suite, etc.
+    username: str = ""
+    password: str = ""
+
 class FtpInfoSchema(BaseModel):
     host: str = ""
     username: str = ""
