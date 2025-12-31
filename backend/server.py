@@ -389,7 +389,7 @@ async def seed_data(username: str = Depends(verify_credentials)):
             "category": "Smart Building",
             "description": "Piattaforma di gestione edifici smart con gemelli digitali Matterport, monitoraggio manutenzioni e domotica integrata.",
             "image_url": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&q=80",
-            "link": "https://triv-dashboard.preview.emergentagent.com",
+            "link": "https://trivor-compass.preview.emergentagent.com",
             "featured": True,
             "order": 1,
             "created_at": datetime.now(timezone.utc).isoformat(),
