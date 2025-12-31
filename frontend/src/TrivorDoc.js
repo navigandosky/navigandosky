@@ -1473,13 +1473,17 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         {/* Checkbox */}
-                        <div onClick={(e) => { e.stopPropagation(); toggleDocSelection(doc); }}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}}
-                            className="w-5 h-5 rounded border-slate-500 bg-slate-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-800 cursor-pointer"
-                          />
+                        <div 
+                          onClick={(e) => { e.stopPropagation(); toggleDocSelection(doc); }}
+                          className="flex-shrink-0"
+                        >
+                          <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all ${
+                            isSelected 
+                              ? 'bg-emerald-500 border-emerald-500' 
+                              : 'bg-slate-700 border-slate-500 hover:border-emerald-400'
+                          }`}>
+                            {isSelected && <CheckCircle className="w-4 h-4 text-white" />}
+                          </div>
                         </div>
                         <div onClick={() => setPreviewDoc(doc)} className="flex items-center space-x-3">
                           <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center">
