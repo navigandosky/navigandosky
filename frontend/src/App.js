@@ -404,10 +404,13 @@ const HeroSection = () => {
           </span>
         </div>
 
-        <h1 className="scroll-reveal opacity-0 translate-y-8 text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-tight">
-          Trasformiamo il
+        <h1 className="scroll-reveal opacity-0 translate-y-8 text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+          Valorizziamo il Patrimonio
           <span className="block bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent">
-            Patrimonio Culturale
+            Turistico, Ambientale
+          </span>
+          <span className="block bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+            e Culturale
           </span>
         </h1>
 
