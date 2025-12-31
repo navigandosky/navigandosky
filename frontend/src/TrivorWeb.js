@@ -12,48 +12,22 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 // =============================================================================
-// AUTH HOOK
+// AUTH HOOK - Uses Suite authentication
 // =============================================================================
 const useTrivorWebAuth = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const auth = localStorage.getItem("trivorsuite_auth");
-    if (auth) {
-      setIsAuthenticated(true);
-    }
-    setIsLoading(false);
-  }, []);
-
-  const login = async (username, password) => {
-    try {
-      const response = await fetch(`${API}/trivordoc/login`, {
-        headers: { Authorization: `Basic ${btoa(`${username}:${password}`)}` },
-        method: "POST",
-      });
-      if (response.ok) {
-        localStorage.setItem("trivorsuite_auth", btoa(`${username}:${password}`));
-        setIsAuthenticated(true);
-        return true;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem("trivorsuite_auth");
-    setIsAuthenticated(false);
-  };
-
   const getAuthHeader = () => {
     const auth = localStorage.getItem("trivorsuite_auth");
-    return { Authorization: `Basic ${auth}` };
+    if (auth) {
+      return { Authorization: `Basic ${auth}` };
+    }
+    return {};
   };
 
-  return { isAuthenticated, isLoading, login, logout, getAuthHeader };
+  const isAuthenticated = () => {
+    return !!localStorage.getItem("trivorsuite_auth");
+  };
+
+  return { getAuthHeader, isAuthenticated };
 };
 
 // =============================================================================
