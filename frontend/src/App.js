@@ -18,6 +18,7 @@ import {
   Landmark,
   Gem,
   HomeIcon,
+  Settings,
   Palmtree,
   Users,
   MapPin,
