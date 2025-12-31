@@ -844,6 +844,200 @@ async def get_logs(limit: int = 50, username: str = Depends(verify_trivordoc_cre
     logs = await db.trivordoc_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
     return logs
 
+# Email share request model
+class EmailShareRequest(BaseModel):
+    document_ids: List[str]
+    recipient_email: str
+    subject: Optional[str] = "Documenti condivisi da Trivor"
+    message: Optional[str] = ""
+
+@api_router.post("/trivordoc/share/email")
+async def share_documents_email(request: EmailShareRequest, username: str = Depends(verify_trivordoc_credentials)):
+    """Share one or more documents via email"""
+    try:
+        # Get documents from database
+        documents = await db.trivordoc_documents.find(
+            {"id": {"$in": request.document_ids}}, 
+            {"_id": 0}
+        ).to_list(100)
+        
+        if not documents:
+            raise HTTPException(status_code=404, detail="Nessun documento trovato")
+        
+        # Create email
+        msg = MIMEMultipart()
+        msg['From'] = GMAIL_USER
+        msg['To'] = request.recipient_email
+        msg['Subject'] = request.subject
+        
+        # Build email body
+        doc_list = "\n".join([f"• {d['id']} - {d.get('tipo_documento', 'N/A')} ({d.get('categoria', 'N/A')})" for d in documents])
+        body = f"""
+Gentile Utente,
+
+{request.message if request.message else "Ti sono stati condivisi i seguenti documenti:"}
+
+{doc_list}
+
+---
+Questa email è stata inviata automaticamente da TrivorDOC.
+Trivor SRL
+"""
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # Attach files if they exist
+        for doc in documents:
+            if doc.get('allegati'):
+                for allegato in doc['allegati']:
+                    file_url = allegato.get('url', '')
+                    if file_url:
+                        # Extract filename from URL
+                        filename = file_url.split('/')[-1]
+                        file_path = UPLOADS_DIR / filename
+                        
+                        if file_path.exists():
+                            with open(file_path, 'rb') as f:
+                                part = MIMEBase('application', 'octet-stream')
+                                part.set_payload(f.read())
+                                encoders.encode_base64(part)
+                                part.add_header(
+                                    'Content-Disposition',
+                                    f'attachment; filename="{allegato.get("nome", filename)}"'
+                                )
+                                msg.attach(part)
+        
+        # Send email
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            server.send_message(msg)
+        
+        # Log the action
+        await db.trivordoc_logs.insert_one({
+            "action": "SHARE_EMAIL",
+            "document_ids": request.document_ids,
+            "recipient": request.recipient_email,
+            "user": username,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        return {
+            "success": True,
+            "message": f"Email inviata con successo a {request.recipient_email}",
+            "documents_sent": len(documents)
+        }
+        
+    except smtplib.SMTPException as e:
+        raise HTTPException(status_code=500, detail=f"Errore invio email: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
+class WhatsAppShareRequest(BaseModel):
+    document_ids: List[str]
+    phone_number: str
+    message: Optional[str] = ""
+
+@api_router.post("/trivordoc/share/whatsapp")
+async def share_documents_whatsapp(request: WhatsAppShareRequest, username: str = Depends(verify_trivordoc_credentials)):
+    """Generate WhatsApp share link for documents"""
+    try:
+        # Get documents from database
+        documents = await db.trivordoc_documents.find(
+            {"id": {"$in": request.document_ids}}, 
+            {"_id": 0}
+        ).to_list(100)
+        
+        if not documents:
+            raise HTTPException(status_code=404, detail="Nessun documento trovato")
+        
+        # Build message with document info
+        doc_list = "\n".join([f"📄 {d['id']} - {d.get('tipo_documento', 'N/A')}" for d in documents])
+        
+        message = f"""
+{request.message if request.message else "Ti condivido i seguenti documenti:"}
+
+{doc_list}
+
+---
+Inviato da TrivorDOC - Trivor SRL
+"""
+        
+        # Clean phone number (remove spaces, dashes, etc.)
+        phone = request.phone_number.replace(" ", "").replace("-", "").replace("+", "")
+        if not phone.startswith("39") and len(phone) == 10:
+            phone = "39" + phone  # Add Italy prefix
+        
+        # Create WhatsApp URL
+        import urllib.parse
+        whatsapp_url = f"https://wa.me/{phone}?text={urllib.parse.quote(message)}"
+        
+        # Log the action
+        await db.trivordoc_logs.insert_one({
+            "action": "SHARE_WHATSAPP",
+            "document_ids": request.document_ids,
+            "phone": request.phone_number,
+            "user": username,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        return {
+            "success": True,
+            "whatsapp_url": whatsapp_url,
+            "message": "Link WhatsApp generato con successo"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
+@api_router.get("/trivordoc/preview/{doc_id}/{attachment_index}")
+async def preview_document_attachment(doc_id: str, attachment_index: int, username: str = Depends(verify_trivordoc_credentials)):
+    """Get file for preview/download"""
+    try:
+        document = await db.trivordoc_documents.find_one({"id": doc_id}, {"_id": 0})
+        
+        if not document:
+            raise HTTPException(status_code=404, detail="Documento non trovato")
+        
+        allegati = document.get('allegati', [])
+        if attachment_index < 0 or attachment_index >= len(allegati):
+            raise HTTPException(status_code=404, detail="Allegato non trovato")
+        
+        allegato = allegati[attachment_index]
+        file_url = allegato.get('url', '')
+        filename = file_url.split('/')[-1]
+        file_path = UPLOADS_DIR / filename
+        
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File non trovato")
+        
+        # Determine media type
+        extension = file_path.suffix.lower()
+        media_types = {
+            '.pdf': 'application/pdf',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.txt': 'text/plain',
+            '.doc': 'application/msword',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.xls': 'application/vnd.ms-excel',
+            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }
+        media_type = media_types.get(extension, 'application/octet-stream')
+        
+        return FileResponse(
+            path=str(file_path),
+            media_type=media_type,
+            filename=allegato.get('nome', filename)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore: {str(e)}")
+
 # =============================================================================
 # CHECKDB - DATABASE MONITORING
 # =============================================================================
