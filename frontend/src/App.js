@@ -1053,27 +1053,41 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
   const [projects, setProjects] = useState([]);
   const [messages, setMessages] = useState([]);
   const [heroImages, setHeroImages] = useState([]);
+  const [digitalTwins, setDigitalTwins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('projects');
   const [editingProject, setEditingProject] = useState(null);
+  const [editingTwin, setEditingTwin] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [showTwinForm, setShowTwinForm] = useState(false);
   const [showHeroForm, setShowHeroForm] = useState(false);
   const [savingHero, setSavingHero] = useState(false);
-  const [uploadingHero, setUploadingHero] = useState(null); // index of uploading image
+  const [savingTwin, setSavingTwin] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(null);
+  const [uploadingTwinImage, setUploadingTwinImage] = useState(false);
+
+  // Twin form state
+  const [twinForm, setTwinForm] = useState({
+    nome: '', nome_en: '', nome_fr: '', nome_de: '',
+    descrizione: '', descrizione_en: '', descrizione_fr: '', descrizione_de: '',
+    matterport_id: '', mpskin_url: '', immagine_copertina: '', attivo: true, ordine: 0
+  });
 
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [projectsRes, messagesRes, settingsRes] = await Promise.all([
+      const [projectsRes, messagesRes, settingsRes, twinsRes] = await Promise.all([
         axios.get(`${API}/projects`),
         axios.get(`${API}/admin/messages`, { headers: getAuthHeader() }),
-        axios.get(`${API}/settings`)
+        axios.get(`${API}/settings`),
+        axios.get(`${API}/digital-twins`)
       ]);
       setProjects(projectsRes.data);
       setMessages(messagesRes.data);
       setHeroImages(settingsRes.data.hero_images || []);
+      setDigitalTwins(twinsRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
