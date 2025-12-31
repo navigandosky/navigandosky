@@ -1560,6 +1560,7 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
           onClose={() => setPreviewDoc(null)}
           onEdit={(doc) => { setPreviewDoc(null); setEditingDoc(doc); setShowForm(true); }}
           onDelete={(doc) => { setDeleteDoc(doc); }}
+          onPreview={handleFilePreview}
           getAuthHeader={getAuthHeader}
         />
       )}
@@ -1569,6 +1570,26 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
           document={deleteDoc}
           onClose={() => setDeleteDoc(null)}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && selectedDocs.length > 0 && (
+        <ShareModal
+          documents={selectedDocs}
+          onClose={() => setShowShareModal(false)}
+          getAuthHeader={getAuthHeader}
+        />
+      )}
+
+      {/* File Preview Modal */}
+      {filePreview && (
+        <FilePreviewModal
+          docId={filePreview.docId}
+          attachmentIndex={filePreview.attachmentIndex}
+          attachment={filePreview.attachment}
+          onClose={() => setFilePreview(null)}
+          getAuthHeader={getAuthHeader}
         />
       )}
     </div>
