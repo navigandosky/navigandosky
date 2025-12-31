@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Video, VideoOff, Mic, MicOff, Phone, PhoneOff, Monitor, Users, Settings,
+  Video, VideoOff, Mic, MicOff, Phone, PhoneOff, Monitor, Users,
   MessageCircle, Send, X, Plus, Copy, Check, RefreshCw, ChevronLeft,
   User, Mail, Search, Star, Building2, Clock, Calendar, Link2, Share2,
-  Volume2, VolumeX, Maximize, Minimize, Grid, MoreVertical, UserPlus
+  UserPlus, ExternalLink
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -14,17 +14,17 @@ const API = `${BACKEND_URL}/api`;
 // AUTH HOOK - Uses Suite authentication
 // =============================================================================
 const useMeetAuth = () => {
-  const getAuthHeader = () => {
+  const getAuthHeader = useCallback(() => {
     const auth = localStorage.getItem("trivorsuite_auth");
     if (auth) {
       return { Authorization: `Basic ${auth}` };
     }
     return {};
-  };
+  }, []);
 
-  const isAuthenticated = () => {
+  const isAuthenticated = useCallback(() => {
     return !!localStorage.getItem("trivorsuite_auth");
-  };
+  }, []);
 
   return { getAuthHeader, isAuthenticated };
 };
@@ -57,7 +57,7 @@ const ContactAvatar = ({ contact, size = "md" }) => {
 // =============================================================================
 // CONTACT PICKER MODAL
 // =============================================================================
-const ContactPickerModal = ({ onClose, onSelect, getAuthHeader }) => {
+const ContactPickerModal = ({ onClose, onSelect, selectedContacts = [], getAuthHeader }) => {
   const [contacts, setContacts] = useState([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -87,13 +87,15 @@ const ContactPickerModal = ({ onClose, onSelect, getAuthHeader }) => {
     );
   });
 
+  const isSelected = (contactId) => selectedContacts.some(c => c.id === contactId);
+
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-hidden">
         <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
           <h2 className="text-lg font-semibold text-white flex items-center">
             <Users className="w-5 h-5 text-rose-400 mr-2" />
-            Seleziona Partecipante
+            Seleziona Partecipanti
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg">
             <X size={20} />
@@ -132,7 +134,9 @@ const ContactPickerModal = ({ onClose, onSelect, getAuthHeader }) => {
                 <button
                   key={contact.id}
                   onClick={() => onSelect(contact)}
-                  className="w-full p-4 flex items-center space-x-3 hover:bg-slate-800/50 transition-colors text-left"
+                  className={`w-full p-4 flex items-center space-x-3 hover:bg-slate-800/50 transition-colors text-left ${
+                    isSelected(contact.id) ? 'bg-rose-500/10' : ''
+                  }`}
                 >
                   <ContactAvatar contact={contact} />
                   <div className="flex-1 min-w-0">
@@ -147,7 +151,11 @@ const ContactPickerModal = ({ onClose, onSelect, getAuthHeader }) => {
                       </p>
                     )}
                   </div>
-                  <UserPlus className="w-5 h-5 text-rose-400" />
+                  {isSelected(contact.id) ? (
+                    <Check className="w-5 h-5 text-rose-400" />
+                  ) : (
+                    <UserPlus className="w-5 h-5 text-slate-500" />
+                  )}
                 </button>
               ))}
             </div>
@@ -159,258 +167,135 @@ const ContactPickerModal = ({ onClose, onSelect, getAuthHeader }) => {
 };
 
 // =============================================================================
-// MEETING ROOM COMPONENT
+// JITSI MEETING ROOM
 // =============================================================================
-const MeetingRoom = ({ meeting, onLeave, getAuthHeader }) => {
-  const [videoEnabled, setVideoEnabled] = useState(true);
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [screenSharing, setScreenSharing] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [participants, setParticipants] = useState(meeting.participants || []);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
+const JitsiMeetingRoom = ({ roomName, displayName, onLeave }) => {
+  const jitsiContainerRef = useRef(null);
+  const jitsiApiRef = useRef(null);
 
   useEffect(() => {
-    startVideo();
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+    // Load Jitsi Meet External API
+    const loadJitsiScript = () => {
+      return new Promise((resolve, reject) => {
+        if (window.JitsiMeetExternalAPI) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://meet.jit.si/external_api.js';
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    };
+
+    const initJitsi = async () => {
+      try {
+        await loadJitsiScript();
+        
+        if (jitsiContainerRef.current && !jitsiApiRef.current) {
+          const domain = 'meet.jit.si';
+          const options = {
+            roomName: `trivor-${roomName}`,
+            parentNode: jitsiContainerRef.current,
+            userInfo: {
+              displayName: displayName || 'Utente Trivor'
+            },
+            configOverwrite: {
+              startWithAudioMuted: false,
+              startWithVideoMuted: false,
+              prejoinPageEnabled: false,
+              disableDeepLinking: true,
+              defaultLanguage: 'it',
+              toolbarButtons: [
+                'camera',
+                'chat',
+                'closedcaptions',
+                'desktop',
+                'download',
+                'embedmeeting',
+                'etherpad',
+                'feedback',
+                'filmstrip',
+                'fullscreen',
+                'hangup',
+                'help',
+                'highlight',
+                'invite',
+                'linktosalesforce',
+                'livestreaming',
+                'microphone',
+                'noisesuppression',
+                'participants-pane',
+                'profile',
+                'raisehand',
+                'recording',
+                'security',
+                'select-background',
+                'settings',
+                'shareaudio',
+                'sharedvideo',
+                'shortcuts',
+                'stats',
+                'tileview',
+                'toggle-camera',
+                'videoquality',
+                'whiteboard',
+              ],
+            },
+            interfaceConfigOverwrite: {
+              SHOW_JITSI_WATERMARK: false,
+              SHOW_WATERMARK_FOR_GUESTS: false,
+              DEFAULT_BACKGROUND: '#1e293b',
+              TOOLBAR_ALWAYS_VISIBLE: true,
+              FILM_STRIP_MAX_HEIGHT: 120,
+              DISABLE_JOIN_LEAVE_NOTIFICATIONS: false,
+              MOBILE_APP_PROMO: false,
+              HIDE_INVITE_MORE_HEADER: true,
+            },
+          };
+
+          jitsiApiRef.current = new window.JitsiMeetExternalAPI(domain, options);
+
+          // Handle meeting end
+          jitsiApiRef.current.addListener('readyToClose', () => {
+            onLeave();
+          });
+
+          // Handle video conference joined
+          jitsiApiRef.current.addListener('videoConferenceJoined', (participant) => {
+            console.log('Joined conference:', participant);
+          });
+
+          // Handle participant joined
+          jitsiApiRef.current.addListener('participantJoined', (participant) => {
+            console.log('Participant joined:', participant);
+          });
+        }
+      } catch (error) {
+        console.error('Failed to initialize Jitsi:', error);
       }
     };
-  }, []);
 
-  const startVideo = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+    initJitsi();
+
+    return () => {
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose();
+        jitsiApiRef.current = null;
       }
-    } catch (e) {
-      console.error("Errore accesso webcam:", e);
-    }
-  };
-
-  const toggleVideo = () => {
-    if (streamRef.current) {
-      const videoTrack = streamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setVideoEnabled(videoTrack.enabled);
-      }
-    }
-  };
-
-  const toggleAudio = () => {
-    if (streamRef.current) {
-      const audioTrack = streamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setAudioEnabled(audioTrack.enabled);
-      }
-    }
-  };
-
-  const toggleScreenShare = async () => {
-    if (screenSharing) {
-      startVideo();
-      setScreenSharing(false);
-    } else {
-      try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = screenStream;
-        }
-        streamRef.current = screenStream;
-        setScreenSharing(true);
-        
-        screenStream.getVideoTracks()[0].onended = () => {
-          startVideo();
-          setScreenSharing(false);
-        };
-      } catch (e) {
-        console.error("Errore condivisione schermo:", e);
-      }
-    }
-  };
-
-  const sendMessage = () => {
-    if (!newMessage.trim()) return;
-    setChatMessages([...chatMessages, {
-      id: Date.now(),
-      sender: "Tu",
-      text: newMessage,
-      time: new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })
-    }]);
-    setNewMessage("");
-  };
-
-  const copyMeetingLink = () => {
-    const link = `${window.location.origin}/#/trivormeet?room=${meeting.id}`;
-    navigator.clipboard.writeText(link);
-  };
+    };
+  }, [roomName, displayName, onLeave]);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col">
-      {/* Header */}
-      <header className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Video className="w-6 h-6 text-rose-400" />
-              <div>
-                <h1 className="text-white font-semibold">{meeting.name}</h1>
-                <p className="text-slate-400 text-xs flex items-center">
-                  <Clock className="w-3 h-3 mr-1" />
-                  In corso • {participants.length + 1} partecipanti
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={copyMeetingLink}
-              className="px-3 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm flex items-center"
-            >
-              <Link2 className="w-4 h-4 mr-1" /> Copia Link
-            </button>
-            <button
-              onClick={() => setShowChat(!showChat)}
-              className={`p-2 rounded-lg ${showChat ? 'bg-rose-500 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-            >
-              <MessageCircle className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="flex-1 flex">
-        {/* Video Area */}
-        <div className={`flex-1 p-4 ${showChat ? 'pr-0' : ''}`}>
-          <div className="h-full bg-slate-900 rounded-2xl overflow-hidden relative">
-            {/* Main Video */}
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
-            
-            {!videoEnabled && (
-              <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-24 h-24 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <User className="w-12 h-12 text-slate-400" />
-                  </div>
-                  <p className="text-white font-medium">La tua webcam è disattivata</p>
-                </div>
-              </div>
-            )}
-
-            {/* Participant thumbnails */}
-            {participants.length > 0 && (
-              <div className="absolute top-4 right-4 space-y-2">
-                {participants.slice(0, 3).map((p, i) => (
-                  <div key={i} className="w-32 h-24 bg-slate-800 rounded-lg flex items-center justify-center border border-slate-700">
-                    <ContactAvatar contact={p} size="lg" />
-                  </div>
-                ))}
-                {participants.length > 3 && (
-                  <div className="w-32 h-24 bg-slate-800 rounded-lg flex items-center justify-center border border-slate-700">
-                    <span className="text-white font-medium">+{participants.length - 3}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Screen share indicator */}
-            {screenSharing && (
-              <div className="absolute top-4 left-4 px-3 py-1.5 bg-rose-500 text-white rounded-full text-sm flex items-center">
-                <Monitor className="w-4 h-4 mr-1" /> Condivisione schermo attiva
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Chat Sidebar */}
-        {showChat && (
-          <div className="w-80 bg-slate-900 border-l border-slate-800 flex flex-col">
-            <div className="p-4 border-b border-slate-800">
-              <h3 className="text-white font-semibold">Chat della riunione</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {chatMessages.length === 0 ? (
-                <p className="text-slate-500 text-sm text-center">Nessun messaggio ancora</p>
-              ) : chatMessages.map(msg => (
-                <div key={msg.id} className="bg-slate-800 rounded-lg p-3">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-rose-400 text-sm font-medium">{msg.sender}</span>
-                    <span className="text-slate-500 text-xs">{msg.time}</span>
-                  </div>
-                  <p className="text-white text-sm">{msg.text}</p>
-                </div>
-              ))}
-            </div>
-            <div className="p-4 border-t border-slate-800">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Scrivi un messaggio..."
-                  className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-500 focus:border-rose-500 focus:outline-none"
-                />
-                <button onClick={sendMessage} className="p-2 bg-rose-500 hover:bg-rose-600 text-white rounded-lg">
-                  <Send className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Controls Bar */}
-      <div className="bg-slate-900/80 backdrop-blur-xl border-t border-slate-800 px-4 py-4">
-        <div className="flex items-center justify-center space-x-4">
-          <button
-            onClick={toggleAudio}
-            className={`p-4 rounded-full ${audioEnabled ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-red-500 text-white'}`}
-            title={audioEnabled ? "Disattiva microfono" : "Attiva microfono"}
-          >
-            {audioEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
-          </button>
-          
-          <button
-            onClick={toggleVideo}
-            className={`p-4 rounded-full ${videoEnabled ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-red-500 text-white'}`}
-            title={videoEnabled ? "Disattiva video" : "Attiva video"}
-          >
-            {videoEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-          </button>
-          
-          <button
-            onClick={toggleScreenShare}
-            className={`p-4 rounded-full ${screenSharing ? 'bg-rose-500 text-white' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}
-            title={screenSharing ? "Interrompi condivisione" : "Condividi schermo"}
-          >
-            <Monitor className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={onLeave}
-            className="p-4 rounded-full bg-red-500 hover:bg-red-600 text-white"
-            title="Lascia la riunione"
-          >
-            <PhoneOff className="w-6 h-6" />
-          </button>
-        </div>
-      </div>
+    <div className="h-screen w-full bg-slate-900 flex flex-col">
+      {/* Jitsi Container */}
+      <div 
+        ref={jitsiContainerRef} 
+        className="flex-1 w-full"
+        style={{ minHeight: '100vh' }}
+      />
     </div>
   );
 };
@@ -422,32 +307,34 @@ const NewMeetingModal = ({ onClose, onCreate, getAuthHeader }) => {
   const [name, setName] = useState("");
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [participants, setParticipants] = useState([]);
-  const [loading, setLoading] = useState(false);
+
+  const generateRoomId = () => {
+    return Math.random().toString(36).substring(2, 10) + '-' + Date.now().toString(36);
+  };
 
   const addParticipant = (contact) => {
     if (!participants.find(p => p.id === contact.id)) {
       setParticipants([...participants, contact]);
+    } else {
+      setParticipants(participants.filter(p => p.id !== contact.id));
     }
-    setShowContactPicker(false);
   };
 
   const removeParticipant = (contactId) => {
     setParticipants(participants.filter(p => p.id !== contactId));
   };
 
-  const handleCreate = async () => {
-    if (!name.trim()) return;
-    setLoading(true);
-    
+  const handleCreate = () => {
+    const roomId = generateRoomId();
     const meeting = {
-      id: Date.now().toString(),
-      name: name,
+      id: roomId,
+      name: name || `Riunione ${new Date().toLocaleDateString('it-IT')}`,
       participants: participants,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      roomUrl: `https://meet.jit.si/trivor-${roomId}`
     };
     
     onCreate(meeting);
-    setLoading(false);
   };
 
   return (
@@ -466,7 +353,7 @@ const NewMeetingModal = ({ onClose, onCreate, getAuthHeader }) => {
 
           <div className="p-6 space-y-5">
             <div>
-              <label className="block text-slate-300 text-sm font-medium mb-2">Nome Riunione *</label>
+              <label className="block text-slate-300 text-sm font-medium mb-2">Nome Riunione</label>
               <input
                 type="text"
                 value={name}
@@ -479,9 +366,9 @@ const NewMeetingModal = ({ onClose, onCreate, getAuthHeader }) => {
 
             <div>
               <label className="block text-slate-300 text-sm font-medium mb-2">
-                Partecipanti
+                Partecipanti ({participants.length})
               </label>
-              <div className="space-y-2 mb-3">
+              <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
                 {participants.map(p => (
                   <div key={p.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700">
                     <div className="flex items-center space-x-3">
@@ -508,6 +395,13 @@ const NewMeetingModal = ({ onClose, onCreate, getAuthHeader }) => {
                 <span>Aggiungi da Archivio Contatti</span>
               </button>
             </div>
+
+            <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700">
+              <p className="text-slate-400 text-sm flex items-center">
+                <Video className="w-4 h-4 mr-2 text-rose-400" />
+                La videochiamata sarà gestita da <strong className="text-white ml-1">Jitsi Meet</strong> (gratuito e sicuro)
+              </p>
+            </div>
           </div>
 
           <div className="p-5 border-t border-slate-700 flex justify-end space-x-3 bg-slate-800/30">
@@ -516,10 +410,9 @@ const NewMeetingModal = ({ onClose, onCreate, getAuthHeader }) => {
             </button>
             <button
               onClick={handleCreate}
-              disabled={!name.trim() || loading}
-              className="px-6 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-medium disabled:opacity-50 flex items-center"
+              className="px-6 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-medium flex items-center"
             >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Video className="w-4 h-4 mr-2" />}
+              <Video className="w-4 h-4 mr-2" />
               Avvia Riunione
             </button>
           </div>
@@ -530,10 +423,108 @@ const NewMeetingModal = ({ onClose, onCreate, getAuthHeader }) => {
         <ContactPickerModal
           onClose={() => setShowContactPicker(false)}
           onSelect={addParticipant}
+          selectedContacts={participants}
           getAuthHeader={getAuthHeader}
         />
       )}
     </>
+  );
+};
+
+// =============================================================================
+// INVITE MODAL
+// =============================================================================
+const InviteModal = ({ meeting, onClose }) => {
+  const [copied, setCopied] = useState(false);
+  const meetingLink = meeting?.roomUrl || `https://meet.jit.si/trivor-${meeting?.id}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(meetingLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shareViaWhatsApp = () => {
+    const text = `Partecipa alla riunione "${meeting.name}" su TrivorMEET: ${meetingLink}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const shareViaEmail = () => {
+    const subject = `Invito: ${meeting.name}`;
+    const body = `Ciao,\n\nSei invitato a partecipare alla riunione "${meeting.name}".\n\nClicca qui per partecipare: ${meetingLink}\n\nA presto!`;
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full">
+        <div className="p-5 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+          <h2 className="text-lg font-semibold text-white flex items-center">
+            <Share2 className="w-5 h-5 text-rose-400 mr-2" />
+            Invita Partecipanti
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-slate-300 text-sm font-medium mb-2">Link Riunione</label>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={meetingLink}
+                readOnly
+                className="flex-1 px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white text-sm"
+              />
+              <button
+                onClick={copyLink}
+                className={`px-4 py-3 rounded-xl flex items-center space-x-2 transition-colors ${
+                  copied 
+                    ? 'bg-green-500 text-white' 
+                    : 'bg-slate-700 hover:bg-slate-600 text-white'
+                }`}
+              >
+                {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-700 pt-4">
+            <p className="text-slate-400 text-sm mb-3">Condividi via:</p>
+            <div className="flex space-x-3">
+              <button
+                onClick={shareViaWhatsApp}
+                className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl flex items-center justify-center space-x-2"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>WhatsApp</span>
+              </button>
+              <button
+                onClick={shareViaEmail}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center space-x-2"
+              >
+                <Mail className="w-5 h-5" />
+                <span>Email</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-700 pt-4">
+            <a
+              href={meetingLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl flex items-center justify-center space-x-2"
+            >
+              <ExternalLink className="w-5 h-5" />
+              <span>Apri in Nuova Finestra</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -546,8 +537,11 @@ const TrivorMeet = () => {
   const [meetings, setMeetings] = useState([]);
   const [currentMeeting, setCurrentMeeting] = useState(null);
   const [showNewMeeting, setShowNewMeeting] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedMeetingForInvite, setSelectedMeetingForInvite] = useState(null);
   const [recentContacts, setRecentContacts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("Utente Trivor");
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -557,13 +551,15 @@ const TrivorMeet = () => {
     fetchRecentContacts();
     loadMeetings();
     setLoading(false);
-  }, []);
+  }, [isAuthenticated, navigate]);
 
   const fetchRecentContacts = async () => {
     try {
       const res = await fetch(`${API}/contacts?limit=6`, { headers: getAuthHeader() });
-      const data = await res.json();
-      setRecentContacts(data.slice(0, 6));
+      if (res.ok) {
+        const data = await res.json();
+        setRecentContacts(data.slice(0, 6));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -588,11 +584,13 @@ const TrivorMeet = () => {
   };
 
   const handleQuickCall = (contact) => {
+    const roomId = Math.random().toString(36).substring(2, 10) + '-' + Date.now().toString(36);
     const meeting = {
-      id: Date.now().toString(),
+      id: roomId,
       name: `Chiamata con ${contact.nome} ${contact.cognome}`,
       participants: [contact],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      roomUrl: `https://meet.jit.si/trivor-${roomId}`
     };
     saveMeetings([meeting, ...meetings.slice(0, 9)]);
     setCurrentMeeting(meeting);
@@ -600,6 +598,11 @@ const TrivorMeet = () => {
 
   const handleLeaveMeeting = () => {
     setCurrentMeeting(null);
+  };
+
+  const handleInvite = (meeting) => {
+    setSelectedMeetingForInvite(meeting);
+    setShowInviteModal(true);
   };
 
   if (loading) {
@@ -611,7 +614,13 @@ const TrivorMeet = () => {
   }
 
   if (currentMeeting) {
-    return <MeetingRoom meeting={currentMeeting} onLeave={handleLeaveMeeting} getAuthHeader={getAuthHeader} />;
+    return (
+      <JitsiMeetingRoom 
+        roomName={currentMeeting.id} 
+        displayName={userName}
+        onLeave={handleLeaveMeeting} 
+      />
+    );
   }
 
   return (
@@ -648,9 +657,9 @@ const TrivorMeet = () => {
           <div className="w-20 h-20 bg-rose-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <Video className="w-10 h-10 text-rose-400" />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-3">Videoconferenze Private</h2>
+          <h2 className="text-3xl font-bold text-white mb-3">Videoconferenze Gratuite</h2>
           <p className="text-slate-400 max-w-md mx-auto">
-            Avvia videochiamate sicure con i tuoi contatti. Condividi lo schermo, chatta e collabora in tempo reale.
+            Avvia videochiamate sicure con i tuoi contatti. Powered by <strong className="text-white">Jitsi Meet</strong> - 100% gratuito e open source.
           </p>
         </div>
 
@@ -753,12 +762,20 @@ const TrivorMeet = () => {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setCurrentMeeting(meeting)}
-                    className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500 text-rose-400 hover:text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Riprendi
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleInvite(meeting)}
+                      className="px-3 py-2 bg-slate-700/50 hover:bg-slate-600 text-slate-300 hover:text-white rounded-lg text-sm font-medium transition-colors flex items-center"
+                    >
+                      <Share2 className="w-4 h-4 mr-1" /> Invita
+                    </button>
+                    <button
+                      onClick={() => setCurrentMeeting(meeting)}
+                      className="px-4 py-2 bg-rose-500/20 hover:bg-rose-500 text-rose-400 hover:text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Entra
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -795,7 +812,7 @@ const TrivorMeet = () => {
 
       {/* Footer */}
       <footer className="text-center py-6 text-slate-500 text-xs">
-        © 2025 Trivor SRL - TrivorMEET v1.0
+        © 2025 Trivor SRL - TrivorMEET v1.0 | Powered by Jitsi Meet
       </footer>
 
       {/* Modals */}
@@ -804,6 +821,13 @@ const TrivorMeet = () => {
           onClose={() => setShowNewMeeting(false)}
           onCreate={handleCreateMeeting}
           getAuthHeader={getAuthHeader}
+        />
+      )}
+
+      {showInviteModal && selectedMeetingForInvite && (
+        <InviteModal
+          meeting={selectedMeetingForInvite}
+          onClose={() => { setShowInviteModal(false); setSelectedMeetingForInvite(null); }}
         />
       )}
     </div>
