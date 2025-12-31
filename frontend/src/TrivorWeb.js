@@ -906,7 +906,7 @@ const SiteForm = ({ site, onClose, onSave, getAuthHeader }) => {
 // MAIN TRIVORWEB APP
 // =============================================================================
 const TrivorWebApp = () => {
-  const { isAuthenticated, isLoading, login, logout, getAuthHeader } = useTrivorWebAuth();
+  const { getAuthHeader, isAuthenticated } = useTrivorWebAuth();
   const navigate = useNavigate();
   
   const [sites, setSites] = useState([]);
@@ -937,10 +937,13 @@ const TrivorWebApp = () => {
   }, [getAuthHeader]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchData();
+    // Check if user is authenticated via Suite, if not redirect to Suite
+    if (!isAuthenticated()) {
+      navigate("/suite");
+      return;
     }
-  }, [isAuthenticated, fetchData]);
+    fetchData();
+  }, [fetchData, isAuthenticated, navigate]);
 
   const handleDelete = async () => {
     try {
