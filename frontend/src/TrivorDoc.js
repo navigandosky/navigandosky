@@ -762,6 +762,48 @@ const ShareModal = ({ documents, onClose, getAuthHeader }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [showContactPicker, setShowContactPicker] = useState(false);
+  const [contacts, setContacts] = useState([]);
+  const [contactSearch, setContactSearch] = useState('');
+  const [loadingContacts, setLoadingContacts] = useState(false);
+
+  // Fetch contacts
+  useEffect(() => {
+    const fetchContacts = async () => {
+      setLoadingContacts(true);
+      try {
+        const res = await fetch(`${API}/contacts`, { headers: getAuthHeader() });
+        if (res.ok) {
+          const data = await res.json();
+          setContacts(data);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      setLoadingContacts(false);
+    };
+    fetchContacts();
+  }, []);
+
+  const filteredContacts = contacts.filter(c => {
+    const searchLower = contactSearch.toLowerCase();
+    return (
+      c.nome?.toLowerCase().includes(searchLower) ||
+      c.cognome?.toLowerCase().includes(searchLower) ||
+      c.email?.toLowerCase().includes(searchLower) ||
+      c.azienda?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  const selectContact = (contact) => {
+    if (shareType === 'email' && contact.email) {
+      setRecipient(contact.email);
+    } else if (shareType === 'whatsapp' && (contact.whatsapp || contact.telefono)) {
+      setRecipient(contact.whatsapp || contact.telefono);
+    }
+    setShowContactPicker(false);
+    setContactSearch('');
+  };
 
   const handleShare = async () => {
     if (!recipient.trim()) {
@@ -843,7 +885,7 @@ const ShareModal = ({ documents, onClose, getAuthHeader }) => {
         {/* Share type toggle */}
         <div className="flex space-x-2 mb-4">
           <button
-            onClick={() => setShareType('email')}
+            onClick={() => { setShareType('email'); setRecipient(''); }}
             className={`flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors ${
               shareType === 'email' 
                 ? 'bg-blue-500 text-white' 
@@ -854,7 +896,7 @@ const ShareModal = ({ documents, onClose, getAuthHeader }) => {
             <span>Email</span>
           </button>
           <button
-            onClick={() => setShareType('whatsapp')}
+            onClick={() => { setShareType('whatsapp'); setRecipient(''); }}
             className={`flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors ${
               shareType === 'whatsapp' 
                 ? 'bg-green-500 text-white' 
@@ -866,19 +908,96 @@ const ShareModal = ({ documents, onClose, getAuthHeader }) => {
           </button>
         </div>
 
-        {/* Recipient input */}
+        {/* Recipient input with contact picker */}
         <div className="mb-4">
           <label className="block text-slate-300 text-sm font-medium mb-2">
             {shareType === 'email' ? 'Indirizzo Email' : 'Numero WhatsApp'}
           </label>
-          <input
-            type={shareType === 'email' ? 'email' : 'tel'}
-            value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            placeholder={shareType === 'email' ? 'esempio@email.com' : '+39 333 1234567'}
-            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
-          />
+          <div className="flex space-x-2">
+            <input
+              type={shareType === 'email' ? 'email' : 'tel'}
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+              placeholder={shareType === 'email' ? 'esempio@email.com' : '+39 333 1234567'}
+              className="flex-1 px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+            />
+            <button
+              onClick={() => setShowContactPicker(!showContactPicker)}
+              className={`px-4 py-3 rounded-xl flex items-center space-x-2 transition-colors ${
+                showContactPicker 
+                  ? 'bg-cyan-500 text-white' 
+                  : 'bg-slate-800 border border-slate-600 text-slate-400 hover:text-white hover:border-cyan-500'
+              }`}
+              title="Seleziona dalla rubrica"
+            >
+              <User size={20} />
+            </button>
+          </div>
         </div>
+
+        {/* Contact Picker Dropdown */}
+        {showContactPicker && (
+          <div className="mb-4 bg-slate-800 border border-slate-600 rounded-xl overflow-hidden">
+            <div className="p-2 border-b border-slate-700">
+              <input
+                type="text"
+                value={contactSearch}
+                onChange={(e) => setContactSearch(e.target.value)}
+                placeholder="Cerca contatto..."
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+                autoFocus
+              />
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              {loadingContacts ? (
+                <div className="p-4 text-center">
+                  <RefreshCw className="w-5 h-5 text-cyan-400 animate-spin mx-auto" />
+                </div>
+              ) : filteredContacts.length === 0 ? (
+                <div className="p-4 text-center text-slate-400 text-sm">
+                  Nessun contatto trovato
+                  <a href="#/contacts" className="block text-cyan-400 hover:underline mt-1">
+                    Vai all'Archivio Contatti
+                  </a>
+                </div>
+              ) : (
+                filteredContacts.slice(0, 8).map(contact => {
+                  const hasValidContact = shareType === 'email' ? contact.email : (contact.whatsapp || contact.telefono);
+                  return (
+                    <button
+                      key={contact.id}
+                      onClick={() => selectContact(contact)}
+                      disabled={!hasValidContact}
+                      className={`w-full p-3 flex items-center space-x-3 text-left transition-colors ${
+                        hasValidContact 
+                          ? 'hover:bg-slate-700' 
+                          : 'opacity-50 cursor-not-allowed'
+                      }`}
+                    >
+                      <div 
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{ backgroundColor: contact.avatar_color || '#3B82F6' }}
+                      >
+                        {`${contact.nome?.[0] || ''}${contact.cognome?.[0] || ''}`.toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium truncate">
+                          {contact.nome} {contact.cognome}
+                        </p>
+                        <p className="text-slate-400 text-xs truncate">
+                          {shareType === 'email' 
+                            ? (contact.email || 'Nessuna email') 
+                            : (contact.whatsapp || contact.telefono || 'Nessun numero')
+                          }
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Message */}
         <div className="mb-4">
