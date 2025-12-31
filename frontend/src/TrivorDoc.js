@@ -1345,7 +1345,40 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
                     <List className="w-4 h-4" />
                   </button>
                 </div>
+                {/* Share button */}
+                {selectedDocs.length > 0 && (
+                  <button
+                    onClick={() => setShowShareModal(true)}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg flex items-center"
+                  >
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Condividi ({selectedDocs.length})
+                  </button>
+                )}
               </div>
+
+              {/* Selection toolbar */}
+              {documents.length > 0 && (
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-700">
+                  <label className="flex items-center space-x-2 text-slate-400 text-sm cursor-pointer hover:text-white">
+                    <input
+                      type="checkbox"
+                      checked={selectedDocs.length === documents.length && documents.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-800"
+                    />
+                    <span>Seleziona tutti ({documents.length})</span>
+                  </label>
+                  {selectedDocs.length > 0 && (
+                    <button
+                      onClick={() => setSelectedDocs([])}
+                      className="text-slate-400 hover:text-white text-sm"
+                    >
+                      Deseleziona tutti
+                    </button>
+                  )}
+                </div>
+              )}
 
               {showFilters && (
                 <div className="grid md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-700">
