@@ -1305,6 +1305,7 @@ class SitoWebCreate(BaseModel):
     hosting: HostingInfoSchema = HostingInfoSchema()
     ftp: FtpInfoSchema = FtpInfoSchema()
     databases: List[DatabaseInfoSchema] = []
+    accounts: List[AccountInfoSchema] = []
     tecnologie: List[str] = []  # WordPress, React, Laravel, etc.
     url_staging: str = ""
     url_produzione: str = ""
