@@ -617,7 +617,7 @@ const TrivorContacts = () => {
     } catch (e) {
       console.error(e);
     }
-    if (showLoading) setLoading(false);
+    setLoading(false);
   }, [getAuthHeader]);
 
   useEffect(() => {
