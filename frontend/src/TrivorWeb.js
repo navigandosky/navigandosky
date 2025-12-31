@@ -92,6 +92,23 @@ const SiteForm = ({ site, onClose, onSave, getAuthHeader }) => {
     setForm({ ...form, tecnologie: form.tecnologie.filter(t => t !== tech) });
   };
 
+  const addAccount = () => {
+    setForm({
+      ...form,
+      accounts: [...form.accounts, { servizio: "", username: "", password: "" }]
+    });
+  };
+
+  const updateAccount = (index, field, value) => {
+    const newAccounts = [...form.accounts];
+    newAccounts[index] = { ...newAccounts[index], [field]: value };
+    setForm({ ...form, accounts: newAccounts });
+  };
+
+  const removeAccount = (index) => {
+    setForm({ ...form, accounts: form.accounts.filter((_, i) => i !== index) });
+  };
+
   const addDatabase = () => {
     setForm({
       ...form,
