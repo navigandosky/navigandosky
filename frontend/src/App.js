@@ -1269,6 +1269,55 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
               ))}
             </div>
           </div>
+        ) : activeTab === 'twins' ? (
+          <div className="bg-[#111214] border border-gray-800 rounded-xl">
+            <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Gallery Digital Twin</h2>
+                <p className="text-gray-400 text-sm">Gestisci i tour virtuali Matterport per la homepage</p>
+              </div>
+              <button onClick={() => openTwinForm()} className="flex items-center space-x-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg">
+                <Plus size={16} /><span>Nuovo Digital Twin</span>
+              </button>
+            </div>
+            <div className="divide-y divide-gray-800">
+              {digitalTwins.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  <Globe className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Nessun Digital Twin configurato</p>
+                  <button onClick={() => openTwinForm()} className="mt-3 text-teal-400 hover:text-teal-300">+ Aggiungi il primo</button>
+                </div>
+              ) : digitalTwins.map((twin) => (
+                <div key={twin.id} className="p-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    {twin.immagine_copertina ? (
+                      <img src={twin.immagine_copertina} alt={twin.nome} className="w-24 h-16 object-cover rounded-lg" />
+                    ) : (
+                      <div className="w-24 h-16 bg-gray-700 rounded-lg flex items-center justify-center">
+                        <Globe className="w-6 h-6 text-gray-500" />
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-white font-medium flex items-center">
+                        {twin.nome}
+                        {!twin.attivo && <span className="ml-2 px-2 py-0.5 text-xs bg-gray-700 text-gray-400 rounded">Nascosto</span>}
+                      </h3>
+                      <p className="text-gray-400 text-sm">{twin.descrizione?.substring(0, 80)}{twin.descrizione?.length > 80 ? '...' : ''}</p>
+                      <div className="flex items-center space-x-3 mt-1 text-xs text-gray-500">
+                        {twin.matterport_id && <span className="flex items-center"><Box className="w-3 h-3 mr-1" />Matterport: {twin.matterport_id}</span>}
+                        {twin.mpskin_url && <span className="flex items-center"><ExternalLink className="w-3 h-3 mr-1" />MPSkin</span>}
+                        <span>Ordine: {twin.ordine}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button onClick={() => openTwinForm(twin)} className="p-2 text-gray-400 hover:text-teal-400"><Edit size={18} /></button>
+                    <button onClick={() => handleDeleteTwin(twin.id)} className="p-2 text-gray-400 hover:text-red-400"><Trash2 size={18} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : activeTab === 'messages' ? (
           <div className="bg-[#111214] border border-gray-800 rounded-xl">
             <div className="p-4 border-b border-gray-800"><h2 className="text-lg font-semibold text-white">Messaggi</h2></div>
