@@ -735,10 +735,20 @@ const PreviewModal = ({ document, onClose, onEdit, onDelete, getAuthHeader }) =>
                     <div className="flex items-center space-x-3">
                       {getDocTypeIcon(a.tipo)}
                       <span className="text-white text-sm">{a.nome}</span>
+                      <span className="text-slate-500 text-xs">({(a.size / 1024).toFixed(1)} KB)</span>
                     </div>
-                    <a href={`${BACKEND_URL}${a.url}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-400 hover:text-blue-300">
-                      <Download size={18} className="mr-1" /> Scarica
-                    </a>
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => onPreview(document.id, i, a)}
+                        className="flex items-center text-emerald-400 hover:text-emerald-300 px-2 py-1 hover:bg-emerald-500/10 rounded"
+                        title="Anteprima"
+                      >
+                        <Eye size={18} className="mr-1" /> Anteprima
+                      </button>
+                      <a href={`${BACKEND_URL}${a.url}`} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-400 hover:text-blue-300 px-2 py-1 hover:bg-blue-500/10 rounded">
+                        <Download size={18} className="mr-1" /> Scarica
+                      </a>
+                    </div>
                   </div>
                 ))}
               </div>
