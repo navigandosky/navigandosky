@@ -308,9 +308,9 @@ const Navbar = ({ showAdminLink = true }) => {
               </button>
             ))}
             {showAdminLink && (
-              <a href="#/admin" className="flex items-center space-x-1 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-400 hover:bg-cyan-500/20 transition-all text-sm">
+              <a href="#/suite" className="flex items-center space-x-1 px-4 py-2 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-400 hover:bg-cyan-500/20 transition-all text-sm">
                 <Lock size={14} />
-                <span>Admin</span>
+                <span>Trivor Suite</span>
               </a>
             )}
           </div>
@@ -332,9 +332,9 @@ const Navbar = ({ showAdminLink = true }) => {
               </button>
             ))}
             {showAdminLink && (
-              <a href="#/admin" className="flex items-center space-x-2 py-3 px-4 text-cyan-400">
+              <a href="#/suite" className="flex items-center space-x-2 py-3 px-4 text-cyan-400">
                 <Lock size={16} />
-                <span>Area Riservata</span>
+                <span>Trivor Suite</span>
               </a>
             )}
           </div>
