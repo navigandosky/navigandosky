@@ -74,7 +74,6 @@ import {
   SlidersHorizontal,
   Archive,
   Send,
-  Box,
   Save,
 } from "lucide-react";
 
