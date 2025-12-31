@@ -843,6 +843,123 @@ const SiteForm = ({ site, onClose, onSave, getAuthHeader }) => {
             </div>
           )}
 
+          {/* ACCOUNTS TAB */}
+          {activeTab === "accounts" && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-white font-medium flex items-center">
+                  <Lock className="w-5 h-5 text-purple-400 mr-2" />
+                  Account e Credenziali
+                </h3>
+                <button
+                  type="button"
+                  onClick={addAccount}
+                  className="px-4 py-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg text-sm flex items-center"
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Aggiungi Account
+                </button>
+              </div>
+
+              <p className="text-slate-400 text-sm">
+                Inserisci qui le credenziali di accesso a CMS, applicazioni, pannelli di controllo e altri servizi collegati al progetto.
+              </p>
+
+              {form.accounts.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Lock className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Nessun account configurato</p>
+                  <button
+                    type="button"
+                    onClick={addAccount}
+                    className="mt-3 text-purple-400 hover:text-purple-300 text-sm"
+                  >
+                    + Aggiungi il primo account
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {form.accounts.map((account, index) => (
+                    <div key={index} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="text-slate-400 text-sm">Account #{index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeAccount(index)}
+                          className="text-red-400 hover:text-red-300 p-1 hover:bg-red-500/10 rounded"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-slate-400 text-xs mb-1">Servizio / Applicazione</label>
+                          <input
+                            type="text"
+                            value={account.servizio}
+                            onChange={(e) => updateAccount(index, "servizio", e.target.value)}
+                            placeholder="es: WordPress Admin, cPanel, etc."
+                            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-400 text-xs mb-1">Username</label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={account.username}
+                              onChange={(e) => updateAccount(index, "username", e.target.value)}
+                              placeholder="Username"
+                              className="w-full px-3 py-2 pr-10 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(account.username)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                              title="Copia"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-slate-400 text-xs mb-1">Password</label>
+                          <div className="relative">
+                            <input
+                              type={showPassword[`acc_${index}`] ? "text" : "password"}
+                              value={account.password}
+                              onChange={(e) => updateAccount(index, "password", e.target.value)}
+                              placeholder="Password"
+                              className="w-full px-3 py-2 pr-20 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                            />
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex space-x-1">
+                              <button
+                                type="button"
+                                onClick={() => setShowPassword({ ...showPassword, [`acc_${index}`]: !showPassword[`acc_${index}`] })}
+                                className="text-slate-400 hover:text-white p-1"
+                                title={showPassword[`acc_${index}`] ? "Nascondi" : "Mostra"}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(account.password)}
+                                className="text-slate-400 hover:text-white p-1"
+                                title="Copia"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* COSTI TAB */}
           {activeTab === "costi" && (
             <div className="space-y-4">
