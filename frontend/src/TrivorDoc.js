@@ -1234,11 +1234,35 @@ const PreviewModal = ({ document, onClose, onEdit, onDelete, onPreview, getAuthH
         {/* Actions */}
         <div className="p-4 border-t border-slate-700 flex justify-between items-center bg-slate-800/30">
           <div className="flex space-x-2">
-            <button onClick={() => setShowAttachmentShare(true)} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg" title="Condividi via Email">
+            <button 
+              onClick={() => { 
+                setShareType('email'); 
+                setShowAttachmentShare(true);
+                // Se non ci sono allegati selezionati, seleziona tutti
+                if (selectedAttachments.length === 0 && document.allegati?.length > 0) {
+                  setSelectedAttachments(document.allegati.map((_, i) => i));
+                }
+              }} 
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg flex items-center" 
+              title="Condividi via Email"
+            >
               <Mail size={20} />
+              <span className="ml-2 text-sm">Email</span>
             </button>
-            <button onClick={() => { setShareType('whatsapp'); setShowAttachmentShare(true); }} className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg" title="Condividi via WhatsApp">
+            <button 
+              onClick={() => { 
+                setShareType('whatsapp'); 
+                setShowAttachmentShare(true);
+                // Se non ci sono allegati selezionati, seleziona tutti
+                if (selectedAttachments.length === 0 && document.allegati?.length > 0) {
+                  setSelectedAttachments(document.allegati.map((_, i) => i));
+                }
+              }} 
+              className="p-2 text-slate-400 hover:text-green-400 hover:bg-slate-700 rounded-lg flex items-center" 
+              title="Condividi via WhatsApp"
+            >
               <MessageCircle size={20} />
+              <span className="ml-2 text-sm">WhatsApp</span>
             </button>
           </div>
           <div className="flex space-x-2">
