@@ -1010,9 +1010,6 @@ const TrivorWebApp = () => {
               <button onClick={() => { setEditingSite(null); setShowForm(true); }} className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm flex items-center hover:bg-purple-600">
                 <Plus className="w-4 h-4 mr-2" /> Nuovo Sito
               </button>
-              <button onClick={logout} className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
-                <LogOut className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>
