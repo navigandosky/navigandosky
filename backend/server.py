@@ -1,6 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -13,9 +14,20 @@ import uuid
 from datetime import datetime, timezone
 import secrets
 import shutil
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Gmail SMTP Configuration
+GMAIL_USER = "trivorsrl@gmail.com"
+GMAIL_APP_PASSWORD = "tapgdyhwnxfasgsk"
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
 
 # Create uploads directory
 UPLOADS_DIR = ROOT_DIR / "uploads"
