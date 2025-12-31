@@ -159,6 +159,7 @@ const SiteForm = ({ site, onClose, onSave, getAuthHeader }) => {
     { id: "hosting", label: "Hosting", icon: Server },
     { id: "ftp", label: "FTP", icon: FolderOpen },
     { id: "database", label: "Database", icon: Database },
+    { id: "accounts", label: "Account", icon: Lock },
     { id: "costi", label: "Costi", icon: CreditCard },
   ];
 
