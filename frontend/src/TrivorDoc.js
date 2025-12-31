@@ -636,9 +636,275 @@ const DeleteModal = ({ document, onClose, onConfirm }) => {
 };
 
 // =============================================================================
+// FILE PREVIEW MODAL
+// =============================================================================
+const FilePreviewModal = ({ docId, attachmentIndex, attachment, onClose, getAuthHeader }) => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  const previewUrl = `${API}/trivordoc/preview/${docId}/${attachmentIndex}`;
+  const fileType = attachment?.tipo || '';
+  const fileName = attachment?.nome || 'File';
+  
+  const isImage = ['image', 'png', 'jpg', 'jpeg', 'gif', 'webp'].includes(fileType.toLowerCase());
+  const isPdf = fileType.toLowerCase() === 'pdf';
+  const isPreviewable = isImage || isPdf;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-5xl w-full max-h-[95vh] overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+          <div className="flex items-center space-x-3">
+            <Eye className="w-6 h-6 text-emerald-400" />
+            <div>
+              <h2 className="text-lg font-semibold text-white">Anteprima: {fileName}</h2>
+              <p className="text-slate-400 text-sm">Tipo: {fileType.toUpperCase()}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <a 
+              href={`${BACKEND_URL}${attachment?.url}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center text-sm"
+            >
+              <Download size={16} className="mr-1" /> Scarica
+            </a>
+            <button onClick={onClose} className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg">
+              <X size={24} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto bg-slate-800 p-4 flex items-center justify-center min-h-[400px]">
+          {!isPreviewable ? (
+            <div className="text-center">
+              <FileText className="w-16 h-16 text-slate-500 mx-auto mb-4" />
+              <p className="text-slate-400 mb-4">Anteprima non disponibile per questo tipo di file</p>
+              <a 
+                href={`${BACKEND_URL}${attachment?.url}`} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg inline-flex items-center"
+              >
+                <Download size={18} className="mr-2" /> Scarica per visualizzare
+              </a>
+            </div>
+          ) : isImage ? (
+            <img 
+              src={`${BACKEND_URL}${attachment?.url}`}
+              alt={fileName}
+              className="max-w-full max-h-[70vh] object-contain rounded-lg"
+              onLoad={() => setLoading(false)}
+              onError={() => { setLoading(false); setError('Errore caricamento immagine'); }}
+            />
+          ) : isPdf ? (
+            <iframe
+              src={`${BACKEND_URL}${attachment?.url}`}
+              title={fileName}
+              className="w-full h-[70vh] rounded-lg bg-white"
+              onLoad={() => setLoading(false)}
+            />
+          ) : null}
+          
+          {loading && isPreviewable && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-800">
+              <RefreshCw className="w-8 h-8 text-blue-400 animate-spin" />
+            </div>
+          )}
+          
+          {error && (
+            <div className="text-center text-red-400">
+              <AlertCircle className="w-12 h-12 mx-auto mb-2" />
+              <p>{error}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// SHARE MODAL
+// =============================================================================
+const ShareModal = ({ documents, onClose, getAuthHeader }) => {
+  const [shareType, setShareType] = useState('email'); // email or whatsapp
+  const [recipient, setRecipient] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const handleShare = async () => {
+    if (!recipient.trim()) {
+      setResult({ success: false, message: shareType === 'email' ? 'Inserisci un indirizzo email' : 'Inserisci un numero di telefono' });
+      return;
+    }
+
+    setLoading(true);
+    setResult(null);
+
+    try {
+      const documentIds = documents.map(d => d.id);
+      
+      if (shareType === 'email') {
+        const response = await fetch(`${API}/trivordoc/share/email`, {
+          method: 'POST',
+          headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            document_ids: documentIds,
+            recipient_email: recipient,
+            subject: `Documenti condivisi da Trivor (${documentIds.length} doc)`,
+            message: message
+          })
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setResult({ success: true, message: data.message });
+        } else {
+          setResult({ success: false, message: data.detail || 'Errore invio email' });
+        }
+      } else {
+        const response = await fetch(`${API}/trivordoc/share/whatsapp`, {
+          method: 'POST',
+          headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            document_ids: documentIds,
+            phone_number: recipient,
+            message: message
+          })
+        });
+        const data = await response.json();
+        if (response.ok && data.whatsapp_url) {
+          window.open(data.whatsapp_url, '_blank');
+          setResult({ success: true, message: 'Link WhatsApp aperto!' });
+        } else {
+          setResult({ success: false, message: data.detail || 'Errore generazione link' });
+        }
+      }
+    } catch (e) {
+      setResult({ success: false, message: 'Errore di connessione' });
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <Share2 className="w-6 h-6 text-blue-400" />
+            <h2 className="text-xl font-semibold text-white">Condividi Documenti</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-white p-2 hover:bg-slate-700 rounded-lg">
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Selected documents */}
+        <div className="mb-4 p-3 bg-slate-800/50 rounded-xl max-h-32 overflow-y-auto">
+          <p className="text-slate-400 text-sm mb-2">Documenti selezionati ({documents.length}):</p>
+          {documents.map(doc => (
+            <div key={doc.id} className="text-white text-sm flex items-center space-x-2 py-1">
+              <FileText className="w-4 h-4 text-blue-400" />
+              <span>{doc.id} - {doc.gruppo}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Share type toggle */}
+        <div className="flex space-x-2 mb-4">
+          <button
+            onClick={() => setShareType('email')}
+            className={`flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors ${
+              shareType === 'email' 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+            }`}
+          >
+            <Mail size={20} />
+            <span>Email</span>
+          </button>
+          <button
+            onClick={() => setShareType('whatsapp')}
+            className={`flex-1 py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors ${
+              shareType === 'whatsapp' 
+                ? 'bg-green-500 text-white' 
+                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+            }`}
+          >
+            <MessageCircle size={20} />
+            <span>WhatsApp</span>
+          </button>
+        </div>
+
+        {/* Recipient input */}
+        <div className="mb-4">
+          <label className="block text-slate-300 text-sm font-medium mb-2">
+            {shareType === 'email' ? 'Indirizzo Email' : 'Numero WhatsApp'}
+          </label>
+          <input
+            type={shareType === 'email' ? 'email' : 'tel'}
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder={shareType === 'email' ? 'esempio@email.com' : '+39 333 1234567'}
+            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+
+        {/* Message */}
+        <div className="mb-4">
+          <label className="block text-slate-300 text-sm font-medium mb-2">Messaggio (opzionale)</label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Aggiungi un messaggio..."
+            rows={3}
+            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none resize-none"
+          />
+        </div>
+
+        {/* Result message */}
+        {result && (
+          <div className={`mb-4 p-3 rounded-lg flex items-center space-x-2 ${
+            result.success ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+          }`}>
+            {result.success ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+            <span>{result.message}</span>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-end space-x-3">
+          <button onClick={onClose} className="px-4 py-2 text-slate-400 hover:text-white">
+            Annulla
+          </button>
+          <button 
+            onClick={handleShare}
+            disabled={loading || !recipient.trim()}
+            className={`px-6 py-2 rounded-lg flex items-center disabled:opacity-50 ${
+              shareType === 'email' 
+                ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            }`}
+          >
+            {loading ? (
+              <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+            ) : (
+              <Send className="w-5 h-5 mr-2" />
+            )}
+            Invia
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
 // DOCUMENT PREVIEW MODAL
 // =============================================================================
-const PreviewModal = ({ document, onClose, onEdit, onDelete, getAuthHeader }) => {
+const PreviewModal = ({ document, onClose, onEdit, onDelete, onPreview, getAuthHeader }) => {
   const shareViaEmail = () => {
     const subject = encodeURIComponent(`Documento: ${document.gruppo}`);
     const body = encodeURIComponent(`Ti condivido il documento ${document.id}\n\nGruppo: ${document.gruppo}\nCategoria: ${document.categoria}\nAutore: ${document.autore}\nDescrizione: ${document.descrizione}`);
