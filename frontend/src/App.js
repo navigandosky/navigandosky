@@ -566,25 +566,58 @@ const ServicesSection = () => {
 };
 
 // =============================================================================
-// TOUR VIRTUALI SECTION - Con embed Matterport
+// GALLERY DIGITAL TWIN SECTION - Dinamica da CMS
 // =============================================================================
 const TourVirtualiSection = () => {
-  const tours = [
+  const [twins, setTwins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTwin, setSelectedTwin] = useState(null);
+
+  useEffect(() => {
+    fetchTwins();
+  }, []);
+
+  const fetchTwins = async () => {
+    try {
+      const res = await axios.get(`${API}/digital-twins?attivo=true`);
+      setTwins(res.data);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  const openTwin = (twin) => {
+    setSelectedTwin(twin);
+  };
+
+  const closeTwin = () => {
+    setSelectedTwin(null);
+  };
+
+  const getEmbedUrl = (twin) => {
+    if (twin.mpskin_url) return twin.mpskin_url;
+    if (twin.matterport_id) return `https://my.matterport.com/show/?m=${twin.matterport_id}`;
+    return null;
+  };
+
+  // Fallback per tour statici se non ci sono twin nel database
+  const staticTours = [
     {
-      title: "Spoke Ghivine",
-      subtitle: "Grotte e Siti Archeologici",
-      description: "Esplora le meraviglie sotterranee della Sardegna con tour virtuali immersivi delle grotte più spettacolari.",
-      link: "https://www.trivor.it/spokeghivine",
-      image: SARDEGNA_IMAGES.grotte,
+      id: 'static-1',
+      nome: "Spoke Ghivine",
+      descrizione: "Esplora le meraviglie sotterranee della Sardegna con tour virtuali immersivi delle grotte più spettacolari.",
+      mpskin_url: "https://www.trivor.it/spokeghivine",
+      immagine_copertina: SARDEGNA_IMAGES.grotte,
     },
     {
-      title: "Spoke Galaveras",
-      subtitle: "Manus de Oro - Arte del Ricamo",
-      description: "Scopri l'arte del ricamo sardo attraverso mostre virtuali e archivio digitale dei costumi tradizionali.",
-      link: "https://www.trivor.it/spokegalaveras",
-      image: "https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&q=80",
+      id: 'static-2',
+      nome: "Spoke Galaveras",
+      descrizione: "Scopri l'arte del ricamo sardo attraverso mostre virtuali e archivio digitale dei costumi tradizionali.",
+      mpskin_url: "https://spoke-tours.preview.emergentagent.com/exhibitions",
+      immagine_copertina: "https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&q=80",
     },
   ];
+
+  const displayTwins = twins.length > 0 ? twins : staticTours;
 
   return (
     <section id="tour-virtuali" className="py-24 bg-gradient-to-b from-[#0a0a0b] to-[#0d1117]">
@@ -593,46 +626,93 @@ const TourVirtualiSection = () => {
           <span className="inline-block px-4 py-2 bg-teal-500/10 border border-teal-500/30 rounded-full text-teal-400 text-sm font-medium mb-6">
             🎬 Esperienze Immersive
           </span>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Tour Virtuali Sardegna</h2>
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Gallery Digital Twin</h2>
           <p className="text-gray-400 text-lg max-w-2xl mx-auto">
             Esplora i nostri progetti di digitalizzazione del patrimonio culturale sardo
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {tours.map((tour, index) => (
-            <a
-              key={index}
-              href={tour.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="scroll-reveal opacity-0 translate-y-8 group relative rounded-2xl overflow-hidden aspect-video"
-              style={{ transitionDelay: `${index * 150}ms` }}
-            >
-              <img src={tour.image} alt={tour.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-              
-              <div className="absolute inset-0 flex flex-col justify-end p-8">
-                <span className="text-teal-400 text-sm font-medium mb-2">{tour.subtitle}</span>
-                <h3 className="text-3xl font-bold text-white mb-3 group-hover:text-cyan-400 transition-colors">{tour.title}</h3>
-                <p className="text-gray-300 mb-4 line-clamp-2">{tour.description}</p>
-                <div className="flex items-center text-cyan-400 font-medium group-hover:translate-x-2 transition-transform">
-                  <Play size={20} className="mr-2" />
-                  <span>Inizia l'esplorazione</span>
-                  <ArrowRight size={20} className="ml-2" />
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <RefreshCw className="w-8 h-8 text-teal-400 animate-spin" />
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {displayTwins.map((twin, index) => (
+              <button
+                key={twin.id}
+                onClick={() => openTwin(twin)}
+                className="scroll-reveal opacity-0 translate-y-8 group relative rounded-2xl overflow-hidden aspect-video text-left"
+                style={{ transitionDelay: `${index * 150}ms` }}
+              >
+                <img 
+                  src={twin.immagine_copertina || SARDEGNA_IMAGES.nuraghe} 
+                  alt={twin.nome} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                
+                <div className="absolute inset-0 flex flex-col justify-end p-6">
+                  <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">{twin.nome}</h3>
+                  <p className="text-gray-300 text-sm line-clamp-2">{twin.descrizione}</p>
+                  <div className="flex items-center text-cyan-400 font-medium mt-3 group-hover:translate-x-2 transition-transform">
+                    <Play size={18} className="mr-2" />
+                    <span>Esplora il tour</span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Play Button Overlay */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="w-20 h-20 bg-cyan-500/80 rounded-full flex items-center justify-center backdrop-blur-sm">
-                  <Play size={32} className="text-white ml-1" />
+                {/* Play Button Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="w-16 h-16 bg-cyan-500/80 rounded-full flex items-center justify-center backdrop-blur-sm">
+                    <Play size={28} className="text-white ml-1" />
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Modal per visualizzare il Digital Twin */}
+      {selectedTwin && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="relative w-full max-w-6xl h-[85vh] bg-[#111214] rounded-2xl overflow-hidden border border-gray-700">
+            {/* Header */}
+            <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4 flex justify-between items-start">
+              <div>
+                <h3 className="text-xl font-bold text-white">{selectedTwin.nome}</h3>
+                {selectedTwin.descrizione && (
+                  <p className="text-gray-400 text-sm mt-1 max-w-2xl">{selectedTwin.descrizione}</p>
+                )}
+              </div>
+              <button 
+                onClick={closeTwin}
+                className="p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Iframe */}
+            {getEmbedUrl(selectedTwin) ? (
+              <iframe
+                src={getEmbedUrl(selectedTwin)}
+                className="w-full h-full border-0"
+                allowFullScreen
+                allow="vr; xr; accelerometer; gyroscope; autoplay"
+                title={selectedTwin.nome}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <Globe className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p>Nessun tour configurato per questo Digital Twin</p>
                 </div>
               </div>
-            </a>
-          ))}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 };
