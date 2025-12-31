@@ -1286,7 +1286,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
       <header className="bg-[#111214] border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 flex justify-between items-center h-16">
           <div className="flex items-center space-x-4">
-            <a href="#/"><img src="https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png" alt="Trivor" className="h-8" /></a>
+            <a href="#/"><img src="https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png" alt="Trivor" className="h-16" /></a>
             <span className="text-gray-400">| Admin</span>
           </div>
           <button onClick={onLogout} className="flex items-center space-x-2 text-gray-400 hover:text-white"><LogOut size={18} /><span>Esci</span></button>
