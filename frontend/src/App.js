@@ -1152,6 +1152,65 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
     setHeroImages(heroImages.filter((_, i) => i !== index));
   };
 
+  // Digital Twin functions
+  const openTwinForm = (twin = null) => {
+    if (twin) {
+      setTwinForm({
+        nome: twin.nome || '', nome_en: twin.nome_en || '', nome_fr: twin.nome_fr || '', nome_de: twin.nome_de || '',
+        descrizione: twin.descrizione || '', descrizione_en: twin.descrizione_en || '', descrizione_fr: twin.descrizione_fr || '', descrizione_de: twin.descrizione_de || '',
+        matterport_id: twin.matterport_id || '', mpskin_url: twin.mpskin_url || '',
+        immagine_copertina: twin.immagine_copertina || '', attivo: twin.attivo ?? true, ordine: twin.ordine || 0
+      });
+      setEditingTwin(twin);
+    } else {
+      setTwinForm({
+        nome: '', nome_en: '', nome_fr: '', nome_de: '',
+        descrizione: '', descrizione_en: '', descrizione_fr: '', descrizione_de: '',
+        matterport_id: '', mpskin_url: '', immagine_copertina: '', attivo: true, ordine: digitalTwins.length
+      });
+      setEditingTwin(null);
+    }
+    setShowTwinForm(true);
+  };
+
+  const handleSaveTwin = async () => {
+    if (!twinForm.nome) { alert('Inserisci il nome'); return; }
+    setSavingTwin(true);
+    try {
+      if (editingTwin) {
+        await axios.put(`${API}/digital-twins/${editingTwin.id}`, twinForm, { headers: getAuthHeader() });
+      } else {
+        await axios.post(`${API}/digital-twins`, twinForm, { headers: getAuthHeader() });
+      }
+      setShowTwinForm(false);
+      fetchData();
+    } catch (e) { console.error(e); alert('Errore nel salvataggio'); }
+    finally { setSavingTwin(false); }
+  };
+
+  const handleDeleteTwin = async (id) => {
+    if (!window.confirm('Eliminare questo Digital Twin?')) return;
+    try {
+      await axios.delete(`${API}/digital-twins/${id}`, { headers: getAuthHeader() });
+      fetchData();
+    } catch (e) { console.error(e); }
+  };
+
+  const handleTwinImageUpload = async (file) => {
+    if (!file) return;
+    setUploadingTwinImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await axios.post(`${API}/admin/upload`, formData, { 
+        headers: { ...getAuthHeader(), 'Content-Type': 'multipart/form-data' } 
+      });
+      const imageUrl = `${BACKEND_URL}${res.data.url}`;
+      setTwinForm({ ...twinForm, immagine_copertina: imageUrl });
+    } catch (e) { console.error(e); alert('Errore nel caricamento'); }
+    finally { setUploadingTwinImage(false); }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0b]">
       <header className="bg-[#111214] border-b border-gray-800">
