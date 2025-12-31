@@ -1468,26 +1468,36 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
                     <div onClick={() => setPreviewDoc(doc)}>
                       <h3 className="text-white font-medium mb-2 truncate">{doc.gruppo}</h3>
                       {doc.descrizione && <p className="text-slate-400 text-sm mb-3 line-clamp-2">{doc.descrizione}</p>}
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                      <span className="flex items-center"><User className="w-3 h-3 mr-1" />{doc.autore}</span>
-                      <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" />{new Date(doc.data_creazione).toLocaleDateString("it-IT")}</span>
-                    </div>
-                    {doc.keywords?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-3">
-                        {doc.keywords.slice(0, 3).map((kw) => (
-                          <span key={kw} className="px-2 py-0.5 bg-slate-700 text-slate-400 rounded text-xs">{kw}</span>
-                        ))}
-                        {doc.keywords.length > 3 && <span className="text-slate-500 text-xs">+{doc.keywords.length - 3}</span>}
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span className="flex items-center"><User className="w-3 h-3 mr-1" />{doc.autore}</span>
+                        <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" />{new Date(doc.data_creazione).toLocaleDateString("it-IT")}</span>
                       </div>
-                    )}
+                      {doc.keywords?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-3">
+                          {doc.keywords.slice(0, 3).map((kw) => (
+                            <span key={kw} className="px-2 py-0.5 bg-slate-700 text-slate-400 rounded text-xs">{kw}</span>
+                          ))}
+                          {doc.keywords.length > 3 && <span className="text-slate-500 text-xs">+{doc.keywords.length - 3}</span>}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-slate-700/50">
                     <tr className="text-left text-slate-400 text-sm">
+                      <th className="px-4 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedDocs.length === documents.length && documents.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-emerald-500"
+                        />
+                      </th>
                       <th className="px-4 py-3">ID</th>
                       <th className="px-4 py-3">Gruppo</th>
                       <th className="px-4 py-3">Categoria</th>
@@ -1498,23 +1508,33 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {documents.map((doc) => (
+                    {documents.map((doc) => {
+                      const isSelected = selectedDocs.some(d => d.id === doc.id);
+                      return (
                       <tr
                         key={doc.id}
-                        onClick={() => setPreviewDoc(doc)}
-                        className="border-t border-slate-700 hover:bg-slate-700/30 cursor-pointer"
+                        className={`border-t border-slate-700 hover:bg-slate-700/30 cursor-pointer ${isSelected ? 'bg-emerald-500/10' : ''}`}
                       >
-                        <td className="px-4 py-3 text-blue-400 text-sm">{doc.id}</td>
-                        <td className="px-4 py-3 text-white">{doc.gruppo}</td>
-                        <td className="px-4 py-3"><span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">{doc.categoria}</span></td>
-                        <td className="px-4 py-3">{getDocTypeIcon(doc.tipo_documento)}</td>
-                        <td className="px-4 py-3 text-slate-400 text-sm">{doc.autore}</td>
-                        <td className="px-4 py-3 text-slate-500 text-sm">{new Date(doc.data_creazione).toLocaleDateString("it-IT")}</td>
+                        <td className="px-4 py-3" onClick={(e) => { e.stopPropagation(); toggleDocSelection(doc); }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-emerald-500 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-blue-400 text-sm" onClick={() => setPreviewDoc(doc)}>{doc.id}</td>
+                        <td className="px-4 py-3 text-white" onClick={() => setPreviewDoc(doc)}>{doc.gruppo}</td>
+                        <td className="px-4 py-3" onClick={() => setPreviewDoc(doc)}><span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">{doc.categoria}</span></td>
+                        <td className="px-4 py-3" onClick={() => setPreviewDoc(doc)}>{getDocTypeIcon(doc.tipo_documento)}</td>
+                        <td className="px-4 py-3 text-slate-400 text-sm" onClick={() => setPreviewDoc(doc)}>{doc.autore}</td>
+                        <td className="px-4 py-3 text-slate-500 text-sm" onClick={() => setPreviewDoc(doc)}>{new Date(doc.data_creazione).toLocaleDateString("it-IT")}</td>
                         <td className="px-4 py-3">
-                          <button className="p-1 text-slate-400 hover:text-white"><Eye className="w-4 h-4" /></button>
+                          <button onClick={() => setPreviewDoc(doc)} className="p-1 text-slate-400 hover:text-white"><Eye className="w-4 h-4" /></button>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
