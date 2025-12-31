@@ -530,7 +530,7 @@ async def get_documents(
     """Get all documents with advanced filtering"""
     query = {}
     
-    # Text search across multiple fields
+    # Text search across multiple fields including attachment names
     if search:
         query["$or"] = [
             {"gruppo": {"$regex": search, "$options": "i"}},
@@ -539,6 +539,7 @@ async def get_documents(
             {"keywords": {"$regex": search, "$options": "i"}},
             {"progetto.cliente": {"$regex": search, "$options": "i"}},
             {"progetto.descrizione": {"$regex": search, "$options": "i"}},
+            {"allegati.nome": {"$regex": search, "$options": "i"}},
         ]
     
     if categoria and categoria != "all":
