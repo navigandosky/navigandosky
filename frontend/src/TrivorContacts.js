@@ -974,7 +974,7 @@ const TrivorContacts = () => {
         <GroupFormModal
           group={editingGroup}
           onClose={() => { setShowGroupForm(false); setEditingGroup(null); }}
-          onSave={() => { setShowGroupForm(false); setEditingGroup(null); fetchData(); }}
+          onSave={() => { setShowGroupForm(false); setEditingGroup(null); fetchData(false); }}
           getAuthHeader={getAuthHeader}
         />
       )}
