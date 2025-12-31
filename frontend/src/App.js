@@ -674,31 +674,24 @@ const TourVirtualiSection = () => {
 
       {/* Modal per visualizzare il Digital Twin */}
       {selectedTwin && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="relative w-full max-w-6xl h-[85vh] bg-[#111214] rounded-2xl overflow-hidden border border-gray-700">
-            {/* Header */}
-            <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/80 to-transparent p-4 flex justify-between items-start">
-              <div>
-                <h3 className="text-xl font-bold text-white">{selectedTwin.nome}</h3>
-                {selectedTwin.descrizione && (
-                  <p className="text-gray-400 text-sm mt-1 max-w-2xl">{selectedTwin.descrizione}</p>
-                )}
-              </div>
-              <button 
-                onClick={closeTwin}
-                className="p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50">
+          {/* Close button - positioned outside iframe area, bottom right */}
+          <button 
+            onClick={closeTwin}
+            className="absolute bottom-6 right-6 z-20 px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white rounded-full transition-colors flex items-center space-x-2 border border-white/20"
+          >
+            <X size={20} />
+            <span className="text-sm font-medium">Chiudi</span>
+          </button>
 
-            {/* Iframe */}
+          {/* Iframe container - full width for mpskin menu visibility */}
+          <div className="w-full h-full">
             {getEmbedUrl(selectedTwin) ? (
               <iframe
                 src={getEmbedUrl(selectedTwin)}
                 className="w-full h-full border-0"
                 allowFullScreen
-                allow="vr; xr; accelerometer; gyroscope; autoplay"
+                allow="vr; xr; accelerometer; gyroscope; autoplay; fullscreen"
                 title={selectedTwin.nome}
               />
             ) : (
