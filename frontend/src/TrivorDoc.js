@@ -642,13 +642,18 @@ const FilePreviewModal = ({ docId, attachmentIndex, attachment, onClose, getAuth
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  const previewUrl = `${API}/trivordoc/preview/${docId}/${attachmentIndex}`;
+  const fileUrl = `${BACKEND_URL}${attachment?.url}`;
   const fileType = attachment?.tipo || '';
   const fileName = attachment?.nome || 'File';
   
   const isImage = ['image', 'png', 'jpg', 'jpeg', 'gif', 'webp'].includes(fileType.toLowerCase());
   const isPdf = fileType.toLowerCase() === 'pdf';
   const isPreviewable = isImage || isPdf;
+
+  // Open file in new tab
+  const openInNewTab = () => {
+    window.open(fileUrl, '_blank');
+  };
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
@@ -662,10 +667,15 @@ const FilePreviewModal = ({ docId, attachmentIndex, attachment, onClose, getAuth
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <button
+              onClick={openInNewTab}
+              className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center text-sm"
+            >
+              <ExternalLink size={16} className="mr-1" /> Apri in nuova tab
+            </button>
             <a 
-              href={`${BACKEND_URL}${attachment?.url}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+              href={fileUrl} 
+              download={fileName}
               className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center text-sm"
             >
               <Download size={16} className="mr-1" /> Scarica
@@ -681,30 +691,48 @@ const FilePreviewModal = ({ docId, attachmentIndex, attachment, onClose, getAuth
             <div className="text-center">
               <FileText className="w-16 h-16 text-slate-500 mx-auto mb-4" />
               <p className="text-slate-400 mb-4">Anteprima non disponibile per questo tipo di file</p>
-              <a 
-                href={`${BACKEND_URL}${attachment?.url}`} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg inline-flex items-center"
-              >
-                <Download size={18} className="mr-2" /> Scarica per visualizzare
-              </a>
+              <div className="flex justify-center space-x-3">
+                <button
+                  onClick={openInNewTab}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg inline-flex items-center"
+                >
+                  <ExternalLink size={18} className="mr-2" /> Apri in nuova tab
+                </button>
+                <a 
+                  href={fileUrl}
+                  download={fileName}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg inline-flex items-center"
+                >
+                  <Download size={18} className="mr-2" /> Scarica per visualizzare
+                </a>
+              </div>
             </div>
           ) : isImage ? (
             <img 
-              src={`${BACKEND_URL}${attachment?.url}`}
+              src={fileUrl}
               alt={fileName}
               className="max-w-full max-h-[70vh] object-contain rounded-lg"
               onLoad={() => setLoading(false)}
               onError={() => { setLoading(false); setError('Errore caricamento immagine'); }}
             />
           ) : isPdf ? (
-            <iframe
-              src={`${BACKEND_URL}${attachment?.url}`}
-              title={fileName}
-              className="w-full h-[70vh] rounded-lg bg-white"
+            <object
+              data={fileUrl}
+              type="application/pdf"
+              className="w-full h-[70vh] rounded-lg"
               onLoad={() => setLoading(false)}
-            />
+            >
+              <div className="text-center p-8">
+                <FileText className="w-16 h-16 text-slate-500 mx-auto mb-4" />
+                <p className="text-slate-400 mb-4">Il browser non supporta la visualizzazione PDF inline</p>
+                <button
+                  onClick={openInNewTab}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg inline-flex items-center"
+                >
+                  <ExternalLink size={18} className="mr-2" /> Apri PDF in nuova tab
+                </button>
+              </div>
+            </object>
           ) : null}
           
           {loading && isPreviewable && (
