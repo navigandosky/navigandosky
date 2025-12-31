@@ -603,8 +603,8 @@ const TrivorContacts = () => {
   const [editingGroup, setEditingGroup] = useState(null);
   const [selectedContact, setSelectedContact] = useState(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try {
       const [contactsRes, groupsRes, statsRes] = await Promise.all([
         fetch(`${API}/contacts`, { headers: getAuthHeader() }),
@@ -617,7 +617,7 @@ const TrivorContacts = () => {
     } catch (e) {
       console.error(e);
     }
-    setLoading(false);
+    if (showLoading) setLoading(false);
   }, [getAuthHeader]);
 
   useEffect(() => {
