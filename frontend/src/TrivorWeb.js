@@ -268,14 +268,14 @@ const SiteForm = ({ site, onClose, onSave, getAuthHeader }) => {
                   <label className="block text-slate-300 text-sm font-medium mb-2">URL Produzione</label>
                   <div className="flex">
                     <input
-                      type="url"
+                      type="text"
                       value={form.url_produzione}
                       onChange={(e) => setForm({ ...form, url_produzione: e.target.value })}
-                      placeholder="https://www.esempio.it"
+                      placeholder="www.esempio.it"
                       className="flex-1 px-4 py-3 bg-slate-800 border border-slate-600 rounded-l-xl text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
                     />
                     {form.url_produzione && (
-                      <a href={form.url_produzione} target="_blank" rel="noopener noreferrer" className="px-4 py-3 bg-purple-500 text-white rounded-r-xl hover:bg-purple-600">
+                      <a href={form.url_produzione.startsWith('http') ? form.url_produzione : `https://${form.url_produzione}`} target="_blank" rel="noopener noreferrer" className="px-4 py-3 bg-purple-500 text-white rounded-r-xl hover:bg-purple-600">
                         <ExternalLink className="w-5 h-5" />
                       </a>
                     )}
@@ -285,14 +285,14 @@ const SiteForm = ({ site, onClose, onSave, getAuthHeader }) => {
                   <label className="block text-slate-300 text-sm font-medium mb-2">URL Staging</label>
                   <div className="flex">
                     <input
-                      type="url"
+                      type="text"
                       value={form.url_staging}
                       onChange={(e) => setForm({ ...form, url_staging: e.target.value })}
-                      placeholder="https://staging.esempio.it"
+                      placeholder="staging.esempio.it"
                       className="flex-1 px-4 py-3 bg-slate-800 border border-slate-600 rounded-l-xl text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
                     />
                     {form.url_staging && (
-                      <a href={form.url_staging} target="_blank" rel="noopener noreferrer" className="px-4 py-3 bg-slate-600 text-white rounded-r-xl hover:bg-slate-500">
+                      <a href={form.url_staging.startsWith('http') ? form.url_staging : `https://${form.url_staging}`} target="_blank" rel="noopener noreferrer" className="px-4 py-3 bg-slate-600 text-white rounded-r-xl hover:bg-slate-500">
                         <ExternalLink className="w-5 h-5" />
                       </a>
                     )}
