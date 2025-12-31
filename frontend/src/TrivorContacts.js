@@ -14,17 +14,17 @@ const API = `${BACKEND_URL}/api`;
 // AUTH HOOK - Uses Suite authentication
 // =============================================================================
 const useContactsAuth = () => {
-  const getAuthHeader = () => {
+  const getAuthHeader = useCallback(() => {
     const auth = localStorage.getItem("trivorsuite_auth");
     if (auth) {
       return { Authorization: `Basic ${auth}` };
     }
     return {};
-  };
+  }, []);
 
-  const isAuthenticated = () => {
+  const isAuthenticated = useCallback(() => {
     return !!localStorage.getItem("trivorsuite_auth");
-  };
+  }, []);
 
   return { getAuthHeader, isAuthenticated };
 };
