@@ -1061,6 +1061,11 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
   const [previewDoc, setPreviewDoc] = useState(null);
   const [deleteDoc, setDeleteDoc] = useState(null);
   
+  // Selection and sharing
+  const [selectedDocs, setSelectedDocs] = useState([]);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [filePreview, setFilePreview] = useState(null); // {docId, attachmentIndex, attachment}
+  
   // Filters
   const [search, setSearch] = useState("");
   const [filterCategoria, setFilterCategoria] = useState("all");
@@ -1069,6 +1074,32 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
   const [showFilters, setShowFilters] = useState(false);
 
   const tipiDocumento = ["pdf", "word", "excel", "immagine", "scansione", "testo", "altro"];
+
+  // Toggle document selection
+  const toggleDocSelection = (doc) => {
+    setSelectedDocs(prev => {
+      const isSelected = prev.some(d => d.id === doc.id);
+      if (isSelected) {
+        return prev.filter(d => d.id !== doc.id);
+      } else {
+        return [...prev, doc];
+      }
+    });
+  };
+
+  // Select/Deselect all
+  const toggleSelectAll = () => {
+    if (selectedDocs.length === documents.length) {
+      setSelectedDocs([]);
+    } else {
+      setSelectedDocs([...documents]);
+    }
+  };
+
+  // Handle file preview
+  const handleFilePreview = (docId, attachmentIndex, attachment) => {
+    setFilePreview({ docId, attachmentIndex, attachment });
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
