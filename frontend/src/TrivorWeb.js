@@ -563,14 +563,14 @@ const SiteForm = ({ site, onClose, onSave, getAuthHeader }) => {
                     <label className="block text-slate-300 text-sm font-medium mb-2">URL Pannello</label>
                     <div className="flex">
                       <input
-                        type="url"
+                        type="text"
                         value={form.hosting.pannello_url}
                         onChange={(e) => updateNested("hosting", "pannello_url", e.target.value)}
-                        placeholder="https://pannello.provider.it"
+                        placeholder="es: www.aruba.it o https://pannello.provider.it"
                         className="flex-1 px-4 py-3 bg-slate-800 border border-slate-600 rounded-l-xl text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
                       />
                       {form.hosting.pannello_url && (
-                        <a href={form.hosting.pannello_url} target="_blank" rel="noopener noreferrer" className="px-3 py-3 bg-slate-700 text-white rounded-r-xl hover:bg-slate-600">
+                        <a href={form.hosting.pannello_url.startsWith('http') ? form.hosting.pannello_url : `https://${form.hosting.pannello_url}`} target="_blank" rel="noopener noreferrer" className="px-3 py-3 bg-slate-700 text-white rounded-r-xl hover:bg-slate-600">
                           <ExternalLink className="w-5 h-5" />
                         </a>
                       )}
