@@ -1528,13 +1528,19 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
                 <table className="w-full">
                   <thead className="bg-slate-700/50">
                     <tr className="text-left text-slate-400 text-sm">
-                      <th className="px-4 py-3 w-10">
-                        <input
-                          type="checkbox"
-                          checked={selectedDocs.length === documents.length && documents.length > 0}
-                          onChange={toggleSelectAll}
-                          className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-emerald-500"
-                        />
+                      <th className="px-4 py-3 w-12">
+                        <div 
+                          onClick={toggleSelectAll}
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${
+                            selectedDocs.length === documents.length && documents.length > 0
+                              ? 'bg-emerald-500 border-emerald-500' 
+                              : 'bg-slate-700 border-slate-500 hover:border-emerald-400'
+                          }`}
+                        >
+                          {selectedDocs.length === documents.length && documents.length > 0 && (
+                            <CheckCircle className="w-3 h-3 text-white" />
+                          )}
+                        </div>
                       </th>
                       <th className="px-4 py-3">ID</th>
                       <th className="px-4 py-3">Gruppo</th>
@@ -1554,12 +1560,13 @@ const TrivordocDashboard = ({ onLogout, getAuthHeader }) => {
                         className={`border-t border-slate-700 hover:bg-slate-700/30 cursor-pointer ${isSelected ? 'bg-emerald-500/10' : ''}`}
                       >
                         <td className="px-4 py-3" onClick={(e) => { e.stopPropagation(); toggleDocSelection(doc); }}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {}}
-                            className="w-4 h-4 rounded border-slate-500 bg-slate-700 text-emerald-500 cursor-pointer"
-                          />
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-all ${
+                            isSelected 
+                              ? 'bg-emerald-500 border-emerald-500' 
+                              : 'bg-slate-700 border-slate-500 hover:border-emerald-400'
+                          }`}>
+                            {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-blue-400 text-sm" onClick={() => setPreviewDoc(doc)}>{doc.id}</td>
                         <td className="px-4 py-3 text-white" onClick={() => setPreviewDoc(doc)}>{doc.gruppo}</td>
