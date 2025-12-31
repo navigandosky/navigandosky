@@ -435,8 +435,8 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 # TRIVORDOC Credentials
-TRIVORDOC_USERNAME = "Trivor_doc"
-TRIVORDOC_PASSWORD = "Doc_trivor$"
+TRIVORDOC_USERNAME = "Trivor"
+TRIVORDOC_PASSWORD = "Trivorsuite26$"
 TRIVORDOC_DELETE_PASSWORD = "Docanc"
 
 def verify_trivordoc_credentials(credentials: HTTPBasicCredentials = Depends(security)):
