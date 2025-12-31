@@ -400,7 +400,7 @@ const HeroSection = () => {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20">
         <div className="scroll-reveal opacity-0 translate-y-8">
           <span className="inline-block px-6 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white/90 text-sm font-medium mb-8">
-            ✨ Heritage Digitale & Innovazione
+            ✨ Innovazione e Tecnologia al Servizio del Turismo e della Cultura
           </span>
         </div>
 
