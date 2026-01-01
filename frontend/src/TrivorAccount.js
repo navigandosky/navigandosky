@@ -213,7 +213,7 @@ export default function TrivorAccount() {
     try {
       setExporting(true);
       const response = await axios.get(`${API}/trivoraccount/export`, {
-        params: { search: searchTerm || undefined, categoria: filterCategory !== 'all' ? filterCategory : undefined },
+        params: { search: searchTerm || undefined, categoria: filterCategory !== 'all' ? filterCategory : undefined, user_id: userId },
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
