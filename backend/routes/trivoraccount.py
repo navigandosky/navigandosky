@@ -72,18 +72,26 @@ async def generate_account_id():
 async def get_accounts(
     search: Optional[str] = None,
     categoria: Optional[str] = None,
-    username: str = Depends(verify_trivordoc_credentials)
+    user_id: Optional[str] = None
 ):
-    """Get all accounts with optional filters"""
+    """Get all accounts with optional filters (filtered by user_id)"""
     query = {}
     
+    # Filter by user_id if provided
+    if user_id:
+        query["user_id"] = user_id
+    
     if search:
-        query["$or"] = [
+        search_query = [
             {"servizio": {"$regex": search, "$options": "i"}},
             {"user": {"$regex": search, "$options": "i"}},
             {"link": {"$regex": search, "$options": "i"}},
             {"note": {"$regex": search, "$options": "i"}},
         ]
+        if query:
+            query = {"$and": [query, {"$or": search_query}]}
+        else:
+            query["$or"] = search_query
     
     if categoria and categoria != "all":
         query["categoria"] = categoria
