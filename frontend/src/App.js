@@ -1550,7 +1550,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
                   <label className="block text-gray-300 text-sm font-medium mb-2">Immagine di Copertina</label>
                   <div className="flex items-center space-x-4">
                     {twinForm.immagine_copertina ? (
-                      <img src={twinForm.immagine_copertina} alt="Copertina" className="w-40 h-24 object-cover rounded-lg" />
+                      <img src={resolveImageUrl(twinForm.immagine_copertina)} alt="Copertina" className="w-40 h-24 object-cover rounded-lg" />
                     ) : (
                       <div className="w-40 h-24 bg-gray-700 rounded-lg flex items-center justify-center text-gray-500">
                         <Image className="w-8 h-8" />
