@@ -136,13 +136,17 @@ async def create_account(account: AccountCreate):
     return {"id": account_id, "message": "Account creato con successo"}
 
 @router.put("/accounts/{account_id}")
-async def update_account(account_id: str, account: AccountUpdate, username: str = Depends(verify_trivordoc_credentials)):
+async def update_account(account_id: str, account: AccountUpdate, user_id: Optional[str] = None):
     """Update account"""
+    query = {"id": account_id}
+    if user_id:
+        query["user_id"] = user_id
+        
     update_data = {k: v for k, v in account.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     result = await db.trivor_accounts.update_one(
-        {"id": account_id},
+        query,
         {"$set": update_data}
     )
     
@@ -161,9 +165,12 @@ async def update_account(account_id: str, account: AccountUpdate, username: str 
     return updated
 
 @router.delete("/accounts/{account_id}")
-async def delete_account(account_id: str, username: str = Depends(verify_trivordoc_credentials)):
+async def delete_account(account_id: str, user_id: Optional[str] = None):
     """Delete account"""
-    result = await db.trivor_accounts.delete_one({"id": account_id})
+    query = {"id": account_id}
+    if user_id:
+        query["user_id"] = user_id
+    result = await db.trivor_accounts.delete_one(query)
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Account non trovato")
     return {"message": "Account eliminato"}
