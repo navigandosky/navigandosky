@@ -1387,6 +1387,9 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
           <button onClick={() => setActiveTab('account-users')} className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'account-users' ? 'bg-amber-500 text-white' : 'bg-[#111214] text-gray-400'}`}>
             <Users className="w-4 h-4 inline mr-2" />Utenti Account
           </button>
+          <button onClick={() => setActiveTab('site-config')} className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'site-config' ? 'bg-green-500 text-white' : 'bg-[#111214] text-gray-400'}`}>
+            <Building2 className="w-4 h-4 inline mr-2" />Configurazione Sito
+          </button>
         </div>
 
         {loading ? (
