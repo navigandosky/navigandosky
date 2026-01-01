@@ -386,13 +386,32 @@ async def export_accounts(
 # =============================================================================
 
 @router.get("/stats")
-async def get_stats(username: str = Depends(verify_trivordoc_credentials)):
+async def get_stats(user_id: Optional[str] = None):
     """Get account statistics"""
-    total = await db.trivor_accounts.count_documents({})
+    query = {}
+    if user_id:
+        query["user_id"] = user_id
+    
+    total = await db.trivor_accounts.count_documents(query)
+    
+    match_stage = {"$match": query} if query else {"$match": {}}
     
     pipeline = [
+        match_stage,
         {"$group": {"_id": "$categoria", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}}
+    ]
+    by_category = await db.trivor_accounts.aggregate(pipeline).to_list(20)
+    
+    with_otp = await db.trivor_accounts.count_documents({**query, "otp_attivo": True})
+    with_2fa = await db.trivor_accounts.count_documents({**query, "doppia_verifica": True})
+    
+    return {
+        "total": total,
+        "by_category": by_category,
+        "with_otp": with_otp,
+        "with_2fa": with_2fa
+    }
     ]
     by_category = await db.trivor_accounts.aggregate(pipeline).to_list(20)
     
