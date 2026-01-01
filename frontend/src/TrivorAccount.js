@@ -158,8 +158,9 @@ export default function TrivorAccount() {
   // Delete account
   const handleDelete = async (id) => {
     if (!window.confirm('Eliminare questo account?')) return;
+    const userId = getUserId();
     try {
-      await axios.delete(`${API}/trivoraccount/accounts/${id}`, { headers: getAuthHeader() });
+      await axios.delete(`${API}/trivoraccount/accounts/${id}`, { params: { user_id: userId } });
       fetchData();
     } catch (e) {
       alert('Errore eliminazione');
@@ -170,7 +171,7 @@ export default function TrivorAccount() {
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return;
     try {
-      await axios.post(`${API}/trivoraccount/categories`, { nome: newCategory }, { headers: getAuthHeader() });
+      await axios.post(`${API}/trivoraccount/categories`, { nome: newCategory });
       setNewCategory('');
       setShowNewCategory(false);
       const catRes = await axios.get(`${API}/trivoraccount/categories`, { headers: getAuthHeader() });
