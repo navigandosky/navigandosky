@@ -345,6 +345,8 @@ export default function TrivorAccount() {
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
+              <a href="#/" className="text-amber-400 hover:text-white flex items-center gap-1"><Home className="w-4 h-4" /> Sito</a>
+              <span className="text-gray-600">|</span>
               <a href="#/suite" className="text-gray-400 hover:text-white">← Suite</a>
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
