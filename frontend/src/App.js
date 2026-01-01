@@ -48,6 +48,7 @@ import {
   Cpu,
   Cloud,
   Wifi,
+  BookOpen,
   Camera,
   ChevronLeft,
   ChevronRight,
