@@ -111,8 +111,24 @@ Suite aziendale completa per Trivor SRL che include:
 - `/app/frontend/src/TrivorContacts.js` - Archivio contatti
 - `/app/frontend/src/TrivorMeet.js` - Videoconferenze
 
-### Backend
-- `/app/backend/server.py` - Tutte le API
+### Backend (Refactored - 1 Gennaio 2026)
+- `/app/backend/server.py` - Entry point principale (57 righe)
+- `/app/backend/config.py` - Configurazione condivisa
+- `/app/backend/auth.py` - Funzioni autenticazione
+- `/app/backend/models/__init__.py` - Modelli Pydantic
+- `/app/backend/routes/`
+  - `admin.py` - Admin CMS
+  - `public.py` - Route pubbliche
+  - `trivordoc.py` - Gestione documenti
+  - `trivorweb.py` - Gestione siti web
+  - `contacts.py` - Rubrica contatti
+  - `checkdb.py` - Monitoraggio DB
+  - `spaces.py` - Digital Twin gallery
+
+---
+
+## Component Catalog
+📚 Catalogo completo moduli: `/app/memory/COMPONENT_CATALOG.md`
 
 ---
 
