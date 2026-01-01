@@ -42,6 +42,7 @@ app.include_router(checkdb_router, prefix="/api")
 app.include_router(digital_twins_router, prefix="/api")
 app.include_router(trivoraccount_router, prefix="/api")
 app.include_router(account_users_router, prefix="/api")
+app.include_router(site_config_router, prefix="/api")
 
 # CORS Middleware
 app.add_middleware(
