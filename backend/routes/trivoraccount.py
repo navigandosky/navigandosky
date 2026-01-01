@@ -180,7 +180,7 @@ async def delete_account(account_id: str, user_id: Optional[str] = None):
 # =============================================================================
 
 @router.get("/categories")
-async def get_categories(username: str = Depends(verify_trivordoc_credentials)):
+async def get_categories():
     """Get all categories"""
     categories = await db.trivor_account_categories.find({}, {"_id": 0}).sort("nome", 1).to_list(100)
     
@@ -194,7 +194,7 @@ async def get_categories(username: str = Depends(verify_trivordoc_credentials)):
     return sorted(categories, key=lambda x: x["nome"])
 
 @router.post("/categories")
-async def create_category(category: CategoryCreate, username: str = Depends(verify_trivordoc_credentials)):
+async def create_category(category: CategoryCreate):
     """Create new category"""
     await db.trivor_account_categories.update_one(
         {"nome": category.nome},
@@ -204,7 +204,7 @@ async def create_category(category: CategoryCreate, username: str = Depends(veri
     return {"message": "Categoria aggiunta"}
 
 @router.delete("/categories/{nome}")
-async def delete_category(nome: str, username: str = Depends(verify_trivordoc_credentials)):
+async def delete_category(nome: str):
     """Delete category"""
     await db.trivor_account_categories.delete_one({"nome": nome})
     return {"message": "Categoria eliminata"}
