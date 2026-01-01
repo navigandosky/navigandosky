@@ -286,6 +286,23 @@ export default function TrivorAccount() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center p-4">
+        {/* Link Torna al Sito */}
+        <a 
+          href="#/" 
+          className="absolute top-6 left-6 flex items-center space-x-2 text-amber-400 hover:text-white transition-colors"
+        >
+          <Home className="w-5 h-5" />
+          <span className="text-sm font-medium">Torna al Sito</span>
+        </a>
+        {/* Link Torna alla Suite */}
+        <a 
+          href="#/suite" 
+          className="absolute top-6 right-6 flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+        >
+          <ChevronLeft className="w-5 h-5" />
+          <span className="text-sm font-medium">Torna alla Suite</span>
+        </a>
+        
         <div className="bg-[#111214] border border-gray-800 rounded-2xl p-8 w-full max-w-md">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
