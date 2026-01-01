@@ -168,7 +168,7 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
   const apps = [
     {
       id: "trivordoc",
-      name: "TRIVORDOC",
+      name: "TrivorDoc",
       description: "Gestione Documentale Avanzata",
       icon: Archive,
       color: "blue",
@@ -176,8 +176,35 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
       status: "active"
     },
     {
+      id: "trivoraccount",
+      name: "TrivorAccount",
+      description: "Gestione Credenziali & Password",
+      icon: Key,
+      color: "amber",
+      features: ["Archivio password", "Categorie", "Export Excel", "Invio email sicuro"],
+      status: "active"
+    },
+    {
+      id: "trivormeet",
+      name: "TrivorMeet",
+      description: "Videoconferenze Private",
+      icon: Video,
+      color: "rose",
+      features: ["Videochiamate HD", "Condivisione schermo", "Chat integrata", "Registrazioni"],
+      status: "active"
+    },
+    {
+      id: "contacts",
+      name: "Archivio Contatti",
+      description: "Rubrica Condivisa Aziendale",
+      icon: Users,
+      color: "cyan",
+      features: ["Rubrica centralizzata", "Gruppi contatti", "Condivisione rapida", "Preferiti"],
+      status: "active"
+    },
+    {
       id: "trivorweb",
-      name: "TrivorWEB",
+      name: "TrivorWeb",
       description: "Gestione Siti Web & Hosting",
       icon: Server,
       color: "purple",
@@ -191,33 +218,6 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
       icon: Database,
       color: "emerald",
       features: ["Multi-database", "Spazio occupato", "Statistiche", "Health check"],
-      status: "active"
-    },
-    {
-      id: "contacts",
-      name: "Archivio Contatti",
-      description: "Rubrica Condivisa Aziendale",
-      icon: Users,
-      color: "cyan",
-      features: ["Rubrica centralizzata", "Gruppi contatti", "Condivisione rapida", "Preferiti"],
-      status: "active"
-    },
-    {
-      id: "trivormeet",
-      name: "TrivorMEET",
-      description: "Videoconferenze Private",
-      icon: Video,
-      color: "rose",
-      features: ["Videochiamate HD", "Condivisione schermo", "Chat integrata", "Registrazioni"],
-      status: "active"
-    },
-    {
-      id: "trivoraccount",
-      name: "TrivorAccount",
-      description: "Gestione Credenziali & Password",
-      icon: Key,
-      color: "amber",
-      features: ["Archivio password", "Categorie", "Export Excel", "Invio email sicuro"],
       status: "active"
     },
   ];
