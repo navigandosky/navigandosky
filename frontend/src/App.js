@@ -1553,6 +1553,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
                     { nome: 'TrivorWEB', desc: 'CMS per gestione siti web clienti, hosting, FTP, database, account', colore: 'green', files: 'TrivorWeb.js + routes/trivorweb.py', dipendenze: 'Auth' },
                     { nome: 'TrivorContacts', desc: 'Rubrica contatti condivisa con gruppi e preferiti', colore: 'orange', files: 'TrivorContacts.js + routes/contacts.py', dipendenze: 'Auth' },
                     { nome: 'TrivorMEET', desc: 'Video conferenze gratuite tramite Jitsi Meet', colore: 'red', files: 'TrivorMeet.js', dipendenze: 'Auth (no API key)' },
+                    { nome: 'TrivorAccount', desc: 'Gestione credenziali e password con export Excel e invio email', colore: 'amber', files: 'TrivorAccount.js + routes/trivoraccount.py', dipendenze: 'Auth, Gmail SMTP' },
                     { nome: 'CheckDB', desc: 'Monitoraggio database MongoDB con statistiche', colore: 'yellow', files: 'routes/checkdb.py', dipendenze: 'Auth' },
                     { nome: 'AdminCMS', desc: 'Pannello admin sito pubblico (progetti, hero, messaggi)', colore: 'purple', files: 'App.js + routes/admin.py', dipendenze: 'Auth Admin' },
                     { nome: 'Digital Twin', desc: 'Galleria tour virtuali Matterport/MPSkin', colore: 'teal', files: 'App.js + routes/digital_twins.py', dipendenze: 'AdminCMS' },
