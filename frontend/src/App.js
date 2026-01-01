@@ -1931,6 +1931,7 @@ function App() {
           <Route path="/trivorweb" element={<TrivorWebApp />} />
           <Route path="/contacts" element={<TrivorContacts />} />
           <Route path="/trivormeet" element={<TrivorMeet />} />
+          <Route path="/trivoraccount" element={<TrivorAccount />} />
         </Routes>
       </HashRouter>
     </div>
