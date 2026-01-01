@@ -3,7 +3,7 @@ import axios from 'axios';
 import {
   Key, Search, Plus, Edit, Trash2, Mail, Download, Eye, EyeOff,
   Filter, X, RefreshCw, Shield, Smartphone, Globe, CreditCard,
-  Lock, ChevronDown, Copy, Check, AlertCircle, User
+  Lock, ChevronDown, Copy, Check, AlertCircle, User, ChevronLeft, Home
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
