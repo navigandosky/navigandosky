@@ -1589,6 +1589,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
     ├── trivordoc.py    # Documenti
     ├── trivorweb.py    # Siti web
     ├── contacts.py     # Contatti
+    ├── trivoraccount.py # Credenziali
     ├── checkdb.py      # Monitor DB
     └── digital_twins.py # Tour virtuali`}
                 </pre>
