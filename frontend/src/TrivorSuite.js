@@ -4,7 +4,7 @@ import {
   Archive, Database, Home, LogOut, RefreshCw, Server, HardDrive, 
   Table, FileText, Activity, CheckCircle, XCircle, AlertTriangle,
   BarChart3, PieChart, TrendingUp, Layers, Box, Lock, X, ChevronRight,
-  Briefcase, Settings, Zap, Users, Video
+  Briefcase, Settings, Zap, Users, Video, Key
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
