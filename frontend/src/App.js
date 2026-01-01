@@ -2041,13 +2041,22 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Password {editingUser ? '(lascia vuoto per non modificare)' : '*'}</label>
-                  <input
-                    type="password"
-                    value={userForm.password}
-                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-xl text-white"
-                    required={!editingUser}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showUserPassword ? "text" : "password"}
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-xl text-white pr-12"
+                      required={!editingUser}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowUserPassword(!showUserPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      {showUserPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Nome completo</label>
