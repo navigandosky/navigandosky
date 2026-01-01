@@ -41,12 +41,13 @@ Suite aziendale completa per Trivor SRL che include:
 
 ### TrivorSuite (`/#/suite`)
 - ✅ Credenziali: `Trivor` / `Trivorsuite26$`
-- ✅ Dashboard con 5 applicazioni:
+- ✅ Dashboard con 6 applicazioni:
   - TRIVORDOC (blu)
   - TrivorWEB (viola)
   - CheckDB (verde)
   - Archivio Contatti (cyan)
   - TrivorMEET (rosa)
+  - **TrivorAccount (ambra) - NUOVO**
 
 ### TRIVORDOC
 - ✅ Dashboard statistiche documenti
