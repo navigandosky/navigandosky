@@ -413,7 +413,7 @@ const HeroSection = () => {
           key={index}
           className={`absolute inset-0 transition-opacity duration-1000 ${index === currentImage ? 'opacity-100' : 'opacity-0'}`}
         >
-          <img src={img.url} alt={img.title} className="w-full h-full object-cover" />
+          <img src={resolveImageUrl(img.url)} alt={img.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0b]/50 via-[#0a0a0b]/30 to-[#0a0a0b]/90" />
         </div>
       ))}
