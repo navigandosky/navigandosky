@@ -666,7 +666,7 @@ const TourVirtualiSection = () => {
                 style={{ transitionDelay: `${index * 150}ms` }}
               >
                 <img 
-                  src={twin.immagine_copertina || SARDEGNA_IMAGES.nuraghe} 
+                  src={resolveImageUrl(twin.immagine_copertina) || SARDEGNA_IMAGES.nuraghe} 
                   alt={twin.nome} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
                 />
