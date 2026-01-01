@@ -1255,6 +1255,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
   const [userForm, setUserForm] = useState({
     username: '', password: '', nome: '', email: '', attivo: true
   });
+  const [showUserPassword, setShowUserPassword] = useState(false);
 
   // Site Config form state
   const [siteConfigForm, setSiteConfigForm] = useState({
