@@ -112,7 +112,7 @@ async def get_account(account_id: str, user_id: Optional[str] = None):
     return account
 
 @router.post("/accounts")
-async def create_account(account: AccountCreate, username: str = Depends(verify_trivordoc_credentials)):
+async def create_account(account: AccountCreate):
     """Create new account"""
     account_id = await generate_account_id()
     
