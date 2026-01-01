@@ -152,4 +152,25 @@ Suite aziendale completa per Trivor SRL che include:
 
 ---
 
-*Ultimo aggiornamento: 31 Dicembre 2025*
+---
+
+## Changelog
+
+### 1 Gennaio 2026 - Backend Refactoring
+- ✅ **REFACTORING BACKEND COMPLETATO**
+  - Diviso `server.py` (1926 righe) in 11 file modulari
+  - Creato catalogo componenti `/app/memory/COMPONENT_CATALOG.md`
+  - Backend ora organizzato per funzionalità
+  - Ogni modulo è indipendente e riutilizzabile
+  - Nessuna modifica funzionale - solo riorganizzazione codice
+
+### 31 Dicembre 2025
+- Digital Twin Gallery dinamica
+- Tab Account in TrivorWEB
+- Ricerca allegati in TRIVORDOC
+- Fix lampeggio pagina (useCallback)
+- TrivorMEET con Jitsi
+
+---
+
+*Ultimo aggiornamento: 1 Gennaio 2026*
