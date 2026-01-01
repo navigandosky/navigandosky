@@ -100,9 +100,12 @@ async def get_accounts(
     return accounts
 
 @router.get("/accounts/{account_id}")
-async def get_account(account_id: str, username: str = Depends(verify_trivordoc_credentials)):
+async def get_account(account_id: str, user_id: Optional[str] = None):
     """Get single account"""
-    account = await db.trivor_accounts.find_one({"id": account_id}, {"_id": 0})
+    query = {"id": account_id}
+    if user_id:
+        query["user_id"] = user_id
+    account = await db.trivor_accounts.find_one(query, {"_id": 0})
     if not account:
         raise HTTPException(status_code=404, detail="Account non trovato")
     return account
