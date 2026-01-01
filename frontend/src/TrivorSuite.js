@@ -239,6 +239,7 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
     orange: "text-orange-400",
     cyan: "text-cyan-400",
     rose: "text-rose-400",
+    amber: "text-amber-400",
   };
 
   return (
