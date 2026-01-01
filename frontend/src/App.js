@@ -1731,6 +1731,211 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
               )}
             </div>
           </div>
+        ) : activeTab === 'site-config' ? (
+          <div className="bg-[#111214] border border-gray-800 rounded-xl">
+            <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-semibold text-white flex items-center">
+                  <Building2 className="w-5 h-5 text-green-400 mr-2" />
+                  Configurazione Sito
+                </h2>
+                <p className="text-gray-400 text-sm mt-1">Gestisci i dati aziendali visualizzati sul sito pubblico</p>
+              </div>
+              <button
+                onClick={async () => {
+                  setSavingSiteConfig(true);
+                  try {
+                    await axios.put(`${API}/site-config`, siteConfigForm, { headers: getAuthHeader() });
+                    fetchData();
+                    alert('Configurazione salvata con successo!');
+                  } catch (e) {
+                    alert(e.response?.data?.detail || 'Errore salvataggio');
+                  } finally {
+                    setSavingSiteConfig(false);
+                  }
+                }}
+                disabled={savingSiteConfig}
+                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+              >
+                {savingSiteConfig ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Salva Configurazione
+              </button>
+            </div>
+            <div className="p-6 space-y-8">
+              {/* Dati Azienda */}
+              <div>
+                <h3 className="text-white font-semibold mb-4 flex items-center"><Building2 className="w-4 h-4 mr-2 text-green-400" />Dati Azienda</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Nome Azienda</label>
+                    <input type="text" value={siteConfigForm.nome_azienda || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, nome_azienda: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Ragione Sociale</label>
+                    <input type="text" value={siteConfigForm.ragione_sociale || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, ragione_sociale: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Partita IVA</label>
+                    <input type="text" value={siteConfigForm.partita_iva || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, partita_iva: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Codice Fiscale</label>
+                    <input type="text" value={siteConfigForm.codice_fiscale || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, codice_fiscale: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-400 text-sm mb-1">Slogan</label>
+                    <input type="text" value={siteConfigForm.slogan || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, slogan: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-400 text-sm mb-1">Descrizione</label>
+                    <textarea rows={2} value={siteConfigForm.descrizione || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, descrizione: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-400 text-sm mb-1">URL Logo</label>
+                    <input type="text" value={siteConfigForm.logo_url || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, logo_url: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                    {siteConfigForm.logo_url && <img src={siteConfigForm.logo_url} alt="Logo preview" className="mt-2 h-12 object-contain" />}
+                  </div>
+                </div>
+              </div>
+
+              {/* Contatti */}
+              <div>
+                <h3 className="text-white font-semibold mb-4 flex items-center"><Phone className="w-4 h-4 mr-2 text-cyan-400" />Contatti</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Email</label>
+                    <input type="email" value={siteConfigForm.email || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, email: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Email PEC</label>
+                    <input type="email" value={siteConfigForm.email_pec || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, email_pec: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Telefono 1</label>
+                    <input type="text" value={siteConfigForm.telefono_1 || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, telefono_1: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Telefono 2</label>
+                    <input type="text" value={siteConfigForm.telefono_2 || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, telefono_2: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-400 text-sm mb-1">WhatsApp (numero senza spazi per il link)</label>
+                    <input type="text" value={siteConfigForm.whatsapp || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, whatsapp: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" placeholder="+393939255552" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sede */}
+              <div>
+                <h3 className="text-white font-semibold mb-4 flex items-center"><MapPin className="w-4 h-4 mr-2 text-amber-400" />Sede Legale</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-400 text-sm mb-1">Indirizzo</label>
+                    <input type="text" value={siteConfigForm.indirizzo || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, indirizzo: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Città</label>
+                    <input type="text" value={siteConfigForm.citta || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, citta: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Provincia</label>
+                    <input type="text" value={siteConfigForm.provincia || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, provincia: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">CAP</label>
+                    <input type="text" value={siteConfigForm.cap || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, cap: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Paese</label>
+                    <input type="text" value={siteConfigForm.paese || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, paese: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Social */}
+              <div>
+                <h3 className="text-white font-semibold mb-4 flex items-center"><Globe className="w-4 h-4 mr-2 text-purple-400" />Social Media</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Facebook URL</label>
+                    <input type="text" value={siteConfigForm.facebook_url || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, facebook_url: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Instagram URL</label>
+                    <input type="text" value={siteConfigForm.instagram_url || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, instagram_url: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">LinkedIn URL</label>
+                    <input type="text" value={siteConfigForm.linkedin_url || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, linkedin_url: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-400 text-sm mb-1">Twitter URL</label>
+                    <input type="text" value={siteConfigForm.twitter_url || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, twitter_url: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-400 text-sm mb-1">YouTube URL</label>
+                    <input type="text" value={siteConfigForm.youtube_url || ''} onChange={(e) => setSiteConfigForm({...siteConfigForm, youtube_url: e.target.value})}
+                      className="w-full bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Progetti */}
+              <div>
+                <h3 className="text-white font-semibold mb-4 flex items-center"><ExternalLink className="w-4 h-4 mr-2 text-teal-400" />Link Progetti</h3>
+                <div className="space-y-3">
+                  {(siteConfigForm.link_progetti || []).map((prog, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <input type="text" placeholder="Nome" value={prog.nome || ''} 
+                        onChange={(e) => {
+                          const newProjects = [...(siteConfigForm.link_progetti || [])];
+                          newProjects[idx] = { ...newProjects[idx], nome: e.target.value };
+                          setSiteConfigForm({...siteConfigForm, link_progetti: newProjects});
+                        }}
+                        className="flex-1 bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                      <input type="text" placeholder="URL" value={prog.url || ''} 
+                        onChange={(e) => {
+                          const newProjects = [...(siteConfigForm.link_progetti || [])];
+                          newProjects[idx] = { ...newProjects[idx], url: e.target.value };
+                          setSiteConfigForm({...siteConfigForm, link_progetti: newProjects});
+                        }}
+                        className="flex-1 bg-[#0a0a0b] border border-gray-700 rounded-lg px-4 py-2 text-white" />
+                      <button type="button" onClick={() => {
+                        const newProjects = (siteConfigForm.link_progetti || []).filter((_, i) => i !== idx);
+                        setSiteConfigForm({...siteConfigForm, link_progetti: newProjects});
+                      }} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => {
+                    setSiteConfigForm({...siteConfigForm, link_progetti: [...(siteConfigForm.link_progetti || []), { nome: '', url: '' }]});
+                  }} className="flex items-center gap-2 text-teal-400 hover:text-teal-300 text-sm">
+                    <Plus className="w-4 h-4" /> Aggiungi Progetto
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : null}
 
         {/* User Form Modal */}
