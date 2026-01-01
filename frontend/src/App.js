@@ -1072,7 +1072,7 @@ const Footer = () => {
             </button>
             <div className="flex items-center gap-3 mb-2">
               <p className="text-gray-400 text-sm">Partner per innovazione</p>
-              <img src={sardegnaFlagUrl} alt="Sardegna" className="h-6 w-auto" />
+              <img src={sardegnaImageUrl} alt="Sardegna" className="h-8 w-12 object-cover rounded" />
             </div>
             <p className="text-gray-400 text-sm mb-2">{slogan}</p>
             <p className="text-gray-500 text-xs">P.IVA {partitaIva}</p>
