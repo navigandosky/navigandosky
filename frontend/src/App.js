@@ -1466,7 +1466,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
                 <div key={index} className="flex items-start space-x-4 p-4 bg-[#0a0a0b] rounded-lg border border-gray-700">
                   <div className="w-40 h-24 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0">
                     {img.url ? (
-                      <img src={img.url} alt={img.title} className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} />
+                      <img src={resolveImageUrl(img.url)} alt={img.title} className="w-full h-full object-cover" onError={(e) => e.target.style.display='none'} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Image className="w-8 h-8 text-gray-600" />
