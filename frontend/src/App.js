@@ -634,7 +634,7 @@ const TourVirtualiSection = () => {
       id: 'static-2',
       nome: "Spoke Galaveras",
       descrizione: "Scopri l'arte del ricamo sardo attraverso mostre virtuali e archivio digitale dei costumi tradizionali.",
-      mpskin_url: "https://appportal-2.preview.emergentagent.com/exhibitions",
+      mpskin_url: "https://trivorplatform.preview.emergentagent.com/exhibitions",
       immagine_copertina: "https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&q=80",
     },
   ];
