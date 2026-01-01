@@ -1032,13 +1032,16 @@ const Footer = () => {
     <footer className="bg-[#050507] border-t border-gray-800 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid md:grid-cols-4 gap-12 mb-12">
+          {/* Logo e Info Azienda */}
           <div>
-            <button onClick={() => scrollTo('home')} className="mb-6 block">
-              <img src="https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png" alt="Trivor" className="h-12 w-auto" />
+            <button onClick={() => scrollTo('home')} className="mb-4 block">
+              <img src="https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png" alt="Trivor" className="h-20 w-auto" />
             </button>
-            <p className="text-gray-400 text-sm">Heritage Digitale e Innovazione per la Sardegna.</p>
+            <p className="text-gray-400 text-sm mb-2">Heritage Digitale e Innovazione per la Sardegna.</p>
+            <p className="text-gray-500 text-xs">P.IVA IT 03774710929</p>
           </div>
 
+          {/* Navigazione */}
           <div>
             <h4 className="text-white font-semibold mb-4">Navigazione</h4>
             <ul className="space-y-2">
@@ -1048,19 +1051,36 @@ const Footer = () => {
             </ul>
           </div>
 
+          {/* Contatti Compatti */}
           <div>
-            <h4 className="text-white font-semibold mb-4">Progetti</h4>
-            <ul className="space-y-2">
-              <li><a href="https://www.trivor.it/spokeghivine" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">Spoke Ghivine</a></li>
-              <li><a href="https://www.trivor.it/spokegalaveras" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">Spoke Galaveras</a></li>
-            </ul>
+            <h4 className="text-white font-semibold mb-4">Contatti</h4>
+            <div className="space-y-2 text-sm">
+              <a href="mailto:trivorsrl@gmail.com" className="flex items-center text-gray-400 hover:text-cyan-400">
+                <Mail size={14} className="mr-2 flex-shrink-0" />trivorsrl@gmail.com
+              </a>
+              <a href="mailto:trivor@pec.it" className="flex items-center text-gray-400 hover:text-cyan-400">
+                <Mail size={14} className="mr-2 flex-shrink-0" />trivor@pec.it
+              </a>
+              <a href="tel:+393479338442" className="flex items-center text-gray-400 hover:text-cyan-400">
+                <Phone size={14} className="mr-2 flex-shrink-0" />+39 347 933 8442
+              </a>
+              <div className="flex items-center text-gray-400">
+                <MapPinIcon size={14} className="mr-2 flex-shrink-0" />Sassari (SS), Italia
+              </div>
+            </div>
           </div>
 
+          {/* Strumenti */}
           <div>
             <h4 className="text-white font-semibold mb-4">Strumenti</h4>
             <ul className="space-y-2">
               <li><a href="#/suite" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center"><Lock size={14} className="mr-2" />Trivor Suite</a></li>
               <li><a href="#/admin" className="text-gray-400 hover:text-amber-400 transition-colors text-sm flex items-center"><Settings size={14} className="mr-2" />Admin CMS</a></li>
+            </ul>
+            <h4 className="text-white font-semibold mb-3 mt-6">Progetti</h4>
+            <ul className="space-y-2">
+              <li><a href="https://www.trivor.it/spokeghivine" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">Spoke Ghivine</a></li>
+              <li><a href="https://www.trivor.it/spokegalaveras" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">Spoke Galaveras</a></li>
             </ul>
           </div>
         </div>
