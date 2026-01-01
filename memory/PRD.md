@@ -99,6 +99,7 @@ Suite aziendale completa per Trivor SRL che include:
 - `/api/contacts` - CRUD Contatti
 - `/api/trivordoc/documents` - Documenti (ricerca include allegati)
 - `/api/trivorweb/sites` - Siti web (include tab accounts)
+- `/api/trivoraccount/accounts` - Gestione credenziali e password
 
 ---
 
@@ -111,6 +112,7 @@ Suite aziendale completa per Trivor SRL che include:
 - `/app/frontend/src/TrivorWeb.js` - Gestione siti web
 - `/app/frontend/src/TrivorContacts.js` - Archivio contatti
 - `/app/frontend/src/TrivorMeet.js` - Videoconferenze
+- `/app/frontend/src/TrivorAccount.js` - Gestione credenziali
 
 ### Backend (Refactored - 1 Gennaio 2026)
 - `/app/backend/server.py` - Entry point principale (57 righe)
@@ -123,8 +125,9 @@ Suite aziendale completa per Trivor SRL che include:
   - `trivordoc.py` - Gestione documenti
   - `trivorweb.py` - Gestione siti web
   - `contacts.py` - Rubrica contatti
+  - `trivoraccount.py` - Gestione credenziali
   - `checkdb.py` - Monitoraggio DB
-  - `spaces.py` - Digital Twin gallery
+  - `digital_twins.py` - Digital Twin gallery
 
 ---
 
