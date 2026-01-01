@@ -1387,7 +1387,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
                 <div key={twin.id} className="p-4 flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     {twin.immagine_copertina ? (
-                      <img src={twin.immagine_copertina} alt={twin.nome} className="w-24 h-16 object-cover rounded-lg" />
+                      <img src={resolveImageUrl(twin.immagine_copertina)} alt={twin.nome} className="w-24 h-16 object-cover rounded-lg" />
                     ) : (
                       <div className="w-24 h-16 bg-gray-700 rounded-lg flex items-center justify-center">
                         <Globe className="w-6 h-6 text-gray-500" />
