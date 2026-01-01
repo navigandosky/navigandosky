@@ -1766,7 +1766,7 @@ const ProjectForm = ({ project, onClose, onSave, getAuthHeader }) => {
           <textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} required rows={3} placeholder="Descrizione *" className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-lg text-white resize-none" />
           <div>
             <label className="block text-white text-sm mb-2">Immagine</label>
-            {form.image_url && <img src={form.image_url} alt="" className="h-32 w-full object-cover rounded-lg mb-3" />}
+            {form.image_url && <img src={resolveImageUrl(form.image_url)} alt="" className="h-32 w-full object-cover rounded-lg mb-3" />}
             <div className="flex gap-3">
               <input type="file" ref={fileRef} onChange={handleUpload} accept="image/*" className="hidden" />
               <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg text-sm">
