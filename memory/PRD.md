@@ -149,6 +149,8 @@ Suite aziendale completa per Trivor SRL che include:
   - `trivorweb.py` - Gestione siti web
   - `contacts.py` - Rubrica contatti
   - `trivoraccount.py` - Gestione credenziali
+  - `account_users.py` - Utenti TrivorAccount
+  - `site_config.py` - Configurazione sito (dati aziendali dinamici)
   - `checkdb.py` - Monitoraggio DB
   - `digital_twins.py` - Digital Twin gallery
 
