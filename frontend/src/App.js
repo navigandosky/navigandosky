@@ -1039,8 +1039,8 @@ const Footer = () => {
     fetchConfig();
   }, []);
 
-  // URL bandiera Sardegna
-  const sardegnaFlagUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Flag_of_Sardinia%2C_Italy.svg/1200px-Flag_of_Sardinia%2C_Italy.svg.png";
+  // URL bandiera Sardegna (quattro mori)
+  const sardegnaFlagUrl = "https://upload.wikimedia.org/wikipedia/commons/b/b8/Flag_of_Sardinia%2C_Italy.svg";
 
   // Valori di default se config non è ancora caricato
   const logoUrl = config?.logo_url || "https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png";
