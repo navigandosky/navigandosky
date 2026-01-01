@@ -3,54 +3,67 @@ import axios from 'axios';
 import {
   Key, Search, Plus, Edit, Trash2, Mail, Download, Eye, EyeOff,
   Filter, X, RefreshCw, Shield, Smartphone, Globe, CreditCard,
-  Lock, ChevronDown, Copy, Check, AlertCircle
+  Lock, ChevronDown, Copy, Check, AlertCircle, User
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
-// Hook per autenticazione
-const useTrivorAuth = () => {
+// Hook per autenticazione multi-utente
+const useTrivorAccountAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [credentials, setCredentials] = useState({ username: '', password: '' });
 
-  const getAuthHeader = useCallback(() => {
-    const stored = localStorage.getItem('trivor_account_auth');
+  const getUserId = useCallback(() => {
+    const stored = localStorage.getItem('trivor_account_user');
     if (stored) {
-      const { username, password } = JSON.parse(stored);
-      return { Authorization: 'Basic ' + btoa(`${username}:${password}`) };
+      const user = JSON.parse(stored);
+      return user.user_id;
     }
-    return {};
+    return null;
   }, []);
 
   const login = async (username, password) => {
     try {
-      await axios.post(`${API}/trivordoc/login`, {}, {
-        headers: { Authorization: 'Basic ' + btoa(`${username}:${password}`) }
-      });
-      localStorage.setItem('trivor_account_auth', JSON.stringify({ username, password }));
-      setIsAuthenticated(true);
-      return true;
+      const res = await axios.post(`${API}/account-users/login`, { username, password });
+      if (res.data.success) {
+        const userData = {
+          user_id: res.data.user_id,
+          username: res.data.username,
+          nome: res.data.nome
+        };
+        localStorage.setItem('trivor_account_user', JSON.stringify(userData));
+        setCurrentUser(userData);
+        setIsAuthenticated(true);
+        return true;
+      }
+      return false;
     } catch {
       return false;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('trivor_account_auth');
+    localStorage.removeItem('trivor_account_user');
+    setCurrentUser(null);
     setIsAuthenticated(false);
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem('trivor_account_auth');
-    if (stored) setIsAuthenticated(true);
+    const stored = localStorage.getItem('trivor_account_user');
+    if (stored) {
+      const user = JSON.parse(stored);
+      setCurrentUser(user);
+      setIsAuthenticated(true);
+    }
   }, []);
 
-  return { isAuthenticated, login, logout, getAuthHeader, credentials, setCredentials };
+  return { isAuthenticated, login, logout, getUserId, currentUser, credentials, setCredentials };
 };
 
 // Componente principale
 export default function TrivorAccount() {
-  const { isAuthenticated, login, logout, getAuthHeader, credentials, setCredentials } = useTrivorAuth();
+  const { isAuthenticated, login, logout, getUserId, currentUser, credentials, setCredentials } = useTrivorAccountAuth();
   const [accounts, setAccounts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
