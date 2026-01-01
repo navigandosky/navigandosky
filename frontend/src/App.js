@@ -1040,8 +1040,8 @@ const Footer = () => {
     fetchConfig();
   }, []);
 
-  // URL bandiera Sardegna (quattro mori)
-  const sardegnaFlagUrl = "https://static.prod-images.emergentagent.com/jobs/e644b1d2-6f98-482d-875e-30bf76c0fa04/images/833d63b825412e4eeca1888fab020e7817179966b1d7f4c6893253c467d08a2a.png";
+  // URL immagine Sardegna (costa sarda)
+  const sardegnaImageUrl = SARDEGNA_IMAGES.costa;
 
   // Valori di default se config non è ancora caricato
   const logoUrl = config?.logo_url || "https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png";
