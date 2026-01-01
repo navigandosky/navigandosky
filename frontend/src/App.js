@@ -1523,6 +1523,96 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
               </div>
             </div>
           </div>
+        ) : activeTab === 'catalog' ? (
+          <div className="bg-[#111214] border border-gray-800 rounded-xl">
+            <div className="p-4 border-b border-gray-800">
+              <h2 className="text-lg font-semibold text-white flex items-center">
+                <BookOpen className="w-5 h-5 text-purple-400 mr-2" />
+                Catalogo Moduli Trivor
+              </h2>
+              <p className="text-gray-400 text-sm mt-1">Documentazione per riutilizzare i moduli in nuovi progetti</p>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Come Usare */}
+              <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                <h3 className="text-purple-400 font-semibold mb-2">🤖 Come Usare con gli Agenti AI</h3>
+                <p className="text-gray-300 text-sm mb-2">Per riutilizzare un modulo in un nuovo progetto, dire all'agente:</p>
+                <code className="block bg-black/50 text-cyan-400 p-3 rounded-lg text-sm">
+                  "Crea un'app per Cliente X. Usa i moduli TRIVORDOC e TrivorContacts dal catalogo Trivor in /app/memory/COMPONENT_CATALOG.md"
+                </code>
+              </div>
+
+              {/* Moduli Disponibili */}
+              <div>
+                <h3 className="text-white font-semibold mb-4">📦 Moduli Disponibili</h3>
+                <div className="grid gap-4">
+                  {[
+                    { nome: 'TrivorSuite', desc: 'Dashboard launcher principale per accedere a tutte le app', colore: 'cyan', files: 'TrivorSuite.js', dipendenze: 'Auth' },
+                    { nome: 'TRIVORDOC', desc: 'Sistema gestione documentale con upload, ricerca, condivisione email/WhatsApp', colore: 'blue', files: 'TrivorDoc.js + routes/trivordoc.py', dipendenze: 'Auth, Gmail SMTP' },
+                    { nome: 'TrivorWEB', desc: 'CMS per gestione siti web clienti, hosting, FTP, database, account', colore: 'green', files: 'TrivorWeb.js + routes/trivorweb.py', dipendenze: 'Auth' },
+                    { nome: 'TrivorContacts', desc: 'Rubrica contatti condivisa con gruppi e preferiti', colore: 'orange', files: 'TrivorContacts.js + routes/contacts.py', dipendenze: 'Auth' },
+                    { nome: 'TrivorMEET', desc: 'Video conferenze gratuite tramite Jitsi Meet', colore: 'red', files: 'TrivorMeet.js', dipendenze: 'Auth (no API key)' },
+                    { nome: 'CheckDB', desc: 'Monitoraggio database MongoDB con statistiche', colore: 'yellow', files: 'routes/checkdb.py', dipendenze: 'Auth' },
+                    { nome: 'AdminCMS', desc: 'Pannello admin sito pubblico (progetti, hero, messaggi)', colore: 'purple', files: 'App.js + routes/admin.py', dipendenze: 'Auth Admin' },
+                    { nome: 'Digital Twin', desc: 'Galleria tour virtuali Matterport/MPSkin', colore: 'teal', files: 'App.js + routes/digital_twins.py', dipendenze: 'AdminCMS' },
+                  ].map((mod, i) => (
+                    <div key={i} className={`p-4 bg-${mod.colore}-500/10 border border-${mod.colore}-500/30 rounded-lg`} style={{backgroundColor: `rgba(var(--${mod.colore}-rgb, 100, 100, 100), 0.1)`}}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-white font-semibold">{mod.nome}</h4>
+                          <p className="text-gray-400 text-sm mt-1">{mod.desc}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        <span className="px-2 py-1 bg-gray-800 text-gray-300 rounded">📁 {mod.files}</span>
+                        <span className="px-2 py-1 bg-gray-800 text-gray-300 rounded">🔗 {mod.dipendenze}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Struttura File */}
+              <div>
+                <h3 className="text-white font-semibold mb-4">📂 Struttura File Backend</h3>
+                <pre className="bg-black/50 text-green-400 p-4 rounded-lg text-sm overflow-x-auto">
+{`/app/backend/
+├── server.py           # Entry point
+├── config.py           # Configurazione
+├── auth.py             # Autenticazione
+├── models/__init__.py  # Modelli Pydantic
+└── routes/
+    ├── admin.py        # Admin CMS
+    ├── public.py       # Route pubbliche
+    ├── trivordoc.py    # Documenti
+    ├── trivorweb.py    # Siti web
+    ├── contacts.py     # Contatti
+    ├── checkdb.py      # Monitor DB
+    └── digital_twins.py # Tour virtuali`}
+                </pre>
+              </div>
+
+              {/* Credenziali */}
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                <h3 className="text-yellow-400 font-semibold mb-2">🔐 Credenziali Default</h3>
+                <div className="grid md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-400">Admin CMS:</p>
+                    <p className="text-white font-mono">Trivor / Trivor2024$</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400">TrivorSuite:</p>
+                    <p className="text-white font-mono">Trivor / Trivorsuite26$</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* File completo */}
+              <div className="text-center text-gray-400 text-sm">
+                📄 Documentazione completa: <code className="text-cyan-400">/app/memory/COMPONENT_CATALOG.md</code>
+              </div>
+            </div>
+          </div>
         ) : null}
 
         {showForm && (
