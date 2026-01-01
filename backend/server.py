@@ -17,7 +17,7 @@ from routes.trivordoc import router as trivordoc_router
 from routes.trivorweb import router as trivorweb_router
 from routes.contacts import router as contacts_router
 from routes.checkdb import router as checkdb_router
-from routes.spaces import router as spaces_router
+from routes.digital_twins import router as digital_twins_router
 
 # Create the main app
 app = FastAPI(
