@@ -1170,7 +1170,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
         axios.get(`${API}/projects`),
         axios.get(`${API}/admin/messages`, { headers: getAuthHeader() }),
         axios.get(`${API}/settings`),
-        axios.get(`${API}/digital-twins`)
+        axios.get(`${API}/spaces/all`, { headers: getAuthHeader() })
       ]);
       setProjects(projectsRes.data);
       setMessages(messagesRes.data);
