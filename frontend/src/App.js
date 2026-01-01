@@ -1650,7 +1650,166 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
               </div>
             </div>
           </div>
+        ) : activeTab === 'account-users' ? (
+          <div className="bg-[#111214] border border-gray-800 rounded-xl">
+            <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-semibold text-white flex items-center">
+                  <Users className="w-5 h-5 text-amber-400 mr-2" />
+                  Utenti TrivorAccount ({accountUsers.length})
+                </h2>
+                <p className="text-gray-400 text-sm mt-1">Gestisci gli utenti che possono accedere a TrivorAccount</p>
+              </div>
+              <button
+                onClick={() => { setEditingUser(null); setUserForm({ username: '', password: '', nome: '', email: '', attivo: true }); setShowUserForm(true); }}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+              >
+                <Plus size={16} /> Nuovo Utente
+              </button>
+            </div>
+            <div className="p-4">
+              {accountUsers.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">Nessun utente creato</p>
+              ) : (
+                <div className="space-y-3">
+                  {accountUsers.map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-4 bg-[#0a0a0b] border border-gray-700 rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${user.attivo ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                          <Users className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-white font-medium">{user.nome || user.username}</p>
+                          <p className="text-gray-400 text-sm">@{user.username} {user.email && `• ${user.email}`}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-1 rounded text-xs ${user.attivo ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {user.attivo ? 'Attivo' : 'Disattivato'}
+                        </span>
+                        {user.last_login && <span className="text-gray-500 text-xs">Ultimo accesso: {new Date(user.last_login).toLocaleString('it-IT')}</span>}
+                        <button
+                          onClick={() => { setEditingUser(user); setUserForm({ username: user.username, password: '', nome: user.nome || '', email: user.email || '', attivo: user.attivo }); setShowUserForm(true); }}
+                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm(`Eliminare l'utente ${user.username}? Verranno eliminati anche tutti i suoi account.`)) return;
+                            try {
+                              await axios.delete(`${API}/account-users/users/${user.id}`, { headers: getAuthHeader() });
+                              fetchData();
+                            } catch (e) { alert('Errore eliminazione'); }
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         ) : null}
+
+        {/* User Form Modal */}
+        {showUserForm && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[#111214] border border-gray-700 rounded-2xl max-w-md w-full">
+              <div className="p-5 border-b border-gray-700 flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-white">
+                  {editingUser ? 'Modifica Utente' : 'Nuovo Utente'}
+                </h2>
+                <button onClick={() => setShowUserForm(false)} className="text-gray-400 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!userForm.username || (!editingUser && !userForm.password)) {
+                  alert('Username e password sono obbligatori');
+                  return;
+                }
+                setSavingUser(true);
+                try {
+                  if (editingUser) {
+                    const updateData = { nome: userForm.nome, email: userForm.email, attivo: userForm.attivo };
+                    if (userForm.password) updateData.password = userForm.password;
+                    await axios.put(`${API}/account-users/users/${editingUser.id}`, updateData, { headers: getAuthHeader() });
+                  } else {
+                    await axios.post(`${API}/account-users/users`, userForm, { headers: getAuthHeader() });
+                  }
+                  setShowUserForm(false);
+                  fetchData();
+                } catch (e) {
+                  alert(e.response?.data?.detail || 'Errore salvataggio');
+                } finally {
+                  setSavingUser(false);
+                }
+              }} className="p-5 space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Username *</label>
+                  <input
+                    type="text"
+                    value={userForm.username}
+                    onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
+                    disabled={!!editingUser}
+                    className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-xl text-white disabled:opacity-50"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Password {editingUser ? '(lascia vuoto per non modificare)' : '*'}</label>
+                  <input
+                    type="password"
+                    value={userForm.password}
+                    onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                    className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-xl text-white"
+                    required={!editingUser}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Nome completo</label>
+                  <input
+                    type="text"
+                    value={userForm.nome}
+                    onChange={(e) => setUserForm({ ...userForm, nome: e.target.value })}
+                    className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-xl text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    className="w-full px-4 py-3 bg-[#0a0a0b] border border-gray-700 rounded-xl text-white"
+                  />
+                </div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={userForm.attivo}
+                    onChange={(e) => setUserForm({ ...userForm, attivo: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-600 text-amber-500"
+                  />
+                  <span className="text-white">Utente attivo</span>
+                </label>
+                <div className="flex gap-3 pt-4">
+                  <button type="button" onClick={() => setShowUserForm(false)} className="flex-1 py-3 bg-gray-700 text-white rounded-xl">
+                    Annulla
+                  </button>
+                  <button type="submit" disabled={savingUser} className="flex-1 py-3 bg-amber-500 text-white rounded-xl disabled:opacity-50">
+                    {savingUser ? 'Salvataggio...' : (editingUser ? 'Salva' : 'Crea Utente')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {showForm && (
           <ProjectForm
