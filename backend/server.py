@@ -36,7 +36,7 @@ app.include_router(trivordoc_router, prefix="/api")
 app.include_router(trivorweb_router, prefix="/api")
 app.include_router(contacts_router, prefix="/api")
 app.include_router(checkdb_router, prefix="/api")
-app.include_router(spaces_router, prefix="/api")
+app.include_router(digital_twins_router, prefix="/api")
 
 # CORS Middleware
 app.add_middleware(
