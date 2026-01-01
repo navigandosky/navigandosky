@@ -591,7 +591,7 @@ const TourVirtualiSection = () => {
 
   const fetchTwins = async () => {
     try {
-      const res = await axios.get(`${API}/digital-twins?attivo=true`);
+      const res = await axios.get(`${API}/spaces`);
       setTwins(res.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
