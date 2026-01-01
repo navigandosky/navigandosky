@@ -174,7 +174,7 @@ export default function TrivorAccount() {
       await axios.post(`${API}/trivoraccount/categories`, { nome: newCategory });
       setNewCategory('');
       setShowNewCategory(false);
-      const catRes = await axios.get(`${API}/trivoraccount/categories`, { headers: getAuthHeader() });
+      const catRes = await axios.get(`${API}/trivoraccount/categories`);
       setCategories(catRes.data);
       setForm({ ...form, categoria: newCategory });
     } catch (e) {
@@ -195,7 +195,7 @@ export default function TrivorAccount() {
         recipient_email: emailData.recipient,
         subject: emailData.subject,
         message: emailData.message
-      }, { headers: getAuthHeader() });
+      });
       alert('Email inviata con successo!');
       setShowEmailModal(false);
       setSelectedAccounts([]);
@@ -209,10 +209,10 @@ export default function TrivorAccount() {
 
   // Export Excel
   const handleExport = async () => {
+    const userId = getUserId();
     try {
       setExporting(true);
       const response = await axios.get(`${API}/trivoraccount/export`, {
-        headers: getAuthHeader(),
         params: { search: searchTerm || undefined, categoria: filterCategory !== 'all' ? filterCategory : undefined },
         responseType: 'blob'
       });
