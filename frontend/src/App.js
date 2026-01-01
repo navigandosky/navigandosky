@@ -64,6 +64,7 @@ import {
   Calendar,
   Tag,
   User,
+  Users,
   Briefcase,
   BarChart3,
   Clock,
