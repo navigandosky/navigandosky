@@ -20,6 +20,7 @@ from routes.checkdb import router as checkdb_router
 from routes.digital_twins import router as digital_twins_router
 from routes.trivoraccount import router as trivoraccount_router
 from routes.account_users import router as account_users_router
+from routes.site_config import router as site_config_router
 
 # Create the main app
 app = FastAPI(
