@@ -81,6 +81,18 @@ Suite aziendale completa per Trivor SRL che include:
 - ✅ Condivisione link via WhatsApp/Email
 - ✅ Storico riunioni
 
+### TrivorAccount (`/#/trivoraccount`) - NUOVO 1 Gennaio 2026
+- ✅ Archivio credenziali con categorie personalizzabili
+- ✅ Campi: Categoria, Servizio, Link, User, Password, OTP, 2FA
+- ✅ Supporto doppia verifica (Mail, SMS, App Authenticator)
+- ✅ Ricerca multipla su servizio, user, link
+- ✅ Filtro per categoria
+- ✅ Condivisione credenziali via email (Gmail SMTP)
+- ✅ Export Excel con o senza filtri
+- ✅ Copia rapida user/password negli appunti
+- ✅ Toggle visibilità password
+- ✅ Statistiche: totale account, con OTP, con 2FA
+
 ---
 
 ## Credentials
