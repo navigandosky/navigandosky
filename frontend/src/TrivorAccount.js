@@ -139,11 +139,12 @@ export default function TrivorAccount() {
       alert('Compila almeno Servizio e Categoria');
       return;
     }
+    const userId = getUserId();
     try {
       if (editingAccount) {
-        await axios.put(`${API}/trivoraccount/accounts/${editingAccount.id}`, form, { headers: getAuthHeader() });
+        await axios.put(`${API}/trivoraccount/accounts/${editingAccount.id}`, form, { params: { user_id: userId } });
       } else {
-        await axios.post(`${API}/trivoraccount/accounts`, form, { headers: getAuthHeader() });
+        await axios.post(`${API}/trivoraccount/accounts`, { ...form, user_id: userId });
       }
       setShowForm(false);
       setEditingAccount(null);
