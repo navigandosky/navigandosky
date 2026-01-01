@@ -1026,7 +1026,38 @@ const ContactSection = () => {
 // FOOTER
 // =============================================================================
 const Footer = () => {
+  const [config, setConfig] = useState(null);
   const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await axios.get(`${API}/site-config`);
+        setConfig(res.data);
+      } catch (e) { console.error('Footer config error:', e); }
+    };
+    fetchConfig();
+  }, []);
+
+  // URL bandiera Sardegna
+  const sardegnaFlagUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Flag_of_Sardinia%2C_Italy.svg/1200px-Flag_of_Sardinia%2C_Italy.svg.png";
+
+  // Valori di default se config non è ancora caricato
+  const logoUrl = config?.logo_url || "https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png";
+  const slogan = config?.slogan || "Heritage Digitale e Innovazione per la Sardegna";
+  const partitaIva = config?.partita_iva || "IT 03774710929";
+  const email = config?.email || "trivorsrl@gmail.com";
+  const emailPec = config?.email_pec || "trivor@pec.it";
+  const telefono1 = config?.telefono_1 || "+39 393 92 55 552";
+  const whatsapp = config?.whatsapp || "+393939255552";
+  const citta = config?.citta || "Sassari";
+  const provincia = config?.provincia || "SS";
+  const paese = config?.paese || "Italia";
+  const ragioneSociale = config?.ragione_sociale || "Trivor SRL";
+  const linkProgetti = config?.link_progetti || [
+    { nome: "Spoke Ghivine", url: "https://www.trivor.it/spokeghivine" },
+    { nome: "Spoke Galaveras", url: "https://www.trivor.it/spokegalaveras" }
+  ];
 
   return (
     <footer className="bg-[#050507] border-t border-gray-800 pt-16 pb-8">
@@ -1035,10 +1066,14 @@ const Footer = () => {
           {/* Logo e Info Azienda */}
           <div>
             <button onClick={() => scrollTo('home')} className="mb-4 block">
-              <img src="https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png" alt="Trivor" className="h-20 w-auto" />
+              <img src={logoUrl} alt="Trivor" className="h-20 w-auto" />
             </button>
-            <p className="text-gray-400 text-sm mb-2">Heritage Digitale e Innovazione per la Sardegna.</p>
-            <p className="text-gray-500 text-xs">P.IVA IT 03774710929</p>
+            <div className="flex items-center gap-3 mb-2">
+              <p className="text-gray-400 text-sm">Partner per innovazione</p>
+              <img src={sardegnaFlagUrl} alt="Sardegna" className="h-6 w-auto" />
+            </div>
+            <p className="text-gray-400 text-sm mb-2">{slogan}</p>
+            <p className="text-gray-500 text-xs">P.IVA {partitaIva}</p>
           </div>
 
           {/* Navigazione */}
@@ -1051,42 +1086,61 @@ const Footer = () => {
             </ul>
           </div>
 
-          {/* Contatti Compatti */}
+          {/* Contatti */}
           <div>
             <h4 className="text-white font-semibold mb-4">Contatti</h4>
             <div className="space-y-2 text-sm">
-              <a href="mailto:trivorsrl@gmail.com" className="flex items-center text-gray-400 hover:text-cyan-400">
-                <Mail size={14} className="mr-2 flex-shrink-0" />trivorsrl@gmail.com
+              <a href={`mailto:${email}`} className="flex items-center text-gray-400 hover:text-cyan-400">
+                <Mail size={14} className="mr-2 flex-shrink-0" />{email}
               </a>
-              <a href="mailto:trivor@pec.it" className="flex items-center text-gray-400 hover:text-cyan-400">
-                <Mail size={14} className="mr-2 flex-shrink-0" />trivor@pec.it
-              </a>
-              <a href="tel:+393479338442" className="flex items-center text-gray-400 hover:text-cyan-400">
-                <Phone size={14} className="mr-2 flex-shrink-0" />+39 347 933 8442
+              {emailPec && (
+                <a href={`mailto:${emailPec}`} className="flex items-center text-gray-400 hover:text-cyan-400">
+                  <Mail size={14} className="mr-2 flex-shrink-0" />{emailPec}
+                </a>
+              )}
+              <a href={`tel:${telefono1.replace(/\s/g, '')}`} className="flex items-center text-gray-400 hover:text-cyan-400">
+                <Phone size={14} className="mr-2 flex-shrink-0" />{telefono1}
               </a>
               <div className="flex items-center text-gray-400">
-                <MapPinIcon size={14} className="mr-2 flex-shrink-0" />Sassari (SS), Italia
+                <MapPinIcon size={14} className="mr-2 flex-shrink-0" />{citta} ({provincia}), {paese}
               </div>
             </div>
+            {/* Sede Legale */}
+            {config?.indirizzo && (
+              <div className="mt-4 pt-4 border-t border-gray-800">
+                <h5 className="text-gray-300 font-medium text-sm mb-2">Sede Legale</h5>
+                <p className="text-gray-500 text-xs">{config.indirizzo}</p>
+                <p className="text-gray-500 text-xs">{config.cap} {config.citta} ({config.provincia})</p>
+              </div>
+            )}
           </div>
 
-          {/* Strumenti */}
+          {/* Strumenti e Progetti */}
           <div>
             <h4 className="text-white font-semibold mb-4">Strumenti</h4>
             <ul className="space-y-2">
               <li><a href="#/suite" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm flex items-center"><Lock size={14} className="mr-2" />Trivor Suite</a></li>
               <li><a href="#/admin" className="text-gray-400 hover:text-amber-400 transition-colors text-sm flex items-center"><Settings size={14} className="mr-2" />Admin CMS</a></li>
             </ul>
-            <h4 className="text-white font-semibold mb-3 mt-6">Progetti</h4>
-            <ul className="space-y-2">
-              <li><a href="https://www.trivor.it/spokeghivine" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">Spoke Ghivine</a></li>
-              <li><a href="https://www.trivor.it/spokegalaveras" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">Spoke Galaveras</a></li>
-            </ul>
+            {linkProgetti.length > 0 && (
+              <>
+                <h4 className="text-white font-semibold mb-3 mt-6">Progetti</h4>
+                <ul className="space-y-2">
+                  {linkProgetti.map((prog, idx) => (
+                    <li key={idx}>
+                      <a href={prog.url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors text-sm">
+                        {prog.nome}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         </div>
 
         <div className="text-center text-gray-500 text-sm">
-          © {new Date().getFullYear()} Trivor SRL. Tutti i diritti riservati.
+          © {new Date().getFullYear()} {ragioneSociale}. Tutti i diritti riservati.
         </div>
       </div>
     </footer>
