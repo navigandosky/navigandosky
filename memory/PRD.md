@@ -185,6 +185,16 @@ Suite aziendale completa per Trivor SRL che include:
 
 ## Changelog
 
+### 1 Gennaio 2026 - Configurazione Sito Dinamica
+- ✅ **NUOVO MODULO: Configurazione Sito**
+  - Tab "Configurazione Sito" nel CMS Admin
+  - Form completo per dati aziendali, contatti, sede, social
+  - Link progetti personalizzabili
+  - API GET/PUT `/api/site-config`
+  - Footer homepage legge dati dinamicamente dall'API
+  - Bandiera Sardegna (Quattro Mori) accanto a "Partner per innovazione"
+- ✅ **Test Suite**: 11 test backend API passati (100%)
+
 ### 1 Gennaio 2026 - TrivorAccount + Backend Refactoring
 - ✅ **NUOVO MODULO: TrivorAccount**
   - Gestione credenziali e password
