@@ -1172,15 +1172,19 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
   const [messages, setMessages] = useState([]);
   const [heroImages, setHeroImages] = useState([]);
   const [digitalTwins, setDigitalTwins] = useState([]);
+  const [accountUsers, setAccountUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('projects');
   const [editingProject, setEditingProject] = useState(null);
   const [editingTwin, setEditingTwin] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showTwinForm, setShowTwinForm] = useState(false);
   const [showHeroForm, setShowHeroForm] = useState(false);
+  const [showUserForm, setShowUserForm] = useState(false);
   const [savingHero, setSavingHero] = useState(false);
   const [savingTwin, setSavingTwin] = useState(false);
+  const [savingUser, setSavingUser] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(null);
   const [uploadingTwinImage, setUploadingTwinImage] = useState(false);
 
@@ -1191,21 +1195,28 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
     matterport_id: '', mpskin_url: '', immagine_copertina: '', attivo: true, ordine: 0
   });
 
+  // User form state
+  const [userForm, setUserForm] = useState({
+    username: '', password: '', nome: '', email: '', attivo: true
+  });
+
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [projectsRes, messagesRes, settingsRes, twinsRes] = await Promise.all([
+      const [projectsRes, messagesRes, settingsRes, twinsRes, usersRes] = await Promise.all([
         axios.get(`${API}/projects`),
         axios.get(`${API}/admin/messages`, { headers: getAuthHeader() }),
         axios.get(`${API}/settings`),
-        axios.get(`${API}/digital-twins`, { headers: getAuthHeader() })
+        axios.get(`${API}/digital-twins`, { headers: getAuthHeader() }),
+        axios.get(`${API}/account-users/users`, { headers: getAuthHeader() })
       ]);
       setProjects(projectsRes.data);
       setMessages(messagesRes.data);
       setHeroImages(settingsRes.data.hero_images || []);
       setDigitalTwins(twinsRes.data);
+      setAccountUsers(usersRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
