@@ -81,6 +81,14 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Helper per risolvere URL immagini (relativi o assoluti)
+const resolveImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/api/')) return `${BACKEND_URL}${url}`;
+  return url;
+};
+
 // =============================================================================
 // IMMAGINI SARDEGNA FREE (Unsplash) - Corrected URLs
 // =============================================================================
