@@ -38,6 +38,15 @@ Suite aziendale completa per Trivor SRL che include:
   - Toggle visibilità
 - ✅ Gestione Immagini Hero
 - ✅ Visualizzazione messaggi
+- ✅ **Catalogo Moduli** - Documentazione componenti per sviluppatori
+- ✅ **Utenti Account** - Gestione utenti TrivorAccount
+- ✅ **Configurazione Sito** (NUOVO 1 Gennaio 2026):
+  - Dati azienda (nome, ragione sociale, P.IVA, slogan, logo)
+  - Contatti (email, PEC, telefoni, WhatsApp)
+  - Sede legale (indirizzo, città, provincia, CAP)
+  - Social media (Facebook, Instagram, LinkedIn, Twitter, YouTube)
+  - Link progetti personalizzabili
+  - Footer dinamico che legge i dati dall'API
 
 ### TrivorSuite (`/#/suite`)
 - ✅ Credenziali: `Trivor` / `Trivorsuite26$`
