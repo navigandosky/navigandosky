@@ -1049,6 +1049,7 @@ const Footer = () => {
   const email = config?.email || "trivorsrl@gmail.com";
   const emailPec = config?.email_pec || "trivor@pec.it";
   const telefono1 = config?.telefono_1 || "+39 393 92 55 552";
+  const telefono2 = config?.telefono_2 || "";
   const whatsapp = config?.whatsapp || "+393939255552";
   const citta = config?.citta || "Sassari";
   const provincia = config?.provincia || "SS";
