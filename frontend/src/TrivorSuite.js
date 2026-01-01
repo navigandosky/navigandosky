@@ -758,6 +758,8 @@ const TrivorSuitePage = () => {
       navigate("/contacts");
     } else if (appId === "trivormeet") {
       navigate("/trivormeet");
+    } else if (appId === "trivoraccount") {
+      navigate("/trivoraccount");
     } else if (appId === "checkdb") {
       setCurrentApp("checkdb");
     }
