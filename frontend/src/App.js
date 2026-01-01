@@ -1173,6 +1173,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
   const [heroImages, setHeroImages] = useState([]);
   const [digitalTwins, setDigitalTwins] = useState([]);
   const [accountUsers, setAccountUsers] = useState([]);
+  const [siteConfig, setSiteConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('projects');
   const [editingProject, setEditingProject] = useState(null);
@@ -1185,6 +1186,7 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
   const [savingHero, setSavingHero] = useState(false);
   const [savingTwin, setSavingTwin] = useState(false);
   const [savingUser, setSavingUser] = useState(false);
+  const [savingSiteConfig, setSavingSiteConfig] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(null);
   const [uploadingTwinImage, setUploadingTwinImage] = useState(false);
 
@@ -1200,23 +1202,36 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
     username: '', password: '', nome: '', email: '', attivo: true
   });
 
+  // Site Config form state
+  const [siteConfigForm, setSiteConfigForm] = useState({
+    nome_azienda: '', ragione_sociale: '', partita_iva: '', codice_fiscale: '',
+    slogan: '', descrizione: '', logo_url: '',
+    email: '', email_pec: '', telefono_1: '', telefono_2: '', whatsapp: '',
+    indirizzo: '', citta: '', provincia: '', cap: '', paese: '',
+    facebook_url: '', instagram_url: '', linkedin_url: '', twitter_url: '', youtube_url: '',
+    link_progetti: []
+  });
+
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [projectsRes, messagesRes, settingsRes, twinsRes, usersRes] = await Promise.all([
+      const [projectsRes, messagesRes, settingsRes, twinsRes, usersRes, configRes] = await Promise.all([
         axios.get(`${API}/projects`),
         axios.get(`${API}/admin/messages`, { headers: getAuthHeader() }),
         axios.get(`${API}/settings`),
         axios.get(`${API}/digital-twins`, { headers: getAuthHeader() }),
-        axios.get(`${API}/account-users/users`, { headers: getAuthHeader() })
+        axios.get(`${API}/account-users/users`, { headers: getAuthHeader() }),
+        axios.get(`${API}/site-config`)
       ]);
       setProjects(projectsRes.data);
       setMessages(messagesRes.data);
       setHeroImages(settingsRes.data.hero_images || []);
       setDigitalTwins(twinsRes.data);
       setAccountUsers(usersRes.data);
+      setSiteConfig(configRes.data);
+      setSiteConfigForm(configRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
