@@ -121,6 +121,8 @@ Suite aziendale completa per Trivor SRL che include:
 - `/api/trivordoc/documents` - Documenti (ricerca include allegati)
 - `/api/trivorweb/sites` - Siti web (include tab accounts)
 - `/api/trivoraccount/accounts` - Gestione credenziali e password
+- `/api/account-users/users` - Gestione utenti TrivorAccount
+- `/api/site-config` - Configurazione sito (GET pubblico, PUT admin)
 
 ---
 
