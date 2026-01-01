@@ -211,6 +211,15 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
       features: ["Videochiamate HD", "Condivisione schermo", "Chat integrata", "Registrazioni"],
       status: "active"
     },
+    {
+      id: "trivoraccount",
+      name: "TrivorAccount",
+      description: "Gestione Credenziali & Password",
+      icon: Key,
+      color: "amber",
+      features: ["Archivio password", "Categorie", "Export Excel", "Invio email sicuro"],
+      status: "active"
+    },
   ];
 
   const colorClasses = {
