@@ -229,6 +229,7 @@ const SuiteDashboard = ({ onLogout, onSelectApp }) => {
     orange: "from-orange-500/20 to-orange-600/20 border-orange-500/30 hover:border-orange-400",
     cyan: "from-cyan-500/20 to-cyan-600/20 border-cyan-500/30 hover:border-cyan-400",
     rose: "from-rose-500/20 to-rose-600/20 border-rose-500/30 hover:border-rose-400",
+    amber: "from-amber-500/20 to-orange-600/20 border-amber-500/30 hover:border-amber-400",
   };
 
   const iconColorClasses = {
