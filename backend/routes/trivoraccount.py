@@ -412,15 +412,3 @@ async def get_stats(user_id: Optional[str] = None):
         "with_otp": with_otp,
         "with_2fa": with_2fa
     }
-    ]
-    by_category = await db.trivor_accounts.aggregate(pipeline).to_list(20)
-    
-    with_otp = await db.trivor_accounts.count_documents({"otp_attivo": True})
-    with_2fa = await db.trivor_accounts.count_documents({"doppia_verifica": True})
-    
-    return {
-        "total": total,
-        "by_category": by_category,
-        "with_otp": with_otp,
-        "with_2fa": with_2fa
-    }
