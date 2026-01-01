@@ -1358,6 +1358,9 @@ const AdminDashboard = ({ onLogout, getAuthHeader }) => {
           <button onClick={() => setActiveTab('catalog')} className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'catalog' ? 'bg-purple-500 text-white' : 'bg-[#111214] text-gray-400'}`}>
             <BookOpen className="w-4 h-4 inline mr-2" />Catalogo Moduli
           </button>
+          <button onClick={() => setActiveTab('account-users')} className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'account-users' ? 'bg-amber-500 text-white' : 'bg-[#111214] text-gray-400'}`}>
+            <Users className="w-4 h-4 inline mr-2" />Utenti Account
+          </button>
         </div>
 
         {loading ? (
