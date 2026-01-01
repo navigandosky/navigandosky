@@ -7,6 +7,7 @@ import TrivorSuitePage from "./TrivorSuite";
 import TrivorWebApp from "./TrivorWeb";
 import TrivorContacts from "./TrivorContacts";
 import TrivorMeet from "./TrivorMeet";
+import TrivorAccount from "./TrivorAccount";
 import {
   Lightbulb,
   Box,
