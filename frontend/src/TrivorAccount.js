@@ -339,7 +339,15 @@ export default function TrivorAccount() {
                 </div>
               </div>
             </div>
-            <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Esci</button>
+            <div className="flex items-center gap-4">
+              {currentUser && (
+                <div className="flex items-center gap-2 text-gray-400">
+                  <User className="w-4 h-4" />
+                  <span className="text-sm">{currentUser.nome || currentUser.username}</span>
+                </div>
+              )}
+              <button onClick={logout} className="text-gray-400 hover:text-white text-sm">Esci</button>
+            </div>
           </div>
         </div>
       </header>
