@@ -34,6 +34,7 @@ class AccountCreate(BaseModel):
     tipo_verifica: str = ""  # mail, sms
     dispositivo_verifica: str = ""
     note: str = ""
+    user_id: str = ""  # ID utente proprietario
 
 class AccountUpdate(BaseModel):
     categoria: Optional[str] = None
