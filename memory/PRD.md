@@ -172,13 +172,19 @@ Suite aziendale completa per Trivor SRL che include:
 
 ## Changelog
 
-### 1 Gennaio 2026 - Backend Refactoring
+### 1 Gennaio 2026 - TrivorAccount + Backend Refactoring
+- ✅ **NUOVO MODULO: TrivorAccount**
+  - Gestione credenziali e password
+  - Categorie personalizzabili (Mail, Banca, Servizi Web, etc.)
+  - Supporto OTP e doppia verifica
+  - Export Excel con filtri
+  - Invio credenziali via email
 - ✅ **REFACTORING BACKEND COMPLETATO**
-  - Diviso `server.py` (1926 righe) in 11 file modulari
+  - Diviso `server.py` (1926 righe) in 12 file modulari
   - Creato catalogo componenti `/app/memory/COMPONENT_CATALOG.md`
-  - Backend ora organizzato per funzionalità
-  - Ogni modulo è indipendente e riutilizzabile
-  - Nessuna modifica funzionale - solo riorganizzazione codice
+  - Catalogo visibile nel CMS Admin
+- ✅ **FIX URL IMMAGINI**
+  - Corretto problema URL assoluti/relativi per hero e digital twins
 
 ### 31 Dicembre 2025
 - Digital Twin Gallery dinamica
