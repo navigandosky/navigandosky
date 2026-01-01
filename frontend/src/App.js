@@ -2391,7 +2391,7 @@ const ServerWakeupLoader = ({ children }) => {
   const [isWaking, setIsWaking] = useState(false);
   const [error, setError] = useState(false);
 
-  const wakeupServer = async () => {
+  const wakeupServer = useCallback(async () => {
     setIsWaking(true);
     setError(false);
     try {
@@ -2411,15 +2411,18 @@ const ServerWakeupLoader = ({ children }) => {
         setIsWaking(false);
       }
     }
-  };
+  }, []);
 
   useEffect(() => {
     // Check if already woken up in this session
     const hasWokenUp = sessionStorage.getItem('server_wakeup_done');
     if (hasWokenUp) {
       setIsLoading(false);
+    } else {
+      // Avvia automaticamente il wakeup
+      wakeupServer();
     }
-  }, []);
+  }, [wakeupServer]);
 
   if (isLoading) {
     return (
@@ -2456,18 +2459,11 @@ const ServerWakeupLoader = ({ children }) => {
             </>
           ) : (
             <>
-              <h2 className="text-2xl text-white font-semibold mb-3">Benvenuto su Trivor</h2>
-              <p className="text-gray-400 mb-8 max-w-md">
-                Premi il pulsante per avviare il sistema e accedere al sito.
-              </p>
-              <button 
-                onClick={wakeupServer}
-                className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold rounded-full hover:shadow-lg hover:shadow-cyan-500/25 transition-all transform hover:scale-105 flex items-center gap-3 mx-auto"
-              >
-                <Play className="w-5 h-5" />
-                Premi WakeUp per avviare
-              </button>
-              <p className="text-gray-500 text-sm mt-6">Il caricamento potrebbe richiedere alcuni secondi</p>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
+                <span className="text-xl text-white font-medium">Caricamento...</span>
+              </div>
+              <p className="text-gray-400">Connessione al server in corso</p>
             </>
           )}
         </div>
