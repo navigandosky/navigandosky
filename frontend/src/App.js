@@ -381,8 +381,8 @@ const Navbar = ({ showAdminLink = true }) => {
 const HeroSection = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [images, setImages] = useState([
-    { url: "https://images.unsplash.com/photo-1539768942893-daf53e448371?w=1920&q=80", title: "Sardegna Coast" },
-    { url: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1200&q=80", title: "Mare Cristallino" },
+    { url: "https://images.unsplash.com/photo-1608538810980-d29299cfbd6b?w=1920&q=80", title: "Costa Smeralda" },
+    { url: "https://images.unsplash.com/photo-1717518577849-6f8d74dffd98?w=1920&q=80", title: "Mare Sardegna" },
     { url: "https://images.unsplash.com/photo-1523531294919-4bcd7c65e216?w=1200&q=80", title: "Borghi Storici" },
   ]);
 
