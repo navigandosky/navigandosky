@@ -92,10 +92,10 @@ const resolveImageUrl = (url) => {
 };
 
 // =============================================================================
-// IMMAGINI SARDEGNA FREE (Unsplash) - Corrected URLs
+// IMMAGINI SARDEGNA FREE (Unsplash) - Costa Sarda
 // =============================================================================
 const SARDEGNA_IMAGES = {
-  hero: "https://images.unsplash.com/photo-1539768942893-daf53e448371?w=1920&q=80", // Sardinia Coast
+  hero: "https://images.unsplash.com/photo-1608538810980-d29299cfbd6b?w=1920&q=80", // Sardinia crystal beach
   grotte: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=1200&q=80", // Sea cave
   nuraghe: "https://images.unsplash.com/photo-1515861209316-57a968e45ee5?w=1200&q=80", // Ancient ruins
   mare: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80", // Beach
@@ -104,6 +104,7 @@ const SARDEGNA_IMAGES = {
   tech: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&q=80", // Tech
   vr: "https://images.unsplash.com/photo-1617802690992-15d93263d3a9?w=1200&q=80", // VR
   drone: "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=1200&q=80", // Drone
+  costa: "https://images.unsplash.com/photo-1717518577849-6f8d74dffd98?w=400&q=80", // Sardinia coast small
 };
 
 // =============================================================================
