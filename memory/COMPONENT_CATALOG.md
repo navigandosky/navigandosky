@@ -302,6 +302,70 @@ window.open(meetingUrl, '_blank');
 
 ---
 
+## 🔑 TRIVORACCOUNT
+
+### Descrizione
+Gestione sicura delle credenziali e password:
+- Archivio account con categorie personalizzabili
+- Ricerca e filtri avanzati
+- Condivisione via email
+- Export Excel
+- Supporto OTP e 2FA
+
+### File Frontend
+```
+/app/frontend/src/TrivorAccount.js
+```
+
+### File Backend
+```
+/app/backend/routes/trivoraccount.py
+```
+
+### Database Collections
+```javascript
+// trivor_accounts
+{
+  id: "ACC-00001",
+  categoria: "Mail",
+  servizio: "Gmail",
+  link: "https://mail.google.com",
+  user: "utente@gmail.com",
+  password: "password123",
+  otp_attivo: true,
+  doppia_verifica: true,
+  tipo_verifica: "Mail",
+  dispositivo_verifica: "iPhone",
+  note: "Account principale",
+  created_at: "ISO",
+  updated_at: "ISO"
+}
+
+// trivor_account_categories
+{
+  nome: "Mail"
+}
+```
+
+### API Endpoints
+| Metodo | Endpoint | Descrizione |
+|--------|----------|-------------|
+| GET | /api/trivoraccount/accounts | Lista account |
+| POST | /api/trivoraccount/accounts | Crea account |
+| PUT | /api/trivoraccount/accounts/{id} | Modifica |
+| DELETE | /api/trivoraccount/accounts/{id} | Elimina |
+| GET | /api/trivoraccount/categories | Lista categorie |
+| POST | /api/trivoraccount/categories | Aggiungi categoria |
+| POST | /api/trivoraccount/share/email | Invia credenziali via email |
+| GET | /api/trivoraccount/export | Export Excel |
+
+### Dipendenze
+- Autenticazione TrivorSuite
+- Gmail SMTP (per condivisione email)
+- openpyxl (per export Excel)
+
+---
+
 ## 🔍 CHECKDB
 
 ### Descrizione
