@@ -118,7 +118,7 @@ export default function TrivorAccount() {
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader, searchTerm, filterCategory]);
+  }, [getUserId, searchTerm, filterCategory]);
 
   useEffect(() => {
     if (isAuthenticated) fetchData();
