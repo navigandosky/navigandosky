@@ -98,15 +98,17 @@ export default function TrivorAccount() {
 
   // Fetch data
   const fetchData = useCallback(async () => {
+    const userId = getUserId();
+    if (!userId) return;
+    
     try {
       setLoading(true);
       const [accRes, catRes, statsRes] = await Promise.all([
         axios.get(`${API}/trivoraccount/accounts`, {
-          headers: getAuthHeader(),
-          params: { search: searchTerm || undefined, categoria: filterCategory !== 'all' ? filterCategory : undefined }
+          params: { search: searchTerm || undefined, categoria: filterCategory !== 'all' ? filterCategory : undefined, user_id: userId }
         }),
-        axios.get(`${API}/trivoraccount/categories`, { headers: getAuthHeader() }),
-        axios.get(`${API}/trivoraccount/stats`, { headers: getAuthHeader() })
+        axios.get(`${API}/trivoraccount/categories`),
+        axios.get(`${API}/trivoraccount/stats`, { params: { user_id: userId } })
       ]);
       setAccounts(accRes.data);
       setCategories(catRes.data);
