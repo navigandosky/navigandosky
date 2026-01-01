@@ -1101,6 +1101,11 @@ const Footer = () => {
               <a href={`tel:${telefono1.replace(/\s/g, '')}`} className="flex items-center text-gray-400 hover:text-cyan-400">
                 <Phone size={14} className="mr-2 flex-shrink-0" />{telefono1}
               </a>
+              {telefono2 && (
+                <a href={`tel:${telefono2.replace(/\s/g, '')}`} className="flex items-center text-gray-400 hover:text-cyan-400">
+                  <Phone size={14} className="mr-2 flex-shrink-0" />{telefono2}
+                </a>
+              )}
               <div className="flex items-center text-gray-400">
                 <MapPinIcon size={14} className="mr-2 flex-shrink-0" />{citta} ({provincia}), {paese}
               </div>
