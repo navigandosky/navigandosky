@@ -2388,37 +2388,37 @@ const AdminPage = () => {
 // =============================================================================
 const ServerWakeupLoader = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [isWaking, setIsWaking] = useState(false);
   const [error, setError] = useState(false);
+
+  const wakeupServer = async () => {
+    setIsWaking(true);
+    setError(false);
+    try {
+      // Make a simple API call to wake up the server
+      await axios.get(`${API}/settings`, { timeout: 30000 });
+      sessionStorage.setItem('server_wakeup_done', 'true');
+      setIsLoading(false);
+    } catch (err) {
+      // Retry once
+      try {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await axios.get(`${API}/settings`, { timeout: 30000 });
+        sessionStorage.setItem('server_wakeup_done', 'true');
+        setIsLoading(false);
+      } catch {
+        setError(true);
+        setIsWaking(false);
+      }
+    }
+  };
 
   useEffect(() => {
     // Check if already woken up in this session
     const hasWokenUp = sessionStorage.getItem('server_wakeup_done');
     if (hasWokenUp) {
       setIsLoading(false);
-      return;
     }
-
-    const wakeupServer = async () => {
-      try {
-        // Make a simple API call to wake up the server
-        await axios.get(`${API}/settings`, { timeout: 30000 });
-        sessionStorage.setItem('server_wakeup_done', 'true');
-        setIsLoading(false);
-      } catch (err) {
-        // Retry once
-        try {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          await axios.get(`${API}/settings`, { timeout: 30000 });
-          sessionStorage.setItem('server_wakeup_done', 'true');
-          setIsLoading(false);
-        } catch {
-          setError(true);
-          setIsLoading(false);
-        }
-      }
-    };
-
-    wakeupServer();
   }, []);
 
   if (isLoading) {
@@ -2430,32 +2430,46 @@ const ServerWakeupLoader = ({ children }) => {
             alt="Trivor" 
             className="h-24 mx-auto mb-8 animate-pulse" 
           />
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
-            <span className="text-xl text-white font-medium">Update in Corso</span>
-          </div>
-          <p className="text-gray-400">Attendere prego...</p>
-          <div className="mt-6 w-48 h-1 bg-gray-800 rounded-full overflow-hidden mx-auto">
-            <div className="h-full bg-gradient-to-r from-cyan-500 to-teal-500 animate-pulse" style={{width: '60%'}} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0b] flex flex-col items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-amber-400 mx-auto mb-4" />
-          <h2 className="text-xl text-white mb-2">Connessione lenta</h2>
-          <p className="text-gray-400 mb-4">Il server sta impiegando più tempo del previsto.</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600"
-          >
-            Riprova
-          </button>
+          
+          {isWaking ? (
+            <>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
+                <span className="text-xl text-white font-medium">Update in Corso</span>
+              </div>
+              <p className="text-gray-400">Attendere prego...</p>
+              <div className="mt-6 w-48 h-1 bg-gray-800 rounded-full overflow-hidden mx-auto">
+                <div className="h-full bg-gradient-to-r from-cyan-500 to-teal-500 animate-pulse" style={{width: '60%'}} />
+              </div>
+            </>
+          ) : error ? (
+            <>
+              <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+              <h2 className="text-xl text-white mb-2">Connessione lenta</h2>
+              <p className="text-gray-400 mb-6">Il server sta impiegando più tempo del previsto.</p>
+              <button 
+                onClick={wakeupServer}
+                className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold rounded-full hover:shadow-lg hover:shadow-cyan-500/25 transition-all transform hover:scale-105"
+              >
+                🔄 Riprova WakeUp
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl text-white font-semibold mb-3">Benvenuto su Trivor</h2>
+              <p className="text-gray-400 mb-8 max-w-md">
+                Premi il pulsante per avviare il sistema e accedere al sito.
+              </p>
+              <button 
+                onClick={wakeupServer}
+                className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold rounded-full hover:shadow-lg hover:shadow-cyan-500/25 transition-all transform hover:scale-105 flex items-center gap-3 mx-auto"
+              >
+                <Play className="w-5 h-5" />
+                Premi WakeUp per avviare
+              </button>
+              <p className="text-gray-500 text-sm mt-6">Il caricamento potrebbe richiedere alcuni secondi</p>
+            </>
+          )}
         </div>
       </div>
     );
