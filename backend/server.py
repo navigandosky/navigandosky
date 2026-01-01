@@ -18,6 +18,7 @@ from routes.trivorweb import router as trivorweb_router
 from routes.contacts import router as contacts_router
 from routes.checkdb import router as checkdb_router
 from routes.digital_twins import router as digital_twins_router
+from routes.trivoraccount import router as trivoraccount_router
 
 # Create the main app
 app = FastAPI(
@@ -37,6 +38,7 @@ app.include_router(trivorweb_router, prefix="/api")
 app.include_router(contacts_router, prefix="/api")
 app.include_router(checkdb_router, prefix="/api")
 app.include_router(digital_twins_router, prefix="/api")
+app.include_router(trivoraccount_router, prefix="/api")
 
 # CORS Middleware
 app.add_middleware(
