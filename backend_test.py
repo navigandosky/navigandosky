@@ -272,6 +272,146 @@ class DigitalTwinsAPITester:
             print(f"   Message: {response.get('message', 'N/A')}")
         return success
 
+    def test_get_comunicazioni(self):
+        """Test get all comunicazioni"""
+        success, response = self.run_test(
+            "Get all comunicazioni",
+            "GET",
+            "api/comunicazioni",
+            200
+        )
+        if success:
+            print(f"   Found {len(response)} comunicazioni")
+        return success
+
+    def test_get_comunicazioni_tipi(self):
+        """Test get comunicazioni types"""
+        success, response = self.run_test(
+            "Get comunicazioni types",
+            "GET",
+            "api/comunicazioni-tipi",
+            200
+        )
+        if success:
+            print(f"   Found {len(response)} communication types")
+            if len(response) > 0:
+                print(f"   First type: {response[0].get('label', 'N/A')}")
+        return success
+
+    def test_create_comunicazione(self):
+        """Test creating a new comunicazione"""
+        # First get some soci to use as recipients
+        soci_success, soci_response = self.run_test(
+            "Get soci for comunicazione",
+            "GET",
+            "api/soci",
+            200
+        )
+        
+        if not soci_success or len(soci_response) == 0:
+            print("❌ Cannot test comunicazione - no soci available")
+            return False
+            
+        # Get first 2 soci with email
+        destinatari_ids = []
+        for socio in soci_response[:2]:
+            if socio.get('email'):
+                destinatari_ids.append(socio['id'])
+        
+        if len(destinatari_ids) == 0:
+            print("❌ Cannot test comunicazione - no soci with email")
+            return False
+        
+        test_comunicazione = {
+            "tipo": "circolare",
+            "oggetto": "Test Comunicazione API",
+            "descrizione": "Questa è una comunicazione di test creata automaticamente durante i test API.",
+            "destinatari_ids": destinatari_ids
+        }
+        
+        success, response = self.run_test(
+            "Create new comunicazione",
+            "POST",
+            "api/comunicazioni",
+            200,
+            data=test_comunicazione
+        )
+        if success and 'id' in response:
+            self.created_comunicazione_id = response['id']
+            print(f"   Created comunicazione with ID: {self.created_comunicazione_id}")
+            print(f"   Recipients: {response.get('totale_destinatari', 0)}")
+        return success
+
+    def test_get_comunicazione_by_id(self):
+        """Test get comunicazione by ID"""
+        if not hasattr(self, 'created_comunicazione_id') or not self.created_comunicazione_id:
+            print("❌ Skipping - No comunicazione ID available")
+            return False
+            
+        success, response = self.run_test(
+            "Get comunicazione by ID",
+            "GET",
+            f"api/comunicazioni/{self.created_comunicazione_id}",
+            200
+        )
+        if success:
+            print(f"   Retrieved: {response.get('oggetto', '')}")
+            print(f"   Status: {response.get('stato', '')}")
+        return success
+
+    def test_update_comunicazione(self):
+        """Test updating a comunicazione"""
+        if not hasattr(self, 'created_comunicazione_id') or not self.created_comunicazione_id:
+            print("❌ Skipping - No comunicazione ID available")
+            return False
+            
+        # Get soci for recipients
+        soci_success, soci_response = self.run_test(
+            "Get soci for update",
+            "GET",
+            "api/soci",
+            200
+        )
+        
+        if not soci_success:
+            return False
+            
+        destinatari_ids = [s['id'] for s in soci_response[:1] if s.get('email')]
+        
+        update_data = {
+            "tipo": "newsletter",
+            "oggetto": "Test Comunicazione Updated",
+            "descrizione": "Comunicazione aggiornata durante i test API.",
+            "destinatari_ids": destinatari_ids
+        }
+        
+        success, response = self.run_test(
+            "Update comunicazione",
+            "PUT",
+            f"api/comunicazioni/{self.created_comunicazione_id}",
+            200,
+            data=update_data
+        )
+        if success:
+            print(f"   Updated: {response.get('oggetto', '')}")
+        return success
+
+    def test_delete_comunicazione(self):
+        """Test deleting a comunicazione"""
+        if not hasattr(self, 'created_comunicazione_id') or not self.created_comunicazione_id:
+            print("❌ Skipping - No comunicazione ID available")
+            return False
+            
+        success, response = self.run_test(
+            "Delete comunicazione",
+            "DELETE",
+            f"api/comunicazioni/{self.created_comunicazione_id}",
+            200
+        )
+        if success:
+            print(f"   Deleted comunicazione: {self.created_comunicazione_id}")
+        return success
+
 def main():
     print("🚀 Starting Digital Twins Italia API Tests")
     print("=" * 50)
