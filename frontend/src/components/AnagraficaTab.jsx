@@ -367,7 +367,10 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="space-y-2">
               <Label className="text-slate-300">Carica</Label>
-              <Select value={formData.carica} onValueChange={(v) => handleChange("carica", v)}>
+              <Select 
+                value={formData.carica || undefined} 
+                onValueChange={(v) => handleChange("carica", v)}
+              >
                 <SelectTrigger className="bg-slate-950/50 border-slate-800 text-slate-200" data-testid="select-carica">
                   <SelectValue placeholder="Seleziona carica" />
                 </SelectTrigger>
@@ -384,7 +387,10 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
             <div className="space-y-2">
               <Label className="text-slate-300">Qualifica</Label>
               <div className="flex gap-2">
-                <Select value={formData.qualifica} onValueChange={(v) => handleChange("qualifica", v)}>
+                <Select 
+                  value={formData.qualifica || undefined} 
+                  onValueChange={(v) => handleChange("qualifica", v)}
+                >
                   <SelectTrigger className="bg-slate-950/50 border-slate-800 text-slate-200 flex-1" data-testid="select-qualifica">
                     <SelectValue placeholder="Seleziona qualifica" />
                   </SelectTrigger>
