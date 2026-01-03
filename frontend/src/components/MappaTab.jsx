@@ -341,6 +341,12 @@ export default function MappaTab({ onContactSocio }) {
                         </div>
 
                         <div className="mt-2 space-y-1">
+                          {socio.citta && (
+                            <div className="flex items-center gap-2 text-sm text-slate-400">
+                              <MapPin className="h-3 w-3" />
+                              {socio.citta}
+                            </div>
+                          )}
                           {socio.telefono && (
                             <a
                               href={`tel:${socio.telefono}`}
@@ -371,6 +377,23 @@ export default function MappaTab({ onContactSocio }) {
                             </a>
                           )}
                         </div>
+
+                        {socio.email && onContactSocio && (
+                          <div className="mt-3 pt-3 border-t border-slate-700">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setShowCityModal(false);
+                                onContactSocio(socio);
+                              }}
+                              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white"
+                              data-testid={`contact-${socio.id}`}
+                            >
+                              <Send className="h-3 w-3 mr-2" />
+                              Invia Comunicazione
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
