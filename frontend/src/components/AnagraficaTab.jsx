@@ -128,11 +128,32 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
 
     setSaving(true);
     try {
+      // Prepara i dati rimuovendo campi temporanei
+      const dataToSend = {
+        nome: formData.nome,
+        cognome: formData.cognome,
+        citta: formData.citta || "",
+        regione: formData.regione || "",
+        indirizzo: formData.indirizzo || "",
+        codice_fiscale: formData.codice_fiscale || "",
+        telefono: formData.telefono || "",
+        pec: formData.pec || "",
+        email: formData.email || "",
+        tipo_dispositivo: formData.tipo_dispositivo || "",
+        carica: formData.carica || "",
+        data_iscrizione: formData.data_iscrizione || "",
+        qualifica: formData.qualifica || "",
+        gruppo: formData.gruppo || "",
+        sito_web: formData.sito_web || "",
+        zona_copertura: formData.zona_copertura || "",
+        documenti: formData.documenti || [],
+      };
+
       if (selectedSocio?.id) {
-        await axios.put(`${API}/soci/${selectedSocio.id}`, formData);
+        await axios.put(`${API}/soci/${selectedSocio.id}`, dataToSend);
         toast.success("Socio aggiornato!");
       } else {
-        await axios.post(`${API}/soci`, formData);
+        await axios.post(`${API}/soci`, dataToSend);
         toast.success("Socio creato!");
       }
       onSaved();
