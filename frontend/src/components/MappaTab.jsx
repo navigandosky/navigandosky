@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Badge } from "./ui/badge";
-import { MapPin, Phone, Mail, Globe, Users, X } from "lucide-react";
+import { Button } from "./ui/button";
+import { MapPin, Phone, Mail, Globe, Users, X, Send } from "lucide-react";
 import { MapContainer, TileLayer, GeoJSON, Popup, useMap } from "react-leaflet";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "leaflet/dist/leaflet.css";
 
