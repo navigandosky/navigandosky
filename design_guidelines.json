@@ -1,0 +1,128 @@
+{
+  "persona": {
+    "identity": "E1: The Anti-AI Designer",
+    "philosophy": "Fusion over Imitation. Emotion First. Content is King.",
+    "anti_patterns": [
+      "Generic 'Bootstrap' layouts",
+      "Flat, lifeless colors",
+      "Inter font everywhere",
+      "Boring, equal-width grids"
+    ]
+  },
+  "project_context": {
+    "name": "Digital Twin Italia Backoffice",
+    "type": "Admin Dashboard / Command Center",
+    "vibe": "Sober, Elegant, High-Tech, Connected",
+    "target_audience": "Association Administrators"
+  },
+  "design_system": {
+    "theme": "dark",
+    "colors": {
+      "palette_name": "The Obsidian Control Room",
+      "background": {
+        "default": "#020617",
+        "paper": "#0f172a",
+        "subtle": "#1e293b"
+      },
+      "primary": {
+        "main": "#1E90FF",
+        "hover": "#3b82f6",
+        "glow": "rgba(30, 144, 255, 0.5)"
+      },
+      "accent": {
+        "main": "#FFD700",
+        "text": "#fbbf24",
+        "glow": "rgba(255, 215, 0, 0.3)"
+      },
+      "text": {
+        "primary": "#f8fafc",
+        "secondary": "#94a3b8",
+        "muted": "#64748b"
+      },
+      "border": {
+        "default": "#1e293b",
+        "active": "#334155"
+      }
+    },
+    "typography": {
+      "headings": {
+        "family": "Outfit, sans-serif",
+        "weights": ["500", "700"],
+        "usage": "All headers (h1-h6). Use tracking-tight for large text."
+      },
+      "body": {
+        "family": "DM Sans, sans-serif",
+        "weights": ["400", "500"],
+        "usage": "Paragraphs, inputs, table data."
+      },
+      "mono": {
+        "family": "JetBrains Mono, monospace",
+        "usage": "IDs, Codes, Technical Data."
+      }
+    },
+    "visual_enhancers": {
+      "glassmorphism": "backdrop-blur-xl bg-slate-950/70 border border-white/10",
+      "neon_glow": "shadow-[0_0_20px_rgba(30,144,255,0.15)]",
+      "gold_glow": "shadow-[0_0_15px_rgba(255,215,0,0.1)]",
+      "gradients": {
+        "subtle_mesh": "radial-gradient(circle at 50% 0%, rgba(30,144,255,0.1) 0%, transparent 50%)"
+      }
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-blue-600 hover:bg-blue-500 text-white font-medium shadow-[0_0_15px_rgba(37,99,235,0.4)] transition-all duration-300 hover:scale-[1.02]",
+      "secondary": "bg-transparent border border-slate-700 hover:border-slate-500 text-slate-200 hover:bg-slate-800/50",
+      "accent": "bg-yellow-500/10 border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20 hover:shadow-[0_0_15px_rgba(255,215,0,0.2)]"
+    },
+    "cards": {
+      "default": "bg-slate-900/50 border border-slate-800/60 backdrop-blur-sm rounded-xl p-6 hover:border-slate-700/80 transition-colors",
+      "interactive": "group relative overflow-hidden bg-slate-900/40 border border-slate-800 hover:border-blue-500/30 transition-all duration-300"
+    },
+    "inputs": {
+      "style": "bg-slate-950/50 border-slate-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 placeholder:text-slate-600 text-slate-200"
+    },
+    "map": {
+      "engine": "Leaflet",
+      "style_hack": ".leaflet-layer { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }",
+      "container_style": "w-full h-full rounded-xl overflow-hidden border border-slate-800 shadow-2xl relative z-0",
+      "markers": "Use custom SVG icons. Blue for standard members, Gold for board members."
+    }
+  },
+  "layout_strategies": {
+    "global": {
+      "spacing": "Generous. Use p-6 or p-8 for containers. Gap-6 for grids.",
+      "radius": "rounded-xl"
+    },
+    "dashboard": {
+      "grid": "Bento Grid. Mix of col-span-1, col-span-2, and row-span-2 cards.",
+      "sidebar": "Fixed left, w-64, glassmorphism style. Collapsible on mobile."
+    },
+    "login_page": {
+      "style": "Split screen or Centered Glass Card.",
+      "background": "Deep dark void with subtle blue/gold mesh gradient or the provided network image with heavy overlay."
+    }
+  },
+  "assets": {
+    "logo_url": "https://customer-assets.emergentagent.com/job_0ee3498b-2246-478c-8296-16fc3fbd03a6/artifacts/v9er0qel_Digital-Twins.png",
+    "background_image": "https://images.unsplash.com/photo-1664526937033-fe2c11f1be25?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "italy_geojson": "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson",
+    "icons_library": "lucide-react"
+  },
+  "instructions_to_main_agent": [
+    "1. SETUP: Install 'lucide-react', 'leaflet', 'react-leaflet', 'recharts' (for stats).",
+    "2. FONTS: Import 'Outfit' and 'DM Sans' from Google Fonts in index.css.",
+    "3. THEME: Configure tailwind.config.js to use the 'Obsidian' palette defined in design_system.colors.",
+    "4. MAP: Implement the Leaflet map in the 'Mappa' tab. Use the CSS filter hack for dark mode. Fetch the GeoJSON for regions.",
+    "5. COMPONENTS: Customize Shadcn components. Remove the default 'radius' variable reliance if it conflicts with the 'rounded-xl' strategy.",
+    "6. LOGIN: Hardcode credentials (user: DigitalTwin26, pass: Dgt_26$).",
+    "7. DATA: Mock the member data for the CRUD interface if backend is not ready, but structure it for MongoDB.",
+    "8. CRITICAL: Ensure all text has sufficient contrast against the dark background. Use 'text-slate-400' for labels, 'text-slate-100' for values."
+  ],
+  "universal_guidelines": [
+    "Do not use gradients for text unless it is a very large headline.",
+    "Always add hover states to interactive elements.",
+    "Use 'sonner' for notifications (e.g., 'Member Added').",
+    "Ensure the map container has a defined height (e.g., h-[600px] or h-[calc(100vh-200px)])."
+  ]
+}
