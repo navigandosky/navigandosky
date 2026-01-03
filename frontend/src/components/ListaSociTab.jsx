@@ -396,6 +396,18 @@ export default function ListaSociTab({ soci, onEdit, onRefresh, onContactSocio }
                   <Edit2 className="h-4 w-4 mr-2" />
                   Modifica
                 </Button>
+                {selectedSocio.email && onContactSocio && (
+                  <Button
+                    onClick={() => {
+                      setShowDetail(false);
+                      onContactSocio(selectedSocio);
+                    }}
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-500"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Contatta
+                  </Button>
+                )}
               </div>
             </div>
           )}
