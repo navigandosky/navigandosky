@@ -328,6 +328,14 @@ export default function MappaTab() {
                               </Badge>
                             )}
                           </div>
+                          {socio.tipo_dispositivo && (
+                            <Badge
+                              variant="outline"
+                              className="bg-blue-500/20 text-blue-400 border-blue-500/50 text-xs"
+                            >
+                              {socio.tipo_dispositivo}
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="mt-2 space-y-1">
