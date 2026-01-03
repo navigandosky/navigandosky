@@ -265,20 +265,18 @@ export default function ListaSociTab({ soci, onEdit, onRefresh }) {
       {/* Detail Dialog */}
       <Dialog open={showDetail} onOpenChange={setShowDetail}>
         <DialogContent className="glass-card border-slate-800 max-w-lg" data-testid="socio-detail-modal">
-          <DialogHeader>
-            <DialogTitle className="text-slate-100 text-xl flex items-center justify-between">
-              <span>
-                {selectedSocio?.nome} {selectedSocio?.cognome}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDetail(false)}
-                className="text-slate-400"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+          <DialogHeader className="flex flex-row items-center justify-between">
+            <DialogTitle className="text-slate-100 text-xl">
+              {selectedSocio?.nome} {selectedSocio?.cognome}
             </DialogTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDetail(false)}
+              className="text-slate-400 hover:text-slate-200"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </DialogHeader>
           {selectedSocio && (
             <div className="space-y-4 mt-4">
