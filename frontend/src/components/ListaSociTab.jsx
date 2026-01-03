@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import { Search, Edit2, Trash2, Eye, Phone, Mail, Globe, MapPin, X } from "lucide-react";
+import { Search, Edit2, Trash2, Eye, Phone, Mail, Globe, MapPin, X, Send, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -19,7 +19,7 @@ const REGIONI_ITALIA = [
   "TRENTINO ALTO ADIGE", "UMBRIA", "VALLE D'AOSTA", "VENETO"
 ];
 
-export default function ListaSociTab({ soci, onEdit, onRefresh }) {
+export default function ListaSociTab({ soci, onEdit, onRefresh, onContactSocio }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [regioneFilter, setRegioneFilter] = useState("");
   const [caricaFilter, setCaricaFilter] = useState("");
@@ -27,6 +27,13 @@ export default function ListaSociTab({ soci, onEdit, onRefresh }) {
   const [gruppi, setGruppi] = useState([]);
   const [selectedSocio, setSelectedSocio] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setRegioneFilter("");
+    setCaricaFilter("");
+    setGruppoFilter("");
+  };
 
   useEffect(() => {
     const fetchGruppi = async () => {
