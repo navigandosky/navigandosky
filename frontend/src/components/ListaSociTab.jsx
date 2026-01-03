@@ -99,12 +99,12 @@ export default function ListaSociTab({ soci, onEdit, onRefresh }) {
                 data-testid="search-input"
               />
             </div>
-            <Select value={regioneFilter} onValueChange={setRegioneFilter}>
+            <Select value={regioneFilter || "all"} onValueChange={(v) => setRegioneFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="w-full md:w-48 bg-slate-950/50 border-slate-800 text-slate-200" data-testid="filter-regione">
                 <SelectValue placeholder="Tutte le regioni" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-800">
-                <SelectItem value="" className="text-slate-200">Tutte le regioni</SelectItem>
+                <SelectItem value="all" className="text-slate-200">Tutte le regioni</SelectItem>
                 {REGIONI_ITALIA.filter(Boolean).map((r) => (
                   <SelectItem key={r} value={r} className="text-slate-200 focus:bg-slate-800">
                     {r}
@@ -112,12 +112,12 @@ export default function ListaSociTab({ soci, onEdit, onRefresh }) {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={caricaFilter} onValueChange={setCaricaFilter}>
+            <Select value={caricaFilter || "all"} onValueChange={(v) => setCaricaFilter(v === "all" ? "" : v)}>
               <SelectTrigger className="w-full md:w-40 bg-slate-950/50 border-slate-800 text-slate-200" data-testid="filter-carica">
                 <SelectValue placeholder="Tutte le cariche" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-800">
-                <SelectItem value="" className="text-slate-200">Tutte le cariche</SelectItem>
+                <SelectItem value="all" className="text-slate-200">Tutte le cariche</SelectItem>
                 <SelectItem value="Presidente" className="text-slate-200">Presidente</SelectItem>
                 <SelectItem value="Vice Presidente" className="text-slate-200">Vice Presidente</SelectItem>
                 <SelectItem value="Segretario" className="text-slate-200">Segretario</SelectItem>
