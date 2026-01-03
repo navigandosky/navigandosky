@@ -73,6 +73,7 @@ class SocioBase(BaseModel):
     carica: Optional[str] = ""
     data_iscrizione: Optional[str] = ""
     qualifica: Optional[str] = ""
+    gruppo: Optional[str] = ""
     sito_web: Optional[str] = ""
     zona_copertura: Optional[str] = ""
     documenti: List[DocumentoAllegato] = []
@@ -148,7 +149,7 @@ async def create_socio(socio: SocioCreate):
     return Socio(**socio_dict)
 
 @api_router.get("/soci", response_model=List[Socio])
-async def get_soci(search: Optional[str] = None, regione: Optional[str] = None, carica: Optional[str] = None):
+async def get_soci(search: Optional[str] = None, regione: Optional[str] = None, carica: Optional[str] = None, gruppo: Optional[str] = None):
     query = {}
     if search:
         query["$or"] = [
@@ -161,6 +162,8 @@ async def get_soci(search: Optional[str] = None, regione: Optional[str] = None, 
         query["regione"] = {"$regex": regione, "$options": "i"}
     if carica:
         query["carica"] = {"$regex": carica, "$options": "i"}
+    if gruppo:
+        query["gruppo"] = {"$regex": gruppo, "$options": "i"}
     
     soci = await db.soci.find(query, {"_id": 0}).to_list(1000)
     return [Socio(**s) for s in soci]
