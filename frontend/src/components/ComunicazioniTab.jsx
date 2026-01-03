@@ -131,6 +131,19 @@ export default function ComunicazioniTab({ preselectedSocio, onClearPreselected 
     setShowForm(true);
   };
 
+  const handleCloneComunicazione = (com) => {
+    setFormData({
+      tipo: com.tipo,
+      oggetto: `${com.oggetto} (copia)`,
+      descrizione: com.descrizione,
+      destinatari_ids: com.destinatari.map((d) => d.socio_id),
+    });
+    setAllegati([]); // Gli allegati non vengono clonati
+    setSelectedCom(null); // Null perché è una nuova comunicazione
+    setShowForm(true);
+    toast.info("Comunicazione clonata - modifica e salva come nuova");
+  };
+
   const handleViewDetail = (com) => {
     setSelectedCom(com);
     setShowDetail(true);
