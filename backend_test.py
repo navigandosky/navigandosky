@@ -145,7 +145,7 @@ class DigitalTwinsAPITester:
             "Create new socio",
             "POST",
             "api/soci",
-            201,
+            200,
             data=test_socio
         )
         if success and 'id' in response:
