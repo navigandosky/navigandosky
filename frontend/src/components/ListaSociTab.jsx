@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -23,8 +23,22 @@ export default function ListaSociTab({ soci, onEdit, onRefresh }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [regioneFilter, setRegioneFilter] = useState("");
   const [caricaFilter, setCaricaFilter] = useState("");
+  const [gruppoFilter, setGruppoFilter] = useState("");
+  const [gruppi, setGruppi] = useState([]);
   const [selectedSocio, setSelectedSocio] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
+
+  useEffect(() => {
+    const fetchGruppi = async () => {
+      try {
+        const res = await axios.get(`${API}/dropdown/gruppo`);
+        setGruppi(res.data);
+      } catch (error) {
+        console.error("Error fetching gruppi:", error);
+      }
+    };
+    fetchGruppi();
+  }, []);
 
   const filteredSoci = useMemo(() => {
     return soci.filter((socio) => {
@@ -42,9 +56,12 @@ export default function ListaSociTab({ soci, onEdit, onRefresh }) {
       const matchesCarica =
         !caricaFilter || socio.carica?.toLowerCase().includes(caricaFilter.toLowerCase());
 
-      return matchesSearch && matchesRegione && matchesCarica;
+      const matchesGruppo =
+        !gruppoFilter || socio.gruppo?.toLowerCase().includes(gruppoFilter.toLowerCase());
+
+      return matchesSearch && matchesRegione && matchesCarica && matchesGruppo;
     });
-  }, [soci, searchTerm, regioneFilter, caricaFilter]);
+  }, [soci, searchTerm, regioneFilter, caricaFilter, gruppoFilter]);
 
   const handleDelete = async (socioId) => {
     if (!window.confirm("Sei sicuro di voler eliminare questo socio?")) return;
