@@ -123,20 +123,12 @@ export default function DashboardPage({ onLogout }) {
               Dashboard
             </TabsTrigger>
             <TabsTrigger
-              value="anagrafica"
-              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400"
-              data-testid="tab-anagrafica"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Anagrafica
-            </TabsTrigger>
-            <TabsTrigger
               value="lista"
               className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400"
               data-testid="tab-lista"
             >
               <Users className="h-4 w-4 mr-2" />
-              Lista Soci
+              Elenco Soci
             </TabsTrigger>
             <TabsTrigger
               value="mappa"
@@ -144,7 +136,15 @@ export default function DashboardPage({ onLogout }) {
               data-testid="tab-mappa"
             >
               <Map className="h-4 w-4 mr-2" />
-              Mappa Italia
+              Mappa
+            </TabsTrigger>
+            <TabsTrigger
+              value="anagrafica"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400"
+              data-testid="tab-anagrafica"
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Anagrafica
             </TabsTrigger>
             <TabsTrigger
               value="comunicazioni"
