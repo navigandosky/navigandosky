@@ -315,11 +315,27 @@ async def get_stats():
     ]
     by_qualifica = await db.soci.aggregate(pipeline_qualifica).to_list(100)
     
+    pipeline_dispositivo = [
+        {"$match": {"tipo_dispositivo": {"$ne": ""}}},
+        {"$group": {"_id": "$tipo_dispositivo", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    by_dispositivo = await db.soci.aggregate(pipeline_dispositivo).to_list(100)
+    
+    pipeline_gruppo = [
+        {"$match": {"gruppo": {"$ne": ""}}},
+        {"$group": {"_id": "$gruppo", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    by_gruppo = await db.soci.aggregate(pipeline_gruppo).to_list(100)
+    
     return {
         "totale_soci": total,
         "per_regione": [{"regione": r["_id"] or "Non specificata", "count": r["count"]} for r in by_regione],
         "per_carica": [{"carica": c["_id"] or "Non specificata", "count": c["count"]} for c in by_carica],
-        "per_qualifica": [{"qualifica": q["_id"] or "Non specificata", "count": q["count"]} for q in by_qualifica]
+        "per_qualifica": [{"qualifica": q["_id"] or "Non specificata", "count": q["count"]} for q in by_qualifica],
+        "per_dispositivo": [{"dispositivo": d["_id"], "count": d["count"]} for d in by_dispositivo],
+        "per_gruppo": [{"gruppo": g["_id"], "count": g["count"]} for g in by_gruppo]
     }
 
 @api_router.get("/map-data")
