@@ -173,6 +173,10 @@ export default function DashboardPage({ onLogout }) {
           <TabsContent value="mappa" className="animate-fadeIn">
             <MappaTab />
           </TabsContent>
+
+          <TabsContent value="comunicazioni" className="animate-fadeIn">
+            <ComunicazioniTab />
+          </TabsContent>
         </Tabs>
       </main>
     </div>
