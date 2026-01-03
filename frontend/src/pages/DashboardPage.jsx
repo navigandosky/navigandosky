@@ -19,6 +19,7 @@ export default function DashboardPage({ onLogout }) {
   const [soci, setSoci] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSocio, setSelectedSocio] = useState(null);
+  const [preselectedSocioForCom, setPreselectedSocioForCom] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -48,6 +49,11 @@ export default function DashboardPage({ onLogout }) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleContactFromMap = (socio) => {
+    setPreselectedSocioForCom(socio);
+    setActiveTab("comunicazioni");
+  };
 
   const handleSocioSaved = () => {
     fetchData();
