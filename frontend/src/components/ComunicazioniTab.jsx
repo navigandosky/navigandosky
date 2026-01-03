@@ -343,11 +343,59 @@ export default function ComunicazioniTab({ preselectedSocio, onClearPreselected 
           <CardHeader>
             <CardTitle className="text-slate-100 text-lg">Archivio Comunicazioni</CardTitle>
           </CardHeader>
-          <CardContent>
-            {comunicazioni.length === 0 ? (
+          <CardContent className="space-y-4">
+            {/* Filtri */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Input
+                  placeholder="Cerca per oggetto, descrizione..."
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  className="pl-10 bg-slate-950/50 border-slate-800 focus:border-blue-500 text-slate-200"
+                  data-testid="filter-comunicazioni-search"
+                />
+              </div>
+              <Select value={filterTipo || "all"} onValueChange={(v) => setFilterTipo(v === "all" ? "" : v)}>
+                <SelectTrigger className="w-full md:w-44 bg-slate-950/50 border-slate-800 text-slate-200" data-testid="filter-comunicazioni-tipo">
+                  <SelectValue placeholder="Tutti i tipi" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti i tipi</SelectItem>
+                  {tipiComunicazione.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2 items-center">
+                <span className="text-slate-500 text-sm">Da:</span>
+                <Input
+                  type="date"
+                  value={filterDataDa}
+                  onChange={(e) => setFilterDataDa(e.target.value)}
+                  className="w-36 bg-slate-950/50 border-slate-800 text-slate-200"
+                  data-testid="filter-data-da"
+                />
+                <span className="text-slate-500 text-sm">A:</span>
+                <Input
+                  type="date"
+                  value={filterDataA}
+                  onChange={(e) => setFilterDataA(e.target.value)}
+                  className="w-36 bg-slate-950/50 border-slate-800 text-slate-200"
+                  data-testid="filter-data-a"
+                />
+              </div>
+            </div>
+            
+            {/* Results count */}
+            <div className="text-sm text-slate-400">
+              {filteredComunicazioni.length} {filteredComunicazioni.length === 1 ? "comunicazione trovata" : "comunicazioni trovate"}
+            </div>
+
+            {filteredComunicazioni.length === 0 ? (
               <div className="text-center py-8 text-slate-500">
                 <Mail className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Nessuna comunicazione creata</p>
+                <p>Nessuna comunicazione trovata</p>
               </div>
             ) : (
               <div className="rounded-xl border border-slate-800 overflow-hidden">
@@ -363,7 +411,7 @@ export default function ComunicazioniTab({ preselectedSocio, onClearPreselected 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {comunicazioni.map((com) => (
+                    {filteredComunicazioni.map((com) => (
                       <TableRow
                         key={com.id}
                         className="border-slate-800 hover:bg-slate-800/30 cursor-pointer"
