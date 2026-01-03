@@ -163,6 +163,15 @@ export default function ListaSociTab({ soci, onEdit, onRefresh, onContactSocio }
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              onClick={resetFilters}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800/50"
+              data-testid="reset-filters"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Azzera filtri
+            </Button>
           </div>
 
           {/* Results count */}
