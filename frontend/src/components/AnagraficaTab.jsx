@@ -487,31 +487,49 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
 
             <div className="space-y-2">
               <Label className="text-slate-300">Data Iscrizione</Label>
-              <Popover open={dateOpen} onOpenChange={setDateOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal bg-slate-950/50 border-slate-800 text-slate-200"
-                    data-testid="input-data-iscrizione"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.data_iscrizione
-                      ? format(new Date(formData.data_iscrizione), "dd/MM/yyyy", { locale: it })
-                      : "Seleziona data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-800">
-                  <Calendar
-                    mode="single"
-                    selected={formData.data_iscrizione ? new Date(formData.data_iscrizione) : undefined}
-                    onSelect={(date) => {
-                      handleChange("data_iscrizione", date ? date.toISOString() : "");
-                      setDateOpen(false);
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  value={formData.data_iscrizione ? format(new Date(formData.data_iscrizione), "dd/MM/yyyy", { locale: it }) : ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    // Parse dd/MM/yyyy format
+                    const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                    if (match) {
+                      const [, day, month, year] = match;
+                      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                      if (!isNaN(date.getTime())) {
+                        handleChange("data_iscrizione", date.toISOString());
+                      }
+                    }
+                  }}
+                  placeholder="GG/MM/AAAA"
+                  className="bg-slate-950/50 border-slate-800 focus:border-blue-500 text-slate-200 flex-1"
+                  data-testid="input-data-iscrizione"
+                />
+                <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="border-slate-700"
+                    >
+                      <CalendarIcon className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-800">
+                    <Calendar
+                      mode="single"
+                      selected={formData.data_iscrizione ? new Date(formData.data_iscrizione) : undefined}
+                      onSelect={(date) => {
+                        handleChange("data_iscrizione", date ? date.toISOString() : "");
+                        setDateOpen(false);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
 
