@@ -456,6 +456,18 @@ export default function ComunicazioniTab({ preselectedSocio, onClearPreselected 
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCloneComunicazione(com);
+                              }}
+                              className="text-slate-400 hover:text-purple-400"
+                              title="Clona comunicazione"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
                             {com.stato === "bozza" && (
                               <>
                                 <Button
