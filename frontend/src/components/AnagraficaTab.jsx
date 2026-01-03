@@ -60,7 +60,11 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
 
   useEffect(() => {
     if (selectedSocio) {
-      setFormData(selectedSocio);
+      // Resetta data_iscrizione_text quando carichi un socio
+      setFormData({
+        ...selectedSocio,
+        data_iscrizione_text: undefined
+      });
     } else {
       resetForm();
     }
