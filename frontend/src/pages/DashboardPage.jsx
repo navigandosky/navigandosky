@@ -140,6 +140,14 @@ export default function DashboardPage({ onLogout }) {
               <Map className="h-4 w-4 mr-2" />
               Mappa Italia
             </TabsTrigger>
+            <TabsTrigger
+              value="comunicazioni"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400"
+              data-testid="tab-comunicazioni"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Comunicazioni
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="stats" className="animate-fadeIn">
