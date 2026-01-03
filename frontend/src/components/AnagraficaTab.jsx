@@ -336,7 +336,7 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
           </div>
 
           {/* Dati Associazione */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div className="space-y-2">
               <Label className="text-slate-300">Carica</Label>
               <Select value={formData.carica} onValueChange={(v) => handleChange("carica", v)}>
@@ -387,6 +387,50 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
                         <Button
                           size="sm"
                           onClick={() => addDropdownOption("qualifica", newQualifica, setNewQualifica)}
+                        >
+                          Aggiungi
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-300">Gruppo</Label>
+              <div className="flex gap-2">
+                <Select value={formData.gruppo} onValueChange={(v) => handleChange("gruppo", v)}>
+                  <SelectTrigger className="bg-slate-950/50 border-slate-800 text-slate-200 flex-1" data-testid="select-gruppo">
+                    <SelectValue placeholder="Seleziona gruppo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-800">
+                    {gruppi.map((g) => (
+                      <SelectItem key={g.id} value={g.value} className="text-slate-200 focus:bg-slate-800">
+                        {g.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="border-slate-700">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="bg-slate-900 border-slate-800 w-64">
+                    <div className="space-y-2">
+                      <Label className="text-slate-300">Nuovo Gruppo</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={newGruppo}
+                          onChange={(e) => setNewGruppo(e.target.value)}
+                          placeholder="Es: Comitato Tecnico"
+                          className="bg-slate-950/50 border-slate-800 text-slate-200"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => addDropdownOption("gruppo", newGruppo, setNewGruppo)}
                         >
                           Aggiungi
                         </Button>
