@@ -35,34 +35,47 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#020617]">
+    <div className="min-h-screen bg-[#020617] flex flex-col">
       <BrowserRouter>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              isAuthenticated ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <LoginPage onLogin={handleLogin} />
-              )
-            }
-          />
-          <Route
-            path="/dashboard/*"
-            element={
-              isAuthenticated ? (
-                <DashboardPage onLogout={handleLogout} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/"
-            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
-          />
-        </Routes>
+        <div className="flex-1">
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                isAuthenticated ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <LoginPage onLogin={handleLogin} />
+                )
+              }
+            />
+            <Route
+              path="/dashboard/*"
+              element={
+                isAuthenticated ? (
+                  <DashboardPage onLogout={handleLogout} />
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
+            <Route
+              path="/"
+              element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />}
+            />
+          </Routes>
+        </div>
+        {/* Footer */}
+        <footer className="py-4 text-center border-t border-slate-800/50">
+          <div className="flex flex-col items-center gap-2">
+            <img
+              src="https://customer-assets.emergentagent.com/job_0ee3498b-2246-478c-8296-16fc3fbd03a6/artifacts/6bplvhii_logo%20piccolo%20dti.jpg"
+              alt="Digital Twins Italia"
+              className="h-8 w-auto rounded"
+            />
+            <p className="text-slate-500 text-xs">Made Antonio Deiana ©</p>
+          </div>
+        </footer>
       </BrowserRouter>
       <Toaster position="top-right" richColors />
     </div>
