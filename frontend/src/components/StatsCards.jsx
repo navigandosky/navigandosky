@@ -1,8 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Users, MapPin, Award, Briefcase } from "lucide-react";
+import { Users, MapPin, Award, Briefcase, Smartphone } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-const COLORS = ["#1E90FF", "#FFD700", "#3b82f6", "#fbbf24", "#60a5fa", "#f59e0b"];
+const COLORS = ["#1E90FF", "#FFD700", "#3b82f6", "#fbbf24", "#60a5fa", "#f59e0b", "#10b981", "#8b5cf6"];
 
 export default function StatsCards({ stats, loading }) {
   if (loading) {
@@ -22,6 +22,7 @@ export default function StatsCards({ stats, loading }) {
   const regioniData = stats?.per_regione?.slice(0, 8) || [];
   const qualificheData = stats?.per_qualifica?.filter(q => q.qualifica !== "Non specificata") || [];
   const caricheData = stats?.per_carica?.filter(c => c.carica !== "Non specificata" && c.carica !== "Socio") || [];
+  const dispositiviData = stats?.per_dispositivo || [];
 
   return (
     <div className="space-y-6">
