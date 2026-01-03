@@ -31,6 +31,12 @@ export default function ComunicazioniTab({ preselectedSocio, onClearPreselected 
   const [selectedCom, setSelectedCom] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sending, setSending] = useState(false);
+  
+  // Filter state for list
+  const [filterSearch, setFilterSearch] = useState("");
+  const [filterTipo, setFilterTipo] = useState("");
+  const [filterDataDa, setFilterDataDa] = useState("");
+  const [filterDataA, setFilterDataA] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -60,6 +66,25 @@ export default function ComunicazioniTab({ preselectedSocio, onClearPreselected 
       }
     }
   }, [preselectedSocio, soci, onClearPreselected]);
+
+  // Filter comunicazioni
+  const filteredComunicazioni = comunicazioni
+    .filter((com) => {
+      const searchLower = filterSearch.toLowerCase();
+      const matchesSearch = !filterSearch || 
+        com.oggetto?.toLowerCase().includes(searchLower) ||
+        com.descrizione?.toLowerCase().includes(searchLower) ||
+        com.tipo?.toLowerCase().includes(searchLower);
+      
+      const matchesTipo = !filterTipo || com.tipo === filterTipo;
+      
+      const comDate = new Date(com.data_creazione);
+      const matchesDataDa = !filterDataDa || comDate >= new Date(filterDataDa);
+      const matchesDataA = !filterDataA || comDate <= new Date(filterDataA + "T23:59:59");
+      
+      return matchesSearch && matchesTipo && matchesDataDa && matchesDataA;
+    })
+    .sort((a, b) => new Date(b.data_creazione) - new Date(a.data_creazione));
 
   const fetchData = async () => {
     try {
