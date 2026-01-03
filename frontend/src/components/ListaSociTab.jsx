@@ -143,6 +143,19 @@ export default function ListaSociTab({ soci, onEdit, onRefresh }) {
                 <SelectItem value="Socio" className="text-slate-200">Socio</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={gruppoFilter || "all"} onValueChange={(v) => setGruppoFilter(v === "all" ? "" : v)}>
+              <SelectTrigger className="w-full md:w-44 bg-slate-950/50 border-slate-800 text-slate-200" data-testid="filter-gruppo">
+                <SelectValue placeholder="Tutti i gruppi" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-800">
+                <SelectItem value="all" className="text-slate-200">Tutti i gruppi</SelectItem>
+                {gruppi.map((g) => (
+                  <SelectItem key={g.id} value={g.value} className="text-slate-200 focus:bg-slate-800">
+                    {g.value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Results count */}
