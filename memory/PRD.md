@@ -2,17 +2,18 @@
 
 ## Problem Statement
 Sistema di gestione integrata Back Office per i soci dell'Associazione Digital Twins Italia.
-Gestione iscrizioni, registri soci con anagrafica completa, ricerca avanzata e visualizzazione geografica su mappa Italia.
+Gestione iscrizioni, registri soci con anagrafica completa, ricerca avanzata, visualizzazione geografica su mappa Italia e comunicazioni email ai soci.
 
 ## Architecture
 - **Frontend**: React 19 + TailwindCSS + Shadcn/UI + Recharts + Leaflet
-- **Backend**: FastAPI + Motor (async MongoDB driver) + GridFS per file
+- **Backend**: FastAPI + Motor (async MongoDB driver) + GridFS per file + SMTP per email
 - **Database**: MongoDB Atlas
 - **Auth**: Login fisso (DigitalTwin26 / Dgt_26$)
+- **Email**: SMTP Gmail (associazionedigitaltwinsitalia@gmail.com)
 
 ## User Personas
-1. **Amministratore Associazione**: Gestisce anagrafica completa soci, carica documenti, monitora statistiche
-2. **Segretario**: Consulta lista soci, cerca per regione/carica, esporta dati
+1. **Amministratore Associazione**: Gestisce anagrafica completa soci, carica documenti, monitora statistiche, invia comunicazioni
+2. **Segretario**: Consulta lista soci, cerca per regione/carica, invia circolari e convocazioni
 
 ## Core Requirements (Static)
 - [x] Login con credenziali fisse
@@ -23,6 +24,7 @@ Gestione iscrizioni, registri soci con anagrafica completa, ricerca avanzata e v
 - [x] Upload documenti allegati (PDF/JPG fino 6MB)
 - [x] Dropdown incrementabili (dispositivo, qualifica)
 - [x] Pre-caricamento dati dal file Excel (32 soci)
+- [x] Tab Comunicazioni con gestione invio email
 
 ## What's Been Implemented
 **03/01/2025**:
@@ -33,6 +35,17 @@ Gestione iscrizioni, registri soci con anagrafica completa, ricerca avanzata e v
 - Mappa Italia con GeoJSON regioni e indicatori densità
 - Design elegante dark theme (blu/oro) ispirato al sito ufficiale
 
+**03/01/2025 - Update**:
+- Fix colore dropdown (testo bianco su sfondo nero)
+- Mappa mostra città e dispositivo (PRO2, PRO3) per ogni socio
+- Tab Comunicazioni completo:
+  - Creazione comunicazioni (tipo, oggetto, descrizione)
+  - Selezione destinatari con checkbox e pulsanti Tutti/Nessuno
+  - Upload allegati (PDF, JPG, DOC, XLS fino 6MB)
+  - Archivio comunicazioni con stati (bozza, inviata, errore)
+  - Invio email via SMTP Gmail
+- API comunicazioni (CRUD + invio)
+
 ## Prioritized Backlog
 
 ### P0 - Critical (Done)
@@ -40,11 +53,12 @@ Gestione iscrizioni, registri soci con anagrafica completa, ricerca avanzata e v
 - [x] CRUD soci
 - [x] Lista soci con ricerca
 - [x] Mappa Italia
+- [x] Tab Comunicazioni
 
 ### P1 - High Priority (Next)
 - [ ] Export lista soci (CSV/Excel)
 - [ ] Stampa schede soci
-- [ ] Filtro per qualifica
+- [ ] Configurare App Password Gmail per SMTP produzione
 
 ### P2 - Medium Priority
 - [ ] Multi-utente con ruoli
@@ -53,13 +67,13 @@ Gestione iscrizioni, registri soci con anagrafica completa, ricerca avanzata e v
 - [ ] Notifiche scadenze quote
 
 ### P3 - Low Priority
-- [ ] Integrazione email automatiche
 - [ ] Dashboard avanzata con trend temporali
 - [ ] App mobile PWA
+- [ ] Integrazione MongoDB Atlas
 
 ## Next Tasks
-1. Implementare export CSV/Excel della lista soci
-2. Aggiungere funzione stampa scheda socio
+1. Configurare App Password Gmail (2FA) per invio email in produzione
+2. Implementare export CSV/Excel della lista soci
 3. Collegare a MongoDB Atlas con le credenziali fornite
 4. Seconda fase: CMS per gestione pagine sito (TrivorPlatform)
 
@@ -74,7 +88,13 @@ Gestione iscrizioni, registri soci con anagrafica completa, ricerca avanzata e v
 - GET /api/stats
 - GET /api/map-data
 - POST /api/seed
+- GET/POST /api/comunicazioni
+- GET/PUT/DELETE /api/comunicazioni/{id}
+- POST /api/comunicazioni/{id}/allegati
+- POST /api/comunicazioni/{id}/invia
+- GET /api/comunicazioni-tipi
 
 ## Credentials
 - Login: DigitalTwin26 / Dgt_26$
-- MongoDB Atlas: (da configurare in backend/.env)
+- SMTP: associazionedigitaltwinsitalia@gmail.com / digitaltwins25
+- MongoDB Atlas: (da configurare)
