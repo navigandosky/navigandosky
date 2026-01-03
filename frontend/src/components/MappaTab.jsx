@@ -74,7 +74,7 @@ function MapController({ selectedRegion }) {
   return null;
 }
 
-export default function MappaTab() {
+export default function MappaTab({ onContactSocio }) {
   const [geoData, setGeoData] = useState(null);
   const [mapData, setMapData] = useState([]);
   const [selectedRegion, setSelectedRegion] = useState(null);
