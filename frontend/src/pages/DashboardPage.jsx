@@ -173,6 +173,7 @@ export default function DashboardPage({ onLogout }) {
               soci={soci}
               onEdit={handleEditSocio}
               onRefresh={fetchData}
+              onContactSocio={handleContactFromMap}
             />
           </TabsContent>
 
