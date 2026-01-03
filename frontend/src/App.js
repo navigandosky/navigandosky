@@ -77,11 +77,12 @@ function App() {
           </div>
         </footer>
         {/* Cover Emergent badge */}
-        <div className="fixed bottom-0 right-0 z-[99999] bg-white px-2 py-1 rounded-tl-lg shadow-lg" style={{ minWidth: '160px' }}>
+        <div className="fixed bottom-0 right-0 z-[99999]">
           <img
-            src="https://customer-assets.emergentagent.com/job_digitalsoci/artifacts/bko42cjg_TRIVOR_Logo_Oro%20con%20sfondo%20wite.png"
+            src="https://customer-assets.emergentagent.com/job_digitalsoci/artifacts/lth9a43w_TRIVOR_Logo_Oro%20con%20sfondo%20wite_app%20e%20web%20scritta.png"
             alt="Trivor"
-            className="h-10 w-auto"
+            className="h-14 w-auto"
+            style={{ display: 'block' }}
           />
         </div>
       </BrowserRouter>
