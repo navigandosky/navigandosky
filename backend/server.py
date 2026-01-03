@@ -33,6 +33,13 @@ api_router = APIRouter(prefix="/api")
 FIXED_USERNAME = "DigitalTwin26"
 FIXED_PASSWORD = "Dgt_26$"
 
+# SMTP Configuration
+SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
+SMTP_USER = os.environ.get('SMTP_USER', 'associazionedigitaltwinsitalia@gmail.com')
+SMTP_PASS = os.environ.get('SMTP_PASS', 'digitaltwins25')
+SMTP_FROM = os.environ.get('SMTP_FROM', 'associazionedigitaltwinsitalia@gmail.com')
+
 # Models
 class LoginRequest(BaseModel):
     username: str
