@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
-import { LogOut, Users, UserPlus, Map, BarChart3 } from "lucide-react";
+import { LogOut, Users, UserPlus, Map, BarChart3, Mail } from "lucide-react";
 import AnagraficaTab from "../components/AnagraficaTab";
 import ListaSociTab from "../components/ListaSociTab";
 import MappaTab from "../components/MappaTab";
+import ComunicazioniTab from "../components/ComunicazioniTab";
 import StatsCards from "../components/StatsCards";
 import axios from "axios";
 import { toast } from "sonner";
