@@ -95,6 +95,41 @@ class DropdownOptionCreate(BaseModel):
     value: str
     category: str
 
+# Comunicazioni Models
+class AllegatoComunicazione(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    filename: str
+    file_id: str
+    content_type: str
+    size: int
+
+class DestinatarioComunicazione(BaseModel):
+    socio_id: str
+    nome: str
+    cognome: str
+    email: str
+    inviato: bool = False
+    data_invio: Optional[str] = None
+    errore: Optional[str] = None
+
+class ComunicazioneBase(BaseModel):
+    tipo: str
+    oggetto: str
+    descrizione: str
+
+class ComunicazioneCreate(ComunicazioneBase):
+    destinatari_ids: List[str]
+
+class Comunicazione(ComunicazioneBase):
+    id: str
+    data_creazione: str
+    data_invio: Optional[str] = None
+    stato: str  # "bozza", "in_invio", "inviata", "errore"
+    destinatari: List[DestinatarioComunicazione] = []
+    allegati: List[AllegatoComunicazione] = []
+    totale_destinatari: int = 0
+    totale_inviati: int = 0
+
 # Authentication
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
