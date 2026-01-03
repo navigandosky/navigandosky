@@ -440,6 +440,284 @@ async def seed_data():
     
     return {"message": "Dati inizializzati", "soci_count": len(soci_data)}
 
+# Comunicazioni CRUD
+@api_router.get("/comunicazioni", response_model=List[Comunicazione])
+async def get_comunicazioni():
+    comunicazioni = await db.comunicazioni.find({}, {"_id": 0}).sort("data_creazione", -1).to_list(100)
+    return [Comunicazione(**c) for c in comunicazioni]
+
+@api_router.get("/comunicazioni/{com_id}", response_model=Comunicazione)
+async def get_comunicazione(com_id: str):
+    com = await db.comunicazioni.find_one({"id": com_id}, {"_id": 0})
+    if not com:
+        raise HTTPException(status_code=404, detail="Comunicazione non trovata")
+    return Comunicazione(**com)
+
+@api_router.post("/comunicazioni", response_model=Comunicazione)
+async def create_comunicazione(com: ComunicazioneCreate):
+    # Get destinatari info from soci
+    destinatari = []
+    for socio_id in com.destinatari_ids:
+        socio = await db.soci.find_one({"id": socio_id}, {"_id": 0})
+        if socio and socio.get("email"):
+            destinatari.append(DestinatarioComunicazione(
+                socio_id=socio_id,
+                nome=socio.get("nome", ""),
+                cognome=socio.get("cognome", ""),
+                email=socio.get("email", "")
+            ).model_dump())
+    
+    com_dict = {
+        "id": str(uuid.uuid4()),
+        "tipo": com.tipo,
+        "oggetto": com.oggetto,
+        "descrizione": com.descrizione,
+        "data_creazione": datetime.now(timezone.utc).isoformat(),
+        "data_invio": None,
+        "stato": "bozza",
+        "destinatari": destinatari,
+        "allegati": [],
+        "totale_destinatari": len(destinatari),
+        "totale_inviati": 0
+    }
+    
+    await db.comunicazioni.insert_one(com_dict)
+    return Comunicazione(**com_dict)
+
+@api_router.put("/comunicazioni/{com_id}", response_model=Comunicazione)
+async def update_comunicazione(com_id: str, com: ComunicazioneCreate):
+    existing = await db.comunicazioni.find_one({"id": com_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Comunicazione non trovata")
+    
+    # Update destinatari
+    destinatari = []
+    for socio_id in com.destinatari_ids:
+        socio = await db.soci.find_one({"id": socio_id}, {"_id": 0})
+        if socio and socio.get("email"):
+            destinatari.append(DestinatarioComunicazione(
+                socio_id=socio_id,
+                nome=socio.get("nome", ""),
+                cognome=socio.get("cognome", ""),
+                email=socio.get("email", "")
+            ).model_dump())
+    
+    update_data = {
+        "tipo": com.tipo,
+        "oggetto": com.oggetto,
+        "descrizione": com.descrizione,
+        "destinatari": destinatari,
+        "totale_destinatari": len(destinatari)
+    }
+    
+    await db.comunicazioni.update_one({"id": com_id}, {"$set": update_data})
+    updated = await db.comunicazioni.find_one({"id": com_id}, {"_id": 0})
+    return Comunicazione(**updated)
+
+@api_router.delete("/comunicazioni/{com_id}")
+async def delete_comunicazione(com_id: str):
+    from bson import ObjectId
+    com = await db.comunicazioni.find_one({"id": com_id})
+    if not com:
+        raise HTTPException(status_code=404, detail="Comunicazione non trovata")
+    
+    # Delete attachments from GridFS
+    for allegato in com.get("allegati", []):
+        try:
+            await fs.delete(ObjectId(allegato["file_id"]))
+        except:
+            pass
+    
+    await db.comunicazioni.delete_one({"id": com_id})
+    return {"message": "Comunicazione eliminata"}
+
+# Upload allegato comunicazione
+@api_router.post("/comunicazioni/{com_id}/allegati")
+async def upload_allegato_comunicazione(
+    com_id: str,
+    file: UploadFile = File(...)
+):
+    com = await db.comunicazioni.find_one({"id": com_id})
+    if not com:
+        raise HTTPException(status_code=404, detail="Comunicazione non trovata")
+    
+    if file.size and file.size > 6 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File troppo grande (max 6MB)")
+    
+    content = await file.read()
+    file_id = await fs.upload_from_stream(
+        file.filename,
+        io.BytesIO(content),
+        metadata={"content_type": file.content_type, "comunicazione_id": com_id}
+    )
+    
+    allegato = AllegatoComunicazione(
+        filename=file.filename,
+        file_id=str(file_id),
+        content_type=file.content_type or "application/octet-stream",
+        size=len(content)
+    )
+    
+    await db.comunicazioni.update_one(
+        {"id": com_id},
+        {"$push": {"allegati": allegato.model_dump()}}
+    )
+    
+    return allegato
+
+@api_router.delete("/comunicazioni/{com_id}/allegati/{allegato_id}")
+async def delete_allegato_comunicazione(com_id: str, allegato_id: str):
+    from bson import ObjectId
+    com = await db.comunicazioni.find_one({"id": com_id})
+    if not com:
+        raise HTTPException(status_code=404, detail="Comunicazione non trovata")
+    
+    allegato_to_delete = None
+    for allegato in com.get("allegati", []):
+        if allegato["id"] == allegato_id:
+            allegato_to_delete = allegato
+            break
+    
+    if allegato_to_delete:
+        try:
+            await fs.delete(ObjectId(allegato_to_delete["file_id"]))
+        except:
+            pass
+        await db.comunicazioni.update_one(
+            {"id": com_id},
+            {"$pull": {"allegati": {"id": allegato_id}}}
+        )
+    
+    return {"message": "Allegato eliminato"}
+
+# Send email function
+def send_email_smtp(to_email: str, subject: str, body: str, attachments: list = None):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = SMTP_FROM
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        
+        msg.attach(MIMEText(body, 'html'))
+        
+        # Add attachments if any
+        if attachments:
+            for att in attachments:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(att['content'])
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename={att["filename"]}')
+                msg.attach(part)
+        
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.send_message(msg)
+        
+        return True, None
+    except Exception as e:
+        return False, str(e)
+
+# Send comunicazione
+@api_router.post("/comunicazioni/{com_id}/invia")
+async def invia_comunicazione(com_id: str, background_tasks: BackgroundTasks):
+    from bson import ObjectId
+    
+    com = await db.comunicazioni.find_one({"id": com_id})
+    if not com:
+        raise HTTPException(status_code=404, detail="Comunicazione non trovata")
+    
+    if com.get("stato") == "inviata":
+        raise HTTPException(status_code=400, detail="Comunicazione già inviata")
+    
+    # Update stato to in_invio
+    await db.comunicazioni.update_one(
+        {"id": com_id},
+        {"$set": {"stato": "in_invio"}}
+    )
+    
+    # Get attachments content
+    attachments = []
+    for allegato in com.get("allegati", []):
+        try:
+            grid_out = await fs.open_download_stream(ObjectId(allegato["file_id"]))
+            content = await grid_out.read()
+            attachments.append({
+                "filename": allegato["filename"],
+                "content": content
+            })
+        except:
+            pass
+    
+    # Prepare email body
+    body = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333;">
+        <h2 style="color: #1E90FF;">Associazione Digital Twins Italia</h2>
+        <h3>{com.get('oggetto', '')}</h3>
+        <div style="white-space: pre-wrap;">{com.get('descrizione', '')}</div>
+        <hr style="border: 1px solid #ddd; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">
+            Questa comunicazione è stata inviata dall'Associazione Digital Twins Italia.<br>
+            Per info: associazionedigitaltwinsitalia@gmail.com
+        </p>
+    </body>
+    </html>
+    """
+    
+    # Send to each destinatario
+    totale_inviati = 0
+    destinatari_updated = []
+    
+    for dest in com.get("destinatari", []):
+        success, error = send_email_smtp(
+            dest["email"],
+            com.get("oggetto", "Comunicazione DTI"),
+            body,
+            attachments
+        )
+        
+        dest_update = {
+            **dest,
+            "inviato": success,
+            "data_invio": datetime.now(timezone.utc).isoformat() if success else None,
+            "errore": error
+        }
+        destinatari_updated.append(dest_update)
+        
+        if success:
+            totale_inviati += 1
+    
+    # Update comunicazione
+    final_stato = "inviata" if totale_inviati > 0 else "errore"
+    await db.comunicazioni.update_one(
+        {"id": com_id},
+        {"$set": {
+            "stato": final_stato,
+            "data_invio": datetime.now(timezone.utc).isoformat(),
+            "destinatari": destinatari_updated,
+            "totale_inviati": totale_inviati
+        }}
+    )
+    
+    return {
+        "message": f"Invio completato: {totale_inviati}/{len(destinatari_updated)} email inviate",
+        "totale_inviati": totale_inviati,
+        "totale_destinatari": len(destinatari_updated)
+    }
+
+# Get tipi comunicazione
+@api_router.get("/comunicazioni-tipi")
+async def get_tipi_comunicazione():
+    return [
+        {"value": "circolare", "label": "Circolare"},
+        {"value": "convocazione", "label": "Convocazione Assemblea"},
+        {"value": "newsletter", "label": "Newsletter"},
+        {"value": "avviso", "label": "Avviso"},
+        {"value": "promemoria", "label": "Promemoria"},
+        {"value": "altro", "label": "Altro"}
+    ]
+
 @api_router.get("/")
 async def root():
     return {"message": "Digital Twins Italia API"}
