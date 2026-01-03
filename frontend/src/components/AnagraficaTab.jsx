@@ -490,11 +490,14 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
               <div className="flex gap-2">
                 <Input
                   type="text"
-                  value={formData.data_iscrizione ? format(new Date(formData.data_iscrizione), "dd/MM/yyyy", { locale: it }) : ""}
+                  defaultValue=""
+                  value={formData.data_iscrizione_text !== undefined ? formData.data_iscrizione_text : (formData.data_iscrizione ? format(new Date(formData.data_iscrizione), "dd/MM/yyyy", { locale: it }) : "")}
                   onChange={(e) => {
                     const val = e.target.value;
-                    // Parse dd/MM/yyyy format
-                    const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                    // Permetti input libero
+                    setFormData(prev => ({ ...prev, data_iscrizione_text: val }));
+                    // Parse dd/MM/yyyy format quando completo
+                    const match = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
                     if (match) {
                       const [, day, month, year] = match;
                       const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
@@ -502,6 +505,10 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
                         handleChange("data_iscrizione", date.toISOString());
                       }
                     }
+                  }}
+                  onBlur={(e) => {
+                    // Al blur, resetta il testo temporaneo
+                    setFormData(prev => ({ ...prev, data_iscrizione_text: undefined }));
                   }}
                   placeholder="GG/MM/AAAA"
                   className="bg-slate-950/50 border-slate-800 focus:border-blue-500 text-slate-200 flex-1"
@@ -523,6 +530,7 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
                       selected={formData.data_iscrizione ? new Date(formData.data_iscrizione) : undefined}
                       onSelect={(date) => {
                         handleChange("data_iscrizione", date ? date.toISOString() : "");
+                        setFormData(prev => ({ ...prev, data_iscrizione_text: undefined }));
                         setDateOpen(false);
                       }}
                       initialFocus
