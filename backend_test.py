@@ -433,6 +433,12 @@ def main():
         ("Create socio", tester.test_create_socio),
         ("Get socio by ID", tester.test_get_socio_by_id),
         ("Update socio", tester.test_update_socio),
+        ("Get comunicazioni", tester.test_get_comunicazioni),
+        ("Get comunicazioni types", tester.test_get_comunicazioni_tipi),
+        ("Create comunicazione", tester.test_create_comunicazione),
+        ("Get comunicazione by ID", tester.test_get_comunicazione_by_id),
+        ("Update comunicazione", tester.test_update_comunicazione),
+        ("Delete comunicazione", tester.test_delete_comunicazione),
         ("Delete socio", tester.test_delete_socio),
     ]
     
