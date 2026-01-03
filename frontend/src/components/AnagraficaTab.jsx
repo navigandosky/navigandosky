@@ -68,12 +68,14 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
 
   const fetchDropdowns = async () => {
     try {
-      const [dispRes, qualRes] = await Promise.all([
+      const [dispRes, qualRes, grupRes] = await Promise.all([
         axios.get(`${API}/dropdown/dispositivo`),
         axios.get(`${API}/dropdown/qualifica`),
+        axios.get(`${API}/dropdown/gruppo`),
       ]);
       setDispositivi(dispRes.data);
       setQualifiche(qualRes.data);
+      setGruppi(grupRes.data);
     } catch (error) {
       console.error("Error fetching dropdowns:", error);
     }
@@ -94,6 +96,7 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
       carica: "",
       data_iscrizione: "",
       qualifica: "",
+      gruppo: "",
       sito_web: "",
       zona_copertura: "",
       documenti: [],
