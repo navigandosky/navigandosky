@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { ScrollArea } from "./ui/scroll-area";
 import {
   Mail, Send, Plus, Trash2, Upload, FileText, X, Check, AlertCircle,
-  Clock, Users, Paperclip, Eye, Search, CheckSquare
+  Clock, Users, Paperclip, Eye, Search, CheckSquare, Copy
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
