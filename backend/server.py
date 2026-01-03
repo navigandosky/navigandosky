@@ -406,6 +406,15 @@ async def seed_data():
             upsert=True
         )
     
+    # Add default gruppi
+    gruppi = ["Direttivo", "CDA", "Comitato Scientifico", "Comitato Tecnico", "Gruppo Lavoro"]
+    for g in gruppi:
+        await db.dropdown_options.update_one(
+            {"category": "gruppo", "value": g},
+            {"$setOnInsert": {"id": str(uuid.uuid4()), "category": "gruppo", "value": g}},
+            upsert=True
+        )
+    
     # Seed soci from Excel data
     soci_data = [
         {"nome": "Andrea", "cognome": "Faggi", "regione": "TOSCANA", "zona_copertura": "TOSCANA", "tipo_dispositivo": "PRO3", "email": "faggiandrea13@gmail.com", "carica": "Socio", "qualifica": "Socio"},
