@@ -281,10 +281,12 @@ async def get_map_data():
                 "id": "$id",
                 "nome": "$nome",
                 "cognome": "$cognome",
+                "citta": "$citta",
                 "telefono": "$telefono",
                 "email": "$email",
                 "sito_web": "$sito_web",
-                "carica": "$carica"
+                "carica": "$carica",
+                "tipo_dispositivo": "$tipo_dispositivo"
             }},
             "count": {"$sum": 1}
         }},
