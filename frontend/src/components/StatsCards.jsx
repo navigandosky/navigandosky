@@ -94,7 +94,7 @@ export default function StatsCards({ stats, loading }) {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Bar Chart - Soci per Regione */}
         <Card className="glass-card border-slate-800/60" data-testid="chart-regioni">
           <CardHeader>
@@ -143,9 +143,9 @@ export default function StatsCards({ stats, loading }) {
                     nameKey="qualifica"
                     cx="50%"
                     cy="50%"
-                    outerRadius={100}
+                    outerRadius={80}
                     label={({ qualifica, percent }) =>
-                      `${qualifica} (${(percent * 100).toFixed(0)}%)`
+                      `${qualifica.substring(0, 10)}${qualifica.length > 10 ? '...' : ''}`
                     }
                     labelLine={false}
                   >
@@ -163,6 +163,52 @@ export default function StatsCards({ stats, loading }) {
                   />
                 </PieChart>
               </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pie Chart - Dispositivi */}
+        <Card className="glass-card border-slate-800/60" data-testid="chart-dispositivi">
+          <CardHeader>
+            <CardTitle className="text-slate-100 text-lg flex items-center gap-2">
+              <Smartphone className="h-5 w-5 text-emerald-400" />
+              Dispositivi Utilizzati
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              {dispositiviData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={dispositiviData}
+                      dataKey="count"
+                      nameKey="dispositivo"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      label={({ dispositivo, count }) => `${dispositivo}: ${count}`}
+                      labelLine={true}
+                    >
+                      {dispositiviData.map((entry, index) => (
+                        <Cell key={`cell-disp-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0f172a",
+                        border: "1px solid #1e293b",
+                        borderRadius: "8px",
+                        color: "#f8fafc",
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-slate-500">
+                  Nessun dispositivo registrato
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
