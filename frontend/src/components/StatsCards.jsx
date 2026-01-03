@@ -115,11 +115,14 @@ export default function StatsCards({ stats, loading }) {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#0f172a",
-                      border: "1px solid #1e293b",
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e2e8f0",
                       borderRadius: "8px",
-                      color: "#f8fafc",
+                      color: "#1e293b",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                     }}
+                    itemStyle={{ color: "#334155" }}
+                    labelStyle={{ color: "#0f172a", fontWeight: 600 }}
                   />
                   <Bar dataKey="count" fill="#1E90FF" radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -155,11 +158,14 @@ export default function StatsCards({ stats, loading }) {
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#0f172a",
-                      border: "1px solid #1e293b",
+                      backgroundColor: "#ffffff",
+                      border: "1px solid #e2e8f0",
                       borderRadius: "8px",
-                      color: "#f8fafc",
+                      color: "#1e293b",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                     }}
+                    itemStyle={{ color: "#334155" }}
+                    labelStyle={{ color: "#0f172a", fontWeight: 600 }}
                   />
                 </PieChart>
               </ResponsiveContainer>
