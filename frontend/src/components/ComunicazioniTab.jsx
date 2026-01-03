@@ -21,7 +21,7 @@ import { it } from "date-fns/locale";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-export default function ComunicazioniTab() {
+export default function ComunicazioniTab({ preselectedSocio, onClearPreselected }) {
   const [comunicazioni, setComunicazioni] = useState([]);
   const [soci, setSoci] = useState([]);
   const [tipiComunicazione, setTipiComunicazione] = useState([]);
@@ -45,6 +45,21 @@ export default function ComunicazioniTab() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Handle preselected socio from map
+  useEffect(() => {
+    if (preselectedSocio && soci.length > 0) {
+      const socioInList = soci.find(s => s.id === preselectedSocio.id || s.email === preselectedSocio.email);
+      if (socioInList) {
+        setFormData(prev => ({
+          ...prev,
+          destinatari_ids: [socioInList.id]
+        }));
+        setShowForm(true);
+        if (onClearPreselected) onClearPreselected();
+      }
+    }
+  }, [preselectedSocio, soci, onClearPreselected]);
 
   const fetchData = async () => {
     try {
