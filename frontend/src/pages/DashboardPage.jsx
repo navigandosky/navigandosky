@@ -177,11 +177,14 @@ export default function DashboardPage({ onLogout }) {
           </TabsContent>
 
           <TabsContent value="mappa" className="animate-fadeIn">
-            <MappaTab />
+            <MappaTab onContactSocio={handleContactFromMap} />
           </TabsContent>
 
           <TabsContent value="comunicazioni" className="animate-fadeIn">
-            <ComunicazioniTab />
+            <ComunicazioniTab 
+              preselectedSocio={preselectedSocioForCom} 
+              onClearPreselected={() => setPreselectedSocioForCom(null)}
+            />
           </TabsContent>
         </Tabs>
       </main>
