@@ -434,7 +434,10 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
             <div className="space-y-2">
               <Label className="text-slate-300">Gruppo</Label>
               <div className="flex gap-2">
-                <Select value={formData.gruppo} onValueChange={(v) => handleChange("gruppo", v)}>
+                <Select 
+                  value={formData.gruppo || undefined} 
+                  onValueChange={(v) => handleChange("gruppo", v)}
+                >
                   <SelectTrigger className="bg-slate-950/50 border-slate-800 text-slate-200 flex-1" data-testid="select-gruppo">
                     <SelectValue placeholder="Seleziona gruppo" />
                   </SelectTrigger>
@@ -478,7 +481,10 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
             <div className="space-y-2">
               <Label className="text-slate-300">Tipo Dispositivo</Label>
               <div className="flex gap-2">
-                <Select value={formData.tipo_dispositivo} onValueChange={(v) => handleChange("tipo_dispositivo", v)}>
+                <Select 
+                  value={formData.tipo_dispositivo || undefined} 
+                  onValueChange={(v) => handleChange("tipo_dispositivo", v)}
+                >
                   <SelectTrigger className="bg-slate-950/50 border-slate-800 text-slate-200 flex-1" data-testid="select-dispositivo">
                     <SelectValue placeholder="Seleziona dispositivo" />
                   </SelectTrigger>
