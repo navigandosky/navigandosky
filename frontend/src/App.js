@@ -76,6 +76,14 @@ function App() {
             <p className="text-slate-500 text-xs">Made Antonio Deiana ©</p>
           </div>
         </footer>
+        {/* Cover Emergent badge */}
+        <div className="fixed bottom-0 right-0 z-[9999] bg-white p-1 rounded-tl-lg shadow-lg">
+          <img
+            src="https://customer-assets.emergentagent.com/job_digitalsoci/artifacts/bko42cjg_TRIVOR_Logo_Oro%20con%20sfondo%20wite.png"
+            alt="Trivor"
+            className="h-8 w-auto"
+          />
+        </div>
       </BrowserRouter>
       <Toaster position="top-right" richColors />
     </div>
