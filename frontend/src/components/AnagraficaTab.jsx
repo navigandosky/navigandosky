@@ -38,6 +38,7 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
     carica: "",
     data_iscrizione: "",
     qualifica: "",
+    gruppo: "",
     sito_web: "",
     zona_copertura: "",
     documenti: [],
@@ -45,8 +46,10 @@ export default function AnagraficaTab({ selectedSocio, onSaved, onCancel }) {
 
   const [dispositivi, setDispositivi] = useState([]);
   const [qualifiche, setQualifiche] = useState([]);
+  const [gruppi, setGruppi] = useState([]);
   const [newDispositivo, setNewDispositivo] = useState("");
   const [newQualifica, setNewQualifica] = useState("");
+  const [newGruppo, setNewGruppo] = useState("");
   const [loading, setSaving] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
