@@ -114,6 +114,22 @@ const POI_ICONS = [
   { id: "mappin", name: "Posizione", icon: MapPin, color: "#EF4444" }
 ];
 
+// POI Categories
+const POI_CATEGORIES = [
+  { id: "general", name: "Generale", color: "#6B7280" },
+  { id: "climate", name: "Clima/Riscaldamento", color: "#EF4444" },
+  { id: "lighting", name: "Illuminazione", color: "#EAB308" },
+  { id: "security", name: "Sicurezza", color: "#8B5CF6" },
+  { id: "multimedia", name: "Multimedia/TV", color: "#EC4899" },
+  { id: "appliances", name: "Elettrodomestici", color: "#F97316" },
+  { id: "water", name: "Idraulica/Acqua", color: "#0EA5E9" },
+  { id: "electrical", name: "Impianto Elettrico", color: "#FBBF24" },
+  { id: "outdoor", name: "Esterno/Giardino", color: "#22C55E" },
+  { id: "rooms", name: "Stanze/Ambienti", color: "#A855F7" },
+  { id: "access", name: "Accessi/Porte", color: "#14B8A6" },
+  { id: "network", name: "Rete/Connettività", color: "#06B6D4" }
+];
+
 // Supported languages
 const LANGUAGES = [
   { code: "it", name: "Italiano", flag: "🇮🇹" },
