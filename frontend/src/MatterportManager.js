@@ -865,10 +865,10 @@ export default function MatterportManager() {
 
       {/* Import Tags Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="bg-slate-900 border-slate-700 max-w-2xl">
+        <DialogContent className="bg-slate-800 border-slate-600 text-white max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Importa Tag da Matterport</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white text-lg">Importa Tag da Matterport</DialogTitle>
+            <DialogDescription className="text-slate-300">
               Seleziona i tag da importare come POI ({matterportTags.length} tag disponibili)
             </DialogDescription>
           </DialogHeader>
@@ -884,8 +884,8 @@ export default function MatterportManager() {
                     key={tagId}
                     className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
                       isSelected 
-                        ? 'bg-cyan-500/10 border-cyan-500/50' 
-                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                        ? 'bg-cyan-500/20 border-cyan-500' 
+                        : 'bg-slate-700/50 border-slate-600 hover:border-slate-500'
                     }`}
                     onClick={() => {
                       setSelectedTagsForImport(prev => 
@@ -895,7 +895,7 @@ export default function MatterportManager() {
                       );
                     }}
                   >
-                    <Checkbox checked={isSelected} />
+                    <Checkbox checked={isSelected} className="border-slate-400" />
                     <div className="flex-1">
                       <p className="font-medium text-white">
                         {tag.label || tag.name || `Tag ${tagId}`}
@@ -904,7 +904,7 @@ export default function MatterportManager() {
                         {tag.description || tag.stemLabel || "Nessuna descrizione"}
                       </p>
                     </div>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs border-slate-500 text-slate-300">
                       {tagId.substring(0, 8)}...
                     </Badge>
                   </div>
@@ -913,11 +913,12 @@ export default function MatterportManager() {
             </div>
           </ScrollArea>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <div className="flex items-center gap-2 mr-auto">
               <Button
                 variant="ghost"
                 size="sm"
+                className="text-cyan-400 hover:text-cyan-300"
                 onClick={() => setSelectedTagsForImport(matterportTags.map(t => t.sid || t.id))}
               >
                 Seleziona tutti
@@ -925,16 +926,21 @@ export default function MatterportManager() {
               <Button
                 variant="ghost"
                 size="sm"
+                className="text-slate-400 hover:text-slate-300"
                 onClick={() => setSelectedTagsForImport([])}
               >
                 Deseleziona tutti
               </Button>
             </div>
-            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowImportDialog(false)}
+              className="border-slate-500 text-slate-300 hover:bg-slate-700"
+            >
               Annulla
             </Button>
             <Button 
-              className="bg-cyan-600" 
+              className="bg-cyan-600 hover:bg-cyan-700 text-white" 
               onClick={handleImportTags}
               disabled={isImporting || selectedTagsForImport.length === 0}
             >
