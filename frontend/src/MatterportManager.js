@@ -796,59 +796,63 @@ export default function MatterportManager() {
 
       {/* Space Dialog */}
       <Dialog open={showSpaceDialog} onOpenChange={setShowSpaceDialog}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-slate-800 border-slate-600 text-white">
           <DialogHeader>
-            <DialogTitle>{spaceForm.id ? "Modifica Spazio" : "Nuovo Spazio"}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white text-lg">{spaceForm.id ? "Modifica Spazio" : "Nuovo Spazio"}</DialogTitle>
+            <DialogDescription className="text-slate-300">
               Configura uno spazio Matterport per gestire i POI
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <Label>Nome Spazio *</Label>
+              <Label className="text-white font-medium">Nome Spazio *</Label>
               <Input
                 value={spaceForm.name}
                 onChange={(e) => setSpaceForm(p => ({ ...p, name: e.target.value }))}
                 placeholder="Es: Villa Principale"
-                className="bg-slate-800 border-slate-700"
+                className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400 mt-1"
               />
             </div>
             <div>
-              <Label>Space ID Matterport *</Label>
+              <Label className="text-white font-medium">Space ID Matterport *</Label>
               <Input
                 value={spaceForm.space_id}
                 onChange={(e) => setSpaceForm(p => ({ ...p, space_id: e.target.value }))}
                 placeholder="Es: j1r4zUjanif"
-                className="bg-slate-800 border-slate-700"
+                className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400 mt-1"
               />
             </div>
             <div>
-              <Label>Descrizione</Label>
+              <Label className="text-white font-medium">Descrizione</Label>
               <Textarea
                 value={spaceForm.description}
                 onChange={(e) => setSpaceForm(p => ({ ...p, description: e.target.value }))}
                 placeholder="Descrizione opzionale..."
-                className="bg-slate-800 border-slate-700"
+                className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400 mt-1"
               />
             </div>
             <div>
-              <Label>SDK Key (opzionale)</Label>
+              <Label className="text-white font-medium">SDK Key (opzionale)</Label>
               <Input
                 value={spaceForm.sdk_key}
                 onChange={(e) => setSpaceForm(p => ({ ...p, sdk_key: e.target.value }))}
                 placeholder="Usa quella globale se vuoto"
-                className="bg-slate-800 border-slate-700"
+                className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400 mt-1"
               />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSpaceDialog(false)}>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowSpaceDialog(false)}
+              className="border-slate-500 text-slate-300 hover:bg-slate-700"
+            >
               Annulla
             </Button>
             <Button 
-              className="bg-cyan-600" 
+              className="bg-cyan-600 hover:bg-cyan-700 text-white" 
               onClick={handleSaveSpace}
               disabled={loading || !spaceForm.name || !spaceForm.space_id}
             >
