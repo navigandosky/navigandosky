@@ -1010,15 +1010,45 @@ export default function MatterportManager() {
                     <CardTitle className="text-lg text-white">
                       {selectedPoi.translations?.find(t => t.language === "it")?.title || "POI"}
                     </CardTitle>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="text-white hover:bg-slate-700"
-                      onClick={() => setSelectedPoi(null)}
-                    >
-                      <X size={16} />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-yellow-400 hover:bg-slate-700"
+                        onClick={() => handleEditPoi(selectedPoi)}
+                        title="Modifica"
+                      >
+                        <Edit size={16} />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-red-400 hover:bg-slate-700"
+                        onClick={() => handleDeletePoi(selectedPoi)}
+                        title="Elimina"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-white hover:bg-slate-700"
+                        onClick={() => setSelectedPoi(null)}
+                        title="Chiudi"
+                      >
+                        <X size={16} />
+                      </Button>
+                    </div>
                   </div>
+                  {/* Category badge */}
+                  {selectedPoi.category && (
+                    <Badge 
+                      className="mt-1 text-xs"
+                      style={{ backgroundColor: getAllCategories().find(c => c.id === selectedPoi.category)?.color + "30" }}
+                    >
+                      {getAllCategories().find(c => c.id === selectedPoi.category)?.name || "Generale"}
+                    </Badge>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
