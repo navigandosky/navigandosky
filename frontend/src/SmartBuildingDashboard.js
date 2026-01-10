@@ -528,25 +528,19 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
 
           {/* Main Content - Matterport + Tabs */}
           <div className="lg:col-span-3 space-y-6">
-            {/* Matterport 3D Viewer */}
-            <Card className="bg-slate-900/50 border-slate-800 overflow-hidden">
-              <div className="relative">
-                <div className="absolute top-3 left-3 z-10">
-                  <Badge className="bg-red-500 text-white animate-pulse">LIVE</Badge>
-                </div>
-                <div className="aspect-video bg-slate-900">
-                  <iframe
-                    title="Matterport 3D"
-                    src={`https://my.matterport.com/show/?m=${matterportSpaceId}&play=1`}
-                    width="100%"
-                    height="100%"
-                    frameBorder="0"
-                    allow="fullscreen; vr"
-                    className="w-full h-full"
-                  />
-                </div>
-              </div>
-            </Card>
+            {/* Matterport 3D Viewer with SDK Integration */}
+            <MatterportViewer
+              ref={matterportRef}
+              spaceId={process.env.REACT_APP_MATTERPORT_SPACE_ID || "j1r4zUjanif"}
+              onSdkReady={(sdk) => {
+                console.log("Matterport SDK pronto per l'uso", sdk);
+              }}
+              onTagsLoaded={(tags) => {
+                console.log("Mattertags caricati:", tags);
+                setMatterportTags(tags);
+              }}
+              className="bg-slate-900/50 border border-slate-800 rounded-xl"
+            />
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
