@@ -1020,26 +1020,38 @@ export default function MatterportManager() {
   };
 
   const handleNavigateToPoi = async (poi) => {
+    console.log("handleNavigateToPoi called for:", poi.translations?.[0]?.title);
+    
     if (!matterportRef.current) {
       toast.error("SDK Matterport non connesso");
+      console.log("No matterportRef");
       return;
     }
     
     const sdk = matterportRef.current.getSdk();
     if (!sdk) {
       toast.error("SDK non disponibile");
+      console.log("No SDK");
       return;
     }
+    
+    console.log("POI data:", { 
+      tag: poi.matterport_tag_id, 
+      imported: poi.is_imported, 
+      sweep: poi.nearest_sweep_id 
+    });
     
     // For POIs imported from Matterport, use navigateToTag directly
     if (poi.matterport_tag_id && poi.is_imported) {
       toast.info("🚶 Navigazione verso il POI...");
       try {
+        console.log("Calling navigateToTag with:", poi.matterport_tag_id);
         await sdk.Mattertag.navigateToTag(
           poi.matterport_tag_id,
           sdk.Mattertag.Transition.FLY
         );
         toast.success("✅ Destinazione raggiunta!");
+        console.log("Navigation successful");
         return;
       } catch (error) {
         console.error("Mattertag navigation error:", error);
