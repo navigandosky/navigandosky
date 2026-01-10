@@ -1652,23 +1652,8 @@ function App() {
         )}
 
         {/* Matterport Tab */}
-        {activeTab === "matterport" && config && (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="h-5 w-5" />
-                  Vista 3D Matterport
-                </CardTitle>
-                <CardDescription>
-                  Esplora lo spazio in 3D - Space ID: {config.matterport_space_id}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <MatterportViewer spaceId={config.matterport_space_id} />
-              </CardContent>
-            </Card>
-          </div>
+        {activeTab === "matterport" && (
+          <MatterportManager />
         )}
 
         {/* Elettrodomestici Tab */}
