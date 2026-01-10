@@ -725,41 +725,26 @@ export default function MatterportManager() {
       return;
     }
     
-    // Se ha un tag Matterport, naviga ad esso
-    if (poi.matterport_tag_id) {
-      toast.info("Navigazione verso il POI...");
+    // Helper function to navigate by coordinates (nearest sweep)
+    const navigateByPosition = async (position) => {
       try {
-        // Prova prima con navigateToTag
-        await sdk.Mattertag.navigateToTag(
-          poi.matterport_tag_id,
-          sdk.Mattertag.Transition.FLY
-        );
-        toast.success("Navigazione completata!");
-      } catch (error) {
-        console.error("Mattertag navigation error:", error);
-        toast.error("Errore navigazione: " + error.message);
-      }
-    } else if (poi.position) {
-      // Se ha solo la posizione, trova lo sweep più vicino
-      toast.info("Navigazione verso le coordinate...");
-      try {
-        // Ottieni tutti gli sweep
+        // Get all sweeps
         const sweepCollection = await sdk.Sweep.data.collect();
         
         if (!sweepCollection || sweepCollection.length === 0) {
           toast.error("Nessun punto di navigazione disponibile");
-          return;
+          return false;
         }
         
-        // Trova lo sweep più vicino
+        // Find nearest sweep
         let nearestSweep = null;
         let minDistance = Infinity;
         
         for (const sweep of sweepCollection) {
           if (sweep.position) {
-            const dx = sweep.position.x - poi.position.x;
-            const dy = sweep.position.y - poi.position.y;
-            const dz = sweep.position.z - poi.position.z;
+            const dx = sweep.position.x - position.x;
+            const dy = sweep.position.y - position.y;
+            const dz = sweep.position.z - position.z;
             const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
             if (distance < minDistance) {
               minDistance = distance;
@@ -774,13 +759,46 @@ export default function MatterportManager() {
             transitionTime: 1500
           });
           toast.success(`Navigazione completata (distanza: ${minDistance.toFixed(1)}m)`);
+          return true;
         } else {
           toast.warning("Impossibile trovare un punto di navigazione vicino");
+          return false;
         }
       } catch (error) {
-        console.error("Navigation error:", error);
-        toast.error("Errore nella navigazione");
+        console.error("Navigation by position error:", error);
+        toast.error("Errore nella navigazione per coordinate");
+        return false;
       }
+    };
+    
+    // Try navigation by Matterport tag ID first
+    if (poi.matterport_tag_id) {
+      toast.info("Navigazione verso il POI...");
+      try {
+        await sdk.Mattertag.navigateToTag(
+          poi.matterport_tag_id,
+          sdk.Mattertag.Transition.FLY
+        );
+        toast.success("Navigazione completata!");
+        return;
+      } catch (error) {
+        console.error("Mattertag navigation error:", error);
+        // Tag ID is invalid, try fallback to position if available
+        if (poi.position) {
+          toast.info("Tag non valido, navigazione per coordinate...");
+          await navigateByPosition(poi.position);
+          return;
+        } else {
+          toast.error("Errore navigazione: tag non valido e posizione non disponibile");
+          return;
+        }
+      }
+    }
+    
+    // Navigate by position only
+    if (poi.position) {
+      toast.info("Navigazione verso le coordinate...");
+      await navigateByPosition(poi.position);
     } else {
       toast.warning("POI senza posizione definita");
     }
