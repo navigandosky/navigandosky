@@ -2,36 +2,43 @@
 
 ## Stato Attuale (10/01/2026)
 
-### ✅ Integrazioni Funzionanti
-- **SmartThings**: 22 dispositivi con caching (TTL 2 min)
-- **Matterport SDK**: Spazio con 8+ POI
-- **Ezviz, Open-Meteo, Emergent LLM**
+### ✅ Funzionalità Completate
 
-## Funzionalità SmartThings nei POI
+#### SmartThings (22 dispositivi)
+- Caching backend (TTL 2 min) per evitare 429 errors
+- LED stato in lista POI (🔴 ON, ⚫ OFF)
+- Pulsante Power per on/off
+- Dialog collegamento POI ↔ Device
 
-### LED Stato Dispositivo
-- 🔴 **LED rosso + pulse** = Dispositivo ACCESO
-- ⚫ **LED grigio** = Dispositivo SPENTO
-- Match automatico POI ↔ Device per nome
+#### Indicatore Stato negli Elettrodomestici
+- Badge "Smart" con stato ACCESO/SPENTO
+- LED rosso lampeggiante se ON
+- LED grigio se OFF
+- Aggiornamento automatico
 
-### Controllo Remoto
-- **Pulsante Power** nella lista POI per on/off
-- **Pulsante grande** nel pannello dettagli
-- Aggiornamento stato immediato
+#### Navigazione POI (Fix)
+- Metodo 1: `navigateToTag()` per tag Matterport
+- Metodo 2: `Sweep.moveTo()` con sweep_id salvato
+- Metodo 3: Ricerca dinamica sweep più vicino
+- Logging dettagliato in console
 
-### Collegamento Manuale
-- Dialog per collegare POI a device SmartThings
-- Lista dispositivi con stato LED
-- Possibilità di scollegare
+## Note Tecniche
 
-## API con Caching
-- `GET /api/smartthings/devices` - Cache 2 min
-- `GET /api/smartthings/device/{id}/status` - Cache 30 sec
-- `POST /api/smartthings/cache/clear` - Pulisce cache
+### Il caricamento SmartThings NON modifica stati
+- `loadSmartThingsDevices()` fa solo GET
+- `loadSmartThingsStates()` fa solo GET
+- Solo `toggleSmartThingsDevice()` modifica (POST)
+
+### Navigazione POI
+Se la navigazione fallisce con "Impossibile navigare":
+1. Controllare console (F12) per log
+2. Il tag Matterport potrebbe non esistere più nel modello
+3. Usare la navigazione manuale nella vista 3D
 
 ## File Modificati
 - `backend/server.py` - Caching SmartThings
-- `frontend/src/MatterportManager.js` - LED, controlli, dialog
+- `frontend/src/MatterportManager.js` - Navigazione migliorata
+- `frontend/src/App.js` - Stato SmartThings in Elettrodomestici
 
 ---
 *Ultimo aggiornamento: 10 Gennaio 2026*
