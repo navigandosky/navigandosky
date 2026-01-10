@@ -360,10 +360,98 @@ export default function MatterportManager() {
 
   // Navigate to POI in Matterport
   const handleNavigateToPoi = async (poi) => {
-    if (matterportRef.current && poi.matterport_tag_id) {
-      await matterportRef.current.navigateToTag(poi.matterport_tag_id);
+    if (!matterportRef.current) {
+      toast.error("SDK Matterport non connesso");
+      return;
+    }
+    
+    // Se ha un tag Matterport, naviga ad esso
+    if (poi.matterport_tag_id) {
+      toast.info("Navigazione verso il POI...");
+      const success = await matterportRef.current.navigateToTag(poi.matterport_tag_id);
+      if (!success) {
+        toast.error("Impossibile navigare al POI");
+      }
     } else if (poi.position) {
-      toast.info("Navigazione a coordinate non ancora supportata");
+      // Se ha solo la posizione, prova a muovere la camera
+      toast.info("Navigazione verso le coordinate...");
+      try {
+        const sdk = matterportRef.current.getSdk();
+        if (sdk && sdk.Camera) {
+          // Sposta la camera verso la posizione del POI
+          await sdk.Camera.setRotation({ x: 0, y: 0 });
+          // Usa flyTo per spostarsi verso la posizione
+          const sweeps = await sdk.Sweep.data.then(data => data);
+          // Trova lo sweep più vicino alla posizione del POI
+          let nearestSweep = null;
+          let minDistance = Infinity;
+          
+          for (const sweep of sweeps) {
+            const dx = sweep.position.x - poi.position.x;
+            const dy = sweep.position.y - poi.position.y;
+            const dz = sweep.position.z - poi.position.z;
+            const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            if (distance < minDistance) {
+              minDistance = distance;
+              nearestSweep = sweep;
+            }
+          }
+          
+          if (nearestSweep) {
+            await sdk.Sweep.moveTo(nearestSweep.sid, {
+              transition: sdk.Sweep.Transition.FLY,
+              transitionTime: 1500
+            });
+            toast.success("Navigazione completata");
+          }
+        }
+      } catch (error) {
+        console.error("Navigation error:", error);
+        toast.error("Errore nella navigazione");
+      }
+    } else {
+      toast.warning("POI senza posizione definita");
+    }
+  };
+
+  // Add POI to Matterport 3D view
+  const handleAddTagToMatterport = async (poi) => {
+    if (!matterportRef.current) {
+      toast.error("SDK Matterport non connesso");
+      return;
+    }
+    
+    if (!poi.position) {
+      toast.error("POI senza coordinate");
+      return;
+    }
+    
+    const itTrans = poi.translations?.find(t => t.language === "it") || {};
+    
+    try {
+      const mattertagId = await matterportRef.current.addTag({
+        label: itTrans.title || "POI",
+        description: itTrans.description || "",
+        position: poi.position,
+        color: { r: 0, g: 0.8, b: 0.4 } // Verde
+      });
+      
+      if (mattertagId) {
+        // Aggiorna il POI nel database con il tag ID
+        await axios.put(`${API_URL}/api/matterport/pois/${poi.id}`, {
+          matterport_tag_id: mattertagId
+        });
+        
+        // Aggiorna il POI selezionato
+        const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${poi.id}`);
+        setSelectedPoi(poiRes.data);
+        loadPois(activeSpace.id);
+        
+        toast.success("POI aggiunto alla vista 3D!");
+      }
+    } catch (error) {
+      console.error("Error adding tag:", error);
+      toast.error("Errore nell'aggiunta del tag");
     }
   };
 
