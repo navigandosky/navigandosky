@@ -346,7 +346,7 @@ export default function MatterportManager() {
       
       toast.success("POI creato e aggiunto alla vista 3D!");
       setShowPoiDialog(false);
-      setPoiForm({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF" });
+      setPoiForm({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF", category: "general" });
       loadPois(activeSpace.id);
     } catch (error) {
       console.error("Error creating POI:", error);
@@ -354,6 +354,144 @@ export default function MatterportManager() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Delete POI
+  const handleDeletePoi = async (poi) => {
+    if (!window.confirm(`Eliminare il POI "${poi.translations?.[0]?.title || 'POI'}"?`)) return;
+    
+    try {
+      // Remove from Matterport if has tag
+      if (poi.matterport_tag_id && matterportRef.current) {
+        await matterportRef.current.removeTag(poi.matterport_tag_id);
+      }
+      
+      // Delete from database
+      await axios.delete(`${API_URL}/api/matterport/pois/${poi.id}`);
+      
+      toast.success("POI eliminato");
+      setSelectedPoi(null);
+      loadPois(activeSpace.id);
+    } catch (error) {
+      console.error("Error deleting POI:", error);
+      toast.error("Errore nell'eliminazione del POI");
+    }
+  };
+
+  // Edit POI - Open dialog
+  const handleEditPoi = (poi) => {
+    const itTrans = poi.translations?.find(t => t.language === "it") || {};
+    setEditPoiForm({
+      id: poi.id,
+      title: itTrans.title || "",
+      description: itTrans.description || "",
+      icon: poi.icon || "mappin",
+      color: poi.color || "#00BFFF",
+      category: poi.category || "general",
+      position: poi.position,
+      matterport_tag_id: poi.matterport_tag_id
+    });
+    setShowEditPoiDialog(true);
+  };
+
+  // Save edited POI
+  const handleSaveEditPoi = async () => {
+    if (!editPoiForm) return;
+    
+    setLoading(true);
+    try {
+      // Update translations
+      const currentPoi = pois.find(p => p.id === editPoiForm.id);
+      const translations = currentPoi?.translations || [];
+      
+      // Update Italian translation
+      const itIndex = translations.findIndex(t => t.language === "it");
+      if (itIndex >= 0) {
+        translations[itIndex] = {
+          ...translations[itIndex],
+          title: editPoiForm.title,
+          description: editPoiForm.description
+        };
+      } else {
+        translations.push({
+          language: "it",
+          title: editPoiForm.title,
+          description: editPoiForm.description
+        });
+      }
+      
+      await axios.put(`${API_URL}/api/matterport/pois/${editPoiForm.id}`, {
+        translations,
+        icon: editPoiForm.icon,
+        color: editPoiForm.color,
+        category: editPoiForm.category
+      });
+      
+      toast.success("POI aggiornato");
+      setShowEditPoiDialog(false);
+      setEditPoiForm(null);
+      
+      // Refresh
+      const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${editPoiForm.id}`);
+      setSelectedPoi(poiRes.data);
+      loadPois(activeSpace.id);
+    } catch (error) {
+      console.error("Error updating POI:", error);
+      toast.error("Errore nell'aggiornamento del POI");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add custom category
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) return;
+    
+    const newCat = {
+      id: newCategoryName.toLowerCase().replace(/\s+/g, "_"),
+      name: newCategoryName,
+      color: "#6B7280"
+    };
+    
+    setCustomCategories(prev => [...prev, newCat]);
+    setNewCategoryName("");
+    toast.success("Categoria aggiunta");
+  };
+
+  // Get all categories (predefined + custom)
+  const getAllCategories = () => {
+    return [...POI_CATEGORIES, ...customCategories];
+  };
+
+  // Filter POIs by category
+  const getFilteredPois = () => {
+    if (selectedCategory === "all") return pois;
+    return pois.filter(p => p.category === selectedCategory);
+  };
+
+  // Group POIs by category
+  const getPoisByCategory = () => {
+    const grouped = {};
+    const allCats = getAllCategories();
+    
+    // Initialize all categories
+    allCats.forEach(cat => {
+      grouped[cat.id] = { ...cat, pois: [] };
+    });
+    grouped["uncategorized"] = { id: "uncategorized", name: "Senza categoria", color: "#6B7280", pois: [] };
+    
+    // Distribute POIs
+    pois.forEach(poi => {
+      const catId = poi.category || "uncategorized";
+      if (grouped[catId]) {
+        grouped[catId].pois.push(poi);
+      } else {
+        grouped["uncategorized"].pois.push(poi);
+      }
+    });
+    
+    // Return only categories with POIs
+    return Object.values(grouped).filter(cat => cat.pois.length > 0);
   };
 
   // Translate POI
