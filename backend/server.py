@@ -631,6 +631,7 @@ class POIBase(BaseModel):
     """Point of Interest linked to Matterport Tag"""
     space_id: str  # Reference to MatterportSpace.id
     matterport_tag_id: Optional[str] = None  # Original Matterport tag ID (if imported)
+    nearest_sweep_id: Optional[str] = None  # Nearest sweep ID for navigation fallback
     
     # Position (from Matterport or manually set)
     position: Optional[POIPosition] = None
@@ -659,6 +660,7 @@ class POICreate(POIBase):
 class POIUpdate(BaseModel):
     space_id: Optional[str] = None
     matterport_tag_id: Optional[str] = None
+    nearest_sweep_id: Optional[str] = None
     position: Optional[POIPosition] = None
     translations: Optional[List[POITranslation]] = None
     elettrodomestico_id: Optional[str] = None
