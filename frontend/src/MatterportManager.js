@@ -220,9 +220,80 @@ export default function MatterportManager() {
     }
   }, []);
 
+  // Load SmartThings devices
+  const loadSmartThingsDevices = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/smartthings/devices`);
+      setSmartThingsDevices(res.data.devices || []);
+      
+      // Load status for each device with switch capability
+      const switchDevices = (res.data.devices || []).filter(d => 
+        d.capabilities?.includes('switch')
+      );
+      
+      const states = {};
+      for (const device of switchDevices) {
+        try {
+          const statusRes = await axios.get(`${API_URL}/api/smartthings/device/${device.id}/status`);
+          const switchState = statusRes.data?.components?.main?.switch?.switch?.value;
+          if (switchState) {
+            states[device.id] = switchState; // "on" or "off"
+          }
+        } catch (e) {
+          // Ignore individual device errors
+        }
+      }
+      setDeviceStates(states);
+    } catch (error) {
+      console.error("Error loading SmartThings devices:", error);
+    }
+  }, []);
+
+  // Match POI to SmartThings device by name
+  const getDeviceForPoi = useCallback((poi) => {
+    const poiTitle = poi.translations?.find(t => t.language === "it")?.title?.toLowerCase() || "";
+    
+    // First check if POI has direct smartthings_device_id
+    if (poi.smartthings_device_id) {
+      const device = smartThingsDevices.find(d => d.id === poi.smartthings_device_id);
+      if (device) return device;
+    }
+    
+    // Fallback: match by name similarity
+    const matchedDevice = smartThingsDevices.find(d => {
+      const deviceName = d.name?.toLowerCase() || "";
+      // Exact match or partial match
+      return deviceName === poiTitle || 
+             deviceName.includes(poiTitle) || 
+             poiTitle.includes(deviceName) ||
+             // Handle slight variations like "Luci Pedoni" vs "Luci pedoni"
+             deviceName.replace(/\s+/g, '').toLowerCase() === poiTitle.replace(/\s+/g, '').toLowerCase();
+    });
+    
+    return matchedDevice;
+  }, [smartThingsDevices]);
+
+  // Get device state for a POI
+  const getDeviceStateForPoi = useCallback((poi) => {
+    const device = getDeviceForPoi(poi);
+    if (device) {
+      return {
+        device,
+        state: deviceStates[device.id] || null,
+        hasSwitch: device.capabilities?.includes('switch')
+      };
+    }
+    return null;
+  }, [getDeviceForPoi, deviceStates]);
+
   useEffect(() => {
     loadSpaces();
-  }, [loadSpaces]);
+    loadSmartThingsDevices();
+    
+    // Refresh device states every 30 seconds
+    const interval = setInterval(loadSmartThingsDevices, 30000);
+    return () => clearInterval(interval);
+  }, [loadSpaces, loadSmartThingsDevices]);
 
   // Create/Update space
   const handleSaveSpace = async () => {
