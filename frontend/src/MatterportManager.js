@@ -1179,16 +1179,55 @@ export default function MatterportManager() {
                   </div>
                 </ScrollArea>
                 
-                {/* Path Drawing Button */}
-                {pois.length >= 2 && (
-                  <div className="mt-3 pt-3 border-t border-slate-700">
-                    <Button
-                      className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
-                      onClick={handleDrawPath}
-                    >
-                      <Navigation size={14} className="mr-2" />
-                      Mostra Percorso ({pois.length} POI)
-                    </Button>
+                {/* Tour / Path Button */}
+                {pois.length >= 1 && (
+                  <div className="mt-3 pt-3 border-t border-slate-700 space-y-2">
+                    {isTourRunning ? (
+                      <>
+                        {/* Tour Progress */}
+                        <div className="bg-cyan-500/20 border border-cyan-500/50 rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm text-cyan-300 font-medium">
+                              🎯 Tour in corso...
+                            </span>
+                            <span className="text-xs text-cyan-400">
+                              {tourProgress.current}/{tourProgress.total}
+                            </span>
+                          </div>
+                          <div className="text-white text-sm truncate mb-2">
+                            {tourProgress.name}
+                          </div>
+                          <div className="w-full bg-slate-700 rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all duration-500"
+                              style={{ width: `${(tourProgress.current / tourProgress.total) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="w-full border-red-500/50 text-red-400 hover:bg-red-500/20"
+                          onClick={handleStopTour}
+                        >
+                          <X size={14} className="mr-2" />
+                          Interrompi Tour
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                        onClick={handleDrawPath}
+                        disabled={pois.filter(p => p.matterport_tag_id).length < 1}
+                      >
+                        <Navigation size={14} className="mr-2" />
+                        {pois.filter(p => p.matterport_tag_id).length >= 2 
+                          ? `🚀 Tour Guidato (${pois.filter(p => p.matterport_tag_id).length} POI)` 
+                          : pois.filter(p => p.matterport_tag_id).length === 1
+                            ? "Vai al POI"
+                            : "Nessun POI navigabile"
+                        }
+                      </Button>
+                    )}
                   </div>
                 )}
               </TabsContent>
