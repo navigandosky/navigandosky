@@ -1,86 +1,77 @@
 # SmartDomo - PRD (Product Requirements Document)
 
-## Problema Originale
-Costruire un'applicazione "SmartDomo" per la gestione di un edificio smart con:
-- Gestione elettrodomestici, centri assistenza, manutenzioni e ticket
-- Integrazione SmartThings, Ezviz e Matterport
-- Gemello digitale 3D interattivo
-
 ## Stato Attuale (10/01/2026)
 
-### ✅ SmartThings - FUNZIONANTE
-- **Token**: `ddde0bd8-0d53-48c7-a94d-4cb55c890fd0`
-- **Dispositivi**: 22 rilevati (tutti online)
-
-### ✅ Matterport SDK - FUNZIONANTE
-- **SDK Key**: `59wwqhip77fxkqiurcae74fed`
-- **Space ID**: `j1r4zUjanif`
-- **POI**: 8+ nel database
-
-### ✅ Ezviz, Open-Meteo, Emergent LLM - FUNZIONANTI
+### ✅ Integrazioni Funzionanti
+- **SmartThings**: 22 dispositivi (Token: `ddde0bd8-0d53-48c7-a94d-4cb55c890fd0`)
+- **Matterport SDK**: Spazio `j1r4zUjanif` con 8+ POI
+- **Ezviz**: 7 telecamere
+- **Open-Meteo**: Meteo in tempo reale
+- **Emergent LLM**: Assistente AI
 
 ## Funzionalità Implementate Oggi
 
-### 1. Badge Sorgente POI nella Lista
-- **"MP"** (blu) = POI importati da Matterport → Navigazione diretta
-- **"✓ MAN"** (verde) = POI manuali con sweep_id → Navigazione configurata
-- **"⚠ MAN"** (arancione) = POI manuali senza sweep_id → Navigazione limitata
+### 1. LED SmartThings nei POI ✅
+- **Match automatico** POI ↔ Device SmartThings per nome
+- **LED rosso lampeggiante** se dispositivo ACCESO (es. "Luci Pedoni")
+- **LED grigio** se dispositivo SPENTO
+- **Aggiornamento automatico** ogni 30 secondi
+- Campo `smartthings_device_id` aggiunto al modello POI per collegamento diretto
 
-### 2. Visualizzazione Percorso (Pollicino)
-- Implementata funzione `showPathToSweep()` che:
-  - Trova lo sweep corrente dalla posizione camera
-  - Crea un grafo con `Sweep.createGraph()` (se disponibile)
-  - Calcola il percorso con A* algorithm
-  - Mostra toast con numero di punti nel percorso
-  - Evidenzia lo sweep di destinazione
+### 2. Badge Sorgente POI ✅
+- **"MP"** (blu) = Importato da Matterport
+- **"✓ MAN"** (verde) = Manuale con navigazione
+- **"⚠ MAN"** (arancione) = Manuale senza navigazione
 
-### 3. Logo Trivor
-- **Dentro la vista 3D**: Logo in basso a destra del viewer Matterport
-- **Angolo pagina**: Logo che copre completamente il watermark "Made with Emergent"
-- URL: `https://customer-assets.emergentagent.com/job_3837386c.../logo%20trivor...png`
+### 3. Logo TRIVOR ✅
+- Posizionato nell'angolo in basso a destra
+- Copre completamente il watermark "Made with Emergent"
 
-## Sistema di Navigazione POI
+### 4. Percorso Navigazione ✅
+- Calcolo percorso con algoritmo A*
+- Toast con numero di punti nel percorso
 
-### Logica di Navigazione
+## Lista POI con Indicatori
+| # | POI | Badge | LED SmartThings | In 3D |
+|---|-----|-------|-----------------|-------|
+| 1 | Sensore_T1 | MP | - | ● |
+| 2 | Caldaia_01 | MP | - | ● |
+| 3 | Luci Pedoni | MP | 🔴 ACCESO | ● |
+| 4 | CLIMA SAMSUNG_STUDIO | MP | - | ● |
+| 5 | Tavolo_1 | MP | - | ● |
+| 6 | Test Nuovo POI 2 | ⚠ MAN | - | ● |
+| 7 | Porta ingresso | ⚠ MAN | - | ● |
+| 8 | Scala Legno | ⚠ MAN | - | ● |
+
+## Sistema LED SmartThings
+
+### Logica di Match
+```javascript
+getDeviceForPoi(poi):
+  1. Se poi.smartthings_device_id → usa direttamente
+  2. Altrimenti → match per nome (case-insensitive)
+     "Luci Pedoni" ↔ "Luci pedoni"
 ```
-handleNavigateToPoi(poi):
-  1. Se poi.is_imported && poi.matterport_tag_id:
-     → Mostra percorso con showPathToSweep()
-     → sdk.Mattertag.navigateToTag()
-  
-  2. Se poi.nearest_sweep_id:
-     → Mostra percorso con showPathToSweep()
-     → sdk.Sweep.moveTo(nearest_sweep_id)
-  
-  3. Fallback dinamico:
-     → findNearestSweepId(poi.position)
-     → sdk.Sweep.moveTo(sweepId)
-     → Salva sweepId per usi futuri
-```
 
-### Indicatori nella Lista POI
-| Badge | Significato | Navigazione |
-|-------|-------------|-------------|
-| MP (blu) | Importato da Matterport | ✅ Diretta |
-| ✓ MAN (verde) | Manuale con sweep_id | ✅ Configurata |
-| ⚠ MAN (arancione) | Manuale senza sweep_id | ⚠ Limitata |
+### Visualizzazione LED
+- **Rosso + glow + pulse**: Dispositivo ACCESO
+- **Grigio**: Dispositivo SPENTO
+- **Nessun LED**: POI non collegato a SmartThings
 
-## File Modificati Oggi
-- `frontend/src/MatterportManager.js` - Badge sorgente, percorso Pollicino
-- `frontend/src/MatterportViewer.js` - Logo Trivor nella vista 3D
-- `frontend/src/App.js` - Logo Trivor overlay (copre watermark)
-- `backend/server.py` - Campo `nearest_sweep_id` nel modello POI
+## API Endpoints
+- `GET /api/smartthings/devices` - Lista 22 dispositivi
+- `GET /api/smartthings/device/{id}/status` - Stato dispositivo (on/off)
+- `GET /api/matterport/pois` - Lista POI con `smartthings_device_id`
+
+## File Modificati
+- `backend/server.py` - Aggiunto `smartthings_device_id` al modello POI
+- `frontend/src/MatterportManager.js` - LED SmartThings, caricamento stati
+- `frontend/src/App.js` - Logo Trivor overlay
 
 ## Prossimi Task
-
-### P1 - Media Priorità
-1. Popolare `nearest_sweep_id` per POI esistenti
-2. Migliorare visualizzazione percorso con pallini animati
-3. Caching SmartThings
-
-### P2 - Bassa Priorità
-4. Refactoring backend
-5. Restauro sito Trivor.it
+1. Permettere collegamento manuale POI ↔ Device SmartThings
+2. Controllo dispositivi dalla lista POI (accendi/spegni)
+3. Caching SmartThings per rate limiting
 
 ## Credenziali
 - `SMARTTHINGS_TOKEN`: ddde0bd8-0d53-48c7-a94d-4cb55c890fd0
