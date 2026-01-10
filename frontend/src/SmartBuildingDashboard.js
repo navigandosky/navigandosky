@@ -283,8 +283,9 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const [climaData, setClimaData] = useState(null); // Dati sensore temperatura SmartThings
   const [systemStatus, setSystemStatus] = useState({ ok: 0, attenzione: 0, critici: 0, totali: 0 });
   const [loading, setLoading] = useState(true);
-  const [matterportSpaceId, setMatterportSpaceId] = useState('j1r4zUjanif');
   const [expandedRooms, setExpandedRooms] = useState({});
+  const [matterportTags, setMatterportTags] = useState([]);
+  const matterportRef = useRef(null);
 
   // Toggle room expansion - default collapsed
   const toggleRoom = (roomName) => {
