@@ -1212,6 +1212,7 @@ export default function MatterportManager() {
                         const poiIcon = POI_ICONS.find(i => i.id === poi.icon) || POI_ICONS.find(i => i.id === "mappin");
                         const IconComponent = poiIcon?.icon || MapPin;
                         const isSelected = selectedPoi?.id === poi.id;
+                        const canNavigate = poi.is_imported || poi.nearest_sweep_id;
                         
                         return (
                           <div
@@ -1238,10 +1239,27 @@ export default function MatterportManager() {
                               {itTrans.title || "POI"}
                             </span>
                             
+                            {/* Source badge - Matterport or Manual */}
+                            <div className="flex items-center gap-1">
+                              {poi.is_imported ? (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-500/30 text-blue-300 border border-blue-500/50" title="Importato da Matterport - Navigazione diretta">
+                                  MP
+                                </span>
+                              ) : (
+                                <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${
+                                  canNavigate 
+                                    ? 'bg-green-500/30 text-green-300 border border-green-500/50' 
+                                    : 'bg-orange-500/30 text-orange-300 border border-orange-500/50'
+                                }`} title={canNavigate ? "Manuale - Navigazione configurata" : "Manuale - Navigazione limitata"}>
+                                  {canNavigate ? '✓ MAN' : '⚠ MAN'}
+                                </span>
+                              )}
+                            </div>
+                            
                             {/* Status indicators */}
                             <div className="flex items-center gap-1">
                               {poi.matterport_tag_id && (
-                                <span className="w-2 h-2 rounded-full bg-green-500" title="In 3D" />
+                                <span className="w-2 h-2 rounded-full bg-green-500" title="Visibile in 3D" />
                               )}
                               {poi.translations?.some(t => t.audio_url) && (
                                 <Volume2 size={10} className="text-purple-400" />
