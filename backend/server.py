@@ -606,11 +606,12 @@ class POITranslation(BaseModel):
 # POI/Tag Position in 3D space
 class POIPosition(BaseModel):
     """3D coordinates for POI placement"""
+    model_config = ConfigDict(extra="ignore")
     x: float
     y: float
     z: float
-    # Optional: floor info
-    floor_id: Optional[str] = None
+    # Optional: floor info - can be int or string from Matterport
+    floor_id: Optional[Any] = None
     floor_name: Optional[str] = None
 
 
