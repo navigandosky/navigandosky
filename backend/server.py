@@ -2987,9 +2987,17 @@ async def get_smartthings_devices():
                 
                 devices.append(device)
             
-            return {"devices": devices, "count": len(devices)}
+            result = {"devices": devices, "count": len(devices)}
+            smartthings_cache.set("devices", result)
+            logger.info(f"SmartThings devices fetched and cached: {len(devices)}")
+            return result
     except httpx.HTTPError as e:
         logger.error(f"SmartThings API error: {e}")
+        # Return cached data if available, even if expired
+        cached = smartthings_cache.get("devices")
+        if cached:
+            logger.info("Returning stale cache due to API error")
+            return cached
         raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
 
 
