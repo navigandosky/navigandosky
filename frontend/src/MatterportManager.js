@@ -48,10 +48,71 @@ import {
   Navigation,
   Crosshair,
   Globe,
-  Mic
+  Mic,
+  // Icons for POI types
+  Thermometer,
+  Flame,
+  Lightbulb,
+  Tv,
+  Camera,
+  DoorOpen,
+  Lock,
+  Wifi,
+  Fan,
+  Droplets,
+  Zap,
+  Home,
+  Car,
+  Trees,
+  Sofa,
+  Bed,
+  Bath,
+  UtensilsCrossed,
+  Warehouse,
+  Building2,
+  Info,
+  AlertTriangle,
+  Star,
+  Heart,
+  Bell,
+  Settings,
+  Phone,
+  Mail
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// POI Icon Library
+const POI_ICONS = [
+  { id: "info", name: "Info", icon: Info, color: "#3B82F6" },
+  { id: "thermometer", name: "Temperatura", icon: Thermometer, color: "#EF4444" },
+  { id: "flame", name: "Caldaia/Riscaldamento", icon: Flame, color: "#F97316" },
+  { id: "lightbulb", name: "Illuminazione", icon: Lightbulb, color: "#EAB308" },
+  { id: "tv", name: "TV/Display", icon: Tv, color: "#8B5CF6" },
+  { id: "camera", name: "Telecamera", icon: Camera, color: "#EC4899" },
+  { id: "door", name: "Porta/Ingresso", icon: DoorOpen, color: "#14B8A6" },
+  { id: "lock", name: "Sicurezza", icon: Lock, color: "#6366F1" },
+  { id: "wifi", name: "Rete/WiFi", icon: Wifi, color: "#06B6D4" },
+  { id: "fan", name: "Ventilazione/Clima", icon: Fan, color: "#22C55E" },
+  { id: "droplets", name: "Acqua/Idraulica", icon: Droplets, color: "#0EA5E9" },
+  { id: "zap", name: "Elettrico", icon: Zap, color: "#FBBF24" },
+  { id: "home", name: "Casa/Generale", icon: Home, color: "#84CC16" },
+  { id: "car", name: "Garage/Auto", icon: Car, color: "#64748B" },
+  { id: "trees", name: "Esterno/Giardino", icon: Trees, color: "#22C55E" },
+  { id: "sofa", name: "Soggiorno", icon: Sofa, color: "#A855F7" },
+  { id: "bed", name: "Camera da letto", icon: Bed, color: "#F472B6" },
+  { id: "bath", name: "Bagno", icon: Bath, color: "#38BDF8" },
+  { id: "kitchen", name: "Cucina", icon: UtensilsCrossed, color: "#FB923C" },
+  { id: "warehouse", name: "Magazzino", icon: Warehouse, color: "#78716C" },
+  { id: "building", name: "Edificio", icon: Building2, color: "#94A3B8" },
+  { id: "alert", name: "Attenzione", icon: AlertTriangle, color: "#F59E0B" },
+  { id: "star", name: "Speciale", icon: Star, color: "#FBBF24" },
+  { id: "heart", name: "Preferito", icon: Heart, color: "#EF4444" },
+  { id: "bell", name: "Notifica/Citofono", icon: Bell, color: "#8B5CF6" },
+  { id: "settings", name: "Impostazioni", icon: Settings, color: "#6B7280" },
+  { id: "phone", name: "Telefono", icon: Phone, color: "#10B981" },
+  { id: "mappin", name: "Posizione", icon: MapPin, color: "#EF4444" }
+];
 
 // Supported languages
 const LANGUAGES = [
