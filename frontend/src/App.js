@@ -2096,16 +2096,17 @@ function App() {
       
       {/* Logo Trivor overlay - covers platform watermark */}
       <div 
-        className="fixed bottom-0 right-0 z-[9999] pointer-events-none"
+        className="fixed bottom-0 right-0 z-[9999] pointer-events-none flex items-center justify-end"
         style={{ 
-          background: 'linear-gradient(to left, #09090B 60%, transparent)',
-          padding: '8px 12px 8px 40px'
+          background: 'linear-gradient(to left, #09090B 80%, transparent)',
+          padding: '4px 8px 4px 60px',
+          minWidth: '220px'
         }}
       >
         <img 
           src="https://customer-assets.emergentagent.com/job_3837386c-e4f5-4acc-83b7-9dabadeaf885/artifacts/3sr9x015_logo%20trivor%20per%20copertura%20emergent.png"
           alt="Trivor"
-          style={{ height: '40px', width: 'auto' }}
+          style={{ height: '36px', width: 'auto' }}
         />
       </div>
     </div>
