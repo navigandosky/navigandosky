@@ -652,15 +652,16 @@ export default function MatterportManager() {
 
             {/* Selected POI Details */}
             {selectedPoi && (
-              <Card className="bg-slate-800/50 border-slate-700">
+              <Card className="bg-slate-800 border-slate-600">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">
+                    <CardTitle className="text-lg text-white">
                       {selectedPoi.translations?.find(t => t.language === "it")?.title || "POI"}
                     </CardTitle>
                     <Button
                       size="icon"
                       variant="ghost"
+                      className="text-white hover:bg-slate-700"
                       onClick={() => setSelectedPoi(null)}
                     >
                       <X size={16} />
@@ -672,10 +673,10 @@ export default function MatterportManager() {
                     {/* Translations */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label className="text-slate-400">Traduzioni</Label>
+                        <Label className="text-white font-medium">Traduzioni</Label>
                         <Button
                           size="sm"
-                          variant="outline"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
                           onClick={() => setShowTranslateDialog(true)}
                         >
                           <Languages size={14} className="mr-1" />
@@ -689,7 +690,7 @@ export default function MatterportManager() {
                             <Badge
                               key={lang.code}
                               variant={trans ? "default" : "outline"}
-                              className={trans ? "bg-green-500/20 text-green-400 border-green-500/50" : "text-slate-500"}
+                              className={trans ? "bg-green-600 text-white border-green-500" : "text-slate-400 border-slate-500"}
                             >
                               {lang.flag} {lang.name}
                               {trans?.audio_url && <Volume2 size={10} className="ml-1" />}
@@ -702,10 +703,10 @@ export default function MatterportManager() {
                     {/* Audio Generation */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label className="text-slate-400">Audio Guide</Label>
+                        <Label className="text-white font-medium">Audio Guide</Label>
                         <Button
                           size="sm"
-                          variant="outline"
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
                           onClick={() => setShowAudioDialog(true)}
                         >
                           <Mic size={14} className="mr-1" />
@@ -714,22 +715,27 @@ export default function MatterportManager() {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {selectedPoi.translations?.filter(t => t.audio_url).map(trans => (
-                          <audio
-                            key={trans.language}
-                            controls
-                            className="h-8"
-                            src={`${API_URL}${trans.audio_url}`}
-                          >
-                            <track kind="captions" />
-                          </audio>
+                          <div key={trans.language} className="flex items-center gap-2 bg-slate-700 rounded-lg p-2">
+                            <span className="text-xs text-white">{LANGUAGES.find(l => l.code === trans.language)?.flag}</span>
+                            <audio
+                              controls
+                              className="h-8"
+                              src={`${API_URL}${trans.audio_url}`}
+                            >
+                              <track kind="captions" />
+                            </audio>
+                          </div>
                         ))}
+                        {selectedPoi.translations?.filter(t => t.audio_url).length === 0 && (
+                          <p className="text-sm text-slate-400">Nessun audio generato</p>
+                        )}
                       </div>
                     </div>
 
                     {/* Attachments */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <Label className="text-slate-400">Allegati</Label>
+                        <Label className="text-white font-medium">Allegati</Label>
                         <label>
                           <input
                             type="file"
@@ -740,22 +746,22 @@ export default function MatterportManager() {
                               }
                             }}
                           />
-                          <Button size="sm" variant="outline" asChild>
+                          <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white cursor-pointer" asChild>
                             <span>
                               <Upload size={14} className="mr-1" />
-                              Carica
+                              Carica File
                             </span>
                           </Button>
                         </label>
                       </div>
                       <div className="space-y-2">
                         {selectedPoi.attachments?.length === 0 ? (
-                          <p className="text-sm text-slate-500">Nessun allegato</p>
+                          <p className="text-sm text-slate-400">Nessun allegato</p>
                         ) : (
                           selectedPoi.attachments?.map(att => (
                             <div
                               key={att.id}
-                              className="flex items-center justify-between bg-slate-900/50 rounded-lg p-2"
+                              className="flex items-center justify-between bg-slate-700 rounded-lg p-2"
                             >
                               <div className="flex items-center gap-2">
                                 {att.file_type === "pdf" && <FileText size={16} className="text-red-400" />}
@@ -769,7 +775,7 @@ export default function MatterportManager() {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-6 w-6"
+                                  className="h-6 w-6 text-cyan-400 hover:bg-slate-600"
                                   onClick={() => window.open(`${API_URL}${att.file_url}`, "_blank")}
                                 >
                                   <Eye size={12} />
@@ -777,7 +783,7 @@ export default function MatterportManager() {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-6 w-6 text-red-400"
+                                  className="h-6 w-6 text-red-400 hover:bg-slate-600"
                                   onClick={() => handleDeleteAttachment(selectedPoi.id, att.id)}
                                 >
                                   <Trash2 size={12} />
@@ -789,15 +795,32 @@ export default function MatterportManager() {
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => handleNavigateToPoi(selectedPoi)}
-                      >
-                        <Navigation size={14} className="mr-1" />
-                        Vai al POI
+                    {/* Navigation Actions */}
+                    <div className="space-y-2 pt-2 border-t border-slate-600">
+                      <Label className="text-white font-medium">Navigazione 3D</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white"
+                          onClick={() => handleNavigateToPoi(selectedPoi)}
+                        >
+                          <Navigation size={14} className="mr-1" />
+                          Vai al POI
+                        </Button>
+                        {!selectedPoi.matterport_tag_id && selectedPoi.position && (
+                          <Button
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleAddTagToMatterport(selectedPoi)}
+                          >
+                            <MapPin size={14} className="mr-1" />
+                            Aggiungi a 3D
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
                       </Button>
                     </div>
                   </div>
