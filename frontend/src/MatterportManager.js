@@ -420,12 +420,50 @@ export default function MatterportManager() {
         });
       }
       
-      await axios.put(`${API_URL}/api/matterport/pois/${editPoiForm.id}`, {
+      // Prepare update data
+      const updateData = {
         translations,
         icon: editPoiForm.icon,
         color: editPoiForm.color,
         category: editPoiForm.category
-      });
+      };
+      
+      // Include position if changed
+      if (editPoiForm.position) {
+        updateData.position = editPoiForm.position;
+      }
+      
+      await axios.put(`${API_URL}/api/matterport/pois/${editPoiForm.id}`, updateData);
+      
+      // If position changed and POI has a Matterport tag, update it
+      if (editPoiForm.position && editPoiForm.matterport_tag_id && matterportRef.current) {
+        // Remove old tag and create new one at new position
+        try {
+          await matterportRef.current.removeTag(editPoiForm.matterport_tag_id);
+          
+          // Get icon color
+          const selectedIcon = POI_ICONS.find(i => i.id === editPoiForm.icon);
+          const hexColor = editPoiForm.color || selectedIcon?.color || "#00BFFF";
+          const r = parseInt(hexColor.slice(1, 3), 16) / 255;
+          const g = parseInt(hexColor.slice(3, 5), 16) / 255;
+          const b = parseInt(hexColor.slice(5, 7), 16) / 255;
+          
+          const newTagId = await matterportRef.current.addTag({
+            label: editPoiForm.title,
+            description: editPoiForm.description,
+            position: editPoiForm.position,
+            color: { r, g, b }
+          });
+          
+          if (newTagId) {
+            await axios.put(`${API_URL}/api/matterport/pois/${editPoiForm.id}`, {
+              matterport_tag_id: newTagId
+            });
+          }
+        } catch (tagError) {
+          console.error("Error updating Matterport tag:", tagError);
+        }
+      }
       
       toast.success("POI aggiornato");
       setShowEditPoiDialog(false);
