@@ -3003,18 +3003,28 @@ async def get_smartthings_devices():
 
 @api_router.get("/smartthings/device/{device_id}/status")
 async def get_smartthings_device_status(device_id: str):
-    """Get status of a specific SmartThings device"""
+    """Get status of a specific SmartThings device (cached for 30 seconds)"""
     if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
+    # Check cache first
+    cache_key = f"device_status_{device_id}"
+    cached = smartthings_cache.get(cache_key)
+    if cached:
+        return cached
+    
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
                 headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            # Cache for 30 seconds (shorter TTL for status)
+            smartthings_cache._cache[cache_key] = result
+            smartthings_cache._timestamps[cache_key] = time.time()
+            return result
     except httpx.HTTPError as e:
         logger.error(f"SmartThings device status error: {e}")
         raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
