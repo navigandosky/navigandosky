@@ -159,6 +159,10 @@ export default function MatterportManager() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("spaces");
   
+  // SmartThings state
+  const [smartThingsDevices, setSmartThingsDevices] = useState([]);
+  const [deviceStates, setDeviceStates] = useState({}); // { deviceId: "on" | "off" }
+  
   // Dialogs
   const [showSpaceDialog, setShowSpaceDialog] = useState(false);
   const [showPoiDialog, setShowPoiDialog] = useState(false);
@@ -167,6 +171,7 @@ export default function MatterportManager() {
   const [showTranslateDialog, setShowTranslateDialog] = useState(false);
   const [showAudioDialog, setShowAudioDialog] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [showLinkDeviceDialog, setShowLinkDeviceDialog] = useState(false);
   
   // Forms
   const [spaceForm, setSpaceForm] = useState({ name: "", space_id: "", description: "", sdk_key: "" });
