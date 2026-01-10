@@ -1143,24 +1143,46 @@ export default function MatterportManager() {
 
       {/* Create POI Dialog */}
       <Dialog open={showPoiDialog} onOpenChange={setShowPoiDialog}>
-        <DialogContent className="bg-slate-800 border-slate-600 text-white">
+        <DialogContent className="bg-slate-800 border-slate-600 text-white max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-white text-lg">Crea Nuovo POI</DialogTitle>
             <DialogDescription className="text-slate-300">
-              Acquisisci la posizione dalla vista 3D o inserisci i dati manualmente
+              Acquisisci la posizione dalla vista 3D e personalizza il punto di interesse
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
-            <div>
-              <Label className="text-white font-medium">Titolo *</Label>
-              <Input
-                value={poiForm.title}
-                onChange={(e) => setPoiForm(p => ({ ...p, title: e.target.value }))}
-                placeholder="Nome del punto di interesse"
-                className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400 mt-1"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-white font-medium">Titolo *</Label>
+                <Input
+                  value={poiForm.title}
+                  onChange={(e) => setPoiForm(p => ({ ...p, title: e.target.value }))}
+                  placeholder="Nome del punto di interesse"
+                  className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400 mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-white font-medium">Posizione 3D</Label>
+                <div className="flex gap-2 mt-1">
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-cyan-500 text-cyan-400 hover:bg-cyan-500/20"
+                    onClick={handleGetCurrentPosition}
+                  >
+                    <Crosshair size={14} className="mr-1" />
+                    Acquisisci
+                  </Button>
+                </div>
+              </div>
             </div>
+            
+            {poiForm.position && (
+              <div className="p-3 bg-green-500/20 border border-green-500/50 rounded text-sm text-green-300">
+                <span className="font-medium">✓ Posizione acquisita:</span> X: {poiForm.position.x?.toFixed(2)} | Y: {poiForm.position.y?.toFixed(2)} | Z: {poiForm.position.z?.toFixed(2)}
+              </div>
+            )}
+            
             <div>
               <Label className="text-white font-medium">Descrizione (Italiano)</Label>
               <Textarea
@@ -1168,36 +1190,49 @@ export default function MatterportManager() {
                 onChange={(e) => setPoiForm(p => ({ ...p, description: e.target.value }))}
                 placeholder="Descrizione dettagliata..."
                 className="bg-slate-700 border-slate-500 text-white placeholder:text-slate-400 mt-1"
-                rows={3}
+                rows={2}
               />
             </div>
+            
+            {/* Icon Selection */}
             <div>
-              <Label className="text-white font-medium">Posizione 3D</Label>
-              <div className="flex gap-2 mt-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 border-cyan-500 text-cyan-400 hover:bg-cyan-500/20"
-                  onClick={handleGetCurrentPosition}
-                >
-                  <Crosshair size={14} className="mr-1" />
-                  Acquisisci dalla vista
-                </Button>
-              </div>
-              {poiForm.position && (
-                <div className="mt-2 p-3 bg-green-500/20 border border-green-500/50 rounded text-sm text-green-300">
-                  <span className="font-medium">✓ Posizione acquisita:</span><br/>
-                  X: {poiForm.position.x?.toFixed(2)} | 
-                  Y: {poiForm.position.y?.toFixed(2)} | 
-                  Z: {poiForm.position.z?.toFixed(2)}
+              <Label className="text-white font-medium mb-2 block">Icona POI</Label>
+              <ScrollArea className="h-[120px] rounded border border-slate-600 p-2">
+                <div className="grid grid-cols-7 gap-2">
+                  {POI_ICONS.map(iconItem => {
+                    const IconComponent = iconItem.icon;
+                    const isSelected = poiForm.icon === iconItem.id;
+                    return (
+                      <button
+                        key={iconItem.id}
+                        type="button"
+                        title={iconItem.name}
+                        className={`p-2 rounded-lg transition-all flex items-center justify-center ${
+                          isSelected 
+                            ? 'bg-cyan-500 ring-2 ring-cyan-400' 
+                            : 'bg-slate-700 hover:bg-slate-600'
+                        }`}
+                        onClick={() => setPoiForm(p => ({ ...p, icon: iconItem.id, color: iconItem.color }))}
+                      >
+                        <IconComponent size={20} style={{ color: isSelected ? '#fff' : iconItem.color }} />
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+              </ScrollArea>
+              <p className="text-xs text-slate-400 mt-1">
+                Selezionato: {POI_ICONS.find(i => i.id === poiForm.icon)?.name || "Posizione"}
+              </p>
             </div>
           </div>
 
           <DialogFooter className="gap-2">
             <Button 
               variant="outline" 
-              onClick={() => setShowPoiDialog(false)}
+              onClick={() => {
+                setShowPoiDialog(false);
+                setPoiForm({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF" });
+              }}
               className="border-slate-500 text-slate-300 hover:bg-slate-700"
             >
               Annulla
@@ -1205,7 +1240,7 @@ export default function MatterportManager() {
             <Button 
               className="bg-green-600 hover:bg-green-700 text-white" 
               onClick={handleCreatePoiAtPosition}
-              disabled={loading || !poiForm.title}
+              disabled={loading || !poiForm.title || !poiForm.position}
             >
               {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
               Crea POI
