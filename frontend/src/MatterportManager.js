@@ -1382,6 +1382,7 @@ export default function MatterportManager() {
                         const IconComponent = poiIcon?.icon || MapPin;
                         const isSelected = selectedPoi?.id === poi.id;
                         const canNavigate = poi.is_imported || poi.nearest_sweep_id;
+                        const deviceInfo = getDeviceStateForPoi(poi);
                         
                         return (
                           <div
@@ -1399,6 +1400,18 @@ export default function MatterportManager() {
                             }`}>
                               {index + 1}
                             </div>
+                            
+                            {/* SmartThings LED indicator */}
+                            {deviceInfo && deviceInfo.hasSwitch && (
+                              <div 
+                                className={`w-3 h-3 rounded-full ${
+                                  deviceInfo.state === 'on' 
+                                    ? 'bg-red-500 shadow-[0_0_8px_2px_rgba(239,68,68,0.6)] animate-pulse' 
+                                    : 'bg-slate-600'
+                                }`}
+                                title={`${deviceInfo.device.name}: ${deviceInfo.state === 'on' ? 'ACCESO' : 'SPENTO'}`}
+                              />
+                            )}
                             
                             {/* Icon */}
                             <IconComponent size={14} style={{ color: poi.color || poiIcon?.color }} />
