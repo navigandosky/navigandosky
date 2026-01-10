@@ -3037,7 +3037,7 @@ async def send_smartthings_command(device_id: str, command: dict):
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
                 f"{SMARTTHINGS_API_URL}/devices/{device_id}/commands",
                 headers={
@@ -3047,10 +3047,21 @@ async def send_smartthings_command(device_id: str, command: dict):
                 json={"commands": [command]}
             )
             response.raise_for_status()
+            # Clear cache for this device
+            cache_key = f"device_status_{device_id}"
+            if cache_key in smartthings_cache._cache:
+                del smartthings_cache._cache[cache_key]
             return {"status": "success", "result": response.json()}
     except httpx.HTTPError as e:
         logger.error(f"SmartThings command error: {e}")
         raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
+@api_router.post("/smartthings/cache/clear")
+async def clear_smartthings_cache():
+    """Clear SmartThings cache to force refresh"""
+    smartthings_cache.clear()
+    return {"status": "cache cleared"}
 
 
 @api_router.post("/smartthings/device/{device_id}/switch/{action}")
