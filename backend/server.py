@@ -552,6 +552,151 @@ def generate_whatsapp_link(phone: str, message: str) -> str:
     return f"https://wa.me/{clean_phone}?text={encoded_message}"
 
 
+# ============== MATTERPORT SPACE & POI MODELS ==============
+
+# Supported languages for translations
+SUPPORTED_LANGUAGES = ["it", "en", "de", "fr", "es"]
+LANGUAGE_NAMES = {
+    "it": "Italiano",
+    "en": "English", 
+    "de": "Deutsch",
+    "fr": "Français",
+    "es": "Español"
+}
+
+class MatterportSpaceBase(BaseModel):
+    """Matterport 3D Space configuration"""
+    space_id: str  # Matterport space ID (e.g., "j1r4zUjanif")
+    name: str  # Display name
+    description: Optional[str] = None
+    sdk_key: Optional[str] = None  # SDK key (can override global)
+    thumbnail_url: Optional[str] = None
+    is_active: bool = True  # Currently displayed space
+    
+class MatterportSpaceCreate(MatterportSpaceBase):
+    pass
+
+class MatterportSpaceUpdate(BaseModel):
+    space_id: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    sdk_key: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class MatterportSpace(MatterportSpaceBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str = DEFAULT_USER_ID
+    poi_count: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# POI/Tag Translations model
+class POITranslation(BaseModel):
+    """Multilingual translation for a POI"""
+    language: str  # Language code: it, en, de, fr, es
+    title: str
+    description: str
+    audio_url: Optional[str] = None  # Generated TTS audio URL
+    audio_generated_at: Optional[datetime] = None
+
+
+# POI/Tag Position in 3D space
+class POIPosition(BaseModel):
+    """3D coordinates for POI placement"""
+    x: float
+    y: float
+    z: float
+    # Optional: floor info
+    floor_id: Optional[str] = None
+    floor_name: Optional[str] = None
+
+
+# POI Attachment
+class POIAttachment(BaseModel):
+    """Attached file to a POI"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    filename: str
+    original_name: str
+    file_type: str  # pdf, image, video, document
+    file_url: str
+    file_size: int = 0
+    uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class POIBase(BaseModel):
+    """Point of Interest linked to Matterport Tag"""
+    space_id: str  # Reference to MatterportSpace.id
+    matterport_tag_id: Optional[str] = None  # Original Matterport tag ID (if imported)
+    
+    # Position (from Matterport or manually set)
+    position: Optional[POIPosition] = None
+    
+    # Translations (5 languages)
+    translations: List[POITranslation] = []
+    
+    # Linked entities
+    elettrodomestico_id: Optional[str] = None
+    
+    # Attachments
+    attachments: List[POIAttachment] = []
+    
+    # Metadata
+    icon: Optional[str] = None  # Icon name/emoji
+    color: Optional[str] = None  # Hex color for marker
+    is_imported: bool = False  # True if imported from Matterport
+    is_visible: bool = True
+
+
+class POICreate(POIBase):
+    pass
+
+
+class POIUpdate(BaseModel):
+    space_id: Optional[str] = None
+    matterport_tag_id: Optional[str] = None
+    position: Optional[POIPosition] = None
+    translations: Optional[List[POITranslation]] = None
+    elettrodomestico_id: Optional[str] = None
+    attachments: Optional[List[POIAttachment]] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    is_imported: Optional[bool] = None
+    is_visible: Optional[bool] = None
+
+
+class POI(POIBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str = DEFAULT_USER_ID
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class POIWithDetails(POI):
+    """POI with linked elettrodomestico details"""
+    elettrodomestico: Optional[Elettrodomestico] = None
+    space: Optional[MatterportSpace] = None
+
+
+# Request models for translation and audio generation
+class TranslationRequest(BaseModel):
+    """Request to translate POI description"""
+    source_language: str = "it"
+    source_text: str
+    target_languages: List[str] = ["en", "de", "fr", "es"]
+
+
+class AudioGenerationRequest(BaseModel):
+    """Request to generate TTS audio for a POI"""
+    poi_id: str
+    languages: List[str] = ["it", "en", "de", "fr", "es"]
+    voice: str = "alloy"  # OpenAI TTS voice
+    model: str = "tts-1"  # tts-1 or tts-1-hd
+
+
 # ============== ROUTES ==============
 
 @api_router.get("/")
