@@ -49,6 +49,9 @@ import {
   Crosshair,
   Globe,
   Mic,
+  Power,
+  Link,
+  Unlink,
   // Icons for POI types
   Thermometer,
   Flame,
