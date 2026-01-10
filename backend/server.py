@@ -3387,6 +3387,658 @@ async def get_ezviz_camera_stream_url(serial: str):
         raise HTTPException(status_code=500, detail=f"Ezviz API error: {str(e)}")
 
 
+# ============== MATTERPORT SPACES & POI API ==============
+
+# --- Matterport Spaces ---
+
+@api_router.get("/matterport/spaces", response_model=List[MatterportSpace])
+async def get_matterport_spaces():
+    """Get all Matterport spaces"""
+    spaces = await db.matterport_spaces.find(
+        {"user_id": DEFAULT_USER_ID},
+        {"_id": 0}
+    ).to_list(100)
+    
+    # Count POIs for each space
+    for space in spaces:
+        poi_count = await db.pois.count_documents({
+            "space_id": space["id"],
+            "user_id": DEFAULT_USER_ID
+        })
+        space["poi_count"] = poi_count
+    
+    return spaces
+
+
+@api_router.get("/matterport/spaces/active")
+async def get_active_matterport_space():
+    """Get the currently active Matterport space"""
+    space = await db.matterport_spaces.find_one(
+        {"user_id": DEFAULT_USER_ID, "is_active": True},
+        {"_id": 0}
+    )
+    if not space:
+        # Return default space from env
+        return {
+            "space_id": MATTERPORT_SPACE_ID,
+            "name": "Spazio Principale",
+            "is_active": True,
+            "sdk_key": os.environ.get('MATTERPORT_SDK_KEY', '')
+        }
+    return space
+
+
+@api_router.post("/matterport/spaces", response_model=MatterportSpace)
+async def create_matterport_space(space: MatterportSpaceCreate):
+    """Create a new Matterport space"""
+    space_dict = space.model_dump()
+    space_dict["id"] = str(uuid.uuid4())
+    space_dict["user_id"] = DEFAULT_USER_ID
+    space_dict["poi_count"] = 0
+    space_dict["created_at"] = datetime.now(timezone.utc)
+    space_dict["updated_at"] = datetime.now(timezone.utc)
+    
+    # If this space is active, deactivate others
+    if space_dict.get("is_active"):
+        await db.matterport_spaces.update_many(
+            {"user_id": DEFAULT_USER_ID},
+            {"$set": {"is_active": False}}
+        )
+    
+    await db.matterport_spaces.insert_one(space_dict)
+    space_dict.pop("_id", None)
+    return space_dict
+
+
+@api_router.put("/matterport/spaces/{space_id}", response_model=MatterportSpace)
+async def update_matterport_space(space_id: str, space: MatterportSpaceUpdate):
+    """Update a Matterport space"""
+    update_data = {k: v for k, v in space.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    # If activating this space, deactivate others
+    if update_data.get("is_active"):
+        await db.matterport_spaces.update_many(
+            {"user_id": DEFAULT_USER_ID, "id": {"$ne": space_id}},
+            {"$set": {"is_active": False}}
+        )
+    
+    result = await db.matterport_spaces.find_one_and_update(
+        {"id": space_id, "user_id": DEFAULT_USER_ID},
+        {"$set": update_data},
+        return_document=True
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Space not found")
+    result.pop("_id", None)
+    return result
+
+
+@api_router.delete("/matterport/spaces/{space_id}")
+async def delete_matterport_space(space_id: str):
+    """Delete a Matterport space and its POIs"""
+    result = await db.matterport_spaces.delete_one({
+        "id": space_id, "user_id": DEFAULT_USER_ID
+    })
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Space not found")
+    
+    # Also delete all POIs associated with this space
+    await db.pois.delete_many({"space_id": space_id})
+    
+    return {"message": "Space and associated POIs deleted"}
+
+
+@api_router.post("/matterport/spaces/{space_id}/activate")
+async def activate_matterport_space(space_id: str):
+    """Set a space as the active one"""
+    # Deactivate all others
+    await db.matterport_spaces.update_many(
+        {"user_id": DEFAULT_USER_ID},
+        {"$set": {"is_active": False}}
+    )
+    
+    # Activate this one
+    result = await db.matterport_spaces.find_one_and_update(
+        {"id": space_id, "user_id": DEFAULT_USER_ID},
+        {"$set": {"is_active": True, "updated_at": datetime.now(timezone.utc)}},
+        return_document=True
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Space not found")
+    result.pop("_id", None)
+    return result
+
+
+# --- POI Management ---
+
+@api_router.get("/matterport/pois", response_model=List[POI])
+async def get_all_pois(space_id: Optional[str] = None):
+    """Get all POIs, optionally filtered by space"""
+    query = {"user_id": DEFAULT_USER_ID}
+    if space_id:
+        query["space_id"] = space_id
+    
+    pois = await db.pois.find(query, {"_id": 0}).to_list(500)
+    return pois
+
+
+@api_router.get("/matterport/pois/{poi_id}", response_model=POIWithDetails)
+async def get_poi(poi_id: str):
+    """Get a single POI with details"""
+    poi = await db.pois.find_one(
+        {"id": poi_id, "user_id": DEFAULT_USER_ID},
+        {"_id": 0}
+    )
+    if not poi:
+        raise HTTPException(status_code=404, detail="POI not found")
+    
+    # Get linked elettrodomestico if any
+    if poi.get("elettrodomestico_id"):
+        elettro = await db.elettrodomestici.find_one(
+            {"id": poi["elettrodomestico_id"]},
+            {"_id": 0}
+        )
+        poi["elettrodomestico"] = elettro
+    
+    # Get space info
+    space = await db.matterport_spaces.find_one(
+        {"id": poi["space_id"]},
+        {"_id": 0}
+    )
+    poi["space"] = space
+    
+    return poi
+
+
+@api_router.post("/matterport/pois", response_model=POI)
+async def create_poi(poi: POICreate):
+    """Create a new POI"""
+    poi_dict = poi.model_dump()
+    poi_dict["id"] = str(uuid.uuid4())
+    poi_dict["user_id"] = DEFAULT_USER_ID
+    poi_dict["created_at"] = datetime.now(timezone.utc)
+    poi_dict["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.pois.insert_one(poi_dict)
+    poi_dict.pop("_id", None)
+    return poi_dict
+
+
+@api_router.put("/matterport/pois/{poi_id}", response_model=POI)
+async def update_poi(poi_id: str, poi: POIUpdate):
+    """Update a POI"""
+    update_data = {k: v for k, v in poi.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    
+    # Handle nested objects properly
+    if "position" in update_data and update_data["position"]:
+        update_data["position"] = update_data["position"] if isinstance(update_data["position"], dict) else update_data["position"].model_dump()
+    if "translations" in update_data:
+        update_data["translations"] = [t if isinstance(t, dict) else t.model_dump() for t in update_data["translations"]]
+    if "attachments" in update_data:
+        update_data["attachments"] = [a if isinstance(a, dict) else a.model_dump() for a in update_data["attachments"]]
+    
+    result = await db.pois.find_one_and_update(
+        {"id": poi_id, "user_id": DEFAULT_USER_ID},
+        {"$set": update_data},
+        return_document=True
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="POI not found")
+    result.pop("_id", None)
+    return result
+
+
+@api_router.delete("/matterport/pois/{poi_id}")
+async def delete_poi(poi_id: str):
+    """Delete a POI and its files"""
+    # Get POI first to delete associated files
+    poi = await db.pois.find_one({"id": poi_id, "user_id": DEFAULT_USER_ID})
+    if not poi:
+        raise HTTPException(status_code=404, detail="POI not found")
+    
+    # Delete audio files
+    for trans in poi.get("translations", []):
+        if trans.get("audio_url"):
+            audio_path = POI_AUDIO_DIR / Path(trans["audio_url"]).name
+            if audio_path.exists():
+                audio_path.unlink()
+    
+    # Delete attachments
+    for att in poi.get("attachments", []):
+        att_path = POI_ATTACHMENTS_DIR / att.get("filename", "")
+        if att_path.exists():
+            att_path.unlink()
+    
+    await db.pois.delete_one({"id": poi_id})
+    return {"message": "POI deleted"}
+
+
+# --- Import Tags from Matterport ---
+
+@api_router.post("/matterport/spaces/{space_id}/import-tags")
+async def import_matterport_tags(space_id: str, tags: List[Dict[str, Any]]):
+    """
+    Import selected tags from Matterport SDK into POIs.
+    Frontend sends the tags data fetched from SDK.
+    """
+    imported_count = 0
+    skipped_count = 0
+    
+    for tag in tags:
+        # Check if tag already imported
+        existing = await db.pois.find_one({
+            "space_id": space_id,
+            "matterport_tag_id": tag.get("sid") or tag.get("id"),
+            "user_id": DEFAULT_USER_ID
+        })
+        
+        if existing:
+            skipped_count += 1
+            continue
+        
+        # Extract position
+        position = None
+        if tag.get("anchorPosition"):
+            pos = tag["anchorPosition"]
+            position = {
+                "x": pos.get("x", 0),
+                "y": pos.get("y", 0),
+                "z": pos.get("z", 0),
+                "floor_id": tag.get("floorId"),
+                "floor_name": tag.get("floorName")
+            }
+        
+        # Create initial Italian translation from tag data
+        translations = []
+        label = tag.get("label") or tag.get("name") or "POI"
+        description = tag.get("description") or tag.get("stemLabel") or ""
+        
+        translations.append({
+            "language": "it",
+            "title": label,
+            "description": description,
+            "audio_url": None,
+            "audio_generated_at": None
+        })
+        
+        # Create POI
+        poi_dict = {
+            "id": str(uuid.uuid4()),
+            "user_id": DEFAULT_USER_ID,
+            "space_id": space_id,
+            "matterport_tag_id": tag.get("sid") or tag.get("id"),
+            "position": position,
+            "translations": translations,
+            "elettrodomestico_id": None,
+            "attachments": [],
+            "icon": tag.get("icon"),
+            "color": tag.get("color"),
+            "is_imported": True,
+            "is_visible": True,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        
+        await db.pois.insert_one(poi_dict)
+        imported_count += 1
+    
+    return {
+        "imported": imported_count,
+        "skipped": skipped_count,
+        "message": f"Importati {imported_count} POI, {skipped_count} già esistenti"
+    }
+
+
+# --- Translation Service ---
+
+@api_router.post("/matterport/pois/{poi_id}/translate")
+async def translate_poi(poi_id: str, request: TranslationRequest):
+    """
+    Translate POI description to multiple languages using AI.
+    Uses Emergent LLM Key with GPT for translation.
+    """
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="LLM key not configured")
+    
+    poi = await db.pois.find_one(
+        {"id": poi_id, "user_id": DEFAULT_USER_ID}
+    )
+    if not poi:
+        raise HTTPException(status_code=404, detail="POI not found")
+    
+    translations = poi.get("translations", [])
+    source_lang_name = LANGUAGE_NAMES.get(request.source_language, request.source_language)
+    
+    # Find source translation title
+    source_trans = next((t for t in translations if t["language"] == request.source_language), None)
+    source_title = source_trans.get("title", "POI") if source_trans else "POI"
+    
+    try:
+        llm = LlmChat(api_key=EMERGENT_LLM_KEY)
+        
+        for target_lang in request.target_languages:
+            if target_lang == request.source_language:
+                continue
+            
+            target_lang_name = LANGUAGE_NAMES.get(target_lang, target_lang)
+            
+            # Translate title and description
+            prompt = f"""Traduci il seguente testo da {source_lang_name} a {target_lang_name}.
+Rispondi SOLO con il JSON, senza spiegazioni.
+
+Testo da tradurre:
+Titolo: {source_title}
+Descrizione: {request.source_text}
+
+Rispondi in formato JSON:
+{{"title": "titolo tradotto", "description": "descrizione tradotta"}}"""
+
+            response = await llm.chat([UserMessage(content=prompt)])
+            
+            # Parse JSON response
+            try:
+                # Clean response - remove markdown code blocks if present
+                response_text = response.strip()
+                if response_text.startswith("```"):
+                    response_text = response_text.split("```")[1]
+                    if response_text.startswith("json"):
+                        response_text = response_text[4:]
+                response_text = response_text.strip()
+                
+                translated = json.loads(response_text)
+                translated_title = translated.get("title", source_title)
+                translated_desc = translated.get("description", request.source_text)
+            except json.JSONDecodeError:
+                # Fallback: use whole response as description
+                translated_title = source_title
+                translated_desc = response.strip()
+            
+            # Update or add translation
+            existing_idx = next((i for i, t in enumerate(translations) if t["language"] == target_lang), None)
+            
+            new_trans = {
+                "language": target_lang,
+                "title": translated_title,
+                "description": translated_desc,
+                "audio_url": translations[existing_idx].get("audio_url") if existing_idx is not None else None,
+                "audio_generated_at": translations[existing_idx].get("audio_generated_at") if existing_idx is not None else None
+            }
+            
+            if existing_idx is not None:
+                translations[existing_idx] = new_trans
+            else:
+                translations.append(new_trans)
+        
+        # Update POI
+        await db.pois.update_one(
+            {"id": poi_id},
+            {"$set": {"translations": translations, "updated_at": datetime.now(timezone.utc)}}
+        )
+        
+        return {
+            "message": "Traduzioni completate",
+            "translations": translations
+        }
+        
+    except Exception as e:
+        logger.error(f"Translation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Translation error: {str(e)}")
+
+
+# --- Audio Generation (TTS) ---
+
+@api_router.post("/matterport/pois/{poi_id}/generate-audio")
+async def generate_poi_audio(poi_id: str, request: AudioGenerationRequest):
+    """
+    Generate TTS audio for POI translations.
+    Uses OpenAI TTS via Emergent integration.
+    """
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="LLM key not configured")
+    
+    poi = await db.pois.find_one(
+        {"id": poi_id, "user_id": DEFAULT_USER_ID}
+    )
+    if not poi:
+        raise HTTPException(status_code=404, detail="POI not found")
+    
+    translations = poi.get("translations", [])
+    generated_count = 0
+    
+    try:
+        tts = OpenAITextToSpeech(api_key=EMERGENT_LLM_KEY)
+        
+        for lang in request.languages:
+            # Find translation for this language
+            trans_idx = next((i for i, t in enumerate(translations) if t["language"] == lang), None)
+            
+            if trans_idx is None:
+                continue
+            
+            trans = translations[trans_idx]
+            text_to_speak = f"{trans.get('title', '')}. {trans.get('description', '')}"
+            
+            if not text_to_speak.strip():
+                continue
+            
+            # Generate audio
+            audio_bytes = await tts.generate_speech(
+                text=text_to_speak[:4000],  # Max 4096 chars
+                model=request.model,
+                voice=request.voice,
+                response_format="mp3"
+            )
+            
+            # Save audio file
+            filename = f"{poi_id}_{lang}.mp3"
+            audio_path = POI_AUDIO_DIR / filename
+            
+            async with aiofiles.open(audio_path, "wb") as f:
+                await f.write(audio_bytes)
+            
+            # Update translation with audio URL
+            translations[trans_idx]["audio_url"] = f"/api/matterport/files/audio/{filename}"
+            translations[trans_idx]["audio_generated_at"] = datetime.now(timezone.utc).isoformat()
+            generated_count += 1
+        
+        # Update POI
+        await db.pois.update_one(
+            {"id": poi_id},
+            {"$set": {"translations": translations, "updated_at": datetime.now(timezone.utc)}}
+        )
+        
+        return {
+            "message": f"Audio generato per {generated_count} lingue",
+            "generated_count": generated_count,
+            "translations": translations
+        }
+        
+    except Exception as e:
+        logger.error(f"TTS generation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Audio generation error: {str(e)}")
+
+
+# --- File serving for POI files ---
+
+@api_router.get("/matterport/files/audio/{filename}")
+async def get_poi_audio(filename: str):
+    """Serve POI audio file"""
+    file_path = POI_AUDIO_DIR / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(file_path, media_type="audio/mpeg")
+
+
+@api_router.get("/matterport/files/attachment/{filename}")
+async def get_poi_attachment(filename: str):
+    """Serve POI attachment file"""
+    file_path = POI_ATTACHMENTS_DIR / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    
+    # Determine media type
+    suffix = file_path.suffix.lower()
+    media_types = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm"
+    }
+    media_type = media_types.get(suffix, "application/octet-stream")
+    
+    return FileResponse(file_path, media_type=media_type)
+
+
+# --- Upload attachment to POI ---
+
+@api_router.post("/matterport/pois/{poi_id}/attachments")
+async def upload_poi_attachment(poi_id: str, file: UploadFile = File(...)):
+    """Upload an attachment to a POI"""
+    poi = await db.pois.find_one(
+        {"id": poi_id, "user_id": DEFAULT_USER_ID}
+    )
+    if not poi:
+        raise HTTPException(status_code=404, detail="POI not found")
+    
+    # Generate unique filename
+    file_ext = Path(file.filename).suffix.lower()
+    unique_filename = f"{poi_id}_{uuid.uuid4().hex[:8]}{file_ext}"
+    file_path = POI_ATTACHMENTS_DIR / unique_filename
+    
+    # Determine file type
+    file_types = {
+        ".pdf": "pdf",
+        ".png": "image", ".jpg": "image", ".jpeg": "image", ".gif": "image", ".webp": "image",
+        ".mp4": "video", ".webm": "video", ".mov": "video",
+        ".doc": "document", ".docx": "document", ".txt": "document"
+    }
+    file_type = file_types.get(file_ext, "document")
+    
+    # Save file
+    content = await file.read()
+    async with aiofiles.open(file_path, "wb") as f:
+        await f.write(content)
+    
+    # Create attachment record
+    attachment = {
+        "id": str(uuid.uuid4()),
+        "filename": unique_filename,
+        "original_name": file.filename,
+        "file_type": file_type,
+        "file_url": f"/api/matterport/files/attachment/{unique_filename}",
+        "file_size": len(content),
+        "uploaded_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Add to POI
+    attachments = poi.get("attachments", [])
+    attachments.append(attachment)
+    
+    await db.pois.update_one(
+        {"id": poi_id},
+        {"$set": {"attachments": attachments, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    return attachment
+
+
+@api_router.delete("/matterport/pois/{poi_id}/attachments/{attachment_id}")
+async def delete_poi_attachment(poi_id: str, attachment_id: str):
+    """Delete an attachment from a POI"""
+    poi = await db.pois.find_one(
+        {"id": poi_id, "user_id": DEFAULT_USER_ID}
+    )
+    if not poi:
+        raise HTTPException(status_code=404, detail="POI not found")
+    
+    attachments = poi.get("attachments", [])
+    att_idx = next((i for i, a in enumerate(attachments) if a.get("id") == attachment_id), None)
+    
+    if att_idx is None:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    
+    # Delete file
+    att = attachments[att_idx]
+    file_path = POI_ATTACHMENTS_DIR / att.get("filename", "")
+    if file_path.exists():
+        file_path.unlink()
+    
+    # Remove from list
+    attachments.pop(att_idx)
+    
+    await db.pois.update_one(
+        {"id": poi_id},
+        {"$set": {"attachments": attachments, "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    return {"message": "Attachment deleted"}
+
+
+# --- Create POI from navigation (acquire coordinates) ---
+
+@api_router.post("/matterport/spaces/{space_id}/create-poi-at-position")
+async def create_poi_at_position(
+    space_id: str,
+    position: POIPosition,
+    title: str = Form(...),
+    description: str = Form("")
+):
+    """
+    Create a new POI at a specific position in the 3D space.
+    Used when user clicks on a point in the Matterport viewer to create a new POI.
+    """
+    # Verify space exists
+    space = await db.matterport_spaces.find_one(
+        {"id": space_id, "user_id": DEFAULT_USER_ID}
+    )
+    if not space:
+        # Create default space if it doesn't exist
+        space = {
+            "id": space_id,
+            "space_id": space_id,
+            "name": "Spazio Principale",
+            "user_id": DEFAULT_USER_ID,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
+        }
+        await db.matterport_spaces.insert_one(space)
+    
+    # Create POI with Italian translation
+    poi_dict = {
+        "id": str(uuid.uuid4()),
+        "user_id": DEFAULT_USER_ID,
+        "space_id": space_id,
+        "matterport_tag_id": None,
+        "position": position.model_dump(),
+        "translations": [{
+            "language": "it",
+            "title": title,
+            "description": description,
+            "audio_url": None,
+            "audio_generated_at": None
+        }],
+        "elettrodomestico_id": None,
+        "attachments": [],
+        "icon": None,
+        "color": "#00BFFF",  # Default cyan color
+        "is_imported": False,
+        "is_visible": True,
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc)
+    }
+    
+    await db.pois.insert_one(poi_dict)
+    poi_dict.pop("_id", None)
+    
+    return poi_dict
+
+
 # ============== WEATHER API ==============
 
 WEATHER_CITY = os.environ.get('WEATHER_CITY', 'Nuoro')
