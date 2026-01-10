@@ -62,6 +62,14 @@ QRCODES_DIR.mkdir(exist_ok=True)
 PLANIMETRIE_DIR = ROOT_DIR / "planimetrie"
 PLANIMETRIE_DIR.mkdir(exist_ok=True)
 
+# Directory for POI files (audio, attachments)
+POI_FILES_DIR = ROOT_DIR / "poi_files"
+POI_FILES_DIR.mkdir(exist_ok=True)
+POI_AUDIO_DIR = POI_FILES_DIR / "audio"
+POI_AUDIO_DIR.mkdir(exist_ok=True)
+POI_ATTACHMENTS_DIR = POI_FILES_DIR / "attachments"
+POI_ATTACHMENTS_DIR.mkdir(exist_ok=True)
+
 # Email configuration (optional - can be configured via env)
 SMTP_HOST = os.environ.get('SMTP_HOST', '')
 SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
