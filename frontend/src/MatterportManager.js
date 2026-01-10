@@ -2511,7 +2511,7 @@ export default function MatterportManager() {
             </DialogTitle>
             <DialogDescription className="text-slate-400">
               {selectedPoi && (
-                <>Collega "{selectedPoi.translations?.find(t => t.language === "it")?.title}" a un dispositivo SmartThings</>
+                <>Collega &quot;{selectedPoi.translations?.find(t => t.language === "it")?.title}&quot; a un dispositivo SmartThings</>
               )}
             </DialogDescription>
           </DialogHeader>
