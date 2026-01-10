@@ -862,6 +862,133 @@ async def get_config():
     }
 
 
+# ------------ PROPERTY CONFIGURATION ------------
+
+@api_router.post("/property", response_model=PropertyConfig)
+async def create_property(data: PropertyConfigCreate):
+    """Crea una nuova configurazione proprietà"""
+    prop = PropertyConfig(**data.model_dump())
+    doc = serialize_doc(prop.model_dump())
+    await db.property_config.insert_one(doc)
+    return prop
+
+
+@api_router.get("/property", response_model=List[PropertyConfig])
+async def get_properties(user_id: str = DEFAULT_USER_ID):
+    """Ottiene tutte le proprietà dell'utente"""
+    properties = await db.property_config.find(
+        {"user_id": user_id}, {"_id": 0}
+    ).to_list(100)
+    return [deserialize_datetime(p) for p in properties]
+
+
+@api_router.get("/property/active", response_model=Optional[PropertyConfig])
+async def get_active_property(user_id: str = DEFAULT_USER_ID):
+    """Ottiene la proprietà attiva dell'utente"""
+    prop = await db.property_config.find_one(
+        {"user_id": user_id, "is_active": True}, {"_id": 0}
+    )
+    if prop:
+        return deserialize_datetime(prop)
+    return None
+
+
+@api_router.get("/property/{property_id}", response_model=PropertyConfig)
+async def get_property(property_id: str):
+    """Ottiene una proprietà specifica"""
+    prop = await db.property_config.find_one({"id": property_id}, {"_id": 0})
+    if not prop:
+        raise HTTPException(status_code=404, detail="Proprietà non trovata")
+    return deserialize_datetime(prop)
+
+
+@api_router.put("/property/{property_id}", response_model=PropertyConfig)
+async def update_property(property_id: str, data: PropertyConfigUpdate):
+    """Aggiorna una proprietà"""
+    update_data = {}
+    
+    # Handle nested objects properly
+    data_dict = data.model_dump(exclude_unset=True)
+    for key, value in data_dict.items():
+        if value is not None:
+            if isinstance(value, dict):
+                # For nested objects, update each field individually
+                for nested_key, nested_value in value.items():
+                    if nested_value is not None:
+                        update_data[f"{key}.{nested_key}"] = nested_value
+            else:
+                update_data[key] = value
+    
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.property_config.update_one(
+        {"id": property_id},
+        {"$set": update_data}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Proprietà non trovata")
+    
+    return await get_property(property_id)
+
+
+@api_router.delete("/property/{property_id}")
+async def delete_property(property_id: str):
+    """Elimina una proprietà"""
+    result = await db.property_config.delete_one({"id": property_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Proprietà non trovata")
+    return {"message": "Proprietà eliminata"}
+
+
+@api_router.post("/property/init-from-env")
+async def init_property_from_env(user_id: str = DEFAULT_USER_ID):
+    """Inizializza una proprietà dai valori .env esistenti"""
+    
+    # Check if property already exists
+    existing = await db.property_config.find_one({"user_id": user_id}, {"_id": 0})
+    if existing:
+        return {"message": "Proprietà già esistente", "property": deserialize_datetime(existing)}
+    
+    # Create property from env values
+    prop = PropertyConfig(
+        name="La Mia Proprietà",
+        description="Proprietà principale",
+        matterport=MatterportConfig(
+            space_id=os.environ.get('MATTERPORT_SPACE_ID', 'j1r4zUjanif'),
+            sdk_key=os.environ.get('MATTERPORT_SDK_KEY', ''),
+            enabled=True
+        ),
+        integrations=IntegrationsConfig(
+            smartthings=SmartThingsConfig(
+                enabled=bool(os.environ.get('SMARTTHINGS_TOKEN')),
+                token=os.environ.get('SMARTTHINGS_TOKEN', ''),
+                location_id="auto"
+            ),
+            ewelink=EwelinkConfig(enabled=False)
+        ),
+        ezviz=EzvizConfig(
+            enabled=bool(os.environ.get('EZVIZ_USERNAME')),
+            username=os.environ.get('EZVIZ_USERNAME', ''),
+            password=os.environ.get('EZVIZ_PASSWORD', ''),
+            app_key=os.environ.get('EZVIZ_APPKEY', ''),
+            secret=os.environ.get('EZVIZ_SECRET', ''),
+            region=os.environ.get('EZVIZ_REGION', 'eu')
+        ),
+        weather=WeatherConfig(
+            enabled=True,
+            city=os.environ.get('WEATHER_CITY', 'Nuoro'),
+            lat=float(os.environ.get('WEATHER_LAT', 40.3125)),
+            lon=float(os.environ.get('WEATHER_LON', 9.3125))
+        ),
+        is_active=True
+    )
+    
+    doc = serialize_doc(prop.model_dump())
+    await db.property_config.insert_one(doc)
+    
+    return {"message": "Proprietà creata da configurazione esistente", "property": prop}
+
+
 # ------------ CENTRI ASSISTENZA ------------
 
 @api_router.post("/centri-assistenza", response_model=CentroAssistenza)
