@@ -2948,12 +2948,18 @@ async def get_smartthings_devices_by_room():
 
 @api_router.get("/smartthings/devices")
 async def get_smartthings_devices():
-    """Get all SmartThings devices with their current status"""
+    """Get all SmartThings devices with their current status (cached for 2 minutes)"""
     if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
+    # Check cache first
+    cached = smartthings_cache.get("devices")
+    if cached:
+        logger.info("SmartThings devices returned from cache")
+        return cached
+    
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices",
                 headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
