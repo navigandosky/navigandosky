@@ -1716,6 +1716,7 @@ function App() {
               {filteredElettrodomestici.map((e) => {
                 const catInfo = CATEGORIE_ELETTRODOMESTICI.find(c => c.value === e.categoria);
                 const hasSmartPlug = e.smart_plug_id && e.smart_plug_provider !== "nessuno";
+                const smartState = hasSmartPlug ? smartThingsStates[e.smart_plug_id] : null;
                 
                 return (
                   <Card key={e.id} className="hover:shadow-md transition-shadow" data-testid={`elettro-card-${e.id}`}>
@@ -1729,10 +1730,26 @@ function App() {
                           </div>
                         </div>
                         {hasSmartPlug && (
-                          <Badge variant="outline" className="gap-1">
-                            <Plug className="h-3 w-3" />
-                            Smart
-                          </Badge>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant="outline" className="gap-1">
+                              <Plug className="h-3 w-3" />
+                              Smart
+                            </Badge>
+                            {smartState && (
+                              <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                smartState === 'on' 
+                                  ? 'bg-red-100 text-red-700' 
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                <div className={`w-2 h-2 rounded-full ${
+                                  smartState === 'on' 
+                                    ? 'bg-red-500 animate-pulse' 
+                                    : 'bg-gray-400'
+                                }`} />
+                                {smartState === 'on' ? 'ACCESO' : 'SPENTO'}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </CardHeader>
