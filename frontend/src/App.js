@@ -2388,85 +2388,43 @@ const AdminPage = () => {
 // =============================================================================
 const ServerWakeupLoader = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [isWaking, setIsWaking] = useState(false);
-  const [error, setError] = useState(false);
-
-  const wakeupServer = useCallback(async () => {
-    setIsWaking(true);
-    setError(false);
-    try {
-      // Make a simple API call to wake up the server
-      await axios.get(`${API}/settings`, { timeout: 30000 });
-      sessionStorage.setItem('server_wakeup_done', 'true');
-      setIsLoading(false);
-    } catch (err) {
-      // Retry once
-      try {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        await axios.get(`${API}/settings`, { timeout: 30000 });
-        sessionStorage.setItem('server_wakeup_done', 'true');
-        setIsLoading(false);
-      } catch {
-        setError(true);
-        setIsWaking(false);
-      }
-    }
-  }, []);
 
   useEffect(() => {
-    // Check if already woken up in this session
+    // Se già fatto in questa sessione, carica subito
     const hasWokenUp = sessionStorage.getItem('server_wakeup_done');
     if (hasWokenUp) {
       setIsLoading(false);
-    } else {
-      // Avvia automaticamente il wakeup
-      wakeupServer();
+      return;
     }
-  }, [wakeupServer]);
+
+    // Wakeup in background con timeout breve (3 sec max)
+    const wakeup = axios.get(`${API}/health`, { timeout: 3000 }).catch(() => {});
+    
+    // Dopo 1.5 secondi carica comunque la pagina
+    const timer = setTimeout(() => {
+      sessionStorage.setItem('server_wakeup_done', 'true');
+      setIsLoading(false);
+    }, 1500);
+
+    // Se il server risponde prima, carica subito
+    wakeup.then(() => {
+      clearTimeout(timer);
+      sessionStorage.setItem('server_wakeup_done', 'true');
+      setIsLoading(false);
+    });
+
+    return () => clearTimeout(timer);
+  }, []);
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0b] flex flex-col items-center justify-center">
-        <div className="text-center">
-          <img 
-            src="https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png" 
-            alt="Trivor" 
-            className="h-24 mx-auto mb-8 animate-pulse" 
-          />
-          
-          {isWaking ? (
-            <>
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
-                <span className="text-xl text-white font-medium">Update in Corso</span>
-              </div>
-              <p className="text-gray-400">Attendere prego...</p>
-              <div className="mt-6 w-48 h-1 bg-gray-800 rounded-full overflow-hidden mx-auto">
-                <div className="h-full bg-gradient-to-r from-cyan-500 to-teal-500 animate-pulse" style={{width: '60%'}} />
-              </div>
-            </>
-          ) : error ? (
-            <>
-              <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
-              <h2 className="text-xl text-white mb-2">Connessione lenta</h2>
-              <p className="text-gray-400 mb-6">Il server sta impiegando più tempo del previsto.</p>
-              <button 
-                onClick={wakeupServer}
-                className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold rounded-full hover:shadow-lg hover:shadow-cyan-500/25 transition-all transform hover:scale-105"
-              >
-                🔄 Riprova WakeUp
-              </button>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
-                <span className="text-xl text-white font-medium">Caricamento...</span>
-              </div>
-              <p className="text-gray-400">Connessione al server in corso</p>
-            </>
-          )}
-        </div>
+        <img 
+          src="https://customer-assets.emergentagent.com/job_9ae566ba-cbe1-4f57-8e5e-483d01cf8ff3/artifacts/p9qzdaz3_TRIVOR_Logo_Oro_Trasparente.png" 
+          alt="Trivor" 
+          className="h-20 mx-auto mb-6 animate-pulse" 
+        />
+        <RefreshCw className="w-5 h-5 text-cyan-400 animate-spin" />
       </div>
     );
   }
