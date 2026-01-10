@@ -580,6 +580,119 @@ def generate_whatsapp_link(phone: str, message: str) -> str:
     return f"https://wa.me/{clean_phone}?text={encoded_message}"
 
 
+# ============== PROPERTY CONFIGURATION MODELS ==============
+
+class CadastralData(BaseModel):
+    """Dati catastali dell'immobile"""
+    address: Optional[str] = None
+    comune: Optional[str] = None
+    provincia: Optional[str] = None
+    cap: Optional[str] = None
+    foglio: Optional[str] = None
+    particella: Optional[str] = None
+    subalterno: Optional[str] = None
+    categoria: Optional[str] = None  # A/2, A/7, etc.
+    rendita: Optional[float] = None
+    superficie_mq: Optional[float] = None
+    vani: Optional[int] = None
+    classe_energetica: Optional[str] = None  # A, B, C, D, E, F, G
+    anno_costruzione: Optional[int] = None
+    note: Optional[str] = None
+
+
+class MatterportConfig(BaseModel):
+    """Configurazione Matterport"""
+    space_id: str
+    sdk_key: Optional[str] = None
+    enabled: bool = True
+
+
+class SmartThingsConfig(BaseModel):
+    """Configurazione SmartThings"""
+    enabled: bool = False
+    token: Optional[str] = None
+    location_id: Optional[str] = None  # "auto" per auto-detect
+
+
+class EwelinkConfig(BaseModel):
+    """Configurazione eWeLink"""
+    enabled: bool = False
+    email: Optional[str] = None
+    password: Optional[str] = None
+    region: str = "eu"  # eu, us, cn
+
+
+class EzvizConfig(BaseModel):
+    """Configurazione Ezviz telecamere"""
+    enabled: bool = False
+    username: Optional[str] = None
+    password: Optional[str] = None
+    app_key: Optional[str] = None
+    secret: Optional[str] = None
+    region: str = "eu"
+
+
+class WeatherConfig(BaseModel):
+    """Configurazione meteo"""
+    enabled: bool = True
+    city: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+
+
+class IntegrationsConfig(BaseModel):
+    """Tutte le integrazioni smart home"""
+    smartthings: SmartThingsConfig = SmartThingsConfig()
+    ewelink: EwelinkConfig = EwelinkConfig()
+
+
+class PropertyConfigBase(BaseModel):
+    """Configurazione completa della proprietà"""
+    name: str
+    description: Optional[str] = None
+    
+    # Dati catastali
+    cadastral: CadastralData = CadastralData()
+    
+    # Matterport
+    matterport: Optional[MatterportConfig] = None
+    
+    # Integrazioni Smart Home
+    integrations: IntegrationsConfig = IntegrationsConfig()
+    
+    # Telecamere
+    ezviz: EzvizConfig = EzvizConfig()
+    
+    # Meteo
+    weather: WeatherConfig = WeatherConfig()
+    
+    # Attivo
+    is_active: bool = True
+
+
+class PropertyConfigCreate(PropertyConfigBase):
+    pass
+
+
+class PropertyConfigUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    cadastral: Optional[CadastralData] = None
+    matterport: Optional[MatterportConfig] = None
+    integrations: Optional[IntegrationsConfig] = None
+    ezviz: Optional[EzvizConfig] = None
+    weather: Optional[WeatherConfig] = None
+    is_active: Optional[bool] = None
+
+
+class PropertyConfig(PropertyConfigBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str = DEFAULT_USER_ID
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 # ============== MATTERPORT SPACE & POI MODELS ==============
 
 # Supported languages for translations
