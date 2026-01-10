@@ -1744,6 +1744,58 @@ export default function MatterportManager() {
                       </div>
                     </div>
 
+                    {/* SmartThings Link */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-white font-medium">SmartThings</Label>
+                        <Button
+                          size="sm"
+                          className={selectedPoi.smartthings_device_id 
+                            ? "bg-green-600 hover:bg-green-700 text-white" 
+                            : "bg-cyan-600 hover:bg-cyan-700 text-white"
+                          }
+                          onClick={() => setShowLinkDeviceDialog(true)}
+                        >
+                          <Link size={14} className="mr-1" />
+                          {selectedPoi.smartthings_device_id ? 'Collegato' : 'Collega'}
+                        </Button>
+                      </div>
+                      {(() => {
+                        const deviceInfo = getDeviceStateForPoi(selectedPoi);
+                        if (deviceInfo) {
+                          return (
+                            <div className="flex items-center gap-3 p-3 bg-slate-700 rounded-lg">
+                              <div className={`w-4 h-4 rounded-full ${
+                                deviceInfo.state === 'on' 
+                                  ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)] animate-pulse' 
+                                  : 'bg-slate-500'
+                              }`} />
+                              <div className="flex-1">
+                                <p className="text-white text-sm font-medium">{deviceInfo.device.name}</p>
+                                <p className="text-slate-400 text-xs">
+                                  {deviceInfo.state === 'on' ? 'ACCESO' : 'SPENTO'}
+                                </p>
+                              </div>
+                              {deviceInfo.hasSwitch && (
+                                <Button
+                                  size="sm"
+                                  className={deviceInfo.state === 'on' 
+                                    ? "bg-red-600 hover:bg-red-700 text-white" 
+                                    : "bg-green-600 hover:bg-green-700 text-white"
+                                  }
+                                  onClick={() => toggleSmartThingsDevice(deviceInfo.device.id, deviceInfo.state)}
+                                >
+                                  <Power size={14} className="mr-1" />
+                                  {deviceInfo.state === 'on' ? 'Spegni' : 'Accendi'}
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        }
+                        return <p className="text-sm text-slate-400">Nessun dispositivo collegato</p>;
+                      })()}
+                    </div>
+
                     {/* Attachments */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
