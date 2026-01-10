@@ -1278,6 +1278,7 @@ function App() {
   
   // SmartThings devices for form
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
+  const [smartThingsStates, setSmartThingsStates] = useState({}); // { deviceId: "on" | "off" }
   
   // Filter states
   const [filtroCategoria, setFiltroCategoria] = useState("");
