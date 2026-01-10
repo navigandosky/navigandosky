@@ -1692,14 +1692,35 @@ export default function MatterportManager() {
           
           {editPoiForm && (
             <div className="space-y-4">
-              <div>
-                <Label className="text-white font-medium">Titolo</Label>
-                <Input
-                  value={editPoiForm.title}
-                  onChange={(e) => setEditPoiForm(p => ({ ...p, title: e.target.value }))}
-                  className="bg-slate-700 border-slate-500 text-white mt-1"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-white font-medium">Titolo</Label>
+                  <Input
+                    value={editPoiForm.title}
+                    onChange={(e) => setEditPoiForm(p => ({ ...p, title: e.target.value }))}
+                    className="bg-slate-700 border-slate-500 text-white mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-white font-medium">Categoria</Label>
+                  <Select 
+                    value={editPoiForm.category} 
+                    onValueChange={(val) => setEditPoiForm(p => ({ ...p, category: val }))}
+                  >
+                    <SelectTrigger className="bg-slate-700 border-slate-500 text-white mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-slate-600">
+                      {getAllCategories().map(cat => (
+                        <SelectItem key={cat.id} value={cat.id} className="text-white">
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              
               <div>
                 <Label className="text-white font-medium">Descrizione</Label>
                 <Textarea
@@ -1709,43 +1730,85 @@ export default function MatterportManager() {
                   rows={2}
                 />
               </div>
+              
+              {/* Position Section */}
               <div>
-                <Label className="text-white font-medium">Categoria</Label>
-                <Select 
-                  value={editPoiForm.category} 
-                  onValueChange={(val) => setEditPoiForm(p => ({ ...p, category: val }))}
-                >
-                  <SelectTrigger className="bg-slate-700 border-slate-500 text-white mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-slate-600">
-                    {getAllCategories().map(cat => (
-                      <SelectItem key={cat.id} value={cat.id} className="text-white">
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-white font-medium">Posizione 3D</Label>
+                <div className="mt-2 space-y-2">
+                  {editPoiForm.position ? (
+                    <div className="p-3 bg-slate-700 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-slate-300">
+                          <span className="text-cyan-400">X:</span> {editPoiForm.position.x?.toFixed(2)} | 
+                          <span className="text-green-400 ml-2">Y:</span> {editPoiForm.position.y?.toFixed(2)} | 
+                          <span className="text-yellow-400 ml-2">Z:</span> {editPoiForm.position.z?.toFixed(2)}
+                        </div>
+                        {editPoiForm.matterport_tag_id && (
+                          <Badge className="bg-green-500/20 text-green-400 text-xs">
+                            In 3D
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-slate-700/50 rounded-lg text-sm text-slate-400">
+                      Nessuna posizione definita
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-cyan-500 text-cyan-400 hover:bg-cyan-500/20"
+                    onClick={async () => {
+                      if (!matterportRef.current) {
+                        toast.error("SDK Matterport non connesso");
+                        return;
+                      }
+                      try {
+                        const pos = await matterportRef.current.getCurrentPosition();
+                        if (pos && pos.position) {
+                          setEditPoiForm(p => ({
+                            ...p,
+                            position: {
+                              x: pos.position.x,
+                              y: pos.position.y,
+                              z: pos.position.z
+                            }
+                          }));
+                          toast.success("Nuova posizione acquisita!");
+                        }
+                      } catch (error) {
+                        toast.error("Errore acquisizione posizione");
+                      }
+                    }}
+                  >
+                    <Crosshair size={14} className="mr-2" />
+                    Acquisisci nuova posizione dalla vista
+                  </Button>
+                </div>
               </div>
+              
               <div>
                 <Label className="text-white font-medium mb-2 block">Icona</Label>
-                <div className="grid grid-cols-7 gap-2">
-                  {POI_ICONS.slice(0, 14).map(iconItem => {
-                    const IconComponent = iconItem.icon;
-                    const isSelected = editPoiForm.icon === iconItem.id;
-                    return (
-                      <button
-                        key={iconItem.id}
-                        type="button"
-                        title={iconItem.name}
-                        className={`p-2 rounded-lg ${isSelected ? 'bg-cyan-500' : 'bg-slate-700 hover:bg-slate-600'}`}
-                        onClick={() => setEditPoiForm(p => ({ ...p, icon: iconItem.id, color: iconItem.color }))}
-                      >
-                        <IconComponent size={16} style={{ color: isSelected ? '#fff' : iconItem.color }} />
-                      </button>
-                    );
-                  })}
-                </div>
+                <ScrollArea className="h-[80px]">
+                  <div className="grid grid-cols-7 gap-2">
+                    {POI_ICONS.map(iconItem => {
+                      const IconComponent = iconItem.icon;
+                      const isSelected = editPoiForm.icon === iconItem.id;
+                      return (
+                        <button
+                          key={iconItem.id}
+                          type="button"
+                          title={iconItem.name}
+                          className={`p-2 rounded-lg ${isSelected ? 'bg-cyan-500' : 'bg-slate-700 hover:bg-slate-600'}`}
+                          onClick={() => setEditPoiForm(p => ({ ...p, icon: iconItem.id, color: iconItem.color }))}
+                        >
+                          <IconComponent size={16} style={{ color: isSelected ? '#fff' : iconItem.color }} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
               </div>
             </div>
           )}
