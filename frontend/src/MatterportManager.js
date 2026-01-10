@@ -2448,6 +2448,130 @@ export default function MatterportManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Link POI to SmartThings Device Dialog */}
+      <Dialog open={showLinkDeviceDialog} onOpenChange={setShowLinkDeviceDialog}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Link size={18} className="text-cyan-400" />
+              Collega a SmartThings
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {selectedPoi && (
+                <>Collega "{selectedPoi.translations?.find(t => t.language === "it")?.title}" a un dispositivo SmartThings</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Current link status */}
+            {selectedPoi?.smartthings_device_id && (
+              <div className="p-3 bg-green-500/20 border border-green-500/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-green-300 text-sm font-medium">Attualmente collegato a:</p>
+                    <p className="text-white">
+                      {smartThingsDevices.find(d => d.id === selectedPoi.smartthings_device_id)?.name || "Dispositivo sconosciuto"}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-red-500/50 text-red-400 hover:bg-red-500/20"
+                    onClick={() => {
+                      unlinkPoiFromDevice(selectedPoi.id);
+                      setShowLinkDeviceDialog(false);
+                    }}
+                  >
+                    <Unlink size={14} className="mr-1" />
+                    Scollega
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* Device list */}
+            <div className="space-y-2">
+              <label className="text-sm text-slate-300">Seleziona dispositivo:</label>
+              <ScrollArea className="h-[300px] border border-slate-700 rounded-lg">
+                <div className="p-2 space-y-1">
+                  {smartThingsDevices.length === 0 ? (
+                    <div className="text-center text-slate-400 py-8">
+                      <Loader2 className="animate-spin mx-auto mb-2" />
+                      Caricamento dispositivi...
+                    </div>
+                  ) : (
+                    smartThingsDevices
+                      .filter(d => d.capabilities?.includes('switch'))
+                      .map(device => {
+                        const isLinked = selectedPoi?.smartthings_device_id === device.id;
+                        const state = deviceStates[device.id];
+                        
+                        return (
+                          <div
+                            key={device.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                              isLinked 
+                                ? 'bg-cyan-500/20 border border-cyan-500' 
+                                : 'bg-slate-700/50 hover:bg-slate-700 border border-transparent'
+                            }`}
+                            onClick={() => {
+                              if (!isLinked && selectedPoi) {
+                                linkPoiToDevice(selectedPoi.id, device.id);
+                                setShowLinkDeviceDialog(false);
+                              }
+                            }}
+                          >
+                            {/* LED status */}
+                            <div className={`w-3 h-3 rounded-full ${
+                              state === 'on' 
+                                ? 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]' 
+                                : 'bg-slate-600'
+                            }`} />
+                            
+                            {/* Device icon */}
+                            <Lightbulb size={16} className={state === 'on' ? 'text-yellow-400' : 'text-slate-400'} />
+                            
+                            {/* Device name */}
+                            <div className="flex-1">
+                              <p className="text-white text-sm font-medium">{device.name}</p>
+                              <p className="text-slate-400 text-xs">{device.type}</p>
+                            </div>
+                            
+                            {/* Status */}
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              state === 'on' 
+                                ? 'bg-red-500/30 text-red-300' 
+                                : 'bg-slate-600/50 text-slate-400'
+                            }`}>
+                              {state === 'on' ? 'ON' : 'OFF'}
+                            </span>
+                            
+                            {/* Link indicator */}
+                            {isLinked && (
+                              <Check size={16} className="text-cyan-400" />
+                            )}
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              onClick={() => setShowLinkDeviceDialog(false)}
+            >
+              Chiudi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
