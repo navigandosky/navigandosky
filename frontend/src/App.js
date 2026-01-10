@@ -1612,6 +1612,11 @@ function App() {
           <Dashboard stats={stats} consumiPerCategoria={consumiPerCategoria} />
         )}
 
+        {/* Proprietà Tab */}
+        {activeTab === "proprieta" && (
+          <PropertyConfig />
+        )}
+
         {/* Suggerimenti Tab */}
         {activeTab === "suggerimenti" && (
           <SuggerimentiProattivi 
