@@ -1038,32 +1038,35 @@ export default function MatterportManager() {
     console.log("POI data:", { 
       tag: poi.matterport_tag_id, 
       imported: poi.is_imported, 
-      sweep: poi.nearest_sweep_id 
+      sweep: poi.nearest_sweep_id,
+      position: poi.position
     });
     
-    // For POIs imported from Matterport, use navigateToTag directly
-    if (poi.matterport_tag_id && poi.is_imported) {
-      toast.info("🚶 Navigazione verso il POI...");
+    toast.info("🚶 Navigazione verso il POI...");
+    
+    // Try multiple navigation methods in order of preference
+    
+    // Method 1: Try navigateToTag for imported Matterport tags
+    if (poi.matterport_tag_id) {
       try {
-        console.log("Calling navigateToTag with:", poi.matterport_tag_id);
+        console.log("Trying navigateToTag with:", poi.matterport_tag_id);
         await sdk.Mattertag.navigateToTag(
           poi.matterport_tag_id,
           sdk.Mattertag.Transition.FLY
         );
         toast.success("✅ Destinazione raggiunta!");
-        console.log("Navigation successful");
+        console.log("navigateToTag successful");
         return;
       } catch (error) {
-        console.error("Mattertag navigation error:", error);
-        toast.error("Errore navigazione: " + (error.message || "Tag non trovato"));
-        // Fall through to sweep-based navigation if available
+        console.log("navigateToTag failed:", error.message);
+        // Continue to next method
       }
     }
     
-    // For manually created POIs or fallback, use saved nearest_sweep_id
+    // Method 2: Use Sweep.moveTo with nearest_sweep_id
     if (poi.nearest_sweep_id) {
-      toast.info("🚶 Navigazione verso il punto...");
       try {
+        console.log("Trying Sweep.moveTo with:", poi.nearest_sweep_id);
         await sdk.Sweep.moveTo(poi.nearest_sweep_id, {
           transition: sdk.Sweep.Transition.FLY,
           transitionTime: 1500
@@ -1071,44 +1074,134 @@ export default function MatterportManager() {
         toast.success("✅ Destinazione raggiunta!");
         return;
       } catch (error) {
-        console.error("Sweep navigation error:", error);
-        toast.error("Errore nella navigazione");
-        return;
+        console.log("Sweep.moveTo failed:", error.message);
       }
     }
     
-    // Fallback: try to find nearest sweep dynamically
+    // Method 3: Navigate to position using Camera.pose
     if (poi.position) {
-      toast.info("🔍 Ricerca punto più vicino...");
-      const nearestSweepId = await findNearestSweepId(poi.position);
-      
-      if (nearestSweepId) {
-        try {
-          await sdk.Sweep.moveTo(nearestSweepId, {
-            transition: sdk.Sweep.Transition.FLY,
-            transitionTime: 1500
-          });
+      try {
+        console.log("Trying Camera navigation to position:", poi.position);
+        
+        // Get current pose and modify to look at POI position
+        const currentPose = await sdk.Camera.getPose();
+        console.log("Current pose:", currentPose);
+        
+        // Set camera to look at the POI position
+        const targetPose = {
+          position: {
+            x: poi.position.x,
+            y: poi.position.y + 1.5, // Offset to be at eye level
+            z: poi.position.z
+          },
+          rotation: currentPose.rotation,
+          mode: sdk.Camera.Mode.INSIDE
+        };
+        
+        await sdk.Camera.setRotation({ x: -15, y: 0 }, { transitionTime: 500 });
+        
+        // Try to move to nearest sweep
+        const sweeps = await getSweepsFromSDK(sdk);
+        if (sweeps && sweeps.length > 0) {
+          let nearestSweep = null;
+          let minDistance = Infinity;
           
-          // Save the sweep ID for future navigations
-          try {
-            await axios.put(`${API_URL}/api/matterport/pois/${poi.id}`, {
-              nearest_sweep_id: nearestSweepId
-            });
-          } catch (e) {
-            console.log("Could not save sweep ID:", e);
+          for (const sweep of sweeps) {
+            if (sweep.position) {
+              const dx = sweep.position.x - poi.position.x;
+              const dy = sweep.position.y - poi.position.y;
+              const dz = sweep.position.z - poi.position.z;
+              const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+              if (distance < minDistance) {
+                minDistance = distance;
+                nearestSweep = sweep;
+              }
+            }
           }
           
-          toast.success("✅ Destinazione raggiunta!");
-          return;
-        } catch (error) {
-          console.error("Dynamic sweep navigation error:", error);
+          if (nearestSweep) {
+            const sweepId = nearestSweep.sid || nearestSweep.id || nearestSweep.uuid;
+            console.log("Found nearest sweep:", sweepId, "at distance:", minDistance);
+            
+            await sdk.Sweep.moveTo(sweepId, {
+              transition: sdk.Sweep.Transition.FLY,
+              transitionTime: 1500
+            });
+            
+            // Save for future use
+            if (poi.id) {
+              try {
+                await axios.put(`${API_URL}/api/matterport/pois/${poi.id}`, {
+                  nearest_sweep_id: sweepId
+                });
+              } catch (e) {}
+            }
+            
+            toast.success("✅ Destinazione raggiunta!");
+            return;
+          }
         }
+        
+        toast.warning("Navigazione limitata - muoviti manualmente verso il POI");
+        return;
+      } catch (error) {
+        console.error("Camera navigation error:", error);
       }
-      
-      toast.warning("Impossibile navigare - nessun punto di vista trovato");
-    } else {
-      toast.warning("POI senza posizione definita");
     }
+    
+    toast.error("Impossibile navigare - nessuna posizione disponibile");
+  };
+  
+  // Helper to get sweeps from SDK
+  const getSweepsFromSDK = async (sdk) => {
+    return new Promise((resolve) => {
+      const sweepList = [];
+      let resolved = false;
+      let timeout = null;
+      
+      try {
+        const sub = sdk.Sweep.data.subscribe({
+          onAdded: (index, item) => {
+            sweepList.push(item);
+          },
+          onCollectionUpdated: (collection) => {
+            if (!resolved) {
+              resolved = true;
+              if (timeout) clearTimeout(timeout);
+              
+              const arr = [];
+              try {
+                if (Array.isArray(collection)) {
+                  arr.push(...collection);
+                } else if (collection && typeof collection[Symbol.iterator] === 'function') {
+                  for (const item of collection) {
+                    arr.push(item);
+                  }
+                } else if (collection && typeof collection.forEach === 'function') {
+                  collection.forEach(item => arr.push(item));
+                }
+              } catch (e) {
+                console.log("Collection iteration error:", e);
+              }
+              
+              resolve(arr.length > 0 ? arr : sweepList);
+            }
+          }
+        });
+        
+        // Timeout fallback
+        timeout = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            console.log("Sweep subscription timeout, using list:", sweepList.length);
+            resolve(sweepList);
+          }
+        }, 3000);
+      } catch (e) {
+        console.error("Sweep subscription error:", e);
+        resolve([]);
+      }
+    });
   };
 
   // Add POI to Matterport 3D view
