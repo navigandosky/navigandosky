@@ -937,8 +937,8 @@ export default function MatterportManager() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[#09090B] text-white p-4 lg:p-6">
+      <div className="max-w-full mx-auto lg:px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
