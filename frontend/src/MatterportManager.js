@@ -1466,16 +1466,34 @@ export default function MatterportManager() {
                               {index + 1}
                             </div>
                             
-                            {/* SmartThings LED indicator */}
+                            {/* SmartThings LED indicator + Power button */}
                             {deviceInfo && deviceInfo.hasSwitch && (
-                              <div 
-                                className={`w-3 h-3 rounded-full ${
-                                  deviceInfo.state === 'on' 
-                                    ? 'bg-red-500 shadow-[0_0_8px_2px_rgba(239,68,68,0.6)] animate-pulse' 
-                                    : 'bg-slate-600'
-                                }`}
-                                title={`${deviceInfo.device.name}: ${deviceInfo.state === 'on' ? 'ACCESO' : 'SPENTO'}`}
-                              />
+                              <div className="flex items-center gap-1">
+                                <div 
+                                  className={`w-3 h-3 rounded-full ${
+                                    deviceInfo.state === 'on' 
+                                      ? 'bg-red-500 shadow-[0_0_8px_2px_rgba(239,68,68,0.6)] animate-pulse' 
+                                      : 'bg-slate-600'
+                                  }`}
+                                  title={`${deviceInfo.device.name}: ${deviceInfo.state === 'on' ? 'ACCESO' : 'SPENTO'}`}
+                                />
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className={`h-5 w-5 ${
+                                    deviceInfo.state === 'on' 
+                                      ? 'text-red-400 hover:bg-red-500/20' 
+                                      : 'text-slate-400 hover:bg-slate-500/20'
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleSmartThingsDevice(deviceInfo.device.id, deviceInfo.state);
+                                  }}
+                                  title={deviceInfo.state === 'on' ? 'Spegni' : 'Accendi'}
+                                >
+                                  <Power size={10} />
+                                </Button>
+                              </div>
                             )}
                             
                             {/* Icon */}
