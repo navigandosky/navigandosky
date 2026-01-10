@@ -3001,6 +3001,91 @@ async def get_smartthings_devices():
         raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
 
 
+@api_router.get("/smartthings/devices-with-states")
+async def get_smartthings_devices_with_states():
+    """Get all SmartThings devices WITH their current switch states (cached for 2 minutes)"""
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings token not configured")
+    
+    # Check cache first
+    cached = smartthings_cache.get("devices_with_states")
+    if cached:
+        logger.info("SmartThings devices with states returned from cache")
+        return cached
+    
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # First get all devices
+            response = await client.get(
+                f"{SMARTTHINGS_API_URL}/devices",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            devices = []
+            for item in data.get("items", []):
+                caps = [cap.get("id") for cap in item.get("components", [{}])[0].get("capabilities", [])]
+                device = {
+                    "id": item.get("deviceId"),
+                    "name": item.get("label") or item.get("name"),
+                    "type": item.get("deviceTypeName", "Unknown"),
+                    "status": "online",
+                    "capabilities": caps,
+                    "roomId": item.get("roomId"),
+                    "locationId": item.get("locationId"),
+                    "switchState": None
+                }
+                devices.append(device)
+            
+            # Now fetch switch states for devices with switch capability (in batches)
+            switch_devices = [d for d in devices if "switch" in d.get("capabilities", [])]
+            
+            import asyncio
+            
+            async def fetch_device_state(device_id):
+                try:
+                    status_response = await client.get(
+                        f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
+                        headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+                    )
+                    if status_response.status_code == 200:
+                        status_data = status_response.json()
+                        switch_state = status_data.get("components", {}).get("main", {}).get("switch", {}).get("switch", {}).get("value")
+                        return device_id, switch_state
+                except Exception as e:
+                    logger.debug(f"Could not get state for {device_id}: {e}")
+                return device_id, None
+            
+            # Fetch states in batches of 5
+            batch_size = 5
+            for i in range(0, len(switch_devices), batch_size):
+                batch = switch_devices[i:i+batch_size]
+                tasks = [fetch_device_state(d["id"]) for d in batch]
+                results = await asyncio.gather(*tasks)
+                
+                for device_id, state in results:
+                    for d in devices:
+                        if d["id"] == device_id and state:
+                            d["switchState"] = state
+                            break
+                
+                # Small delay between batches
+                if i + batch_size < len(switch_devices):
+                    await asyncio.sleep(0.3)
+            
+            result = {"devices": devices, "count": len(devices)}
+            smartthings_cache.set("devices_with_states", result)
+            logger.info(f"SmartThings devices with states fetched and cached: {len(devices)}")
+            return result
+    except httpx.HTTPError as e:
+        logger.error(f"SmartThings API error: {e}")
+        cached = smartthings_cache.get("devices_with_states")
+        if cached:
+            return cached
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
 @api_router.get("/smartthings/device/{device_id}/status")
 async def get_smartthings_device_status(device_id: str):
     """Get status of a specific SmartThings device (cached for 30 seconds)"""
