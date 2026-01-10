@@ -1134,7 +1134,9 @@ export default function MatterportManager() {
                 await axios.put(`${API_URL}/api/matterport/pois/${poi.id}`, {
                   nearest_sweep_id: sweepId
                 });
-              } catch (e) {}
+              } catch (e) {
+                console.log("Could not save sweep ID:", e);
+              }
             }
             
             toast.success("✅ Destinazione raggiunta!");
