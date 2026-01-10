@@ -299,20 +299,24 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch SmartThings devices grouped by room
-      const devicesByRoomRes = await axios.get(`${API_URL}/api/smartthings/devices-by-room`);
-      setDevicesByRoom(devicesByRoomRes.data.rooms || []);
-      
-      // Also fetch flat list for other uses
-      const devicesRes = await axios.get(`${API_URL}/api/smartthings/devices`);
+      // Fetch SmartThings devices WITH STATES (includes switchState)
+      const devicesRes = await axios.get(`${API_URL}/api/smartthings/devices-with-states`);
       setSmartThingsDevices(devicesRes.data.devices || []);
       
-      // Start with all rooms COLLAPSED
-      const collapsed = {};
-      (devicesByRoomRes.data.rooms || []).forEach(room => {
-        collapsed[room.roomName] = false; // false = collapsed
-      });
-      setExpandedRooms(collapsed);
+      // Also fetch devices grouped by room
+      try {
+        const devicesByRoomRes = await axios.get(`${API_URL}/api/smartthings/devices-by-room`);
+        setDevicesByRoom(devicesByRoomRes.data.rooms || []);
+        
+        // Start with all rooms COLLAPSED
+        const collapsed = {};
+        (devicesByRoomRes.data.rooms || []).forEach(room => {
+          collapsed[room.roomName] = false; // false = collapsed
+        });
+        setExpandedRooms(collapsed);
+      } catch (e) {
+        console.log('Devices by room not available:', e.message);
+      }
       
       // Fetch clima data from SmartThings sensor (Temperatura living)
       try {
