@@ -223,8 +223,8 @@ const MatterportViewer = forwardRef(({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Render status badge
-  const StatusBadge = () => {
+  // Render status badge based on connection status
+  const renderStatusBadge = () => {
     switch (connectionStatus) {
       case 'connected':
         return (
@@ -266,7 +266,7 @@ const MatterportViewer = forwardRef(({
       <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Badge className="bg-red-500 text-white animate-pulse">LIVE</Badge>
-          <StatusBadge />
+          {renderStatusBadge()}
         </div>
         
         <div className="flex items-center gap-2">
