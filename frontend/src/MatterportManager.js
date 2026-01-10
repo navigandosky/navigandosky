@@ -740,9 +740,26 @@ export default function MatterportManager() {
             onCollectionUpdated: (collection) => {
               if (!resolved) {
                 resolved = true;
-                // Convert collection to array
+                // Convert collection to array - handle different collection types
                 const arr = [];
-                collection.forEach(item => arr.push(item));
+                try {
+                  if (Array.isArray(collection)) {
+                    arr.push(...collection);
+                  } else if (collection && typeof collection[Symbol.iterator] === 'function') {
+                    for (const item of collection) {
+                      arr.push(item);
+                    }
+                  } else if (collection && typeof collection.forEach === 'function') {
+                    collection.forEach(item => arr.push(item));
+                  } else if (collection) {
+                    // Try to iterate as object
+                    Object.values(collection).forEach(item => {
+                      if (item && item.position) arr.push(item);
+                    });
+                  }
+                } catch (e) {
+                  console.log("Collection iteration error:", e);
+                }
                 resolve(arr.length > 0 ? arr : sweepList);
               }
             }
