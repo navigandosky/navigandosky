@@ -152,7 +152,7 @@ export default function MatterportManager() {
   
   // Forms
   const [spaceForm, setSpaceForm] = useState({ name: "", space_id: "", description: "", sdk_key: "" });
-  const [poiForm, setPoiForm] = useState({ title: "", description: "", position: null });
+  const [poiForm, setPoiForm] = useState({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF" });
   const [selectedTagsForImport, setSelectedTagsForImport] = useState([]);
   const [translateLanguages, setTranslateLanguages] = useState(["en", "de", "fr", "es"]);
   const [selectedVoice, setSelectedVoice] = useState("alloy");
