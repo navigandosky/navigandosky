@@ -224,30 +224,92 @@ export default function MatterportManager() {
   const loadSmartThingsDevices = useCallback(async () => {
     try {
       const res = await axios.get(`${API_URL}/api/smartthings/devices`);
-      setSmartThingsDevices(res.data.devices || []);
+      const devices = res.data.devices || [];
+      setSmartThingsDevices(devices);
       
-      // Load status for each device with switch capability
-      const switchDevices = (res.data.devices || []).filter(d => 
+      if (devices.length === 0) {
+        console.log("No SmartThings devices found");
+        return;
+      }
+      
+      // Load status for devices with switch capability (max 5 at a time to avoid rate limit)
+      const switchDevices = devices.filter(d => 
         d.capabilities?.includes('switch')
       );
       
       const states = {};
-      for (const device of switchDevices) {
-        try {
-          const statusRes = await axios.get(`${API_URL}/api/smartthings/device/${device.id}/status`);
-          const switchState = statusRes.data?.components?.main?.switch?.switch?.value;
-          if (switchState) {
-            states[device.id] = switchState; // "on" or "off"
+      const batchSize = 5;
+      for (let i = 0; i < switchDevices.length; i += batchSize) {
+        const batch = switchDevices.slice(i, i + batchSize);
+        const promises = batch.map(async (device) => {
+          try {
+            const statusRes = await axios.get(`${API_URL}/api/smartthings/device/${device.id}/status`);
+            const switchState = statusRes.data?.components?.main?.switch?.switch?.value;
+            if (switchState) {
+              states[device.id] = switchState; // "on" or "off"
+            }
+          } catch (e) {
+            console.log(`Could not get status for ${device.name}`);
           }
-        } catch (e) {
-          // Ignore individual device errors
+        });
+        await Promise.all(promises);
+        // Small delay between batches
+        if (i + batchSize < switchDevices.length) {
+          await new Promise(r => setTimeout(r, 500));
         }
       }
       setDeviceStates(states);
+      console.log(`SmartThings: ${devices.length} devices, ${Object.keys(states).length} with switch state`);
     } catch (error) {
       console.error("Error loading SmartThings devices:", error);
     }
   }, []);
+
+  // Toggle SmartThings device on/off
+  const toggleSmartThingsDevice = async (deviceId, currentState) => {
+    const newState = currentState === 'on' ? 'off' : 'on';
+    try {
+      await axios.post(`${API_URL}/api/smartthings/device/${deviceId}/switch/${newState}`);
+      // Update local state immediately for responsiveness
+      setDeviceStates(prev => ({ ...prev, [deviceId]: newState }));
+      toast.success(`Dispositivo ${newState === 'on' ? 'acceso' : 'spento'}!`);
+    } catch (error) {
+      console.error("Error toggling device:", error);
+      toast.error("Errore nel controllo del dispositivo");
+    }
+  };
+
+  // Link POI to SmartThings device
+  const linkPoiToDevice = async (poiId, deviceId) => {
+    try {
+      await axios.put(`${API_URL}/api/matterport/pois/${poiId}`, {
+        smartthings_device_id: deviceId
+      });
+      toast.success("POI collegato al dispositivo!");
+      if (activeSpace) {
+        loadPois(activeSpace.id);
+      }
+    } catch (error) {
+      console.error("Error linking POI to device:", error);
+      toast.error("Errore nel collegamento");
+    }
+  };
+
+  // Unlink POI from SmartThings device
+  const unlinkPoiFromDevice = async (poiId) => {
+    try {
+      await axios.put(`${API_URL}/api/matterport/pois/${poiId}`, {
+        smartthings_device_id: null
+      });
+      toast.success("Collegamento rimosso!");
+      if (activeSpace) {
+        loadPois(activeSpace.id);
+      }
+    } catch (error) {
+      console.error("Error unlinking POI:", error);
+      toast.error("Errore nella rimozione del collegamento");
+    }
+  };
 
   // Match POI to SmartThings device by name
   const getDeviceForPoi = useCallback((poi) => {
