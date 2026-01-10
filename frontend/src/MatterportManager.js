@@ -1031,15 +1031,10 @@ export default function MatterportManager() {
       return;
     }
     
-    // For POIs imported from Matterport, use navigateToTag
+    // For POIs imported from Matterport, use navigateToTag directly
     if (poi.matterport_tag_id && poi.is_imported) {
-      toast.info("🚶 Navigazione con percorso...");
+      toast.info("🚶 Navigazione verso il POI...");
       try {
-        // Show path first
-        if (poi.nearest_sweep_id) {
-          await showPathToSweep(sdk, poi.nearest_sweep_id);
-        }
-        
         await sdk.Mattertag.navigateToTag(
           poi.matterport_tag_id,
           sdk.Mattertag.Transition.FLY
@@ -1048,17 +1043,15 @@ export default function MatterportManager() {
         return;
       } catch (error) {
         console.error("Mattertag navigation error:", error);
-        // Fall through to sweep-based navigation
+        toast.error("Errore navigazione: " + (error.message || "Tag non trovato"));
+        // Fall through to sweep-based navigation if available
       }
     }
     
-    // For manually created POIs, use saved nearest_sweep_id
+    // For manually created POIs or fallback, use saved nearest_sweep_id
     if (poi.nearest_sweep_id) {
-      toast.info("🚶 Navigazione con percorso...");
+      toast.info("🚶 Navigazione verso il punto...");
       try {
-        // Show path visualization
-        await showPathToSweep(sdk, poi.nearest_sweep_id);
-        
         await sdk.Sweep.moveTo(poi.nearest_sweep_id, {
           transition: sdk.Sweep.Transition.FLY,
           transitionTime: 1500
@@ -1074,14 +1067,11 @@ export default function MatterportManager() {
     
     // Fallback: try to find nearest sweep dynamically
     if (poi.position) {
-      toast.info("🔍 Ricerca percorso...");
+      toast.info("🔍 Ricerca punto più vicino...");
       const nearestSweepId = await findNearestSweepId(poi.position);
       
       if (nearestSweepId) {
         try {
-          // Show path
-          await showPathToSweep(sdk, nearestSweepId);
-          
           await sdk.Sweep.moveTo(nearestSweepId, {
             transition: sdk.Sweep.Transition.FLY,
             transitionTime: 1500
