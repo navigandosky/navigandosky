@@ -21,10 +21,38 @@ from urllib.parse import quote
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from functools import lru_cache
+import time
 
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Simple in-memory cache for SmartThings API
+class SmartThingsCache:
+    def __init__(self, ttl_seconds=120):
+        self.ttl = ttl_seconds
+        self._cache = {}
+        self._timestamps = {}
+    
+    def get(self, key):
+        if key in self._cache:
+            if time.time() - self._timestamps.get(key, 0) < self.ttl:
+                return self._cache[key]
+            else:
+                del self._cache[key]
+                del self._timestamps[key]
+        return None
+    
+    def set(self, key, value):
+        self._cache[key] = value
+        self._timestamps[key] = time.time()
+    
+    def clear(self):
+        self._cache.clear()
+        self._timestamps.clear()
+
+smartthings_cache = SmartThingsCache(ttl_seconds=120)  # 2 minutes cache
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
