@@ -396,16 +396,6 @@ const MatterportViewer = forwardRef(({
           onLoad={handleIframeLoad}
           className="w-full h-full"
         />
-        
-        {/* Logo Trivor - cover bottom right watermark */}
-        <div className="absolute bottom-0 right-0 z-20 pointer-events-none" style={{ marginRight: '0px', marginBottom: '0px' }}>
-          <img 
-            src="https://customer-assets.emergentagent.com/job_3837386c-e4f5-4acc-83b7-9dabadeaf885/artifacts/3sr9x015_logo%20trivor%20per%20copertura%20emergent.png"
-            alt="Trivor"
-            className="object-contain"
-            style={{ height: '50px', width: 'auto', minWidth: '180px' }}
-          />
-        </div>
       </div>
 
       {/* Bottom Info Bar - only show when connected */}
