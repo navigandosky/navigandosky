@@ -1330,7 +1330,34 @@ function App() {
   const loadSmartThingsDevices = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/smartthings/devices`);
-      setSmartThingsDevices(response.data.devices || []);
+      const devices = response.data.devices || [];
+      setSmartThingsDevices(devices);
+      
+      // Load states for switch devices
+      const switchDevices = devices.filter(d => d.capabilities?.includes('switch'));
+      const states = {};
+      
+      // Load in batches to avoid rate limiting
+      const batchSize = 5;
+      for (let i = 0; i < switchDevices.length; i += batchSize) {
+        const batch = switchDevices.slice(i, i + batchSize);
+        const promises = batch.map(async (device) => {
+          try {
+            const statusRes = await axios.get(`${API}/smartthings/device/${device.id}/status`);
+            const switchState = statusRes.data?.components?.main?.switch?.switch?.value;
+            if (switchState) {
+              states[device.id] = switchState;
+            }
+          } catch (e) {
+            // Ignore individual device errors
+          }
+        });
+        await Promise.all(promises);
+        if (i + batchSize < switchDevices.length) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+      setSmartThingsStates(states);
     } catch (error) {
       console.log("SmartThings not available:", error.message);
     }
