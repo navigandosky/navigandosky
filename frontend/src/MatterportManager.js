@@ -1471,7 +1471,7 @@ export default function MatterportManager() {
             {/* Icon Selection */}
             <div>
               <Label className="text-white font-medium mb-2 block">Icona POI</Label>
-              <ScrollArea className="h-[120px] rounded border border-slate-600 p-2">
+              <ScrollArea className="h-[100px] rounded border border-slate-600 p-2">
                 <div className="grid grid-cols-7 gap-2">
                   {POI_ICONS.map(iconItem => {
                     const IconComponent = iconItem.icon;
@@ -1488,15 +1488,35 @@ export default function MatterportManager() {
                         }`}
                         onClick={() => setPoiForm(p => ({ ...p, icon: iconItem.id, color: iconItem.color }))}
                       >
-                        <IconComponent size={20} style={{ color: isSelected ? '#fff' : iconItem.color }} />
+                        <IconComponent size={18} style={{ color: isSelected ? '#fff' : iconItem.color }} />
                       </button>
                     );
                   })}
                 </div>
               </ScrollArea>
-              <p className="text-xs text-slate-400 mt-1">
-                Selezionato: {POI_ICONS.find(i => i.id === poiForm.icon)?.name || "Posizione"}
-              </p>
+            </div>
+            
+            {/* Category Selection */}
+            <div>
+              <Label className="text-white font-medium">Categoria</Label>
+              <Select 
+                value={poiForm.category} 
+                onValueChange={(val) => setPoiForm(p => ({ ...p, category: val }))}
+              >
+                <SelectTrigger className="bg-slate-700 border-slate-500 text-white mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-700 border-slate-600">
+                  {getAllCategories().map(cat => (
+                    <SelectItem key={cat.id} value={cat.id} className="text-white">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                        {cat.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -1505,7 +1525,7 @@ export default function MatterportManager() {
               variant="outline" 
               onClick={() => {
                 setShowPoiDialog(false);
-                setPoiForm({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF" });
+                setPoiForm({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF", category: "general" });
               }}
               className="border-slate-500 text-slate-300 hover:bg-slate-700"
             >
