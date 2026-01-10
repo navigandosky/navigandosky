@@ -48,6 +48,7 @@ EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
 # Import emergentintegrations for LLM
 from emergentintegrations.llm.openai import LlmChat, UserMessage
+from emergentintegrations.llm.openai import OpenAITextToSpeech
 
 # Directory for uploaded manuals
 MANUALS_DIR = ROOT_DIR / "manuals"
