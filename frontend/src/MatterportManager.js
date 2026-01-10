@@ -1682,6 +1682,130 @@ export default function MatterportManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit POI Dialog */}
+      <Dialog open={showEditPoiDialog} onOpenChange={setShowEditPoiDialog}>
+        <DialogContent className="bg-slate-800 border-slate-600 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white text-lg">Modifica POI</DialogTitle>
+          </DialogHeader>
+          
+          {editPoiForm && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-white font-medium">Titolo</Label>
+                <Input
+                  value={editPoiForm.title}
+                  onChange={(e) => setEditPoiForm(p => ({ ...p, title: e.target.value }))}
+                  className="bg-slate-700 border-slate-500 text-white mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-white font-medium">Descrizione</Label>
+                <Textarea
+                  value={editPoiForm.description}
+                  onChange={(e) => setEditPoiForm(p => ({ ...p, description: e.target.value }))}
+                  className="bg-slate-700 border-slate-500 text-white mt-1"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <Label className="text-white font-medium">Categoria</Label>
+                <Select 
+                  value={editPoiForm.category} 
+                  onValueChange={(val) => setEditPoiForm(p => ({ ...p, category: val }))}
+                >
+                  <SelectTrigger className="bg-slate-700 border-slate-500 text-white mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-slate-600">
+                    {getAllCategories().map(cat => (
+                      <SelectItem key={cat.id} value={cat.id} className="text-white">
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-white font-medium mb-2 block">Icona</Label>
+                <div className="grid grid-cols-7 gap-2">
+                  {POI_ICONS.slice(0, 14).map(iconItem => {
+                    const IconComponent = iconItem.icon;
+                    const isSelected = editPoiForm.icon === iconItem.id;
+                    return (
+                      <button
+                        key={iconItem.id}
+                        type="button"
+                        title={iconItem.name}
+                        className={`p-2 rounded-lg ${isSelected ? 'bg-cyan-500' : 'bg-slate-700 hover:bg-slate-600'}`}
+                        onClick={() => setEditPoiForm(p => ({ ...p, icon: iconItem.id, color: iconItem.color }))}
+                      >
+                        <IconComponent size={16} style={{ color: isSelected ? '#fff' : iconItem.color }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowEditPoiDialog(false)} className="border-slate-500 text-slate-300">
+              Annulla
+            </Button>
+            <Button className="bg-cyan-600 hover:bg-cyan-700 text-white" onClick={handleSaveEditPoi} disabled={loading}>
+              {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
+              Salva
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Category Dialog */}
+      <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
+        <DialogContent className="bg-slate-800 border-slate-600 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white text-lg">Nuova Categoria</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label className="text-white font-medium">Nome Categoria</Label>
+              <Input
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Es: Sensori, Elettronica..."
+                className="bg-slate-700 border-slate-500 text-white mt-1"
+              />
+            </div>
+            
+            <div>
+              <Label className="text-white font-medium mb-2 block">Categorie esistenti</Label>
+              <div className="flex flex-wrap gap-2">
+                {getAllCategories().map(cat => (
+                  <Badge key={cat.id} style={{ backgroundColor: cat.color + "30", borderColor: cat.color }}>
+                    {cat.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowCategoryDialog(false)} className="border-slate-500 text-slate-300">
+              Chiudi
+            </Button>
+            <Button 
+              className="bg-purple-600 hover:bg-purple-700 text-white" 
+              onClick={handleAddCategory}
+              disabled={!newCategoryName.trim()}
+            >
+              Aggiungi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
