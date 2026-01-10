@@ -153,22 +153,6 @@ const PRIORITA_TICKET = [
 ];
 
 // Matterport Viewer Component
-const MatterportViewer = ({ spaceId }) => {
-  return (
-    <div className="w-full h-[600px] rounded-lg overflow-hidden border border-gray-200 shadow-lg">
-      <iframe
-        title="Matterport Viewer"
-        src={`https://my.matterport.com/show/?m=${spaceId}&play=1`}
-        width="100%"
-        height="100%"
-        frameBorder="0"
-        allow="xr-spatial-tracking"
-        allowFullScreen
-      />
-    </div>
-  );
-};
-
 // AI Assistant Component
 const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico, onOpenTicket, onNavigateToTab }) => {
   const [messages, setMessages] = useState([]);
