@@ -956,19 +956,70 @@ export default function MatterportManager() {
                     <Plus size={14} className="mr-1" />
                     Nuovo POI
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-purple-500/50 text-purple-400"
+                    onClick={() => setShowCategoryDialog(true)}
+                  >
+                    <Plus size={14} className="mr-1" />
+                    Categoria
+                  </Button>
                 </div>
                 
-                <ScrollArea className="h-[440px]">
+                {/* Category Filter */}
+                <div className="mb-3">
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white h-8 text-sm">
+                      <SelectValue placeholder="Filtra per categoria" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-slate-600">
+                      <SelectItem value="all" className="text-white">Tutte le categorie</SelectItem>
+                      {getAllCategories().map(cat => (
+                        <SelectItem key={cat.id} value={cat.id} className="text-white">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                            {cat.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <ScrollArea className="h-[400px]">
                   <div className="space-y-3">
-                    {pois.length === 0 ? (
+                    {getFilteredPois().length === 0 ? (
                       <Card className="bg-slate-800/50 border-slate-700">
                         <CardContent className="p-6 text-center">
                           <MapPin size={48} className="mx-auto text-slate-600 mb-4" />
-                          <p className="text-slate-400">Nessun POI per questo spazio</p>
+                          <p className="text-slate-400">
+                            {selectedCategory === "all" ? "Nessun POI per questo spazio" : "Nessun POI in questa categoria"}
+                          </p>
                         </CardContent>
                       </Card>
+                    ) : selectedCategory === "all" ? (
+                      // Show grouped by category
+                      getPoisByCategory().map(category => (
+                        <div key={category.id} className="mb-4">
+                          <div className="flex items-center gap-2 mb-2 px-1">
+                            <span 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: category.color }} 
+                            />
+                            <span className="text-sm font-medium text-white">{category.name}</span>
+                            <Badge variant="outline" className="text-xs ml-auto">
+                              {category.pois.length}
+                            </Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {category.pois.map(poi => renderPoiCard(poi))}
+                          </div>
+                        </div>
+                      ))
                     ) : (
-                      pois.map(poi => renderPoiCard(poi))
+                      // Show filtered list
+                      getFilteredPois().map(poi => renderPoiCard(poi))
                     )}
                   </div>
                 </ScrollArea>
