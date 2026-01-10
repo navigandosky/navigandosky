@@ -725,69 +725,44 @@ export default function MatterportManager() {
       return;
     }
     
-    // Helper function to navigate by coordinates (nearest sweep)
+    // Helper function to navigate by coordinates using sweep nearest to position
     const navigateByPosition = async (position) => {
       try {
-        // Get all sweeps using the correct API
-        let sweeps = [];
-        
-        // Try different methods to get sweeps
-        if (sdk.Sweep && sdk.Sweep.data) {
-          try {
-            // Method 1: Try value() if it's an observable
-            if (typeof sdk.Sweep.data.value === 'function') {
-              const collection = sdk.Sweep.data.value();
-              sweeps = Array.from(collection || []);
-            } 
-            // Method 2: Try to get from subscribe
-            else {
-              await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error("Timeout")), 3000);
-                sdk.Sweep.data.subscribe({
-                  onCollectionUpdated: (collection) => {
-                    clearTimeout(timeout);
-                    sweeps = Array.from(collection || []);
-                    resolve();
-                  }
-                });
-              });
+        // Get all sweeps using subscription
+        const sweeps = await new Promise((resolve) => {
+          const sweepList = [];
+          let resolved = false;
+          
+          const sub = sdk.Sweep.data.subscribe({
+            onAdded: (index, item) => {
+              sweepList.push(item);
+            },
+            onCollectionUpdated: (collection) => {
+              if (!resolved) {
+                resolved = true;
+                // Convert collection to array
+                const arr = [];
+                collection.forEach(item => arr.push(item));
+                resolve(arr.length > 0 ? arr : sweepList);
+              }
             }
-          } catch (e) {
-            console.log("Could not get sweeps from data:", e);
-          }
-        }
-        
-        // Method 3: Fallback - try to get current sweep and use it
-        if (sweeps.length === 0) {
-          try {
-            const current = await sdk.Sweep.current;
-            if (current) {
-              sweeps = [current];
+          });
+          
+          // Timeout fallback
+          setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              resolve(sweepList);
             }
-          } catch (e) {
-            console.log("Could not get current sweep:", e);
-          }
-        }
+          }, 2000);
+        });
         
         if (!sweeps || sweeps.length === 0) {
-          // Last resort: use Camera.moveTo directly
-          toast.info("Navigazione diretta alla posizione...");
-          try {
-            await sdk.Camera.lookAtScreenCoords(0.5, 0.5);
-            const pose = {
-              position: position,
-              rotation: { x: 0, y: 0 }
-            };
-            await sdk.Camera.setRotation({ x: 0, y: 0 }, { transitionTime: 500 });
-            toast.success("Posizione raggiunta (approssimata)");
-            return true;
-          } catch (camErr) {
-            toast.warning("Navigazione limitata - prova a muoverti manualmente verso il POI");
-            return false;
-          }
+          toast.warning("Navigazione limitata - prova a muoverti manualmente verso il POI");
+          return false;
         }
         
-        // Find nearest sweep
+        // Find nearest sweep to the POI position
         let nearestSweep = null;
         let minDistance = Infinity;
         
@@ -804,27 +779,30 @@ export default function MatterportManager() {
           }
         }
         
-        if (nearestSweep && (nearestSweep.sid || nearestSweep.id || nearestSweep.uuid)) {
+        if (nearestSweep) {
           const sweepId = nearestSweep.sid || nearestSweep.id || nearestSweep.uuid;
-          await sdk.Sweep.moveTo(sweepId, {
-            transition: sdk.Sweep.Transition.FLY,
-            transitionTime: 1500
-          });
-          toast.success(`Navigazione completata (distanza: ${minDistance.toFixed(1)}m)`);
-          return true;
-        } else {
-          toast.warning("Impossibile trovare un punto di navigazione vicino");
-          return false;
+          if (sweepId) {
+            await sdk.Sweep.moveTo(sweepId, {
+              transition: sdk.Sweep.Transition.FLY,
+              transitionTime: 1500
+            });
+            toast.success(`Navigazione completata (distanza: ${minDistance.toFixed(1)}m)`);
+            return true;
+          }
         }
+        
+        toast.warning("Nessun punto di vista trovato vicino al POI");
+        return false;
       } catch (error) {
         console.error("Navigation by position error:", error);
-        toast.error("Errore nella navigazione per coordinate");
+        toast.error("Errore nella navigazione");
         return false;
       }
     };
     
-    // Try navigation by Matterport tag ID first
-    if (poi.matterport_tag_id) {
+    // Check if POI has a native Matterport tag ID (imported from model)
+    // Tags created with Mattertag.add() are temporary and may not be navigable
+    if (poi.matterport_tag_id && poi.is_imported) {
       toast.info("Navigazione verso il POI...");
       try {
         await sdk.Mattertag.navigateToTag(
@@ -835,21 +813,18 @@ export default function MatterportManager() {
         return;
       } catch (error) {
         console.error("Mattertag navigation error:", error);
-        // Tag ID is invalid, try fallback to position if available
+        // Fallback to position navigation
         if (poi.position) {
-          toast.info("Tag non valido, navigazione per coordinate...");
+          toast.info("Navigazione per coordinate...");
           await navigateByPosition(poi.position);
-          return;
-        } else {
-          toast.error("Errore navigazione: tag non valido e posizione non disponibile");
           return;
         }
       }
     }
     
-    // Navigate by position only
+    // For manually created POIs or fallback, navigate by position
     if (poi.position) {
-      toast.info("Navigazione verso le coordinate...");
+      toast.info("Navigazione verso il POI...");
       await navigateByPosition(poi.position);
     } else {
       toast.warning("POI senza posizione definita");
