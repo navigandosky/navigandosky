@@ -33,9 +33,12 @@ Costruire un'applicazione "SmartDomo" per la gestione di un edificio smart con:
 - [x] SDK Key configurata: `59wwqhip77fxkqiurcae74fed`
 - [x] Space ID: `j1r4zUjanif`
 - [x] Connessione SDK con badge "SDK Connesso"
-- [x] Caricamento automatico Mattertag (5 POI)
+- [x] Caricamento automatico Mattertag (5+ POI)
 - [x] Navigazione programmatica ai tag
 - [x] Controlli fullscreen e refresh
+- [x] **Creazione POI con visualizzazione in 3D** (10/01/2026)
+- [x] **Acquisizione coordinate dalla vista 3D** (10/01/2026)
+- [x] **Tag visibili nella vista Matterport** (10/01/2026)
 
 ### Gestione Spazi 3D & POI (10/01/2026)
 - [x] Archivio spazi Matterport multi-spazio
@@ -45,7 +48,15 @@ Costruire un'applicazione "SmartDomo" per la gestione di un edificio smart con:
 - [x] Generazione audio TTS per audioguide
 - [x] Upload allegati (PDF, immagini, video)
 - [x] Creazione POI da coordinate 3D
+- [x] **Visualizzazione POI creati nella vista 3D** (10/01/2026)
 - [x] Collegamento POI ↔ Elettrodomestici
+
+### UI/UX Improvements (10/01/2026)
+- [x] Migliorato contrasto colori nei dialog
+- [x] Sfondo dialog: `bg-slate-800` per migliore leggibilità
+- [x] Input con sfondo `bg-slate-700` e testo bianco
+- [x] Box verde per posizione acquisita
+- [x] Pulsanti con colori distintivi (cyan/green)
 
 ### Database Migration (10/01/2026)
 - [x] Stati manutenzioni: `pianificata` → `aperto`, `completata` → `completato`
