@@ -296,6 +296,84 @@ export default function MatterportManager() {
   };
 
   // Create POI at position
+  // Helper function to find nearest sweep ID
+  const findNearestSweepId = async (position) => {
+    if (!matterportRef.current) return null;
+    
+    const sdk = matterportRef.current.getSdk();
+    if (!sdk || !sdk.Sweep || !sdk.Sweep.data) return null;
+    
+    try {
+      // Get all sweeps using subscription
+      const sweeps = await new Promise((resolve) => {
+        const sweepList = [];
+        let resolved = false;
+        
+        sdk.Sweep.data.subscribe({
+          onAdded: (index, item) => {
+            sweepList.push(item);
+          },
+          onCollectionUpdated: (collection) => {
+            if (!resolved) {
+              resolved = true;
+              const arr = [];
+              try {
+                if (Array.isArray(collection)) {
+                  arr.push(...collection);
+                } else if (collection && typeof collection[Symbol.iterator] === 'function') {
+                  for (const item of collection) {
+                    arr.push(item);
+                  }
+                } else if (collection) {
+                  Object.values(collection).forEach(item => {
+                    if (item && item.position) arr.push(item);
+                  });
+                }
+              } catch (e) {
+                console.log("Collection iteration error:", e);
+              }
+              resolve(arr.length > 0 ? arr : sweepList);
+            }
+          }
+        });
+        
+        setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            resolve(sweepList);
+          }
+        }, 2000);
+      });
+      
+      if (!sweeps || sweeps.length === 0) return null;
+      
+      // Find nearest sweep
+      let nearestSweep = null;
+      let minDistance = Infinity;
+      
+      for (const sweep of sweeps) {
+        if (sweep.position) {
+          const dx = sweep.position.x - position.x;
+          const dy = sweep.position.y - position.y;
+          const dz = sweep.position.z - position.z;
+          const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestSweep = sweep;
+          }
+        }
+      }
+      
+      if (nearestSweep) {
+        return nearestSweep.sid || nearestSweep.id || nearestSweep.uuid || null;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error finding nearest sweep:", error);
+      return null;
+    }
+  };
+
   const handleCreatePoiAtPosition = async () => {
     if (!poiForm.title || !poiForm.position) {
       toast.error("Inserisci titolo e posizione");
@@ -312,10 +390,15 @@ export default function MatterportManager() {
       const g = parseInt(hexColor.slice(3, 5), 16) / 255;
       const b = parseInt(hexColor.slice(5, 7), 16) / 255;
       
+      // Find nearest sweep ID for navigation fallback
+      toast.info("Ricerca punto di navigazione più vicino...");
+      const nearestSweepId = await findNearestSweepId(poiForm.position);
+      
       // Create POI in database
       const response = await axios.post(`${API_URL}/api/matterport/pois`, {
         space_id: activeSpace?.id || activeSpace?.space_id,
         position: poiForm.position,
+        nearest_sweep_id: nearestSweepId, // Save sweep ID for navigation
         translations: [{
           language: "it",
           title: poiForm.title,
@@ -344,7 +427,7 @@ export default function MatterportManager() {
         }
       }
       
-      toast.success("POI creato e aggiunto alla vista 3D!");
+      toast.success(`POI creato! ${nearestSweepId ? '✓ Navigazione configurata' : '⚠ Navigazione limitata'}`);
       setShowPoiDialog(false);
       setPoiForm({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF", category: "general" });
       loadPois(activeSpace.id);
