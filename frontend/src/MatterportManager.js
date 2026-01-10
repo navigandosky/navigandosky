@@ -557,19 +557,34 @@ export default function MatterportManager() {
     const hasAudio = poi.translations?.some(t => t.audio_url);
     const translationCount = poi.translations?.length || 0;
     
+    // Get icon for this POI
+    const poiIcon = POI_ICONS.find(i => i.id === poi.icon) || POI_ICONS.find(i => i.id === "mappin");
+    const IconComponent = poiIcon?.icon || MapPin;
+    const iconColor = poi.color || poiIcon?.color || "#00BFFF";
+    
     return (
       <Card 
         key={poi.id}
         className={`bg-slate-800/50 border-slate-700 hover:border-cyan-500/50 transition-all cursor-pointer ${
-          selectedPoi?.id === poi.id ? 'border-cyan-500' : ''
+          selectedPoi?.id === poi.id ? 'border-cyan-500 bg-slate-700/50' : ''
         }`}
         onClick={() => setSelectedPoi(poi)}
       >
         <CardContent className="p-4">
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${poi.is_visible ? 'bg-green-500' : 'bg-slate-500'}`} />
-              <h4 className="font-medium text-white truncate">{itTrans.title || "POI"}</h4>
+              <div 
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: `${iconColor}20` }}
+              >
+                <IconComponent size={16} style={{ color: iconColor }} />
+              </div>
+              <div>
+                <h4 className="font-medium text-white truncate">{itTrans.title || "POI"}</h4>
+                {poi.matterport_tag_id && (
+                  <span className="text-xs text-green-400">● In 3D</span>
+                )}
+              </div>
             </div>
             {poi.is_imported && (
               <Badge variant="outline" className="text-xs border-blue-500/50 text-blue-400">
