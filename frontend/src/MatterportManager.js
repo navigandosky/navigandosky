@@ -162,13 +162,19 @@ export default function MatterportManager() {
   // Dialogs
   const [showSpaceDialog, setShowSpaceDialog] = useState(false);
   const [showPoiDialog, setShowPoiDialog] = useState(false);
+  const [showEditPoiDialog, setShowEditPoiDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showTranslateDialog, setShowTranslateDialog] = useState(false);
   const [showAudioDialog, setShowAudioDialog] = useState(false);
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   
   // Forms
   const [spaceForm, setSpaceForm] = useState({ name: "", space_id: "", description: "", sdk_key: "" });
-  const [poiForm, setPoiForm] = useState({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF" });
+  const [poiForm, setPoiForm] = useState({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF", category: "general" });
+  const [editPoiForm, setEditPoiForm] = useState(null);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [customCategories, setCustomCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("all"); // Filter
   const [selectedTagsForImport, setSelectedTagsForImport] = useState([]);
   const [translateLanguages, setTranslateLanguages] = useState(["en", "de", "fr", "es"]);
   const [selectedVoice, setSelectedVoice] = useState("alloy");
