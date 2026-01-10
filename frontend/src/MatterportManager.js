@@ -282,6 +282,14 @@ export default function MatterportManager() {
     
     setLoading(true);
     try {
+      // Get icon color for Matterport
+      const selectedIcon = POI_ICONS.find(i => i.id === poiForm.icon) || POI_ICONS[0];
+      const hexColor = poiForm.color || selectedIcon.color;
+      // Convert hex to RGB for Matterport
+      const r = parseInt(hexColor.slice(1, 3), 16) / 255;
+      const g = parseInt(hexColor.slice(3, 5), 16) / 255;
+      const b = parseInt(hexColor.slice(5, 7), 16) / 255;
+      
       // Create POI in database
       const response = await axios.post(`${API_URL}/api/matterport/pois`, {
         space_id: activeSpace?.id || activeSpace?.space_id,
@@ -291,6 +299,8 @@ export default function MatterportManager() {
           title: poiForm.title,
           description: poiForm.description || ""
         }],
+        icon: poiForm.icon,
+        color: hexColor,
         is_imported: false,
         is_visible: true
       });
@@ -301,7 +311,7 @@ export default function MatterportManager() {
           label: poiForm.title,
           description: poiForm.description || "",
           position: poiForm.position,
-          color: { r: 0, g: 0.8, b: 0.4 } // Green for new POIs
+          color: { r, g, b }
         });
         
         if (mattertagId) {
@@ -314,7 +324,7 @@ export default function MatterportManager() {
       
       toast.success("POI creato e aggiunto alla vista 3D!");
       setShowPoiDialog(false);
-      setPoiForm({ title: "", description: "", position: null });
+      setPoiForm({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF" });
       loadPois(activeSpace.id);
     } catch (error) {
       console.error("Error creating POI:", error);
