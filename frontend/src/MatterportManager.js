@@ -969,11 +969,11 @@ export default function MatterportManager() {
               </TabsContent>
 
               <TabsContent value="pois" className="mt-4">
-                <div className="flex gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-3">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-blue-500/50 text-blue-400"
+                    className="border-blue-500/50 text-blue-400 text-xs"
                     onClick={() => {
                       if (matterportTags.length > 0) {
                         setShowImportDialog(true);
@@ -982,25 +982,25 @@ export default function MatterportManager() {
                       }
                     }}
                   >
-                    <Download size={14} className="mr-1" />
-                    Importa Tag
+                    <Download size={12} className="mr-1" />
+                    Importa
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-green-500/50 text-green-400"
+                    className="border-green-500/50 text-green-400 text-xs"
                     onClick={() => setShowPoiDialog(true)}
                   >
-                    <Plus size={14} className="mr-1" />
-                    Nuovo POI
+                    <Plus size={12} className="mr-1" />
+                    Nuovo
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-purple-500/50 text-purple-400"
+                    className="border-purple-500/50 text-purple-400 text-xs"
                     onClick={() => setShowCategoryDialog(true)}
                   >
-                    <Plus size={14} className="mr-1" />
+                    <Plus size={12} className="mr-1" />
                     Categoria
                   </Button>
                 </div>
@@ -1008,13 +1008,13 @@ export default function MatterportManager() {
                 {/* Category Filter */}
                 <div className="mb-3">
                   <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white h-8 text-sm">
-                      <SelectValue placeholder="Filtra per categoria" />
+                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white h-8 text-xs">
+                      <SelectValue placeholder="Filtra categoria" />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-700 border-slate-600">
-                      <SelectItem value="all" className="text-white">Tutte le categorie</SelectItem>
+                      <SelectItem value="all" className="text-white text-xs">Tutte le categorie</SelectItem>
                       {getAllCategories().map(cat => (
-                        <SelectItem key={cat.id} value={cat.id} className="text-white">
+                        <SelectItem key={cat.id} value={cat.id} className="text-white text-xs">
                           <span className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
                             {cat.name}
@@ -1025,48 +1025,93 @@ export default function MatterportManager() {
                   </Select>
                 </div>
                 
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-3">
+                {/* Compact POI List with Numbers */}
+                <ScrollArea className="h-[450px]">
+                  <div className="space-y-1">
                     {getFilteredPois().length === 0 ? (
-                      <Card className="bg-slate-800/50 border-slate-700">
-                        <CardContent className="p-6 text-center">
-                          <MapPin size={48} className="mx-auto text-slate-600 mb-4" />
-                          <p className="text-slate-400">
-                            {selectedCategory === "all" ? "Nessun POI per questo spazio" : "Nessun POI in questa categoria"}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ) : selectedCategory === "all" ? (
-                      // Show grouped by category
-                      getPoisByCategory().map(category => (
-                        <div key={category.id} className="mb-4">
-                          <div className="flex items-center gap-2 mb-2 px-1">
-                            <span 
-                              className="w-3 h-3 rounded-full" 
-                              style={{ backgroundColor: category.color }} 
-                            />
-                            <span className="text-sm font-medium text-white">{category.name}</span>
-                            <Badge variant="outline" className="text-xs ml-auto">
-                              {category.pois.length}
-                            </Badge>
-                          </div>
-                          <div className="space-y-2">
-                            {category.pois.map(poi => renderPoiCard(poi))}
-                          </div>
-                        </div>
-                      ))
+                      <div className="p-4 text-center text-slate-400 text-sm">
+                        Nessun POI
+                      </div>
                     ) : (
-                      // Show filtered list
-                      getFilteredPois().map(poi => renderPoiCard(poi))
+                      getFilteredPois().map((poi, index) => {
+                        const itTrans = poi.translations?.find(t => t.language === "it") || {};
+                        const poiIcon = POI_ICONS.find(i => i.id === poi.icon) || POI_ICONS.find(i => i.id === "mappin");
+                        const IconComponent = poiIcon?.icon || MapPin;
+                        const isSelected = selectedPoi?.id === poi.id;
+                        
+                        return (
+                          <div
+                            key={poi.id}
+                            className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${
+                              isSelected 
+                                ? 'bg-cyan-500/20 border border-cyan-500' 
+                                : 'bg-slate-800/50 hover:bg-slate-700/50 border border-transparent'
+                            }`}
+                            onClick={() => setSelectedPoi(poi)}
+                          >
+                            {/* Number */}
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              isSelected ? 'bg-cyan-500 text-white' : 'bg-slate-700 text-slate-300'
+                            }`}>
+                              {index + 1}
+                            </div>
+                            
+                            {/* Icon */}
+                            <IconComponent size={14} style={{ color: poi.color || poiIcon?.color }} />
+                            
+                            {/* Name */}
+                            <span className={`flex-1 text-sm truncate ${isSelected ? 'text-white font-medium' : 'text-slate-300'}`}>
+                              {itTrans.title || "POI"}
+                            </span>
+                            
+                            {/* Status indicators */}
+                            <div className="flex items-center gap-1">
+                              {poi.matterport_tag_id && (
+                                <span className="w-2 h-2 rounded-full bg-green-500" title="In 3D" />
+                              )}
+                              {poi.translations?.some(t => t.audio_url) && (
+                                <Volume2 size={10} className="text-purple-400" />
+                              )}
+                            </div>
+                            
+                            {/* Quick navigate button */}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-cyan-400 hover:bg-cyan-500/20"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNavigateToPoi(poi);
+                              }}
+                              title="Vai al POI"
+                            >
+                              <Navigation size={12} />
+                            </Button>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </ScrollArea>
+                
+                {/* Path Drawing Button */}
+                {pois.length >= 2 && (
+                  <div className="mt-3 pt-3 border-t border-slate-700">
+                    <Button
+                      className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+                      onClick={handleDrawPath}
+                    >
+                      <Navigation size={14} className="mr-2" />
+                      Mostra Percorso ({pois.length} POI)
+                    </Button>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>
 
           {/* Center - Matterport Viewer */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-3 space-y-4">
             {activeSpace ? (
               <MatterportViewer
                 ref={matterportRef}
