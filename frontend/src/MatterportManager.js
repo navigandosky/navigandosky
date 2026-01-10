@@ -1084,42 +1084,42 @@ export default function MatterportManager() {
 
       {/* Audio Generation Dialog */}
       <Dialog open={showAudioDialog} onOpenChange={setShowAudioDialog}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-slate-800 border-slate-600 text-white">
           <DialogHeader>
-            <DialogTitle>Genera Audio Guide</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white text-lg">Genera Audio Guide</DialogTitle>
+            <DialogDescription className="text-slate-300">
               Crea file audio dalle descrizioni tradotte
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <Label className="mb-2 block">Voce</Label>
+              <Label className="mb-2 block text-white font-medium">Voce</Label>
               <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                <SelectTrigger className="bg-slate-800 border-slate-700">
+                <SelectTrigger className="bg-slate-700 border-slate-500 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-slate-700 border-slate-600">
                   {TTS_VOICES.map(v => (
-                    <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                    <SelectItem key={v.id} value={v.id} className="text-white hover:bg-slate-600">{v.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
             <div>
-              <Label className="mb-2 block">Lingue</Label>
+              <Label className="mb-2 block text-white font-medium">Lingue</Label>
               <div className="grid grid-cols-2 gap-2">
                 {LANGUAGES.map(lang => {
                   const hasTrans = selectedPoi?.translations?.find(t => t.language === lang.code);
                   return (
                     <div
                       key={lang.code}
-                      className={`flex items-center gap-2 p-2 rounded border cursor-pointer ${
-                        !hasTrans ? 'opacity-50 cursor-not-allowed' :
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        !hasTrans ? 'opacity-50 cursor-not-allowed bg-slate-900/50 border-slate-700' :
                         audioLanguages.includes(lang.code)
-                          ? 'bg-green-500/10 border-green-500/50'
-                          : 'bg-slate-800/50 border-slate-700'
+                          ? 'bg-green-500/20 border-green-500'
+                          : 'bg-slate-700/50 border-slate-600 hover:border-slate-500'
                       }`}
                       onClick={() => {
                         if (!hasTrans) return;
@@ -1133,8 +1133,9 @@ export default function MatterportManager() {
                       <Checkbox 
                         checked={audioLanguages.includes(lang.code)} 
                         disabled={!hasTrans}
+                        className="border-slate-400"
                       />
-                      <span>{lang.flag} {lang.name}</span>
+                      <span className="text-white">{lang.flag} {lang.name}</span>
                       {!hasTrans && <span className="text-xs text-red-400">(manca traduzione)</span>}
                     </div>
                   );
@@ -1143,12 +1144,16 @@ export default function MatterportManager() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAudioDialog(false)}>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAudioDialog(false)}
+              className="border-slate-500 text-slate-300 hover:bg-slate-700"
+            >
               Annulla
             </Button>
             <Button 
-              className="bg-green-600" 
+              className="bg-green-600 hover:bg-green-700 text-white" 
               onClick={handleGenerateAudio}
               disabled={isGeneratingAudio || audioLanguages.length === 0}
             >
