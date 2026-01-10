@@ -796,6 +796,88 @@ export default function MatterportManager() {
   };
 
   // Navigate to POI in Matterport
+  // State for path visualization
+  const [pathVisible, setPathVisible] = useState(false);
+  
+  // Show path with waypoints (Pollicino dots)
+  const showPathToSweep = async (sdk, targetSweepId) => {
+    try {
+      // Get current sweep
+      let currentSweepId = null;
+      try {
+        const currentPose = await sdk.Camera.getPose();
+        const sweeps = await new Promise((resolve) => {
+          const sweepList = [];
+          let resolved = false;
+          sdk.Sweep.data.subscribe({
+            onAdded: (index, item) => sweepList.push(item),
+            onCollectionUpdated: () => {
+              if (!resolved) {
+                resolved = true;
+                resolve(sweepList);
+              }
+            }
+          });
+          setTimeout(() => { if (!resolved) { resolved = true; resolve(sweepList); } }, 2000);
+        });
+        
+        // Find current sweep by position
+        let minDist = Infinity;
+        for (const sweep of sweeps) {
+          if (sweep.position && currentPose.position) {
+            const dx = sweep.position.x - currentPose.position.x;
+            const dy = sweep.position.y - currentPose.position.y;
+            const dz = sweep.position.z - currentPose.position.z;
+            const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            if (dist < minDist) {
+              minDist = dist;
+              currentSweepId = sweep.sid || sweep.id;
+            }
+          }
+        }
+      } catch (e) {
+        console.log("Could not get current position:", e);
+      }
+      
+      if (!currentSweepId) {
+        console.log("No current sweep found, skipping path visualization");
+        return;
+      }
+      
+      // Try to create graph and show path
+      if (sdk.Sweep.createGraph) {
+        try {
+          const graph = await sdk.Sweep.createGraph();
+          
+          // Find path using A* algorithm if available
+          if (graph && sdk.Graph) {
+            const path = await sdk.Graph.createAStarRunner(graph, currentSweepId, targetSweepId);
+            if (path && path.path) {
+              // Enable path visualization in the showcase
+              toast.info(`📍 Percorso: ${path.path.length} punti`, { duration: 2000 });
+              setPathVisible(true);
+            }
+          }
+        } catch (e) {
+          console.log("Graph/Path creation not available:", e);
+        }
+      }
+      
+      // Alternative: Show sweep highlights along the way
+      try {
+        // Enable highlight on target sweep
+        if (sdk.Sweep.highlight) {
+          await sdk.Sweep.highlight(targetSweepId, true);
+        }
+      } catch (e) {
+        console.log("Sweep highlight not available:", e);
+      }
+      
+    } catch (error) {
+      console.error("Path visualization error:", error);
+    }
+  };
+
   const handleNavigateToPoi = async (poi) => {
     if (!matterportRef.current) {
       toast.error("SDK Matterport non connesso");
@@ -810,13 +892,18 @@ export default function MatterportManager() {
     
     // For POIs imported from Matterport, use navigateToTag
     if (poi.matterport_tag_id && poi.is_imported) {
-      toast.info("Navigazione verso il POI...");
+      toast.info("🚶 Navigazione con percorso...");
       try {
+        // Show path first
+        if (poi.nearest_sweep_id) {
+          await showPathToSweep(sdk, poi.nearest_sweep_id);
+        }
+        
         await sdk.Mattertag.navigateToTag(
           poi.matterport_tag_id,
           sdk.Mattertag.Transition.FLY
         );
-        toast.success("Navigazione completata!");
+        toast.success("✅ Destinazione raggiunta!");
         return;
       } catch (error) {
         console.error("Mattertag navigation error:", error);
@@ -826,13 +913,16 @@ export default function MatterportManager() {
     
     // For manually created POIs, use saved nearest_sweep_id
     if (poi.nearest_sweep_id) {
-      toast.info("Navigazione verso il punto di vista più vicino...");
+      toast.info("🚶 Navigazione con percorso...");
       try {
+        // Show path visualization
+        await showPathToSweep(sdk, poi.nearest_sweep_id);
+        
         await sdk.Sweep.moveTo(poi.nearest_sweep_id, {
           transition: sdk.Sweep.Transition.FLY,
           transitionTime: 1500
         });
-        toast.success("Navigazione completata!");
+        toast.success("✅ Destinazione raggiunta!");
         return;
       } catch (error) {
         console.error("Sweep navigation error:", error);
@@ -843,11 +933,14 @@ export default function MatterportManager() {
     
     // Fallback: try to find nearest sweep dynamically
     if (poi.position) {
-      toast.info("Ricerca punto di vista più vicino...");
+      toast.info("🔍 Ricerca percorso...");
       const nearestSweepId = await findNearestSweepId(poi.position);
       
       if (nearestSweepId) {
         try {
+          // Show path
+          await showPathToSweep(sdk, nearestSweepId);
+          
           await sdk.Sweep.moveTo(nearestSweepId, {
             transition: sdk.Sweep.Transition.FLY,
             transitionTime: 1500
@@ -862,7 +955,7 @@ export default function MatterportManager() {
             console.log("Could not save sweep ID:", e);
           }
           
-          toast.success("Navigazione completata!");
+          toast.success("✅ Destinazione raggiunta!");
           return;
         } catch (error) {
           console.error("Dynamic sweep navigation error:", error);
