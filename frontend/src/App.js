@@ -731,13 +731,6 @@ const ProjectPage = () => {
             </ul>
           </div>
 
-          {/* Partner Logos */}
-          <div className="mt-16 pt-8 border-t border-white/10">
-            <div className="flex flex-wrap justify-center items-center gap-8">
-              <img src={LOGO_SPOKE} alt="Spoke 2" className="h-20 w-auto object-contain" />
-              <img src={LOGO_UNISS} alt="Partners" className="h-14 w-auto object-contain" />
-            </div>
-          </div>
         </motion.div>
       </div>
     </div>
