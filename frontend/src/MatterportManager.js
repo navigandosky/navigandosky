@@ -662,12 +662,6 @@ export default function MatterportManager() {
       toast.warning("POI senza posizione definita");
     }
   };
-        toast.error("Errore nella navigazione");
-      }
-    } else {
-      toast.warning("POI senza posizione definita");
-    }
-  };
 
   // Add POI to Matterport 3D view
   const handleAddTagToMatterport = async (poi) => {
