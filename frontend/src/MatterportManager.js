@@ -873,13 +873,13 @@ export default function MatterportManager() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Panel - Spaces & POIs List */}
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          {/* Left Panel - POI List (Compact View) */}
+          <div className="lg:col-span-2 space-y-4">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="w-full bg-slate-800">
-                <TabsTrigger value="spaces" className="flex-1">Spazi</TabsTrigger>
                 <TabsTrigger value="pois" className="flex-1">POI</TabsTrigger>
+                <TabsTrigger value="spaces" className="flex-1">Spazi</TabsTrigger>
               </TabsList>
 
               <TabsContent value="spaces" className="mt-4">
