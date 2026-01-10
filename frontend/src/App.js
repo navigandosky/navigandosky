@@ -1547,6 +1547,7 @@ function App() {
           <div className="flex gap-1 overflow-x-auto">
             {[
               { id: "smartdomo", label: "SmartDomo", icon: Thermometer },
+              { id: "proprieta", label: "Proprietà", icon: Building2 },
               { id: "calendario", label: "Calendario", icon: Calendar },
               { id: "tickets", label: "Ticket", icon: Ticket },
               { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
@@ -1561,6 +1562,7 @@ function App() {
               // Colori specifici per ogni tab
               const tabColors = {
                 smartdomo: { active: "text-cyan-500 border-cyan-500", icon: "text-cyan-500" },
+                proprieta: { active: "text-emerald-600 border-emerald-600", icon: "text-emerald-500" },
                 dashboard: { active: "text-blue-600 border-blue-600", icon: "text-blue-500" },
                 suggerimenti: { active: "text-yellow-500 border-yellow-500", icon: "text-yellow-500" },
                 assistente: { active: "text-purple-600 border-purple-600", icon: "text-purple-500" },
