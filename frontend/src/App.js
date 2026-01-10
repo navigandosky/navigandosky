@@ -59,6 +59,7 @@ import SmartBuildingDashboard from "./SmartBuildingDashboard";
 import MatterportManager from "./MatterportManager";
 import ElettrodomesticoDialog from "./ElettrodomesticoForm";
 import RicercaCentriAssistenza from "./RicercaCentriAssistenza";
+import PropertyConfig from "./PropertyConfig";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
