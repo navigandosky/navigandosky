@@ -1026,25 +1026,25 @@ export default function MatterportManager() {
 
       {/* Translate Dialog */}
       <Dialog open={showTranslateDialog} onOpenChange={setShowTranslateDialog}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className="bg-slate-800 border-slate-600 text-white">
           <DialogHeader>
-            <DialogTitle>Traduci POI</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white text-lg">Traduci POI</DialogTitle>
+            <DialogDescription className="text-slate-300">
               Traduci automaticamente la descrizione in altre lingue
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <Label className="mb-2 block">Lingue di destinazione</Label>
+              <Label className="mb-2 block text-white font-medium">Lingue di destinazione</Label>
               <div className="grid grid-cols-2 gap-2">
                 {LANGUAGES.filter(l => l.code !== "it").map(lang => (
                   <div
                     key={lang.code}
-                    className={`flex items-center gap-2 p-2 rounded border cursor-pointer ${
+                    className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${
                       translateLanguages.includes(lang.code)
-                        ? 'bg-cyan-500/10 border-cyan-500/50'
-                        : 'bg-slate-800/50 border-slate-700'
+                        ? 'bg-cyan-500/20 border-cyan-500'
+                        : 'bg-slate-700/50 border-slate-600 hover:border-slate-500'
                     }`}
                     onClick={() => {
                       setTranslateLanguages(prev =>
@@ -1054,20 +1054,24 @@ export default function MatterportManager() {
                       );
                     }}
                   >
-                    <Checkbox checked={translateLanguages.includes(lang.code)} />
-                    <span>{lang.flag} {lang.name}</span>
+                    <Checkbox checked={translateLanguages.includes(lang.code)} className="border-slate-400" />
+                    <span className="text-white">{lang.flag} {lang.name}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTranslateDialog(false)}>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowTranslateDialog(false)}
+              className="border-slate-500 text-slate-300 hover:bg-slate-700"
+            >
               Annulla
             </Button>
             <Button 
-              className="bg-cyan-600" 
+              className="bg-cyan-600 hover:bg-cyan-700 text-white" 
               onClick={handleTranslatePoi}
               disabled={isTranslating || translateLanguages.length === 0}
             >
