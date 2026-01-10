@@ -188,7 +188,7 @@ const MatterportViewer = forwardRef(({
       setConnectionStatus('error');
       toast.error(`Errore connessione SDK: ${error.message}`);
     }
-  }, [spaceId, onSdkReady, onTagsLoaded]);
+  }, [onSdkReady, onTagsLoaded]);
 
   // Handle iframe load event
   const handleIframeLoad = useCallback(() => {
