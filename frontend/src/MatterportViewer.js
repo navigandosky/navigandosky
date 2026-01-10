@@ -162,17 +162,36 @@ const MatterportViewer = forwardRef(({
         console.log("Could not get model data:", e);
       }
 
-      // Load Mattertags
+      // Load Mattertags/Tags - try new API first, fallback to deprecated
       try {
-        const tags = await mpSdk.Mattertag.getData();
+        let tags = [];
+        // Try the new Tag.data API first
+        if (mpSdk.Tag && mpSdk.Tag.data) {
+          tags = await mpSdk.Tag.data.collect();
+          console.log(`Loaded ${tags.length} Tags (new API)`);
+        } else {
+          // Fallback to deprecated Mattertag API
+          tags = await mpSdk.Mattertag.getData();
+          console.log(`Loaded ${tags.length} Mattertags (legacy API)`);
+        }
         setMattertags(tags);
-        console.log(`Loaded ${tags.length} Mattertags`);
         
         if (onTagsLoaded) {
           onTagsLoaded(tags);
         }
       } catch (e) {
-        console.log("Could not load Mattertags:", e);
+        console.log("Could not load Tags:", e);
+        // Try legacy API as fallback
+        try {
+          const tags = await mpSdk.Mattertag.getData();
+          setMattertags(tags);
+          console.log(`Loaded ${tags.length} Mattertags (fallback)`);
+          if (onTagsLoaded) {
+            onTagsLoaded(tags);
+          }
+        } catch (e2) {
+          console.log("Could not load Mattertags either:", e2);
+        }
       }
 
       setConnectionStatus('connected');
