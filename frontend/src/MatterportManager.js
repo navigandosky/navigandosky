@@ -821,12 +821,6 @@ export default function MatterportManager() {
                 </CardContent>
               </Card>
             )}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
       </div>
