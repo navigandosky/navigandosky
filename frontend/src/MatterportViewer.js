@@ -61,7 +61,7 @@ const MatterportViewer = forwardRef(({
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
     /**
-     * Navigate the camera to a specific Mattertag
+     * Navigate the camera to a specific Mattertag/Tag
      */
     navigateToTag: async (tagId) => {
       if (!sdkRef.current) {
@@ -69,17 +69,42 @@ const MatterportViewer = forwardRef(({
         return false;
       }
       try {
-        // Use Mattertag.navigateToTag to move camera to the tag
-        await sdkRef.current.Mattertag.navigateToTag(
-          tagId,
-          sdkRef.current.Mattertag.Transition.FLY
-        );
+        // Try new Tag API first, fallback to Mattertag
+        if (sdkRef.current.Tag && sdkRef.current.Tag.allowAction) {
+          // New API: Use Tag.allowAction with NAVIGATION
+          await sdkRef.current.Tag.allowAction(tagId, { 
+            navigating: true,
+            opening: true
+          });
+          // Move camera to the tag position
+          const tagData = mattertags.find(t => t.sid === tagId || t.id === tagId);
+          if (tagData && tagData.anchorPosition) {
+            await sdkRef.current.Camera.lookAtScreenCoords(0.5, 0.5);
+            await sdkRef.current.Sweep.moveTo(tagData.floorId);
+          }
+        } else {
+          // Fallback: Use deprecated Mattertag.navigateToTag
+          await sdkRef.current.Mattertag.navigateToTag(
+            tagId,
+            sdkRef.current.Mattertag.Transition.FLY
+          );
+        }
         toast.success("Navigazione completata");
         return true;
       } catch (error) {
         console.error("Navigation error:", error);
-        toast.error(`Errore navigazione: ${error.message}`);
-        return false;
+        // Try fallback method
+        try {
+          await sdkRef.current.Mattertag.navigateToTag(
+            tagId,
+            sdkRef.current.Mattertag.Transition.FLY
+          );
+          toast.success("Navigazione completata");
+          return true;
+        } catch (e2) {
+          toast.error(`Errore navigazione: ${error.message}`);
+          return false;
+        }
       }
     },
 
