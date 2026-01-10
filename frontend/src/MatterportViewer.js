@@ -128,6 +128,64 @@ const MatterportViewer = forwardRef(({
     },
 
     /**
+     * Add a new Mattertag at a specific position
+     * @param {Object} tagData - Tag data including position, label, description
+     * @returns {string|null} - The ID of the created tag, or null on failure
+     */
+    addTag: async (tagData) => {
+      if (!sdkRef.current) {
+        toast.error("SDK non connesso");
+        return null;
+      }
+      try {
+        const mattertagDesc = {
+          label: tagData.label || tagData.title || "POI",
+          description: tagData.description || "",
+          anchorPosition: {
+            x: tagData.position?.x || 0,
+            y: tagData.position?.y || 0,
+            z: tagData.position?.z || 0
+          },
+          stemVector: { x: 0, y: 0.15, z: 0 }, // Small stem above the anchor
+          color: tagData.color || { r: 0, g: 0.75, b: 1 } // Cyan color
+        };
+
+        // Add the mattertag
+        const [mattertagId] = await sdkRef.current.Mattertag.add(mattertagDesc);
+        console.log("Created Mattertag with ID:", mattertagId);
+        
+        // Refresh tags list
+        const tags = await sdkRef.current.Mattertag.getData();
+        setMattertags(tags);
+        
+        toast.success("POI aggiunto alla vista 3D");
+        return mattertagId;
+      } catch (error) {
+        console.error("Add tag error:", error);
+        toast.error(`Errore creazione tag: ${error.message}`);
+        return null;
+      }
+    },
+
+    /**
+     * Remove a Mattertag by ID
+     */
+    removeTag: async (tagId) => {
+      if (!sdkRef.current) return false;
+      try {
+        await sdkRef.current.Mattertag.remove(tagId);
+        // Refresh tags list
+        const tags = await sdkRef.current.Mattertag.getData();
+        setMattertags(tags);
+        toast.success("POI rimosso dalla vista 3D");
+        return true;
+      } catch (error) {
+        console.error("Remove tag error:", error);
+        return false;
+      }
+    },
+
+    /**
      * Get the raw SDK instance for advanced usage
      */
     getSdk: () => sdkRef.current,
