@@ -481,7 +481,11 @@ export default function MatterportManager() {
     }
   };
 
-  // Draw path between POIs
+  // State for tour
+  const [isTourRunning, setIsTourRunning] = useState(false);
+  const [tourProgress, setTourProgress] = useState({ current: 0, total: 0, name: "" });
+  
+  // Draw path / Start guided tour through POIs
   const handleDrawPath = async () => {
     if (!matterportRef.current) {
       toast.error("SDK Matterport non connesso");
@@ -494,91 +498,72 @@ export default function MatterportManager() {
       return;
     }
     
-    // Get POIs with positions
-    const poisWithPosition = pois.filter(p => p.position && p.matterport_tag_id);
+    // Get POIs with matterport tags (can navigate to them)
+    const navigablePois = pois.filter(p => p.matterport_tag_id);
     
-    if (poisWithPosition.length < 2) {
-      toast.warning("Servono almeno 2 POI con posizione per tracciare un percorso");
+    if (navigablePois.length < 1) {
+      toast.warning("Nessun POI navigabile. Importa o aggiungi POI alla vista 3D.");
       return;
     }
     
-    toast.info("Tracciamento percorso...");
+    if (navigablePois.length < 2) {
+      // Just navigate to the single POI
+      toast.info("Navigazione verso l'unico POI...");
+      handleNavigateToPoi(navigablePois[0]);
+      return;
+    }
+    
+    // Start guided tour
+    setIsTourRunning(true);
+    setTourProgress({ current: 0, total: navigablePois.length, name: "Avvio tour..." });
+    
+    toast.success(`🎯 Tour guidato: ${navigablePois.length} punti di interesse`, {
+      duration: 3000
+    });
     
     try {
-      // Create path points from POI positions
-      const pathPoints = poisWithPosition.map(poi => ({
-        x: poi.position.x,
-        y: poi.position.y + 0.1, // Slightly above floor
-        z: poi.position.z
-      }));
-      
-      // Try to use Scene API for drawing path
-      if (sdk.Scene) {
-        // Remove existing path if any
+      for (let i = 0; i < navigablePois.length; i++) {
+        const poi = navigablePois[i];
+        const poiTitle = poi.translations?.find(t => t.language === "it")?.title || `POI ${i + 1}`;
+        
+        // Update progress
+        setTourProgress({ 
+          current: i + 1, 
+          total: navigablePois.length, 
+          name: poiTitle 
+        });
+        
+        // Navigate to the POI
         try {
-          await sdk.Scene.clear();
-        } catch (e) {
-          // Ignore if no scene to clear
-        }
-        
-        // Create path using Scene API (draw lines)
-        const pathId = "poi-path-" + Date.now();
-        
-        // Add path visualization using Pointer or custom objects
-        // Since Matterport doesn't have native line drawing, we'll use a workaround:
-        // Navigate through all POIs in sequence
-        
-        toast.success(`Percorso con ${poisWithPosition.length} punti`);
-        
-        // Animate through the path
-        for (let i = 0; i < poisWithPosition.length; i++) {
-          const poi = poisWithPosition[i];
+          await sdk.Mattertag.navigateToTag(
+            poi.matterport_tag_id,
+            sdk.Mattertag.Transition.FLY
+          );
           
-          // Update toast to show progress
-          toast.info(`Navigazione: ${i + 1}/${poisWithPosition.length} - ${poi.translations?.[0]?.title || 'POI'}`);
-          
-          // Navigate to each tag
-          try {
-            await sdk.Mattertag.navigateToTag(
-              poi.matterport_tag_id,
-              sdk.Mattertag.Transition.FLY
-            );
-            
-            // Wait a moment at each stop
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } catch (navError) {
-            console.error(`Error navigating to POI ${i}:`, navError);
-          }
+          // Wait at each stop (longer for first and last, shorter for middle)
+          const waitTime = (i === 0 || i === navigablePois.length - 1) ? 3000 : 2000;
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        } catch (navError) {
+          console.error(`Tour navigation error at POI ${i}:`, navError);
+          // Continue to next POI even if one fails
         }
-        
-        toast.success("Tour completato!");
-      } else {
-        // Fallback: just navigate to first POI
-        toast.info("Inizio tour guidato...");
-        
-        for (let i = 0; i < Math.min(poisWithPosition.length, 5); i++) {
-          const poi = poisWithPosition[i];
-          toast.info(`${i + 1}. ${poi.translations?.[0]?.title || 'POI'}`);
-          
-          if (poi.matterport_tag_id) {
-            try {
-              await sdk.Mattertag.navigateToTag(
-                poi.matterport_tag_id,
-                sdk.Mattertag.Transition.FLY
-              );
-              await new Promise(resolve => setTimeout(resolve, 2500));
-            } catch (e) {
-              console.error(e);
-            }
-          }
-        }
-        
-        toast.success("Tour completato!");
       }
+      
+      toast.success("✅ Tour completato!", { duration: 3000 });
     } catch (error) {
-      console.error("Path drawing error:", error);
-      toast.error("Errore nel tracciamento percorso");
+      console.error("Tour error:", error);
+      toast.error("Errore durante il tour");
+    } finally {
+      setIsTourRunning(false);
+      setTourProgress({ current: 0, total: 0, name: "" });
     }
+  };
+  
+  // Stop tour
+  const handleStopTour = () => {
+    setIsTourRunning(false);
+    setTourProgress({ current: 0, total: 0, name: "" });
+    toast.info("Tour interrotto");
   };
 
   // Add custom category
