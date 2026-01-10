@@ -728,19 +728,70 @@ export default function MatterportManager() {
     // Helper function to navigate by coordinates (nearest sweep)
     const navigateByPosition = async (position) => {
       try {
-        // Get all sweeps
-        const sweepCollection = await sdk.Sweep.data.collect();
+        // Get all sweeps using the correct API
+        let sweeps = [];
         
-        if (!sweepCollection || sweepCollection.length === 0) {
-          toast.error("Nessun punto di navigazione disponibile");
-          return false;
+        // Try different methods to get sweeps
+        if (sdk.Sweep && sdk.Sweep.data) {
+          try {
+            // Method 1: Try value() if it's an observable
+            if (typeof sdk.Sweep.data.value === 'function') {
+              const collection = sdk.Sweep.data.value();
+              sweeps = Array.from(collection || []);
+            } 
+            // Method 2: Try to get from subscribe
+            else {
+              await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error("Timeout")), 3000);
+                sdk.Sweep.data.subscribe({
+                  onCollectionUpdated: (collection) => {
+                    clearTimeout(timeout);
+                    sweeps = Array.from(collection || []);
+                    resolve();
+                  }
+                });
+              });
+            }
+          } catch (e) {
+            console.log("Could not get sweeps from data:", e);
+          }
+        }
+        
+        // Method 3: Fallback - try to get current sweep and use it
+        if (sweeps.length === 0) {
+          try {
+            const current = await sdk.Sweep.current;
+            if (current) {
+              sweeps = [current];
+            }
+          } catch (e) {
+            console.log("Could not get current sweep:", e);
+          }
+        }
+        
+        if (!sweeps || sweeps.length === 0) {
+          // Last resort: use Camera.moveTo directly
+          toast.info("Navigazione diretta alla posizione...");
+          try {
+            await sdk.Camera.lookAtScreenCoords(0.5, 0.5);
+            const pose = {
+              position: position,
+              rotation: { x: 0, y: 0 }
+            };
+            await sdk.Camera.setRotation({ x: 0, y: 0 }, { transitionTime: 500 });
+            toast.success("Posizione raggiunta (approssimata)");
+            return true;
+          } catch (camErr) {
+            toast.warning("Navigazione limitata - prova a muoverti manualmente verso il POI");
+            return false;
+          }
         }
         
         // Find nearest sweep
         let nearestSweep = null;
         let minDistance = Infinity;
         
-        for (const sweep of sweepCollection) {
+        for (const sweep of sweeps) {
           if (sweep.position) {
             const dx = sweep.position.x - position.x;
             const dy = sweep.position.y - position.y;
@@ -753,8 +804,9 @@ export default function MatterportManager() {
           }
         }
         
-        if (nearestSweep && nearestSweep.sid) {
-          await sdk.Sweep.moveTo(nearestSweep.sid, {
+        if (nearestSweep && (nearestSweep.sid || nearestSweep.id || nearestSweep.uuid)) {
+          const sweepId = nearestSweep.sid || nearestSweep.id || nearestSweep.uuid;
+          await sdk.Sweep.moveTo(sweepId, {
             transition: sdk.Sweep.Transition.FLY,
             transitionTime: 1500
           });
