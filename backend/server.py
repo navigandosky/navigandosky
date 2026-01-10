@@ -646,7 +646,7 @@ class POIBase(BaseModel):
     
     # Metadata
     icon: Optional[str] = None  # Icon name/emoji
-    color: Optional[str] = None  # Hex color for marker
+    color: Optional[Any] = None  # Hex color or RGB object for marker
     is_imported: bool = False  # True if imported from Matterport
     is_visible: bool = True
 
