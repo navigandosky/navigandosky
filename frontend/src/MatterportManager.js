@@ -221,12 +221,8 @@ export default function MatterportManager() {
     
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("title", poiForm.title);
-      formData.append("description", poiForm.description || "");
-      
-      // Create with position
-      await axios.post(`${API_URL}/api/matterport/pois`, {
+      // Create POI in database
+      const response = await axios.post(`${API_URL}/api/matterport/pois`, {
         space_id: activeSpace?.id || activeSpace?.space_id,
         position: poiForm.position,
         translations: [{
@@ -238,11 +234,29 @@ export default function MatterportManager() {
         is_visible: true
       });
       
-      toast.success("POI creato");
+      // Add tag to Matterport 3D view
+      if (matterportRef.current) {
+        const mattertagId = await matterportRef.current.addTag({
+          label: poiForm.title,
+          description: poiForm.description || "",
+          position: poiForm.position,
+          color: { r: 0, g: 0.8, b: 0.4 } // Green for new POIs
+        });
+        
+        if (mattertagId) {
+          // Update POI with the Matterport tag ID
+          await axios.put(`${API_URL}/api/matterport/pois/${response.data.id}`, {
+            matterport_tag_id: mattertagId
+          });
+        }
+      }
+      
+      toast.success("POI creato e aggiunto alla vista 3D!");
       setShowPoiDialog(false);
       setPoiForm({ title: "", description: "", position: null });
       loadPois(activeSpace.id);
     } catch (error) {
+      console.error("Error creating POI:", error);
       toast.error("Errore nella creazione del POI");
     } finally {
       setLoading(false);
