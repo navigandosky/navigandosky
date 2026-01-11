@@ -4572,6 +4572,237 @@ async def get_system_status():
     return status
 
 
+# ============== MATTERPORT CLOUD API ==============
+# For creating persistent Mattertags that appear on my.matterport.com
+
+class MatterportCloudCredentials(BaseModel):
+    """Credentials for Matterport Cloud API"""
+    client_id: str
+    client_secret: str
+
+
+class MatterportTagCreate(BaseModel):
+    """Data for creating a Matterport tag via Cloud API"""
+    label: str
+    description: Optional[str] = None
+    position: Dict[str, float]  # {x, y, z}
+    stem_vector: Optional[Dict[str, float]] = None  # {x, y, z}
+    color: Optional[Dict[str, float]] = None  # {r, g, b}
+
+
+async def get_matterport_access_token(client_id: str, client_secret: str) -> Optional[str]:
+    """Get OAuth2 access token from Matterport API"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.matterport.com/api/oauth/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": client_id,
+                    "client_secret": client_secret
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("access_token")
+            else:
+                print(f"Matterport OAuth error: {response.status_code} - {response.text}")
+                return None
+    except Exception as e:
+        print(f"Matterport OAuth exception: {e}")
+        return None
+
+
+@api_router.post("/matterport/cloud/test-connection")
+async def test_matterport_cloud_connection(credentials: MatterportCloudCredentials):
+    """Test Matterport Cloud API connection"""
+    token = await get_matterport_access_token(credentials.client_id, credentials.client_secret)
+    
+    if not token:
+        return {
+            "connected": False,
+            "error": "Impossibile ottenere token di accesso. Verifica Client ID e Secret."
+        }
+    
+    # Test the token by fetching user models
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.matterport.com/api/models/graph",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "query": "query { models { totalResults } }"
+                }
+            )
+            if response.status_code == 200:
+                data = response.json()
+                total = data.get("data", {}).get("models", {}).get("totalResults", 0)
+                return {
+                    "connected": True,
+                    "message": f"Connesso! Trovati {total} modelli nel tuo account.",
+                    "models_count": total
+                }
+            else:
+                return {
+                    "connected": False,
+                    "error": f"Errore API: {response.status_code}"
+                }
+    except Exception as e:
+        return {
+            "connected": False,
+            "error": str(e)
+        }
+
+
+@api_router.post("/matterport/cloud/models/{model_id}/tags")
+async def create_matterport_cloud_tag(
+    model_id: str, 
+    tag_data: MatterportTagCreate,
+    client_id: str = None,
+    client_secret: str = None
+):
+    """
+    Create a persistent Mattertag in Matterport Cloud.
+    The tag will appear on my.matterport.com for this model.
+    """
+    # Get credentials from property config if not provided
+    if not client_id or not client_secret:
+        prop = await db.property_config.find_one({"is_active": True}, {"_id": 0})
+        if prop and prop.get("matterport"):
+            client_id = prop["matterport"].get("api_client_id")
+            client_secret = prop["matterport"].get("api_client_secret")
+    
+    if not client_id or not client_secret:
+        raise HTTPException(
+            status_code=400, 
+            detail="Credenziali API Matterport non configurate. Vai su Proprietà > Matterport."
+        )
+    
+    token = await get_matterport_access_token(client_id, client_secret)
+    if not token:
+        raise HTTPException(status_code=401, detail="Impossibile autenticarsi con Matterport Cloud")
+    
+    # GraphQL mutation to add a Mattertag
+    mutation = """
+    mutation AddMattertag($modelId: ID!, $tag: MattertagInput!) {
+      addMattertag(modelId: $modelId, mattertag: $tag) {
+        id
+        label
+        description
+        anchorPosition { x y z }
+      }
+    }
+    """
+    
+    variables = {
+        "modelId": model_id,
+        "tag": {
+            "label": tag_data.label,
+            "description": tag_data.description or "",
+            "anchorPosition": tag_data.position,
+            "stemVector": tag_data.stem_vector or {"x": 0, "y": 0.15, "z": 0},
+            "color": tag_data.color or {"r": 0, "g": 0.75, "b": 1}
+        }
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.matterport.com/api/models/graph",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "query": mutation,
+                    "variables": variables
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "errors" in data:
+                    raise HTTPException(status_code=400, detail=data["errors"][0].get("message", "GraphQL error"))
+                
+                created_tag = data.get("data", {}).get("addMattertag", {})
+                return {
+                    "success": True,
+                    "message": "Tag creato su Matterport Cloud!",
+                    "tag": created_tag
+                }
+            else:
+                raise HTTPException(status_code=response.status_code, detail="Errore API Matterport")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/matterport/cloud/sync-poi/{poi_id}")
+async def sync_poi_to_matterport_cloud(poi_id: str):
+    """
+    Sync a local POI to Matterport Cloud as a persistent Mattertag.
+    """
+    # Get POI
+    poi = await db.pois.find_one({"id": poi_id, "user_id": DEFAULT_USER_ID}, {"_id": 0})
+    if not poi:
+        raise HTTPException(status_code=404, detail="POI non trovato")
+    
+    # Get property config for credentials
+    prop = await db.property_config.find_one({"is_active": True}, {"_id": 0})
+    if not prop or not prop.get("matterport"):
+        raise HTTPException(status_code=400, detail="Configurazione Matterport non trovata")
+    
+    mp_config = prop["matterport"]
+    if not mp_config.get("api_client_id") or not mp_config.get("api_client_secret"):
+        raise HTTPException(
+            status_code=400, 
+            detail="Credenziali API Matterport Cloud non configurate"
+        )
+    
+    if not poi.get("position"):
+        raise HTTPException(status_code=400, detail="POI senza posizione")
+    
+    # Get title from translations
+    title = "POI"
+    description = ""
+    if poi.get("translations"):
+        first_trans = poi["translations"][0]
+        title = first_trans.get("title", "POI")
+        description = first_trans.get("description", "")
+    
+    # Create tag in Matterport Cloud
+    tag_data = MatterportTagCreate(
+        label=title,
+        description=description,
+        position=poi["position"]
+    )
+    
+    result = await create_matterport_cloud_tag(
+        model_id=mp_config["space_id"],
+        tag_data=tag_data,
+        client_id=mp_config["api_client_id"],
+        client_secret=mp_config["api_client_secret"]
+    )
+    
+    # Update POI with cloud tag ID
+    if result.get("success") and result.get("tag", {}).get("id"):
+        await db.pois.update_one(
+            {"id": poi_id},
+            {"$set": {
+                "matterport_cloud_tag_id": result["tag"]["id"],
+                "synced_to_cloud": True,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+    
+    return result
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
