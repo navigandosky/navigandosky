@@ -165,6 +165,9 @@ export default function MatterportManager() {
   // SmartThings state
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
   const [deviceStates, setDeviceStates] = useState({}); // { deviceId: "on" | "off" }
+  const [sensorValues, setSensorValues] = useState({}); // { deviceId: { temperature, humidity, etc } }
+  const [statusOverlayIds, setStatusOverlayIds] = useState([]); // IDs of status tags in 3D view
+  const [showStatusOverlays, setShowStatusOverlays] = useState(true); // Toggle for status display
   
   // Dialogs
   const [showSpaceDialog, setShowSpaceDialog] = useState(false);
