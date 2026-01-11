@@ -166,6 +166,286 @@ const MatterportViewer = forwardRef(({
     getSdk: () => sdkRef.current,
 
     /**
+     * Get all sweeps (scan points) from the model
+     */
+    getSweeps: async () => {
+      if (!sdkRef.current) return [];
+      try {
+        return new Promise((resolve) => {
+          const sweepList = [];
+          let resolved = false;
+          sdkRef.current.Sweep.data.subscribe({
+            onAdded: (index, item) => sweepList.push(item),
+            onCollectionUpdated: () => {
+              if (!resolved) {
+                resolved = true;
+                resolve(sweepList);
+              }
+            }
+          });
+          setTimeout(() => { if (!resolved) { resolved = true; resolve(sweepList); } }, 3000);
+        });
+      } catch (error) {
+        console.error("Error getting sweeps:", error);
+        return [];
+      }
+    },
+
+    /**
+     * Create visual path with waypoint markers
+     * @param {Array} waypoints - Array of {x, y, z} coordinates
+     * @param {Object} options - Path options (color, animated, etc.)
+     * @returns {Array} - Array of created marker IDs
+     */
+    createPathMarkers: async (waypoints, options = {}) => {
+      if (!sdkRef.current || !waypoints || waypoints.length === 0) return [];
+      
+      const {
+        color = { r: 0, g: 0.8, b: 0.3 }, // Green by default
+        markerLabel = "●",
+        showArrows = true
+      } = options;
+
+      try {
+        const markerIds = [];
+        
+        for (let i = 0; i < waypoints.length; i++) {
+          const wp = waypoints[i];
+          const isLast = i === waypoints.length - 1;
+          const isFirst = i === 0;
+          
+          // Create marker at each waypoint
+          const markerDesc = {
+            label: isLast ? "🎯" : (isFirst ? "📍" : (showArrows ? "→" : "•")),
+            description: isLast ? "Destinazione" : (isFirst ? "Partenza" : `Punto ${i}`),
+            anchorPosition: { x: wp.x, y: wp.y, z: wp.z },
+            stemVector: { x: 0, y: 0.1, z: 0 },
+            color: isLast ? { r: 1, g: 0, b: 0 } : (isFirst ? { r: 0, g: 0, b: 1 } : color)
+          };
+
+          try {
+            const [markerId] = await sdkRef.current.Mattertag.add(markerDesc);
+            markerIds.push(markerId);
+          } catch (e) {
+            console.log("Could not add path marker:", e);
+          }
+        }
+
+        return markerIds;
+      } catch (error) {
+        console.error("Create path markers error:", error);
+        return [];
+      }
+    },
+
+    /**
+     * Remove path markers
+     * @param {Array} markerIds - Array of marker IDs to remove
+     */
+    removePathMarkers: async (markerIds) => {
+      if (!sdkRef.current || !markerIds) return;
+      
+      for (const id of markerIds) {
+        try {
+          await sdkRef.current.Mattertag.remove(id);
+        } catch (e) {
+          // Ignore removal errors
+        }
+      }
+    },
+
+    /**
+     * Calculate path between two points using sweeps
+     * Returns array of waypoint positions
+     */
+    calculatePath: async (startPos, endPos) => {
+      if (!sdkRef.current) return [];
+      
+      try {
+        // Get all sweeps
+        const sweeps = await new Promise((resolve) => {
+          const sweepList = [];
+          let resolved = false;
+          sdkRef.current.Sweep.data.subscribe({
+            onAdded: (index, item) => sweepList.push(item),
+            onCollectionUpdated: () => {
+              if (!resolved) {
+                resolved = true;
+                resolve(sweepList);
+              }
+            }
+          });
+          setTimeout(() => { if (!resolved) { resolved = true; resolve(sweepList); } }, 3000);
+        });
+
+        if (sweeps.length === 0) return [];
+
+        // Find nearest sweep to start
+        let startSweep = null;
+        let minStartDist = Infinity;
+        for (const s of sweeps) {
+          if (!s.position) continue;
+          const d = Math.sqrt(
+            Math.pow(s.position.x - startPos.x, 2) +
+            Math.pow(s.position.y - startPos.y, 2) +
+            Math.pow(s.position.z - startPos.z, 2)
+          );
+          if (d < minStartDist) {
+            minStartDist = d;
+            startSweep = s;
+          }
+        }
+
+        // Find nearest sweep to end
+        let endSweep = null;
+        let minEndDist = Infinity;
+        for (const s of sweeps) {
+          if (!s.position) continue;
+          const d = Math.sqrt(
+            Math.pow(s.position.x - endPos.x, 2) +
+            Math.pow(s.position.y - endPos.y, 2) +
+            Math.pow(s.position.z - endPos.z, 2)
+          );
+          if (d < minEndDist) {
+            minEndDist = d;
+            endSweep = s;
+          }
+        }
+
+        if (!startSweep || !endSweep) return [];
+
+        // Simple path: find sweeps along the line between start and end
+        // Sort sweeps by distance from start along the path direction
+        const pathDir = {
+          x: endSweep.position.x - startSweep.position.x,
+          y: endSweep.position.y - startSweep.position.y,
+          z: endSweep.position.z - startSweep.position.z
+        };
+        const pathLen = Math.sqrt(pathDir.x*pathDir.x + pathDir.y*pathDir.y + pathDir.z*pathDir.z);
+        
+        if (pathLen < 0.5) {
+          // Start and end are very close
+          return [startSweep.position, endSweep.position];
+        }
+
+        // Find sweeps near the path line
+        const pathSweeps = sweeps.filter(s => {
+          if (!s.position) return false;
+          
+          // Calculate distance from sweep to the path line
+          const toSweep = {
+            x: s.position.x - startSweep.position.x,
+            y: s.position.y - startSweep.position.y,
+            z: s.position.z - startSweep.position.z
+          };
+          
+          // Project onto path
+          const proj = (toSweep.x * pathDir.x + toSweep.y * pathDir.y + toSweep.z * pathDir.z) / (pathLen * pathLen);
+          
+          // Only include sweeps along the path (not behind or beyond)
+          if (proj < -0.1 || proj > 1.1) return false;
+          
+          // Calculate perpendicular distance
+          const perpX = toSweep.x - proj * pathDir.x;
+          const perpY = toSweep.y - proj * pathDir.y;
+          const perpZ = toSweep.z - proj * pathDir.z;
+          const perpDist = Math.sqrt(perpX*perpX + perpY*perpY + perpZ*perpZ);
+          
+          // Include if within 3 meters of path
+          return perpDist < 3;
+        });
+
+        // Sort by projection along path
+        pathSweeps.sort((a, b) => {
+          const projA = ((a.position.x - startSweep.position.x) * pathDir.x + 
+                        (a.position.y - startSweep.position.y) * pathDir.y + 
+                        (a.position.z - startSweep.position.z) * pathDir.z) / pathLen;
+          const projB = ((b.position.x - startSweep.position.x) * pathDir.x + 
+                        (b.position.y - startSweep.position.y) * pathDir.y + 
+                        (b.position.z - startSweep.position.z) * pathDir.z) / pathLen;
+          return projA - projB;
+        });
+
+        // Sample every N sweeps to avoid too many markers
+        const maxWaypoints = 8;
+        const step = Math.max(1, Math.floor(pathSweeps.length / maxWaypoints));
+        const waypoints = [];
+        
+        waypoints.push(startSweep.position);
+        for (let i = step; i < pathSweeps.length - step; i += step) {
+          waypoints.push(pathSweeps[i].position);
+        }
+        waypoints.push(endSweep.position);
+
+        return waypoints;
+      } catch (error) {
+        console.error("Calculate path error:", error);
+        return [];
+      }
+    },
+
+    /**
+     * Navigate with visual path
+     * Shows waypoint markers and then moves to destination
+     */
+    navigateWithPath: async (targetPosition, options = {}) => {
+      if (!sdkRef.current) return { success: false, markerIds: [] };
+      
+      const { showPath = true, autoNavigate = true, pathDuration = 5000 } = options;
+      
+      try {
+        // Get current position
+        const pose = await sdkRef.current.Camera.getPose();
+        if (!pose || !pose.position) {
+          return { success: false, markerIds: [] };
+        }
+
+        let markerIds = [];
+
+        if (showPath) {
+          // Calculate path
+          const waypoints = await ref.current.calculatePath(pose.position, targetPosition);
+          
+          if (waypoints.length > 0) {
+            // Create visual markers
+            markerIds = await ref.current.createPathMarkers(waypoints, {
+              showArrows: true,
+              color: { r: 0, g: 0.8, b: 0.2 }
+            });
+            
+            toast.info(`🗺️ Percorso: ${waypoints.length} punti`, { duration: 3000 });
+          }
+        }
+
+        if (autoNavigate) {
+          // Wait a moment for user to see the path
+          if (showPath && markerIds.length > 0) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+
+          // Move to destination
+          await sdkRef.current.Camera.moveTo({
+            position: targetPosition,
+            transition: sdkRef.current.Camera.Transition?.FLY || "FLY",
+            transitionTime: 2000
+          });
+        }
+
+        // Schedule marker removal
+        if (markerIds.length > 0) {
+          setTimeout(() => {
+            ref.current.removePathMarkers(markerIds);
+          }, pathDuration);
+        }
+
+        return { success: true, markerIds };
+      } catch (error) {
+        console.error("Navigate with path error:", error);
+        return { success: false, markerIds: [] };
+      }
+    },
+
+    /**
      * Move to a specific position in the model
      */
     moveTo: async (position, rotation) => {
