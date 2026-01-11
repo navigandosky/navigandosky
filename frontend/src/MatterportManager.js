@@ -1042,9 +1042,30 @@ export default function MatterportManager() {
       position: poi.position
     });
     
-    toast.info("🚶 Navigazione verso il POI...");
+    toast.info("🗺️ Calcolo percorso...");
     
-    // Try multiple navigation methods in order of preference
+    // Try navigation with visual path if we have position
+    if (poi.position && matterportRef.current.navigateWithPath) {
+      try {
+        const result = await matterportRef.current.navigateWithPath(
+          poi.position,
+          { 
+            showPath: true, 
+            autoNavigate: true,
+            pathDuration: 8000 // Path markers visible for 8 seconds
+          }
+        );
+        
+        if (result.success) {
+          toast.success("✅ Destinazione raggiunta!");
+          return;
+        }
+      } catch (error) {
+        console.log("navigateWithPath failed:", error.message);
+      }
+    }
+    
+    // Fallback: Try multiple navigation methods in order of preference
     
     // Method 1: Try navigateToTag for imported Matterport tags
     if (poi.matterport_tag_id) {
@@ -1078,27 +1099,10 @@ export default function MatterportManager() {
       }
     }
     
-    // Method 3: Navigate to position using Camera.pose
+    // Method 3: Navigate to position using Camera + nearest sweep
     if (poi.position) {
       try {
         console.log("Trying Camera navigation to position:", poi.position);
-        
-        // Get current pose and modify to look at POI position
-        const currentPose = await sdk.Camera.getPose();
-        console.log("Current pose:", currentPose);
-        
-        // Set camera to look at the POI position
-        const targetPose = {
-          position: {
-            x: poi.position.x,
-            y: poi.position.y + 1.5, // Offset to be at eye level
-            z: poi.position.z
-          },
-          rotation: currentPose.rotation,
-          mode: sdk.Camera.Mode.INSIDE
-        };
-        
-        await sdk.Camera.setRotation({ x: -15, y: 0 }, { transitionTime: 500 });
         
         // Try to move to nearest sweep
         const sweeps = await getSweepsFromSDK(sdk);
