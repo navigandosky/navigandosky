@@ -1606,33 +1606,104 @@ export default function MatterportManager() {
                               {index + 1}
                             </div>
                             
-                            {/* SmartThings LED indicator + Power button */}
-                            {deviceInfo && deviceInfo.hasSwitch && (
+                            {/* SmartThings LED indicator + Power button + Sensor values */}
+                            {deviceInfo && (
                               <div className="flex items-center gap-1">
-                                <div 
-                                  className={`w-3 h-3 rounded-full ${
-                                    deviceInfo.state === 'on' 
-                                      ? 'bg-red-500 shadow-[0_0_8px_2px_rgba(239,68,68,0.6)] animate-pulse' 
-                                      : 'bg-slate-600'
-                                  }`}
-                                  title={`${deviceInfo.device.name}: ${deviceInfo.state === 'on' ? 'ACCESO' : 'SPENTO'}`}
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className={`h-5 w-5 ${
-                                    deviceInfo.state === 'on' 
-                                      ? 'text-red-400 hover:bg-red-500/20' 
-                                      : 'text-slate-400 hover:bg-slate-500/20'
-                                  }`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleSmartThingsDevice(deviceInfo.device.id, deviceInfo.state);
-                                  }}
-                                  title={deviceInfo.state === 'on' ? 'Spegni' : 'Accendi'}
-                                >
-                                  <Power size={10} />
-                                </Button>
+                                {/* LED for switch state */}
+                                {deviceInfo.hasSwitch && (
+                                  <>
+                                    <div 
+                                      className={`w-3 h-3 rounded-full ${
+                                        deviceInfo.state === 'on' 
+                                          ? 'bg-red-500 shadow-[0_0_8px_2px_rgba(239,68,68,0.6)] animate-pulse' 
+                                          : 'bg-slate-600'
+                                      }`}
+                                      title={`${deviceInfo.device.name}: ${deviceInfo.state === 'on' ? 'ACCESO' : 'SPENTO'}`}
+                                    />
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className={`h-5 w-5 ${
+                                        deviceInfo.state === 'on' 
+                                          ? 'text-red-400 hover:bg-red-500/20' 
+                                          : 'text-slate-400 hover:bg-slate-500/20'
+                                      }`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleSmartThingsDevice(deviceInfo.device.id, deviceInfo.state);
+                                      }}
+                                      title={deviceInfo.state === 'on' ? 'Spegni' : 'Accendi'}
+                                    >
+                                      <Power size={10} />
+                                    </Button>
+                                  </>
+                                )}
+                                
+                                {/* Temperature sensor */}
+                                {deviceInfo.hasTemperature && (
+                                  <span 
+                                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                      deviceInfo.sensors.temperature > 25 
+                                        ? 'bg-orange-500/30 text-orange-300' 
+                                        : deviceInfo.sensors.temperature < 18 
+                                          ? 'bg-blue-500/30 text-blue-300' 
+                                          : 'bg-green-500/30 text-green-300'
+                                    }`}
+                                    title="Temperatura"
+                                  >
+                                    🌡️{deviceInfo.sensors.temperature}°
+                                  </span>
+                                )}
+                                
+                                {/* Humidity sensor */}
+                                {deviceInfo.hasHumidity && (
+                                  <span 
+                                    className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-cyan-500/30 text-cyan-300"
+                                    title="Umidità"
+                                  >
+                                    💧{deviceInfo.sensors.humidity}%
+                                  </span>
+                                )}
+                                
+                                {/* Power consumption */}
+                                {deviceInfo.hasPower && (
+                                  <span 
+                                    className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-yellow-500/30 text-yellow-300"
+                                    title="Consumo"
+                                  >
+                                    ⚡{deviceInfo.sensors.power}W
+                                  </span>
+                                )}
+                                
+                                {/* Battery level */}
+                                {deviceInfo.hasBattery && (
+                                  <span 
+                                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                      deviceInfo.sensors.battery > 50 
+                                        ? 'bg-green-500/30 text-green-300' 
+                                        : deviceInfo.sensors.battery > 20 
+                                          ? 'bg-yellow-500/30 text-yellow-300' 
+                                          : 'bg-red-500/30 text-red-300'
+                                    }`}
+                                    title="Batteria"
+                                  >
+                                    🔋{deviceInfo.sensors.battery}%
+                                  </span>
+                                )}
+                                
+                                {/* Motion sensor */}
+                                {deviceInfo.hasMotion && (
+                                  <span 
+                                    className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                      deviceInfo.sensors.motion === 'active' 
+                                        ? 'bg-purple-500/30 text-purple-300 animate-pulse' 
+                                        : 'bg-slate-500/30 text-slate-400'
+                                    }`}
+                                    title="Movimento"
+                                  >
+                                    {deviceInfo.sensors.motion === 'active' ? '🚶' : '◯'}
+                                  </span>
+                                )}
                               </div>
                             )}
                             
