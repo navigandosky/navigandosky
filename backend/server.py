@@ -605,6 +605,9 @@ class MatterportConfig(BaseModel):
     space_id: str
     sdk_key: Optional[str] = None
     enabled: bool = True
+    # Matterport Cloud API credentials (for persistent tags)
+    api_client_id: Optional[str] = None
+    api_client_secret: Optional[str] = None
 
 
 class SmartThingsConfig(BaseModel):
