@@ -923,6 +923,77 @@ export default function PropertyConfig() {
               )}
             </CardContent>
           </Card>
+
+          {/* Matterport Cloud API - Per POI persistenti */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Cloud className="h-5 w-5 text-blue-600" />
+                Matterport Cloud API
+              </CardTitle>
+              <CardDescription>
+                Configura le credenziali API per sincronizzare i POI su my.matterport.com
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+                <p className="font-medium text-blue-800 mb-2">Come ottenere le credenziali:</p>
+                <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                  <li>Vai su <a href="https://my.matterport.com" target="_blank" rel="noopener noreferrer" className="underline">my.matterport.com</a></li>
+                  <li>Account Settings → Developer Tools → API Applications</li>
+                  <li>Crea nuova applicazione "Machine-to-Machine"</li>
+                  <li>Copia Client ID e Client Secret</li>
+                </ol>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="matterport-clientid">Client ID</Label>
+                  <PasswordInput
+                    id="matterport-clientid"
+                    value={formData.matterport?.api_client_id}
+                    onChange={(e) => updateFormData("matterport.api_client_id", e.target.value)}
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="matterport-clientsecret">Client Secret</Label>
+                  <PasswordInput
+                    id="matterport-clientsecret"
+                    value={formData.matterport?.api_client_secret}
+                    onChange={(e) => updateFormData("matterport.api_client_secret", e.target.value)}
+                    placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  />
+                </div>
+              </div>
+
+              {formData.matterport?.api_client_id && formData.matterport?.api_client_secret && (
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        const response = await axios.post(`${API}/matterport/cloud/test-connection`, {
+                          client_id: formData.matterport.api_client_id,
+                          client_secret: formData.matterport.api_client_secret
+                        });
+                        if (response.data.connected) {
+                          toast.success(response.data.message);
+                        } else {
+                          toast.error(response.data.error);
+                        }
+                      } catch (error) {
+                        toast.error("Errore test connessione");
+                      }
+                    }}
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Testa Connessione
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
