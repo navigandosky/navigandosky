@@ -161,6 +161,121 @@ const MatterportViewer = forwardRef(({
     },
 
     /**
+     * Update a Mattertag's label and color based on device state
+     * @param {string} tagId - The Mattertag ID
+     * @param {Object} updateData - { label, description, color }
+     */
+    updateTag: async (tagId, updateData) => {
+      if (!sdkRef.current || !tagId) return false;
+      try {
+        // Matterport SDK allows updating certain properties
+        if (updateData.label !== undefined) {
+          await sdkRef.current.Mattertag.editBillboard(tagId, {
+            label: updateData.label,
+            description: updateData.description || ""
+          });
+        }
+        if (updateData.color) {
+          await sdkRef.current.Mattertag.editColor(tagId, updateData.color);
+        }
+        return true;
+      } catch (error) {
+        console.error("Update tag error:", error);
+        return false;
+      }
+    },
+
+    /**
+     * Create or update status overlay tags for POIs with device states
+     * @param {Array} pois - Array of POIs with device info
+     * @param {Object} deviceStates - { deviceId: "on"|"off" }
+     * @param {Object} sensorValues - { deviceId: { temperature: 22.5, humidity: 45 } }
+     * @returns {Array} - IDs of created status tags
+     */
+    createStatusOverlays: async (pois, deviceStates, sensorValues = {}) => {
+      if (!sdkRef.current) return [];
+      
+      const statusTagIds = [];
+      
+      for (const poi of pois) {
+        if (!poi.smartthings_device_id || !poi.position) continue;
+        
+        const deviceId = poi.smartthings_device_id;
+        const state = deviceStates[deviceId];
+        const sensors = sensorValues[deviceId] || {};
+        
+        // Build status label
+        let statusLabel = "";
+        let statusColor = { r: 0.5, g: 0.5, b: 0.5 }; // Gray default
+        
+        if (state === "on") {
+          statusLabel = "🔴 ON";
+          statusColor = { r: 1, g: 0.2, b: 0.2 }; // Red
+        } else if (state === "off") {
+          statusLabel = "⚫ OFF";
+          statusColor = { r: 0.3, g: 0.3, b: 0.3 }; // Dark gray
+        }
+        
+        // Add sensor values if available
+        if (sensors.temperature !== undefined) {
+          statusLabel = `🌡️ ${sensors.temperature}°C`;
+          // Color based on temperature
+          if (sensors.temperature > 25) {
+            statusColor = { r: 1, g: 0.4, b: 0 }; // Orange/hot
+          } else if (sensors.temperature < 18) {
+            statusColor = { r: 0.2, g: 0.6, b: 1 }; // Blue/cold
+          } else {
+            statusColor = { r: 0.2, g: 0.8, b: 0.2 }; // Green/comfortable
+          }
+        }
+        
+        if (sensors.humidity !== undefined) {
+          statusLabel += ` 💧${sensors.humidity}%`;
+        }
+        
+        if (sensors.power !== undefined) {
+          statusLabel += ` ⚡${sensors.power}W`;
+        }
+        
+        if (!statusLabel) continue;
+        
+        try {
+          // Create a small status tag slightly above the POI
+          const [statusTagId] = await sdkRef.current.Mattertag.add({
+            label: statusLabel,
+            description: "",
+            anchorPosition: {
+              x: poi.position.x,
+              y: poi.position.y + 0.3, // Slightly above
+              z: poi.position.z
+            },
+            stemVector: { x: 0, y: 0.05, z: 0 },
+            color: statusColor
+          });
+          statusTagIds.push(statusTagId);
+        } catch (e) {
+          console.log("Could not create status tag for", poi.id);
+        }
+      }
+      
+      return statusTagIds;
+    },
+
+    /**
+     * Remove status overlay tags
+     */
+    removeStatusOverlays: async (tagIds) => {
+      if (!sdkRef.current || !tagIds) return;
+      for (const id of tagIds) {
+        try {
+          await sdkRef.current.Mattertag.remove(id);
+        } catch (e) {
+          // Ignore
+        }
+      }
+    },
+
+    /**
      * Get the raw SDK instance for advanced usage
      */
     getSdk: () => sdkRef.current,
