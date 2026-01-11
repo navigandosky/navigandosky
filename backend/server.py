@@ -848,6 +848,67 @@ class AudioGenerationRequest(BaseModel):
     model: str = "tts-1"  # tts-1 or tts-1-hd
 
 
+# ============== SENSOR HISTORY MODELS ==============
+
+class SensorReading(BaseModel):
+    """Single sensor reading"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    device_id: str
+    device_name: Optional[str] = None
+    poi_id: Optional[str] = None  # Link to POI if available
+    sensor_type: str  # "temperature", "humidity", "power", "energy", "battery", "motion", "contact"
+    value: float
+    unit: str = ""  # "C", "%", "W", "kWh", etc.
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    user_id: str = DEFAULT_USER_ID
+
+
+class SensorReadingCreate(BaseModel):
+    """Create a sensor reading"""
+    device_id: str
+    device_name: Optional[str] = None
+    poi_id: Optional[str] = None
+    sensor_type: str
+    value: float
+    unit: str = ""
+
+
+class SensorHistoryQuery(BaseModel):
+    """Query parameters for sensor history"""
+    device_id: Optional[str] = None
+    poi_id: Optional[str] = None
+    sensor_type: Optional[str] = None  # "temperature", "humidity", etc.
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    interval: str = "hour"  # "minute", "hour", "day", "week", "month"
+    limit: int = 1000
+
+
+class SensorStats(BaseModel):
+    """Aggregated sensor statistics"""
+    sensor_type: str
+    device_id: str
+    device_name: Optional[str] = None
+    min_value: float
+    max_value: float
+    avg_value: float
+    count: int
+    unit: str
+    period_start: datetime
+    period_end: datetime
+
+
+class SensorReport(BaseModel):
+    """Complete sensor report with history and stats"""
+    device_id: str
+    device_name: Optional[str] = None
+    sensor_type: str
+    unit: str
+    current_value: Optional[float] = None
+    stats: Optional[SensorStats] = None
+    readings: List[Dict[str, Any]] = []  # Time series data
+
+
 # ============== ROUTES ==============
 
 @api_router.get("/")
