@@ -3392,6 +3392,125 @@ async def clear_smartthings_cache():
     return {"status": "cache cleared"}
 
 
+@api_router.get("/smartthings/devices-with-sensors")
+async def get_devices_with_sensor_values():
+    """
+    Get all SmartThings devices with their current states AND sensor values.
+    Returns switch states (on/off) and sensor readings (temperature, humidity, power).
+    """
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings token not configured")
+    
+    # Check cache first
+    cache_key = "devices_with_sensors"
+    cached = smartthings_cache.get(cache_key)
+    if cached:
+        return cached
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Get all devices first
+            response = await client.get(
+                f"{SMARTTHINGS_API_URL}/devices",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            response.raise_for_status()
+            devices = response.json().get("items", [])
+            
+            result = {
+                "devices": [],
+                "states": {},      # deviceId -> "on"/"off"
+                "sensors": {},     # deviceId -> { temperature, humidity, power, etc }
+                "count": len(devices)
+            }
+            
+            # Get status for each device (limited batch to avoid rate limits)
+            for device in devices[:25]:  # Limit to 25 devices
+                device_id = device.get("deviceId")
+                device_info = {
+                    "id": device_id,
+                    "name": device.get("name") or device.get("label", "Dispositivo"),
+                    "type": device.get("deviceTypeName", ""),
+                    "capabilities": [cap.get("id") for cap in device.get("components", [{}])[0].get("capabilities", [])]
+                }
+                result["devices"].append(device_info)
+                
+                try:
+                    # Get device status
+                    status_response = await client.get(
+                        f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
+                        headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+                    )
+                    if status_response.status_code == 200:
+                        status = status_response.json()
+                        main_component = status.get("components", {}).get("main", {})
+                        
+                        # Extract switch state
+                        switch_value = main_component.get("switch", {}).get("switch", {}).get("value")
+                        if switch_value:
+                            result["states"][device_id] = switch_value
+                        
+                        # Extract sensor values
+                        sensors = {}
+                        
+                        # Temperature
+                        temp = main_component.get("temperatureMeasurement", {}).get("temperature", {})
+                        if temp.get("value") is not None:
+                            sensors["temperature"] = temp.get("value")
+                            sensors["temperatureUnit"] = temp.get("unit", "C")
+                        
+                        # Humidity
+                        humidity = main_component.get("relativeHumidityMeasurement", {}).get("humidity", {})
+                        if humidity.get("value") is not None:
+                            sensors["humidity"] = humidity.get("value")
+                        
+                        # Power/Energy
+                        power = main_component.get("powerMeter", {}).get("power", {})
+                        if power.get("value") is not None:
+                            sensors["power"] = power.get("value")
+                        
+                        energy = main_component.get("energyMeter", {}).get("energy", {})
+                        if energy.get("value") is not None:
+                            sensors["energy"] = energy.get("value")
+                        
+                        # Battery
+                        battery = main_component.get("battery", {}).get("battery", {})
+                        if battery.get("value") is not None:
+                            sensors["battery"] = battery.get("value")
+                        
+                        # Motion
+                        motion = main_component.get("motionSensor", {}).get("motion", {})
+                        if motion.get("value") is not None:
+                            sensors["motion"] = motion.get("value")  # "active" or "inactive"
+                        
+                        # Contact (door/window)
+                        contact = main_component.get("contactSensor", {}).get("contact", {})
+                        if contact.get("value") is not None:
+                            sensors["contact"] = contact.get("value")  # "open" or "closed"
+                        
+                        # Illuminance
+                        illuminance = main_component.get("illuminanceMeasurement", {}).get("illuminance", {})
+                        if illuminance.get("value") is not None:
+                            sensors["illuminance"] = illuminance.get("value")
+                        
+                        if sensors:
+                            result["sensors"][device_id] = sensors
+                
+                except Exception as e:
+                    logger.debug(f"Could not get status for device {device_id}: {e}")
+                    continue
+            
+            # Cache for 60 seconds
+            smartthings_cache._cache[cache_key] = result
+            smartthings_cache._timestamps[cache_key] = time.time()
+            
+            return result
+            
+    except httpx.HTTPError as e:
+        logger.error(f"SmartThings devices with sensors error: {e}")
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+
+
 @api_router.post("/smartthings/device/{device_id}/switch/{action}")
 async def smartthings_switch_control(device_id: str, action: str):
     """Turn on/off a SmartThings switch device"""
