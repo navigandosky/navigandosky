@@ -4752,6 +4752,422 @@ async def get_system_status():
     return status
 
 
+# ============== SENSOR HISTORY ENDPOINTS ==============
+
+@api_router.post("/sensors/readings")
+async def store_sensor_reading(reading: SensorReadingCreate):
+    """Store a single sensor reading"""
+    doc = SensorReading(**reading.model_dump()).model_dump()
+    doc["timestamp"] = doc["timestamp"].isoformat()
+    await db.sensor_readings.insert_one(doc)
+    return {"status": "stored", "id": doc["id"]}
+
+
+@api_router.post("/sensors/readings/batch")
+async def store_sensor_readings_batch(readings: List[SensorReadingCreate]):
+    """Store multiple sensor readings at once"""
+    docs = []
+    for r in readings:
+        doc = SensorReading(**r.model_dump()).model_dump()
+        doc["timestamp"] = doc["timestamp"].isoformat()
+        docs.append(doc)
+    
+    if docs:
+        await db.sensor_readings.insert_many(docs)
+    return {"status": "stored", "count": len(docs)}
+
+
+@api_router.post("/sensors/collect")
+async def collect_and_store_sensor_data():
+    """
+    Collect current sensor values from SmartThings and store them.
+    This endpoint should be called periodically (e.g., every 5 minutes via cron).
+    """
+    if not SMARTTHINGS_TOKEN:
+        raise HTTPException(status_code=500, detail="SmartThings not configured")
+    
+    stored_count = 0
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Get all devices
+            response = await client.get(
+                f"{SMARTTHINGS_API_URL}/devices",
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+            )
+            response.raise_for_status()
+            devices = response.json().get("items", [])
+            
+            readings_to_store = []
+            
+            for device in devices[:25]:
+                device_id = device.get("deviceId")
+                device_name = device.get("name") or device.get("label", "")
+                
+                try:
+                    status_response = await client.get(
+                        f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
+                        headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+                    )
+                    if status_response.status_code != 200:
+                        continue
+                        
+                    status = status_response.json()
+                    main = status.get("components", {}).get("main", {})
+                    
+                    # Temperature
+                    temp = main.get("temperatureMeasurement", {}).get("temperature", {})
+                    if temp.get("value") is not None:
+                        readings_to_store.append({
+                            "device_id": device_id,
+                            "device_name": device_name,
+                            "sensor_type": "temperature",
+                            "value": float(temp.get("value")),
+                            "unit": temp.get("unit", "C")
+                        })
+                    
+                    # Humidity
+                    humidity = main.get("relativeHumidityMeasurement", {}).get("humidity", {})
+                    if humidity.get("value") is not None:
+                        readings_to_store.append({
+                            "device_id": device_id,
+                            "device_name": device_name,
+                            "sensor_type": "humidity",
+                            "value": float(humidity.get("value")),
+                            "unit": "%"
+                        })
+                    
+                    # Power
+                    power = main.get("powerMeter", {}).get("power", {})
+                    if power.get("value") is not None:
+                        readings_to_store.append({
+                            "device_id": device_id,
+                            "device_name": device_name,
+                            "sensor_type": "power",
+                            "value": float(power.get("value")),
+                            "unit": "W"
+                        })
+                    
+                    # Energy
+                    energy = main.get("energyMeter", {}).get("energy", {})
+                    if energy.get("value") is not None:
+                        readings_to_store.append({
+                            "device_id": device_id,
+                            "device_name": device_name,
+                            "sensor_type": "energy",
+                            "value": float(energy.get("value")),
+                            "unit": "kWh"
+                        })
+                    
+                    # Battery
+                    battery = main.get("battery", {}).get("battery", {})
+                    if battery.get("value") is not None:
+                        readings_to_store.append({
+                            "device_id": device_id,
+                            "device_name": device_name,
+                            "sensor_type": "battery",
+                            "value": float(battery.get("value")),
+                            "unit": "%"
+                        })
+                        
+                except Exception as e:
+                    logger.debug(f"Error getting status for {device_id}: {e}")
+                    continue
+            
+            # Store all readings
+            if readings_to_store:
+                docs = []
+                for r in readings_to_store:
+                    doc = SensorReading(**r).model_dump()
+                    doc["timestamp"] = doc["timestamp"].isoformat()
+                    docs.append(doc)
+                await db.sensor_readings.insert_many(docs)
+                stored_count = len(docs)
+                
+    except Exception as e:
+        logger.error(f"Error collecting sensor data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    return {"status": "collected", "readings_stored": stored_count}
+
+
+@api_router.get("/sensors/history")
+async def get_sensor_history(
+    device_id: Optional[str] = None,
+    sensor_type: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = 500
+):
+    """Get sensor reading history with optional filters"""
+    query = {"user_id": DEFAULT_USER_ID}
+    
+    if device_id:
+        query["device_id"] = device_id
+    if sensor_type:
+        query["sensor_type"] = sensor_type
+    
+    if start_date or end_date:
+        query["timestamp"] = {}
+        if start_date:
+            query["timestamp"]["$gte"] = start_date
+        if end_date:
+            query["timestamp"]["$lte"] = end_date
+    
+    readings = await db.sensor_readings.find(
+        query, {"_id": 0}
+    ).sort("timestamp", -1).limit(limit).to_list(limit)
+    
+    return {"readings": readings, "count": len(readings)}
+
+
+@api_router.get("/sensors/history/{device_id}")
+async def get_device_sensor_history(
+    device_id: str,
+    sensor_type: Optional[str] = None,
+    hours: int = 24,
+    limit: int = 500
+):
+    """Get sensor history for a specific device"""
+    start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    
+    query = {
+        "device_id": device_id,
+        "user_id": DEFAULT_USER_ID,
+        "timestamp": {"$gte": start_time}
+    }
+    
+    if sensor_type:
+        query["sensor_type"] = sensor_type
+    
+    readings = await db.sensor_readings.find(
+        query, {"_id": 0}
+    ).sort("timestamp", 1).limit(limit).to_list(limit)
+    
+    return {"device_id": device_id, "readings": readings, "count": len(readings)}
+
+
+@api_router.get("/sensors/stats/{device_id}")
+async def get_sensor_stats(
+    device_id: str,
+    sensor_type: str = "temperature",
+    hours: int = 24
+):
+    """Get aggregated statistics for a sensor"""
+    start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    
+    pipeline = [
+        {
+            "$match": {
+                "device_id": device_id,
+                "sensor_type": sensor_type,
+                "user_id": DEFAULT_USER_ID,
+                "timestamp": {"$gte": start_time}
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "device_id": "$device_id",
+                    "sensor_type": "$sensor_type"
+                },
+                "min_value": {"$min": "$value"},
+                "max_value": {"$max": "$value"},
+                "avg_value": {"$avg": "$value"},
+                "count": {"$sum": 1},
+                "unit": {"$first": "$unit"},
+                "device_name": {"$first": "$device_name"},
+                "first_reading": {"$min": "$timestamp"},
+                "last_reading": {"$max": "$timestamp"}
+            }
+        }
+    ]
+    
+    results = await db.sensor_readings.aggregate(pipeline).to_list(1)
+    
+    if not results:
+        return {
+            "device_id": device_id,
+            "sensor_type": sensor_type,
+            "message": "Nessun dato disponibile",
+            "stats": None
+        }
+    
+    r = results[0]
+    return {
+        "device_id": device_id,
+        "sensor_type": sensor_type,
+        "device_name": r.get("device_name"),
+        "unit": r.get("unit", ""),
+        "stats": {
+            "min": round(r["min_value"], 2),
+            "max": round(r["max_value"], 2),
+            "avg": round(r["avg_value"], 2),
+            "count": r["count"],
+            "period_start": r["first_reading"],
+            "period_end": r["last_reading"]
+        }
+    }
+
+
+@api_router.get("/sensors/report")
+async def get_sensors_report(hours: int = 24):
+    """
+    Get a comprehensive report of all sensors with stats and recent readings.
+    Perfect for dashboard display.
+    """
+    start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    
+    # Get unique device/sensor combinations
+    pipeline = [
+        {
+            "$match": {
+                "user_id": DEFAULT_USER_ID,
+                "timestamp": {"$gte": start_time}
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "device_id": "$device_id",
+                    "sensor_type": "$sensor_type"
+                },
+                "device_name": {"$first": "$device_name"},
+                "unit": {"$first": "$unit"},
+                "min_value": {"$min": "$value"},
+                "max_value": {"$max": "$value"},
+                "avg_value": {"$avg": "$value"},
+                "last_value": {"$last": "$value"},
+                "count": {"$sum": 1},
+                "last_timestamp": {"$max": "$timestamp"}
+            }
+        },
+        {"$sort": {"_id.sensor_type": 1, "_id.device_id": 1}}
+    ]
+    
+    results = await db.sensor_readings.aggregate(pipeline).to_list(100)
+    
+    report = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "period_hours": hours,
+        "sensors": []
+    }
+    
+    for r in results:
+        sensor_data = {
+            "device_id": r["_id"]["device_id"],
+            "device_name": r.get("device_name", ""),
+            "sensor_type": r["_id"]["sensor_type"],
+            "unit": r.get("unit", ""),
+            "current_value": round(r["last_value"], 2) if r["last_value"] else None,
+            "min": round(r["min_value"], 2),
+            "max": round(r["max_value"], 2),
+            "avg": round(r["avg_value"], 2),
+            "readings_count": r["count"],
+            "last_update": r["last_timestamp"]
+        }
+        report["sensors"].append(sensor_data)
+    
+    return report
+
+
+@api_router.get("/sensors/chart-data/{device_id}")
+async def get_sensor_chart_data(
+    device_id: str,
+    sensor_type: str = "temperature",
+    hours: int = 24,
+    interval: str = "hour"  # minute, hour, day
+):
+    """
+    Get sensor data formatted for charts.
+    Aggregates data by interval for smoother visualization.
+    """
+    start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    
+    # Define date format based on interval
+    if interval == "minute":
+        date_format = "%Y-%m-%dT%H:%M"
+    elif interval == "hour":
+        date_format = "%Y-%m-%dT%H:00"
+    else:  # day
+        date_format = "%Y-%m-%d"
+    
+    pipeline = [
+        {
+            "$match": {
+                "device_id": device_id,
+                "sensor_type": sensor_type,
+                "user_id": DEFAULT_USER_ID,
+                "timestamp": {"$gte": start_time.isoformat()}
+            }
+        },
+        {
+            "$addFields": {
+                "timestamp_date": {
+                    "$dateFromString": {
+                        "dateString": "$timestamp"
+                    }
+                }
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "$dateToString": {
+                        "format": date_format,
+                        "date": "$timestamp_date"
+                    }
+                },
+                "avg_value": {"$avg": "$value"},
+                "min_value": {"$min": "$value"},
+                "max_value": {"$max": "$value"},
+                "count": {"$sum": 1}
+            }
+        },
+        {"$sort": {"_id": 1}}
+    ]
+    
+    results = await db.sensor_readings.aggregate(pipeline).to_list(500)
+    
+    # Format for chart.js or similar
+    chart_data = {
+        "device_id": device_id,
+        "sensor_type": sensor_type,
+        "interval": interval,
+        "hours": hours,
+        "labels": [],
+        "datasets": {
+            "avg": [],
+            "min": [],
+            "max": []
+        }
+    }
+    
+    for r in results:
+        chart_data["labels"].append(r["_id"])
+        chart_data["datasets"]["avg"].append(round(r["avg_value"], 2))
+        chart_data["datasets"]["min"].append(round(r["min_value"], 2))
+        chart_data["datasets"]["max"].append(round(r["max_value"], 2))
+    
+    return chart_data
+
+
+@api_router.delete("/sensors/history/cleanup")
+async def cleanup_old_sensor_data(days: int = 30):
+    """Delete sensor readings older than specified days"""
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    
+    result = await db.sensor_readings.delete_many({
+        "user_id": DEFAULT_USER_ID,
+        "timestamp": {"$lt": cutoff_date}
+    })
+    
+    return {
+        "deleted_count": result.deleted_count,
+        "cutoff_date": cutoff_date
+    }
+
+
 # ============== MATTERPORT CLOUD API ==============
 # For creating persistent Mattertags that appear on my.matterport.com
 
