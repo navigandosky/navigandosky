@@ -51,7 +51,8 @@ import {
   Bell,
   Lightbulb,
   Map,
-  Thermometer
+  Thermometer,
+  Activity
 } from "lucide-react";
 import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "./TicketCalendarQR";
 import { PlanimetriaEditor, SuggerimentiProattivi, NotificationBadge } from "./PlanimetriaSuggerimenti";
