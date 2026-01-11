@@ -1517,6 +1517,33 @@ export default function MatterportManager() {
                     <Plus size={12} className="mr-1" />
                     Categoria
                   </Button>
+                  <Button
+                    size="sm"
+                    variant={showStatusOverlays ? "default" : "outline"}
+                    className={showStatusOverlays 
+                      ? "bg-orange-600 hover:bg-orange-700 text-white text-xs" 
+                      : "border-orange-500/50 text-orange-400 text-xs"
+                    }
+                    onClick={async () => {
+                      const newState = !showStatusOverlays;
+                      setShowStatusOverlays(newState);
+                      if (newState) {
+                        // Show overlays
+                        await updateStatusOverlays();
+                        toast.success("Stato dispositivi visibile nel 3D");
+                      } else {
+                        // Remove overlays
+                        if (matterportRef.current?.removeStatusOverlays) {
+                          await matterportRef.current.removeStatusOverlays(statusOverlayIds);
+                          setStatusOverlayIds([]);
+                        }
+                        toast.info("Stato dispositivi nascosto");
+                      }
+                    }}
+                  >
+                    <Thermometer size={12} className="mr-1" />
+                    {showStatusOverlays ? "Nascondi Stato" : "Mostra Stato 3D"}
+                  </Button>
                 </div>
                 
                 {/* Category Filter */}
