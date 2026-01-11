@@ -343,18 +343,25 @@ export default function MatterportManager() {
     return matchedDevice;
   }, [smartThingsDevices]);
 
-  // Get device state for a POI
+  // Get device state for a POI (including sensor values)
   const getDeviceStateForPoi = useCallback((poi) => {
     const device = getDeviceForPoi(poi);
     if (device) {
+      const sensors = sensorValues[device.id] || {};
       return {
         device,
         state: deviceStates[device.id] || null,
-        hasSwitch: device.capabilities?.includes('switch')
+        hasSwitch: device.capabilities?.includes('switch'),
+        sensors: sensors,
+        hasTemperature: sensors.temperature !== undefined,
+        hasHumidity: sensors.humidity !== undefined,
+        hasPower: sensors.power !== undefined,
+        hasBattery: sensors.battery !== undefined,
+        hasMotion: sensors.motion !== undefined
       };
     }
     return null;
-  }, [getDeviceForPoi, deviceStates]);
+  }, [getDeviceForPoi, deviceStates, sensorValues]);
 
   useEffect(() => {
     loadSpaces();
