@@ -1621,6 +1621,11 @@ function App() {
           <PropertyConfig />
         )}
 
+        {/* Report Sensori Tab */}
+        {activeTab === "sensori" && (
+          <SensorReport />
+        )}
+
         {/* Suggerimenti Tab */}
         {activeTab === "suggerimenti" && (
           <SuggerimentiProattivi 
