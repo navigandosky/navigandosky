@@ -3142,7 +3142,8 @@ async def get_smartthings_locations():
 @api_router.get("/smartthings/rooms")
 async def get_smartthings_rooms():
     """Get all rooms from all locations"""
-    if not SMARTTHINGS_TOKEN:
+    token = await get_smartthings_token()
+    if not token:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     try:
@@ -3150,7 +3151,7 @@ async def get_smartthings_rooms():
             # First get all locations
             loc_response = await client.get(
                 f"{SMARTTHINGS_API_URL}/locations",
-                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+                headers={"Authorization": f"Bearer {token}"}
             )
             loc_response.raise_for_status()
             locations = loc_response.json().get("items", [])
@@ -3163,7 +3164,7 @@ async def get_smartthings_rooms():
                 # Get rooms for this location
                 rooms_response = await client.get(
                     f"{SMARTTHINGS_API_URL}/locations/{location_id}/rooms",
-                    headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+                    headers={"Authorization": f"Bearer {token}"}
                 )
                 if rooms_response.status_code == 200:
                     rooms = rooms_response.json().get("items", [])
@@ -3180,7 +3181,8 @@ async def get_smartthings_rooms():
 @api_router.get("/smartthings/devices-by-room")
 async def get_smartthings_devices_by_room():
     """Get all SmartThings devices grouped by room"""
-    if not SMARTTHINGS_TOKEN:
+    token = await get_smartthings_token()
+    if not token:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     try:
