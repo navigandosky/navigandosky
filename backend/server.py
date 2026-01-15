@@ -3094,17 +3094,42 @@ async def get_suggerimenti_count(user_id: str = DEFAULT_USER_ID):
 SMARTTHINGS_TOKEN = os.environ.get('SMARTTHINGS_TOKEN', '')
 SMARTTHINGS_API_URL = "https://api.smartthings.com/v1"
 
+
+async def get_smartthings_token():
+    """
+    Get SmartThings token with priority:
+    1. From property_config in database (persistent)
+    2. From environment variable (fallback)
+    """
+    try:
+        # Try to get from database first
+        prop = await db.property_config.find_one(
+            {"is_active": True}, 
+            {"integrations.smartthings.token": 1, "_id": 0}
+        )
+        if prop:
+            db_token = prop.get("integrations", {}).get("smartthings", {}).get("token")
+            if db_token and len(db_token) > 10:
+                return db_token
+    except Exception as e:
+        logger.debug(f"Could not get token from DB: {e}")
+    
+    # Fallback to environment variable
+    return SMARTTHINGS_TOKEN
+
+
 @api_router.get("/smartthings/locations")
 async def get_smartthings_locations():
     """Get all SmartThings locations"""
-    if not SMARTTHINGS_TOKEN:
+    token = await get_smartthings_token()
+    if not token:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{SMARTTHINGS_API_URL}/locations",
-                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
             data = response.json()
