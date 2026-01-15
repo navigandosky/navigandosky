@@ -3461,7 +3461,7 @@ async def send_smartthings_command(device_id: str, command: dict):
             response = await client.post(
                 f"{SMARTTHINGS_API_URL}/devices/{device_id}/commands",
                 headers={
-                    "Authorization": f"Bearer {SMARTTHINGS_TOKEN}",
+                    "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json"
                 },
                 json={"commands": [command]}
