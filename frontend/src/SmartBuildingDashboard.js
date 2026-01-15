@@ -477,11 +477,26 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
       )}
       
       {/* Stato o tipo */}
-      <p className="text-xs text-slate-400 mt-2">
-        {hasTemp && !sensorData && <span className="text-cyan-400">Sensore Temp</span>}
-        {hasSwitch && !hasTemp && (isOn ? 'Acceso' : 'Spento')}
-        {(hasTemp || hasHumidity) && <span className="text-slate-500 ml-1">• Clicca per storico</span>}
-      </p>
+      <div className="flex items-center justify-between mt-2">
+        <p className="text-xs text-slate-400">
+          {hasTemp && !sensorData && <span className="text-cyan-400">Sensore Temp</span>}
+          {hasSwitch && !hasTemp && (isOn ? 'Acceso' : 'Spento')}
+        </p>
+        {(hasTemp || hasHumidity) && onShowHistory && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-xs text-cyan-400 hover:bg-cyan-500/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShowHistory(device);
+            }}
+          >
+            <BarChart3 size={12} className="mr-1" />
+            Storico
+          </Button>
+        )}
+      </div>
     </div>
   );
 };
