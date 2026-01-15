@@ -608,6 +608,16 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const [expandedRooms, setExpandedRooms] = useState({});
   const [matterportTags, setMatterportTags] = useState([]);
   const matterportRef = useRef(null);
+  
+  // State per dialog storico sensori
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null);
+
+  // Apri storico sensore
+  const handleShowHistory = (device) => {
+    setSelectedDeviceForHistory(device);
+    setHistoryDialogOpen(true);
+  };
 
   // Toggle room expansion - default collapsed
   const toggleRoom = (roomName) => {
