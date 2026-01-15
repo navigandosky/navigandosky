@@ -1230,6 +1230,13 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
           </div>
         </div>
       </div>
+
+      {/* Dialog Storico Sensori */}
+      <SensorHistoryDialog
+        device={selectedDeviceForHistory}
+        open={historyDialogOpen}
+        onClose={() => setHistoryDialogOpen(false)}
+      />
     </div>
   );
 }
