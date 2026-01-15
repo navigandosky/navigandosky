@@ -1076,7 +1076,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                             {isExpanded && (
                               <div className="px-3 pb-4 space-y-2">
                                 {room.devices.map(device => (
-                                  <DeviceCard key={device.id} device={device} />
+                                  <DeviceCard key={device.id} device={device} onShowHistory={handleShowHistory} />
                                 ))}
                               </div>
                             )}
