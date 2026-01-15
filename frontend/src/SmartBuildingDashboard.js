@@ -108,11 +108,12 @@ const WeatherIcon = ({ code, size = 48 }) => {
 };
 
 // SmartThings Device Card
-const DeviceCard = ({ device, onToggle }) => {
+const DeviceCard = ({ device, onToggle, onShowHistory }) => {
   // Leggi lo stato iniziale dal dispositivo (se disponibile)
   const initialState = device.status?.switch === 'on' || device.switchState === 'on' || false;
   const [isOn, setIsOn] = useState(initialState);
   const [loading, setLoading] = useState(false);
+  const [sensorData, setSensorData] = useState(null);
   const Icon = getDeviceIcon(device.name, device.capabilities);
   
   // Aggiorna stato quando cambia il dispositivo
@@ -120,6 +121,30 @@ const DeviceCard = ({ device, onToggle }) => {
     const newState = device.status?.switch === 'on' || device.switchState === 'on' || false;
     setIsOn(newState);
   }, [device]);
+
+  // Carica dati sensori per questo dispositivo
+  useEffect(() => {
+    const fetchSensorData = async () => {
+      if (device.capabilities?.includes('temperatureMeasurement') || 
+          device.capabilities?.includes('relativeHumidityMeasurement')) {
+        try {
+          const response = await axios.get(`${API_URL}/api/smartthings/device/${device.id}/status`);
+          const main = response.data?.components?.main || {};
+          setSensorData({
+            temperature: main.temperatureMeasurement?.temperature?.value,
+            temperatureUnit: main.temperatureMeasurement?.temperature?.unit || 'C',
+            humidity: main.relativeHumidityMeasurement?.humidity?.value
+          });
+        } catch (error) {
+          console.log(`Could not fetch sensor data for ${device.name}`);
+        }
+      }
+    };
+    fetchSensorData();
+    // Refresh every 60 seconds
+    const interval = setInterval(fetchSensorData, 60000);
+    return () => clearInterval(interval);
+  }, [device.id, device.capabilities, device.name]);
   
   const hasSwitch = device.capabilities?.includes('switch');
   const hasTemp = device.capabilities?.includes('temperatureMeasurement');
@@ -140,8 +165,26 @@ const DeviceCard = ({ device, onToggle }) => {
     }
   };
 
+  const handleCardClick = () => {
+    if ((hasTemp || hasHumidity) && onShowHistory) {
+      onShowHistory(device);
+    }
+  };
+
+  // Determina il colore della temperatura
+  const getTempColor = (temp) => {
+    if (temp === undefined || temp === null) return 'text-slate-400';
+    if (temp > 26) return 'text-orange-400';
+    if (temp < 18) return 'text-blue-400';
+    return 'text-green-400';
+  };
+
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 hover:border-cyan-500/30 transition-all duration-300 group">
+    <div 
+      className={`bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 hover:border-cyan-500/30 transition-all duration-300 group ${(hasTemp || hasHumidity) ? 'cursor-pointer' : ''}`}
+      onClick={handleCardClick}
+      data-testid={`device-card-${device.id}`}
+    >
       <div className="flex items-start justify-between mb-3">
         <div className={`p-2 rounded-lg ${isOn ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-700/50 text-slate-400'}`}>
           <Icon size={20} />
@@ -152,13 +195,35 @@ const DeviceCard = ({ device, onToggle }) => {
             onCheckedChange={handleToggle}
             disabled={loading}
             className="data-[state=checked]:bg-cyan-500"
+            onClick={(e) => e.stopPropagation()}
           />
         )}
       </div>
-      <h3 className="text-sm font-medium text-white mb-1 truncate">{device.name}</h3>
-      <p className="text-xs text-slate-400">
-        {hasTemp && <span className="text-cyan-400">Sensore Temp</span>}
+      <h3 className="text-sm font-medium text-white mb-1 truncate" title={device.name}>{device.name}</h3>
+      
+      {/* Valori sensori */}
+      {(hasTemp || hasHumidity) && sensorData && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {hasTemp && sensorData.temperature !== undefined && (
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700/50 ${getTempColor(sensorData.temperature)}`}>
+              <Thermometer size={14} />
+              <span className="text-sm font-bold">{sensorData.temperature}°{sensorData.temperatureUnit}</span>
+            </div>
+          )}
+          {hasHumidity && sensorData.humidity !== undefined && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700/50 text-cyan-400">
+              <Droplets size={14} />
+              <span className="text-sm font-bold">{sensorData.humidity}%</span>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Stato o tipo */}
+      <p className="text-xs text-slate-400 mt-2">
+        {hasTemp && !sensorData && <span className="text-cyan-400">Sensore Temp</span>}
         {hasSwitch && !hasTemp && (isOn ? 'Acceso' : 'Spento')}
+        {(hasTemp || hasHumidity) && <span className="text-slate-500 ml-1">• Clicca per storico</span>}
       </p>
     </div>
   );
