@@ -132,6 +132,238 @@ const WeatherIcon = ({ code, size = 48 }) => {
   return <Icon size={size} />;
 };
 
+// Sensor History Dialog Component
+const SensorHistoryDialog = ({ device, open, onClose }) => {
+  const [loading, setLoading] = useState(false);
+  const [chartData, setChartData] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [period, setPeriod] = useState("24");
+  const [sensorType, setSensorType] = useState("temperature");
+
+  const hasTemp = device?.capabilities?.includes('temperatureMeasurement');
+  const hasHumidity = device?.capabilities?.includes('relativeHumidityMeasurement');
+
+  useEffect(() => {
+    if (open && device) {
+      fetchData();
+    }
+  }, [open, device, period, sensorType]);
+
+  const fetchData = async () => {
+    if (!device?.id) return;
+    setLoading(true);
+    try {
+      // Prima raccogli i dati se necessario
+      await axios.post(`${API_URL}/api/sensors/collect`);
+      
+      // Poi ottieni i dati del grafico
+      const chartResponse = await axios.get(
+        `${API_URL}/api/sensors/chart-data/${device.id}?sensor_type=${sensorType}&hours=${period}&interval=hour`
+      );
+      setChartData(chartResponse.data);
+
+      // Ottieni le statistiche
+      const statsResponse = await axios.get(
+        `${API_URL}/api/sensors/stats/${device.id}?sensor_type=${sensorType}&hours=${period}`
+      );
+      setStats(statsResponse.data.stats);
+    } catch (error) {
+      console.error("Error fetching sensor history:", error);
+      toast.error("Errore nel caricamento dello storico");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Formatta i dati per il grafico
+  const formatChartData = () => {
+    if (!chartData?.labels) return [];
+    return chartData.labels.map((label, index) => ({
+      time: label.split('T')[1]?.substring(0, 5) || label,
+      fullTime: label,
+      avg: chartData.datasets.avg[index],
+      min: chartData.datasets.min[index],
+      max: chartData.datasets.max[index]
+    }));
+  };
+
+  const getUnit = () => sensorType === 'temperature' ? '°C' : '%';
+  const getColor = () => sensorType === 'temperature' ? '#ef4444' : '#06b6d4';
+  const getTitle = () => sensorType === 'temperature' ? 'Temperatura' : 'Umidità';
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl bg-slate-900 border-slate-700 text-white">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            {sensorType === 'temperature' ? (
+              <Thermometer className="h-6 w-6 text-red-400" />
+            ) : (
+              <Droplets className="h-6 w-6 text-cyan-400" />
+            )}
+            Storico {getTitle()} - {device?.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Controlli */}
+          <div className="flex flex-wrap gap-3">
+            {/* Selettore tipo sensore */}
+            {hasTemp && hasHumidity && (
+              <Select value={sensorType} onValueChange={setSensorType}>
+                <SelectTrigger className="w-[160px] bg-slate-800 border-slate-600">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-600">
+                  <SelectItem value="temperature">🌡️ Temperatura</SelectItem>
+                  <SelectItem value="humidity">💧 Umidità</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Selettore periodo */}
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="w-[160px] bg-slate-800 border-slate-600">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-600">
+                <SelectItem value="6">Ultime 6 ore</SelectItem>
+                <SelectItem value="12">Ultime 12 ore</SelectItem>
+                <SelectItem value="24">Ultime 24 ore</SelectItem>
+                <SelectItem value="48">Ultimi 2 giorni</SelectItem>
+                <SelectItem value="168">Ultima settimana</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Pulsante aggiorna */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={fetchData}
+              disabled={loading}
+              className="border-slate-600"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Aggiorna
+            </Button>
+          </div>
+
+          {/* Statistiche */}
+          {stats && (
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-blue-500/20 rounded-lg p-4 text-center">
+                <p className="text-xs text-blue-300 mb-1">Minima</p>
+                <p className="text-2xl font-bold text-blue-400">{stats.min}{getUnit()}</p>
+              </div>
+              <div className="bg-green-500/20 rounded-lg p-4 text-center">
+                <p className="text-xs text-green-300 mb-1">Media</p>
+                <p className="text-2xl font-bold text-green-400">{stats.avg}{getUnit()}</p>
+              </div>
+              <div className="bg-red-500/20 rounded-lg p-4 text-center">
+                <p className="text-xs text-red-300 mb-1">Massima</p>
+                <p className="text-2xl font-bold text-red-400">{stats.max}{getUnit()}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Grafico */}
+          <div className="bg-slate-800/50 rounded-lg p-4">
+            {loading ? (
+              <div className="h-64 flex items-center justify-center">
+                <div className="text-center">
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-cyan-400" />
+                  <p className="text-slate-400">Caricamento dati...</p>
+                </div>
+              </div>
+            ) : chartData?.labels?.length > 0 ? (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={formatChartData()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id={`gradient-${sensorType}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={getColor()} stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor={getColor()} stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis 
+                      dataKey="time" 
+                      tick={{ fill: '#9ca3af', fontSize: 11 }}
+                      stroke="#4b5563"
+                    />
+                    <YAxis 
+                      tick={{ fill: '#9ca3af', fontSize: 11 }}
+                      stroke="#4b5563"
+                      domain={['auto', 'auto']}
+                      tickFormatter={(value) => `${value}${getUnit()}`}
+                    />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                      labelStyle={{ color: '#9ca3af' }}
+                      formatter={(value, name) => [`${value}${getUnit()}`, name === 'avg' ? 'Media' : name === 'min' ? 'Min' : 'Max']}
+                    />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="avg"
+                      stroke={getColor()}
+                      fillOpacity={1}
+                      fill={`url(#gradient-${sensorType})`}
+                      name="Media"
+                      strokeWidth={2}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="min"
+                      stroke="#3b82f6"
+                      strokeDasharray="5 5"
+                      dot={false}
+                      name="Min"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="max"
+                      stroke="#ef4444"
+                      strokeDasharray="5 5"
+                      dot={false}
+                      name="Max"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-64 flex items-center justify-center">
+                <div className="text-center">
+                  <Activity className="h-12 w-12 mx-auto mb-2 text-slate-600" />
+                  <p className="text-slate-400">Nessun dato storico disponibile</p>
+                  <p className="text-xs text-slate-500 mt-1">I dati verranno raccolti automaticamente</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={fetchData}
+                    className="mt-4 border-cyan-500/50 text-cyan-400"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Raccogli dati ora
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Info aggiuntive */}
+          {stats && (
+            <div className="text-xs text-slate-500 flex justify-between">
+              <span>{stats.count} letture nel periodo</span>
+              <span>Periodo: {stats.period_start?.split('T')[0]} - {stats.period_end?.split('T')[0]}</span>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // SmartThings Device Card
 const DeviceCard = ({ device, onToggle, onShowHistory }) => {
   // Leggi lo stato iniziale dal dispositivo (se disponibile)
