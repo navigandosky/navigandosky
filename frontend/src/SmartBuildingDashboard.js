@@ -958,7 +958,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                       ) : climaDevices.length > 0 ? (
                         <div className="grid grid-cols-2 gap-3">
                           {climaDevices.map(device => (
-                            <DeviceCard key={device.id} device={device} />
+                            <DeviceCard key={device.id} device={device} onShowHistory={handleShowHistory} />
                           ))}
                         </div>
                       ) : (
