@@ -3190,7 +3190,7 @@ async def get_smartthings_devices_by_room():
             # Get all locations
             loc_response = await client.get(
                 f"{SMARTTHINGS_API_URL}/locations",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             loc_response.raise_for_status()
             locations = loc_response.json().get("items", [])
@@ -3203,7 +3203,7 @@ async def get_smartthings_devices_by_room():
                 
                 rooms_response = await client.get(
                     f"{SMARTTHINGS_API_URL}/locations/{location_id}/rooms",
-                    headers={"Authorization": f"Bearer {token}"}
+                    headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
                 )
                 if rooms_response.status_code == 200:
                     rooms = rooms_response.json().get("items", [])
@@ -3218,7 +3218,7 @@ async def get_smartthings_devices_by_room():
             # Get all devices
             dev_response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             dev_response.raise_for_status()
             devices_data = dev_response.json().get("items", [])
@@ -3280,8 +3280,7 @@ async def get_smartthings_devices_by_room():
 @api_router.get("/smartthings/devices")
 async def get_smartthings_devices():
     """Get all SmartThings devices with their current status (cached for 2 minutes)"""
-    token = await get_smartthings_token()
-    if not token:
+    if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     # Check cache first
@@ -3294,7 +3293,7 @@ async def get_smartthings_devices():
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             response.raise_for_status()
             data = response.json()
@@ -3336,8 +3335,7 @@ async def get_smartthings_devices():
 @api_router.get("/smartthings/devices-with-states")
 async def get_smartthings_devices_with_states():
     """Get all SmartThings devices WITH their current switch states (cached for 2 minutes)"""
-    token = await get_smartthings_token()
-    if not token:
+    if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     # Check cache first
@@ -3351,7 +3349,7 @@ async def get_smartthings_devices_with_states():
             # First get all devices
             response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             response.raise_for_status()
             data = response.json()
@@ -3380,7 +3378,7 @@ async def get_smartthings_devices_with_states():
                 try:
                     status_response = await client.get(
                         f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
-                        headers={"Authorization": f"Bearer {token}"}
+                        headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
                     )
                     if status_response.status_code == 200:
                         status_data = status_response.json()
@@ -3422,8 +3420,7 @@ async def get_smartthings_devices_with_states():
 @api_router.get("/smartthings/device/{device_id}/status")
 async def get_smartthings_device_status(device_id: str):
     """Get status of a specific SmartThings device (cached for 30 seconds)"""
-    token = await get_smartthings_token()
-    if not token:
+    if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     # Check cache first
@@ -3436,7 +3433,7 @@ async def get_smartthings_device_status(device_id: str):
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             response.raise_for_status()
             result = response.json()
@@ -3452,8 +3449,7 @@ async def get_smartthings_device_status(device_id: str):
 @api_router.post("/smartthings/device/{device_id}/command")
 async def send_smartthings_command(device_id: str, command: dict):
     """Send a command to a SmartThings device"""
-    token = await get_smartthings_token()
-    if not token:
+    if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     try:
@@ -3490,8 +3486,7 @@ async def get_devices_with_sensor_values():
     Get all SmartThings devices with their current states AND sensor values.
     Returns switch states (on/off) and sensor readings (temperature, humidity, power).
     """
-    token = await get_smartthings_token()
-    if not token:
+    if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     # Check cache first
@@ -3505,7 +3500,7 @@ async def get_devices_with_sensor_values():
             # Get all devices first
             response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             response.raise_for_status()
             devices = response.json().get("items", [])
@@ -3532,7 +3527,7 @@ async def get_devices_with_sensor_values():
                     # Get device status
                     status_response = await client.get(
                         f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
-                        headers={"Authorization": f"Bearer {token}"}
+                        headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
                     )
                     if status_response.status_code == 200:
                         status = status_response.json()
@@ -3622,8 +3617,7 @@ async def smartthings_switch_control(device_id: str, action: str):
 @api_router.get("/smartthings/clima")
 async def get_smartthings_clima():
     """Get climate data from SmartThings temperature sensor (Temperatura living)"""
-    token = await get_smartthings_token()
-    if not token:
+    if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings token not configured")
     
     try:
@@ -3631,7 +3625,7 @@ async def get_smartthings_clima():
             # Get all devices
             devices_response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             devices_response.raise_for_status()
             devices = devices_response.json().get("items", [])
@@ -3668,7 +3662,7 @@ async def get_smartthings_clima():
             device_id = temp_device.get("deviceId")
             status_response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             status_response.raise_for_status()
             status = status_response.json()
@@ -4760,7 +4754,7 @@ async def get_system_status():
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get(
                     f"{SMARTTHINGS_API_URL}/devices",
-                    headers={"Authorization": f"Bearer {token}"}
+                    headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
                 )
                 if response.status_code == 200:
                     devices = response.json().get("items", [])
@@ -4816,8 +4810,7 @@ async def collect_and_store_sensor_data():
     Collect current sensor values from SmartThings and store them.
     This endpoint should be called periodically (e.g., every 5 minutes via cron).
     """
-    token = await get_smartthings_token()
-    if not token:
+    if not SMARTTHINGS_TOKEN:
         raise HTTPException(status_code=500, detail="SmartThings not configured")
     
     stored_count = 0
@@ -4827,7 +4820,7 @@ async def collect_and_store_sensor_data():
             # Get all devices
             response = await client.get(
                 f"{SMARTTHINGS_API_URL}/devices",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
             )
             response.raise_for_status()
             devices = response.json().get("items", [])
@@ -4841,7 +4834,7 @@ async def collect_and_store_sensor_data():
                 try:
                     status_response = await client.get(
                         f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
-                        headers={"Authorization": f"Bearer {token}"}
+                        headers={"Authorization": f"Bearer {SMARTTHINGS_TOKEN}"}
                     )
                     if status_response.status_code != 200:
                         continue
