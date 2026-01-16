@@ -502,21 +502,21 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
   );
 };
 
-// Ezviz Camera Card (placeholder for when it works)
+// Ezviz Camera Card with HLS streaming
 const CameraCard = ({ camera }) => {
   const isOnline = camera?.status === 'online';
   const [imageError, setImageError] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [streamUrl, setStreamUrl] = useState(null);
+  const [loadingStream, setLoadingStream] = useState(false);
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
   
   // Deep link per aprire l'app Ezviz
   const openEzvizApp = () => {
-    // Schema URL per app Ezviz
     const ezvizAppScheme = `ezviz://open?deviceSerial=${camera?.serial}`;
     const ezvizWebUrl = `https://www.ezvizlife.com/`;
-    
-    // Prova ad aprire l'app, altrimenti apri il sito web
     window.location.href = ezvizAppScheme;
-    
-    // Fallback al sito web dopo 2 secondi se l'app non si apre
     setTimeout(() => {
       window.open(ezvizWebUrl, '_blank');
     }, 2000);
@@ -536,22 +536,128 @@ const CameraCard = ({ camera }) => {
       console.log('Snapshot not available');
     }
   };
+
+  // Start HLS streaming
+  const startStream = async () => {
+    if (!camera?.serial || loadingStream) return;
+    
+    setLoadingStream(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/ezviz/camera/${camera.serial}/stream`);
+      if (response.data?.stream_url) {
+        setStreamUrl(response.data.stream_url);
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      console.error('Failed to get stream URL:', error);
+      toast.error('Impossibile avviare lo streaming');
+    } finally {
+      setLoadingStream(false);
+    }
+  };
+
+  // Stop streaming
+  const stopStream = () => {
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+    setIsPlaying(false);
+    setStreamUrl(null);
+  };
+
+  // Initialize HLS player when streamUrl changes
+  useEffect(() => {
+    if (!streamUrl || !videoRef.current) return;
+
+    const initHls = async () => {
+      const Hls = (await import('hls.js')).default;
+      
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        hlsRef.current = hls;
+        hls.loadSource(streamUrl);
+        hls.attachMedia(videoRef.current);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          videoRef.current?.play().catch(e => console.log('Autoplay blocked:', e));
+        });
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            console.error('HLS fatal error:', data);
+            stopStream();
+            toast.error('Errore streaming video');
+          }
+        });
+      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        // Safari native HLS support
+        videoRef.current.src = streamUrl;
+        videoRef.current.play().catch(e => console.log('Autoplay blocked:', e));
+      }
+    };
+
+    initHls();
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [streamUrl]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+    };
+  }, []);
   
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden hover:border-red-500/30 transition-all duration-300">
-      {/* Preview Immagine */}
-      <div className="aspect-video bg-slate-900 relative cursor-pointer" onClick={openEzvizApp}>
-        {snapshotUrl && !imageError ? (
+      {/* Video/Preview Area */}
+      <div className="aspect-video bg-slate-900 relative">
+        {isPlaying && streamUrl ? (
+          // HLS Video Player
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            playsInline
+            muted
+            autoPlay
+            controls={false}
+          />
+        ) : snapshotUrl && !imageError ? (
+          // Snapshot Image
           <img 
             src={snapshotUrl} 
             alt={camera?.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover cursor-pointer"
             onError={() => setImageError(true)}
+            onClick={startStream}
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+          // Placeholder
+          <div 
+            className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 cursor-pointer"
+            onClick={startStream}
+          >
             <Camera size={48} className="text-slate-600 mb-2" />
-            <p className="text-xs text-slate-500">Clicca per aprire in Ezviz</p>
+            <p className="text-xs text-slate-500">Clicca per avviare streaming</p>
+          </div>
+        )}
+        
+        {/* Loading Overlay */}
+        {loadingStream && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-red-500 border-t-transparent mb-2"></div>
+              <p className="text-xs text-white">Caricamento...</p>
+            </div>
           </div>
         )}
         
@@ -559,7 +665,7 @@ const CameraCard = ({ camera }) => {
         <div className="absolute top-2 left-2">
           <Badge variant={isOnline ? "default" : "destructive"} className={isOnline ? "bg-green-500" : ""}>
             <span className={`w-2 h-2 rounded-full mr-1 ${isOnline ? 'bg-white animate-pulse' : 'bg-red-300'}`}></span>
-            {isOnline ? "LIVE" : "OFFLINE"}
+            {isPlaying ? "STREAMING" : (isOnline ? "LIVE" : "OFFLINE")}
           </Badge>
         </div>
         
@@ -568,12 +674,29 @@ const CameraCard = ({ camera }) => {
           <span className="text-xs bg-black/50 px-2 py-1 rounded text-white">{camera?.model || 'Camera'}</span>
         </div>
         
-        {/* Overlay con icona play */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
-          <div className="bg-red-500/80 rounded-full p-3">
-            <Play size={24} className="text-white ml-1" />
+        {/* Play/Stop Overlay */}
+        {!isPlaying && !loadingStream && (
+          <div 
+            className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+            onClick={startStream}
+          >
+            <div className="bg-red-500/80 rounded-full p-3">
+              <Play size={24} className="text-white ml-1" />
+            </div>
           </div>
-        </div>
+        )}
+        
+        {/* Stop button when playing */}
+        {isPlaying && (
+          <div 
+            className="absolute bottom-2 right-2 cursor-pointer"
+            onClick={stopStream}
+          >
+            <div className="bg-red-500/80 rounded-full p-2 hover:bg-red-600">
+              <X size={16} className="text-white" />
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Info e Pulsanti */}
@@ -590,14 +713,41 @@ const CameraCard = ({ camera }) => {
           <Button 
             size="sm" 
             variant="outline" 
-            className="flex-1 text-xs border-red-500/50 text-red-400 hover:bg-red-500/20"
-            onClick={openEzvizApp}
+            className={`flex-1 text-xs ${isPlaying ? 'border-red-500 text-red-400 hover:bg-red-500/20' : 'border-green-500/50 text-green-400 hover:bg-green-500/20'}`}
+            onClick={isPlaying ? stopStream : startStream}
+            disabled={loadingStream}
           >
-            <ExternalLink size={12} className="mr-1" />
-            Apri App
+            {loadingStream ? (
+              <>
+                <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent mr-1"></div>
+                Caricamento...
+              </>
+            ) : isPlaying ? (
+              <>
+                <X size={12} className="mr-1" />
+                Stop
+              </>
+            ) : (
+              <>
+                <Play size={12} className="mr-1" />
+                Play
+              </>
+            )}
           </Button>
           <Button 
             size="sm" 
+            variant="outline" 
+            className="flex-1 text-xs border-slate-500/50 text-slate-400 hover:bg-slate-500/20"
+            onClick={openEzvizApp}
+          >
+            <ExternalLink size={12} className="mr-1" />
+            App
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}; 
             variant="outline" 
             className="text-xs border-slate-600"
             onClick={refreshSnapshot}
