@@ -1200,8 +1200,9 @@ async def delete_centro_assistenza(centro_id: str):
 
 @api_router.post("/elettrodomestici", response_model=Elettrodomestico)
 async def create_elettrodomestico(data: dict = Body(...)):
-    # Handle custom categoria - map "custom" to "altro"
-    if data.get('categoria') == 'custom':
+    # Handle custom categoria - any value starting with "custom" should map to "altro"
+    categoria = data.get('categoria', '')
+    if categoria and (categoria == 'custom' or categoria.startswith('custom_')):
         data['categoria'] = 'altro'
     
     # Validate with Pydantic model
