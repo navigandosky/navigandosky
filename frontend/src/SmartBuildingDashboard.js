@@ -930,57 +930,95 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
               {/* CLIMA TAB */}
               <TabsContent value="clima" className="mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Current Temperature Card - from SmartThings sensor */}
-                  <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/20">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className="text-sm text-green-400/70">Temperatura Interna</p>
-                            {climaData?.online && (
-                              <Badge variant="outline" className="text-xs border-green-500/50 text-green-400">
-                                LIVE
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-5xl font-bold text-green-400 mt-2">
-                            {climaData?.temperature !== null ? climaData?.temperature?.toFixed(1) : '--'}°C
-                          </p>
-                          <p className="text-sm text-slate-400 mt-2">
-                            Umidità: {climaData?.humidity !== null ? climaData?.humidity : '--'}%
-                          </p>
-                          {climaData?.device_name && (
-                            <p className="text-xs text-slate-500 mt-2">
-                              📍 {climaData.device_name}
-                            </p>
-                          )}
-                        </div>
-                        <Thermometer size={64} className="text-green-500/30" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Climate Devices */}
-                  <Card className="bg-slate-900/50 border-slate-800">
+                  {/* Sensori Temperatura - Card grande con tutti i sensori */}
+                  <Card className="md:col-span-2 bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/20">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm text-slate-400">Dispositivi Clima</CardTitle>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm text-green-400/70 flex items-center gap-2">
+                          <Thermometer size={16} />
+                          Sensori Temperatura
+                          {climaData?.online && (
+                            <Badge variant="outline" className="text-xs border-green-500/50 text-green-400">
+                              LIVE
+                            </Badge>
+                          )}
+                        </CardTitle>
+                        <span className="text-xs text-slate-500">{climaDevices.length} sensori attivi</span>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       {loading ? (
-                        <div className="space-y-2">
-                          <Skeleton className="h-16 bg-slate-800" />
-                          <Skeleton className="h-16 bg-slate-800" />
-                        </div>
-                      ) : climaDevices.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-3">
-                          {climaDevices.map(device => (
-                            <DeviceCard key={device.id} device={device} onShowHistory={handleShowHistory} />
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {[1,2,3,4,5,6].map(i => (
+                            <Skeleton key={i} className="h-24 bg-slate-800/50 rounded-xl" />
                           ))}
                         </div>
+                      ) : climaDevices.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {climaDevices.slice(0, 6).map((device, idx) => {
+                            // Mappa nomi descrittivi per i sensori
+                            const sensorNames = {
+                              'switchTemperatureSensor': 'Living Room',
+                              'c2c-humidity': idx === 0 ? 'Camera Letto' : idx === 1 ? 'Studio' : 'Esterno',
+                              '[room a/c] Samsung': 'Condizionatore',
+                              'SNZB-02D': idx === 0 ? 'Soggiorno' : idx === 1 ? 'Cucina' : 'Bagno'
+                            };
+                            
+                            // Usa nome personalizzato o quello del dispositivo
+                            let displayName = device.name;
+                            if (sensorNames[device.name]) {
+                              displayName = sensorNames[device.name];
+                            } else if (device.name?.includes('SNZB') || device.name?.includes('c2c-')) {
+                              displayName = `Sensore ${idx + 1}`;
+                            }
+                            
+                            return (
+                              <div 
+                                key={device.id}
+                                className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:border-green-500/30 transition-all cursor-pointer group"
+                                onClick={() => handleShowHistory(device)}
+                                data-testid={`sensor-${device.id}`}
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span className="text-xs text-slate-400 truncate max-w-[100px]" title={displayName}>
+                                      {displayName}
+                                    </span>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 text-cyan-400"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleShowHistory(device);
+                                    }}
+                                  >
+                                    <BarChart3 size={12} />
+                                  </Button>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                  <span className="text-2xl font-bold text-green-400">
+                                    {device.sensorData?.temperature?.toFixed(1) || '--'}
+                                  </span>
+                                  <span className="text-sm text-green-400/70">°C</span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Droplets size={12} className="text-cyan-400" />
+                                  <span className="text-xs text-cyan-400">
+                                    {device.sensorData?.humidity || '--'}%
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       ) : (
-                        <p className="text-sm text-slate-500 text-center py-4">
-                          Nessun dispositivo clima trovato
-                        </p>
+                        <div className="text-center py-8">
+                          <Thermometer size={48} className="mx-auto text-slate-600 mb-2" />
+                          <p className="text-sm text-slate-500">Nessun sensore temperatura trovato</p>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
