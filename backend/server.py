@@ -3842,6 +3842,33 @@ class EwelinkLoginRequest(BaseModel):
     region: str = "eu"
 
 
+def generate_ewelink_sign(app_secret: str) -> tuple:
+    """Generate eWeLink API signature"""
+    import hmac
+    import hashlib
+    import base64
+    
+    # Current timestamp in milliseconds
+    ts = str(int(time.time() * 1000))
+    
+    # Generate nonce
+    nonce = str(uuid.uuid4()).replace('-', '')[:8]
+    
+    # Create signature string
+    sign_str = f"{EWELINK_APPID}_{ts}_{nonce}_{app_secret}"
+    
+    # Generate HMAC-SHA256 signature
+    signature = hmac.new(
+        app_secret.encode('utf-8'),
+        sign_str.encode('utf-8'),
+        hashlib.sha256
+    ).digest()
+    
+    sign = base64.b64encode(signature).decode('utf-8')
+    
+    return sign, ts, nonce
+
+
 @api_router.post("/ewelink/login")
 async def ewelink_direct_login(login_data: EwelinkLoginRequest):
     """
@@ -3850,9 +3877,15 @@ async def ewelink_direct_login(login_data: EwelinkLoginRequest):
     """
     global ewelink_access_token, ewelink_refresh_token, ewelink_token_expires
     
+    if not EWELINK_APPID or not EWELINK_APP_SECRET:
+        raise HTTPException(status_code=500, detail="eWeLink credentials not configured")
+    
     base_url = EWELINK_API_URLS.get(login_data.region, EWELINK_API_URLS['eu'])
     
     try:
+        # Generate signature
+        sign, ts, nonce = generate_ewelink_sign(EWELINK_APP_SECRET)
+        
         async with httpx.AsyncClient(timeout=30.0) as client:
             # eWeLink API v2 login endpoint
             response = await client.post(
@@ -3864,6 +3897,8 @@ async def ewelink_direct_login(login_data: EwelinkLoginRequest):
                 },
                 headers={
                     "X-CK-Appid": EWELINK_APPID,
+                    "X-CK-Nonce": nonce,
+                    "Authorization": f"Sign {sign}",
                     "Content-Type": "application/json"
                 }
             )
