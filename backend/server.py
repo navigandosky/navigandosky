@@ -4649,6 +4649,23 @@ async def ezviz_api_request(endpoint: str, method: str = "GET", data: dict = Non
         return response.json()
 
 
+@api_router.get("/ezviz/access-token")
+async def get_ezviz_access_token():
+    """Get Ezviz access token for EZUIKit player"""
+    global ezviz_access_token
+    try:
+        auth = await get_ezviz_token()
+        if auth["type"] == "api" and ezviz_access_token:
+            return {
+                "accessToken": ezviz_access_token,
+                "domain": "https://ieuopen.ezvizlife.com"  # EU domain
+            }
+        raise HTTPException(status_code=500, detail="Token not available")
+    except Exception as e:
+        logger.error(f"Ezviz token error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.get("/ezviz/cameras")
 async def get_ezviz_cameras():
     """Get all Ezviz cameras"""
