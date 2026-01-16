@@ -730,13 +730,10 @@ export default function PropertyConfig() {
                   <Wifi className="h-5 w-5 text-blue-600" />
                   <CardTitle>eWeLink / Sonoff</CardTitle>
                 </div>
-                <IntegrationStatus
-                  enabled={formData.integrations?.ewelink?.enabled}
-                  connected={false}
-                />
+                <EweLinkStatus />
               </div>
               <CardDescription>
-                Connetti dispositivi Sonoff e compatibili eWeLink
+                Connetti dispositivi Sonoff e compatibili eWeLink tramite OAuth2
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -750,42 +747,29 @@ export default function PropertyConfig() {
               </div>
               
               {formData.integrations?.ewelink?.enabled && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="ewelink-email">Email</Label>
-                    <Input
-                      id="ewelink-email"
-                      type="email"
-                      value={formData.integrations?.ewelink?.email || ""}
-                      onChange={(e) => updateFormData("integrations.ewelink.email", e.target.value)}
-                      placeholder="tua@email.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ewelink-password">Password</Label>
-                    <PasswordInput
-                      id="ewelink-password"
-                      value={formData.integrations?.ewelink?.password}
-                      onChange={(e) => updateFormData("integrations.ewelink.password", e.target.value)}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ewelink-region">Regione</Label>
-                    <Select
-                      value={formData.integrations?.ewelink?.region || "eu"}
-                      onValueChange={(value) => updateFormData("integrations.ewelink.region", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="eu">Europa</SelectItem>
-                        <SelectItem value="us">USA</SelectItem>
-                        <SelectItem value="cn">Cina</SelectItem>
-                        <SelectItem value="as">Asia</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-4">
+                  {/* OAuth2 Login Button */}
+                  <EweLinkLoginSection />
+                  
+                  {/* Region selector */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="ewelink-region">Regione</Label>
+                      <Select
+                        value={formData.integrations?.ewelink?.region || "eu"}
+                        onValueChange={(value) => updateFormData("integrations.ewelink.region", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="eu">Europa</SelectItem>
+                          <SelectItem value="us">USA</SelectItem>
+                          <SelectItem value="cn">Cina</SelectItem>
+                          <SelectItem value="as">Asia</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               )}
