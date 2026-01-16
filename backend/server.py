@@ -3695,6 +3695,633 @@ async def get_smartthings_clima():
         raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
 
 
+# ============== EWELINK/SONOFF INTEGRATION ==============
+# Integrazione diretta con eWeLink per dispositivi Sonoff
+
+EWELINK_APPID = os.environ.get('EWELINK_APPID', '')
+EWELINK_APP_SECRET = os.environ.get('EWELINK_APP_SECRET', '')
+EWELINK_REGION = os.environ.get('EWELINK_REGION', 'eu')
+EWELINK_REDIRECT_URI = os.environ.get('EWELINK_REDIRECT_URI', '')
+
+# eWeLink API URLs per regione
+EWELINK_API_URLS = {
+    'eu': 'https://eu-apia.coolkit.cc',
+    'us': 'https://us-apia.coolkit.cc',
+    'cn': 'https://cn-apia.coolkit.cn',
+    'as': 'https://as-apia.coolkit.cc',
+}
+
+EWELINK_AUTH_URL = "https://c2ccdn.coolkit.cc/oauth/index.html"
+
+# eWeLink token cache
+ewelink_access_token = None
+ewelink_refresh_token = None
+ewelink_token_expires = None
+
+# Models for eWeLink
+class EwelinkTokenData(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    expires_at: Optional[datetime] = None
+    region: str = "eu"
+    user_info: Optional[Dict[str, Any]] = None
+
+
+async def get_ewelink_config():
+    """Get eWeLink configuration from database"""
+    try:
+        prop = await db.property_config.find_one(
+            {"is_active": True}, 
+            {"integrations.ewelink": 1, "_id": 0}
+        )
+        if prop:
+            return prop.get("integrations", {}).get("ewelink", {})
+    except Exception as e:
+        logger.debug(f"Could not get eWeLink config from DB: {e}")
+    return {}
+
+
+async def get_ewelink_token():
+    """
+    Get eWeLink access token from database.
+    """
+    global ewelink_access_token, ewelink_token_expires
+    
+    # Check cached token
+    if ewelink_access_token and ewelink_token_expires and datetime.now(timezone.utc) < ewelink_token_expires:
+        return ewelink_access_token
+    
+    # Try to get from database
+    try:
+        token_doc = await db.ewelink_tokens.find_one(
+            {"region": EWELINK_REGION},
+            {"_id": 0},
+            sort=[("created_at", -1)]
+        )
+        if token_doc:
+            expires_at = token_doc.get("expires_at")
+            if expires_at and isinstance(expires_at, str):
+                expires_at = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+            
+            if expires_at and datetime.now(timezone.utc) < expires_at:
+                ewelink_access_token = token_doc.get("access_token")
+                ewelink_token_expires = expires_at
+                return ewelink_access_token
+            
+            # Token expired, try to refresh
+            refresh_token = token_doc.get("refresh_token")
+            if refresh_token:
+                new_token = await refresh_ewelink_token(refresh_token)
+                if new_token:
+                    return new_token
+    except Exception as e:
+        logger.error(f"Error getting eWeLink token: {e}")
+    
+    return None
+
+
+async def refresh_ewelink_token(refresh_token: str):
+    """Refresh eWeLink access token using refresh token"""
+    global ewelink_access_token, ewelink_token_expires
+    
+    base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{base_url}/v2/user/refresh",
+                json={
+                    "rt": refresh_token
+                },
+                headers={
+                    "X-CK-Appid": EWELINK_APPID,
+                    "Content-Type": "application/json"
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("error") == 0:
+                    new_token = data.get("data", {})
+                    access_token = new_token.get("at")
+                    new_refresh = new_token.get("rt", refresh_token)
+                    expires_in = new_token.get("atExpiredTime", 86400)
+                    
+                    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+                    
+                    # Update cache
+                    ewelink_access_token = access_token
+                    ewelink_token_expires = expires_at
+                    
+                    # Update database
+                    await db.ewelink_tokens.update_one(
+                        {"refresh_token": refresh_token},
+                        {
+                            "$set": {
+                                "access_token": access_token,
+                                "refresh_token": new_refresh,
+                                "expires_at": expires_at.isoformat(),
+                                "updated_at": datetime.now(timezone.utc).isoformat()
+                            }
+                        }
+                    )
+                    
+                    return access_token
+    except Exception as e:
+        logger.error(f"Error refreshing eWeLink token: {e}")
+    
+    return None
+
+
+@api_router.get("/ewelink/auth-url")
+async def get_ewelink_auth_url():
+    """
+    Generate eWeLink OAuth2 authorization URL.
+    User will be redirected to this URL to authorize the app.
+    """
+    if not EWELINK_APPID:
+        raise HTTPException(status_code=500, detail="eWeLink App ID not configured")
+    
+    import secrets
+    state = secrets.token_urlsafe(16)
+    
+    # Store state in database for verification
+    await db.ewelink_auth_states.insert_one({
+        "state": state,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
+    })
+    
+    # Build authorization URL
+    redirect_uri = EWELINK_REDIRECT_URI or f"{FRONTEND_URL}/api/ewelink/callback"
+    auth_url = f"{EWELINK_AUTH_URL}?clientId={EWELINK_APPID}&redirectUrl={quote(redirect_uri)}&state={state}&grantType=authorization_code"
+    
+    return {
+        "auth_url": auth_url,
+        "state": state,
+        "redirect_uri": redirect_uri
+    }
+
+
+@api_router.get("/ewelink/callback")
+async def ewelink_oauth_callback(
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+    region: Optional[str] = "eu"
+):
+    """
+    Handle OAuth2 callback from eWeLink.
+    Exchange authorization code for access token.
+    """
+    global ewelink_access_token, ewelink_refresh_token, ewelink_token_expires
+    
+    if error:
+        logger.error(f"eWeLink OAuth error: {error}")
+        raise HTTPException(status_code=400, detail=f"Authorization failed: {error}")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="Authorization code not provided")
+    
+    # Verify state if provided
+    if state:
+        state_doc = await db.ewelink_auth_states.find_one({"state": state})
+        if not state_doc:
+            logger.warning(f"Invalid state parameter: {state}")
+        else:
+            # Delete used state
+            await db.ewelink_auth_states.delete_one({"state": state})
+    
+    # Exchange code for token
+    base_url = EWELINK_API_URLS.get(region, EWELINK_API_URLS['eu'])
+    redirect_uri = EWELINK_REDIRECT_URI or f"{FRONTEND_URL}/api/ewelink/callback"
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{base_url}/v2/user/oauth/token",
+                json={
+                    "grantType": "authorization_code",
+                    "code": code,
+                    "redirectUrl": redirect_uri
+                },
+                headers={
+                    "X-CK-Appid": EWELINK_APPID,
+                    "Authorization": f"Sign {EWELINK_APP_SECRET}",
+                    "Content-Type": "application/json"
+                }
+            )
+            
+            logger.info(f"eWeLink token response status: {response.status_code}")
+            data = response.json()
+            logger.info(f"eWeLink token response: {data}")
+            
+            if response.status_code != 200 or data.get("error") != 0:
+                error_msg = data.get("msg", "Token exchange failed")
+                raise HTTPException(status_code=400, detail=error_msg)
+            
+            token_data = data.get("data", {})
+            access_token = token_data.get("accessToken") or token_data.get("at")
+            refresh_token = token_data.get("refreshToken") or token_data.get("rt")
+            expires_in = token_data.get("atExpiredTime", 86400)
+            user_info = token_data.get("user", {})
+            
+            if not access_token:
+                raise HTTPException(status_code=400, detail="No access token in response")
+            
+            # Calculate expiration
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+            
+            # Update cache
+            ewelink_access_token = access_token
+            ewelink_refresh_token = refresh_token
+            ewelink_token_expires = expires_at
+            
+            # Store token in database
+            await db.ewelink_tokens.update_one(
+                {"region": region},
+                {
+                    "$set": {
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "expires_at": expires_at.isoformat(),
+                        "region": region,
+                        "user_info": user_info,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
+                },
+                upsert=True
+            )
+            
+            # Also update property config
+            await db.property_config.update_one(
+                {"is_active": True},
+                {
+                    "$set": {
+                        "integrations.ewelink.enabled": True,
+                        "integrations.ewelink.region": region,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
+                }
+            )
+            
+            logger.info(f"eWeLink OAuth successful. User: {user_info.get('email', 'unknown')}")
+            
+            # Redirect to frontend with success
+            from fastapi.responses import RedirectResponse
+            return RedirectResponse(
+                url=f"{FRONTEND_URL}?ewelink_auth=success&email={user_info.get('email', '')}",
+                status_code=302
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"eWeLink OAuth callback error: {e}")
+        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
+
+
+@api_router.get("/ewelink/status")
+async def get_ewelink_status():
+    """Check eWeLink connection status"""
+    token = await get_ewelink_token()
+    
+    if not token:
+        return {
+            "connected": False,
+            "message": "Non autenticato. Effettua il login eWeLink.",
+            "auth_required": True
+        }
+    
+    # Try to fetch user info to verify token
+    base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(
+                f"{base_url}/v2/user/profile",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "X-CK-Appid": EWELINK_APPID,
+                    "Content-Type": "application/json"
+                }
+            )
+            
+            data = response.json()
+            if response.status_code == 200 and data.get("error") == 0:
+                user = data.get("data", {})
+                return {
+                    "connected": True,
+                    "message": "Connesso",
+                    "user": {
+                        "email": user.get("email"),
+                        "nickname": user.get("nickname"),
+                        "countryCode": user.get("countryCode")
+                    },
+                    "region": EWELINK_REGION
+                }
+            else:
+                return {
+                    "connected": False,
+                    "message": data.get("msg", "Token non valido"),
+                    "auth_required": True
+                }
+    except Exception as e:
+        logger.error(f"eWeLink status check error: {e}")
+        return {
+            "connected": False,
+            "message": f"Errore connessione: {str(e)}",
+            "auth_required": True
+        }
+
+
+@api_router.get("/ewelink/devices")
+async def get_ewelink_devices():
+    """Get all eWeLink/Sonoff devices"""
+    token = await get_ewelink_token()
+    
+    if not token:
+        raise HTTPException(
+            status_code=401, 
+            detail="eWeLink non autenticato. Effettua prima il login."
+        )
+    
+    base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{base_url}/v2/device/thing",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "X-CK-Appid": EWELINK_APPID,
+                    "Content-Type": "application/json"
+                }
+            )
+            
+            data = response.json()
+            logger.info(f"eWeLink devices response: error={data.get('error')}, count={len(data.get('data', {}).get('thingList', []))}")
+            
+            if response.status_code != 200 or data.get("error") != 0:
+                error_msg = data.get("msg", "Failed to fetch devices")
+                if data.get("error") == 401:
+                    raise HTTPException(status_code=401, detail="Token scaduto. Rieffettua il login.")
+                raise HTTPException(status_code=400, detail=error_msg)
+            
+            things = data.get("data", {}).get("thingList", [])
+            
+            # Parse and format devices
+            devices = []
+            for thing in things:
+                item_data = thing.get("itemData", {})
+                device = {
+                    "id": item_data.get("deviceid"),
+                    "name": item_data.get("name", "Dispositivo Sconosciuto"),
+                    "model": item_data.get("productModel", ""),
+                    "brand": item_data.get("brandName", "Sonoff"),
+                    "online": item_data.get("online", False),
+                    "params": item_data.get("params", {}),
+                    "type": thing.get("itemType", 1),  # 1=device, 2=group
+                    "uiid": item_data.get("extra", {}).get("uiid", 0)
+                }
+                
+                # Extract common sensor values
+                params = device["params"]
+                if "temperature" in params:
+                    device["temperature"] = params["temperature"]
+                if "humidity" in params:
+                    device["humidity"] = params["humidity"]
+                if "currentTemperature" in params:
+                    device["temperature"] = params["currentTemperature"]
+                if "currentHumidity" in params:
+                    device["humidity"] = params["currentHumidity"]
+                if "battery" in params:
+                    device["battery"] = params["battery"]
+                if "switch" in params:
+                    device["switch"] = params["switch"]
+                
+                devices.append(device)
+            
+            return {
+                "devices": devices,
+                "count": len(devices),
+                "source": "ewelink"
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"eWeLink devices error: {e}")
+        raise HTTPException(status_code=500, detail=f"eWeLink API error: {str(e)}")
+
+
+@api_router.get("/ewelink/device/{device_id}/status")
+async def get_ewelink_device_status(device_id: str):
+    """Get status of a specific eWeLink device"""
+    token = await get_ewelink_token()
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="eWeLink non autenticato")
+    
+    base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(
+                f"{base_url}/v2/device/thing/status",
+                params={"type": 1, "id": device_id},
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "X-CK-Appid": EWELINK_APPID,
+                    "Content-Type": "application/json"
+                }
+            )
+            
+            data = response.json()
+            
+            if response.status_code != 200 or data.get("error") != 0:
+                raise HTTPException(status_code=400, detail=data.get("msg", "Failed to get status"))
+            
+            params = data.get("data", {}).get("params", {})
+            
+            return {
+                "device_id": device_id,
+                "online": data.get("data", {}).get("online", False),
+                "params": params,
+                "temperature": params.get("temperature") or params.get("currentTemperature"),
+                "humidity": params.get("humidity") or params.get("currentHumidity"),
+                "battery": params.get("battery"),
+                "switch": params.get("switch")
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"eWeLink device status error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.post("/ewelink/device/{device_id}/switch/{action}")
+async def control_ewelink_device(device_id: str, action: str):
+    """Control eWeLink device (on/off)"""
+    if action not in ["on", "off"]:
+        raise HTTPException(status_code=400, detail="Action must be 'on' or 'off'")
+    
+    token = await get_ewelink_token()
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="eWeLink non autenticato")
+    
+    base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                f"{base_url}/v2/device/thing/status",
+                json={
+                    "type": 1,
+                    "id": device_id,
+                    "params": {
+                        "switch": action
+                    }
+                },
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "X-CK-Appid": EWELINK_APPID,
+                    "Content-Type": "application/json"
+                }
+            )
+            
+            data = response.json()
+            
+            if response.status_code != 200 or data.get("error") != 0:
+                raise HTTPException(status_code=400, detail=data.get("msg", "Control failed"))
+            
+            return {
+                "success": True,
+                "device_id": device_id,
+                "action": action,
+                "message": f"Dispositivo {action}"
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"eWeLink control error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.get("/ewelink/sensors")
+async def get_ewelink_sensors():
+    """Get all eWeLink temperature/humidity sensors with current values"""
+    token = await get_ewelink_token()
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="eWeLink non autenticato")
+    
+    # Get all devices
+    devices_response = await get_ewelink_devices()
+    all_devices = devices_response.get("devices", [])
+    
+    # Filter sensors (devices with temperature or humidity)
+    sensors = []
+    for device in all_devices:
+        has_temp = device.get("temperature") is not None or "temperature" in device.get("params", {}) or "currentTemperature" in device.get("params", {})
+        has_humidity = device.get("humidity") is not None or "humidity" in device.get("params", {}) or "currentHumidity" in device.get("params", {})
+        
+        if has_temp or has_humidity:
+            sensors.append({
+                "id": device["id"],
+                "name": device["name"],
+                "model": device.get("model", ""),
+                "online": device.get("online", False),
+                "temperature": device.get("temperature"),
+                "humidity": device.get("humidity"),
+                "battery": device.get("battery"),
+                "source": "ewelink"
+            })
+    
+    return {
+        "sensors": sensors,
+        "count": len(sensors),
+        "source": "ewelink"
+    }
+
+
+@api_router.post("/ewelink/sensors/collect")
+async def collect_ewelink_sensor_data():
+    """Collect and store sensor readings from eWeLink devices"""
+    try:
+        sensors_response = await get_ewelink_sensors()
+        sensors = sensors_response.get("sensors", [])
+        
+        readings_saved = 0
+        for sensor in sensors:
+            if not sensor.get("online"):
+                continue
+            
+            timestamp = datetime.now(timezone.utc).isoformat()
+            
+            # Save temperature
+            if sensor.get("temperature") is not None:
+                await db.sensor_readings.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "device_id": sensor["id"],
+                    "device_name": sensor["name"],
+                    "sensor_type": "temperature",
+                    "value": float(sensor["temperature"]),
+                    "unit": "C",
+                    "source": "ewelink",
+                    "timestamp": timestamp,
+                    "user_id": DEFAULT_USER_ID
+                })
+                readings_saved += 1
+            
+            # Save humidity
+            if sensor.get("humidity") is not None:
+                await db.sensor_readings.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "device_id": sensor["id"],
+                    "device_name": sensor["name"],
+                    "sensor_type": "humidity",
+                    "value": float(sensor["humidity"]),
+                    "unit": "%",
+                    "source": "ewelink",
+                    "timestamp": timestamp,
+                    "user_id": DEFAULT_USER_ID
+                })
+                readings_saved += 1
+            
+            # Save battery
+            if sensor.get("battery") is not None:
+                await db.sensor_readings.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "device_id": sensor["id"],
+                    "device_name": sensor["name"],
+                    "sensor_type": "battery",
+                    "value": float(sensor["battery"]),
+                    "unit": "%",
+                    "source": "ewelink",
+                    "timestamp": timestamp,
+                    "user_id": DEFAULT_USER_ID
+                })
+                readings_saved += 1
+        
+        return {
+            "success": True,
+            "message": f"Raccolti {readings_saved} valori da {len(sensors)} sensori eWeLink",
+            "readings_saved": readings_saved,
+            "sensors_count": len(sensors)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"eWeLink sensor collection error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== EZVIZ CAMERA INTEGRATION ==============
 # Supporta sia l'API ufficiale Open Platform (con AppKey) che pyezvizapi (fallback)
 
