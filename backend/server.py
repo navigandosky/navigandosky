@@ -3842,31 +3842,20 @@ class EwelinkLoginRequest(BaseModel):
     region: str = "eu"
 
 
-def generate_ewelink_sign(app_secret: str) -> tuple:
-    """Generate eWeLink API signature"""
+def make_ewelink_auth_sign(app_secret: str, body: dict) -> str:
+    """Generate eWeLink API authorization signature - HMAC-SHA256 of JSON body"""
     import hmac
     import hashlib
     import base64
     
-    # Current timestamp in milliseconds
-    ts = str(int(time.time() * 1000))
-    
-    # Generate nonce
-    nonce = str(uuid.uuid4()).replace('-', '')[:8]
-    
-    # Create signature string
-    sign_str = f"{EWELINK_APPID}_{ts}_{nonce}_{app_secret}"
-    
-    # Generate HMAC-SHA256 signature
+    body_str = json.dumps(body, separators=(',', ':'), ensure_ascii=False)
     signature = hmac.new(
         app_secret.encode('utf-8'),
-        sign_str.encode('utf-8'),
+        body_str.encode('utf-8'),
         hashlib.sha256
     ).digest()
     
-    sign = base64.b64encode(signature).decode('utf-8')
-    
-    return sign, ts, nonce
+    return base64.b64encode(signature).decode('utf-8')
 
 
 @api_router.post("/ewelink/login")
@@ -3883,21 +3872,23 @@ async def ewelink_direct_login(login_data: EwelinkLoginRequest):
     base_url = EWELINK_API_URLS.get(login_data.region, EWELINK_API_URLS['eu'])
     
     try:
-        # Generate signature
-        sign, ts, nonce = generate_ewelink_sign(EWELINK_APP_SECRET)
+        # Build request body
+        body = {
+            "email": login_data.email,
+            "password": login_data.password,
+            "countryCode": "+39"
+        }
+        
+        # Generate signature from body
+        sign = make_ewelink_auth_sign(EWELINK_APP_SECRET, body)
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             # eWeLink API v2 login endpoint
             response = await client.post(
                 f"{base_url}/v2/user/login",
-                json={
-                    "email": login_data.email,
-                    "password": login_data.password,
-                    "countryCode": "+39"  # Italy
-                },
+                json=body,
                 headers={
                     "X-CK-Appid": EWELINK_APPID,
-                    "X-CK-Nonce": nonce,
                     "Authorization": f"Sign {sign}",
                     "Content-Type": "application/json"
                 }
