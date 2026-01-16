@@ -5663,7 +5663,8 @@ async def collect_and_store_sensor_data():
             
             for device in devices[:25]:
                 device_id = device.get("deviceId")
-                device_name = device.get("name") or device.get("label", "")
+                # Prefer label over name (label is user-friendly, name is technical)
+                device_name = device.get("label") or device.get("name", "Dispositivo")
                 
                 try:
                     status_response = await client.get(
