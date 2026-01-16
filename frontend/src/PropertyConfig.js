@@ -130,6 +130,157 @@ const IntegrationStatus = ({ enabled, connected, name }) => {
   );
 };
 
+// eWeLink Status Component
+const EweLinkStatus = () => {
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkStatus();
+  }, []);
+
+  const checkStatus = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/ewelink/status`);
+      setStatus(response.data);
+    } catch (error) {
+      setStatus({ connected: false, message: "Errore connessione" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <Badge variant="secondary" className="text-xs"><Loader2 className="h-3 w-3 animate-spin" /></Badge>;
+  }
+
+  if (status?.connected) {
+    return (
+      <Badge className="bg-green-500 text-xs">
+        <Check className="h-3 w-3 mr-1" /> {status.user?.email || "Connesso"}
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="destructive" className="text-xs">
+      <X className="h-3 w-3 mr-1" /> Non connesso
+    </Badge>
+  );
+};
+
+// eWeLink Login Section Component
+const EweLinkLoginSection = () => {
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [authUrl, setAuthUrl] = useState(null);
+
+  useEffect(() => {
+    checkStatus();
+    
+    // Check for OAuth callback result
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('ewelink_auth') === 'success') {
+      toast.success(`eWeLink connesso! Email: ${urlParams.get('email') || ''}`);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      checkStatus();
+    }
+  }, []);
+
+  const checkStatus = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/ewelink/status`);
+      setStatus(response.data);
+    } catch (error) {
+      setStatus({ connected: false, auth_required: true });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startOAuth = async () => {
+    try {
+      const response = await axios.get(`${API}/ewelink/auth-url`);
+      setAuthUrl(response.data.auth_url);
+      // Open in new window or redirect
+      window.location.href = response.data.auth_url;
+    } catch (error) {
+      toast.error("Errore generazione URL autenticazione");
+    }
+  };
+
+  const disconnectEwelink = async () => {
+    // Just clear the status display, actual logout would need API call
+    setStatus({ connected: false, auth_required: true });
+    toast.info("Per disconnetterti completamente, rimuovi l'app da eWeLink");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 p-4 bg-slate-50 rounded-lg">
+        <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+        <span className="text-sm text-slate-600">Verifica connessione...</span>
+      </div>
+    );
+  }
+
+  if (status?.connected) {
+    return (
+      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+              <Check className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="font-medium text-green-800">eWeLink Connesso</p>
+              <p className="text-sm text-green-600">{status.user?.email || status.user?.nickname || "Account collegato"}</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={checkStatus}
+            className="border-green-300"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Aggiorna
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+            <Wifi className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <p className="font-medium text-blue-800">Collega il tuo account eWeLink</p>
+            <p className="text-sm text-blue-600">Accedi con le tue credenziali eWeLink per gestire i dispositivi Sonoff</p>
+          </div>
+        </div>
+        <Button
+          onClick={startOAuth}
+          className="w-full bg-blue-600 hover:bg-blue-700"
+        >
+          <Zap className="h-4 w-4 mr-2" />
+          Accedi con eWeLink
+        </Button>
+        <p className="text-xs text-blue-500 text-center">
+          Verrai reindirizzato alla pagina di login eWeLink
+        </p>
+      </div>
+    </div>
+  );
+};
+
 export default function PropertyConfig() {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
