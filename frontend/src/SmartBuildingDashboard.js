@@ -647,9 +647,19 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch SmartThings devices WITH STATES (includes switchState)
-      const devicesRes = await axios.get(`${API_URL}/api/smartthings/devices-with-states`);
-      setSmartThingsDevices(devicesRes.data.devices || []);
+      // Fetch SmartThings devices WITH STATES AND SENSORS
+      const devicesRes = await axios.get(`${API_URL}/api/smartthings/devices-with-sensors`);
+      const devices = devicesRes.data.devices || [];
+      const sensorValues = devicesRes.data.sensors || {};
+      const deviceStates = devicesRes.data.states || {};
+      
+      // Enrich devices with sensor data
+      const enrichedDevices = devices.map(d => ({
+        ...d,
+        switchState: deviceStates[d.id] || null,
+        sensorData: sensorValues[d.id] || null
+      }));
+      setSmartThingsDevices(enrichedDevices);
       
       // Also fetch devices grouped by room
       try {
