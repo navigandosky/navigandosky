@@ -582,6 +582,9 @@ const CameraCard = ({ camera, ezvizToken }) => {
         width: containerRef.current?.offsetWidth || 320,
         height: containerRef.current?.offsetHeight || 180,
         plugin: [],
+        env: {
+          domain: 'https://ieuopen.ezvizlife.com'
+        },
         handleError: (err) => {
           console.error('EZUIKit error:', err);
           setErrorMsg('Errore streaming');
