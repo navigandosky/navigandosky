@@ -502,16 +502,16 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
   );
 };
 
-// Ezviz Camera Card with EZUIKit SDK
+// Ezviz Camera Card with HLS video player
 const CameraCard = ({ camera, ezvizToken }) => {
   const isOnline = camera?.status === 'online';
   const [imageError, setImageError] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loadingStream, setLoadingStream] = useState(false);
-  const [player, setPlayer] = useState(null);
+  const [streamUrl, setStreamUrl] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
-  const containerRef = useRef(null);
-  const playerIdRef = useRef(`ezuikit-${camera?.serial || Math.random().toString(36).substr(2, 9)}`);
+  const videoRef = useRef(null);
+  const hlsRef = useRef(null);
   
   // Deep link per aprire l'app Ezviz
   const openEzvizApp = () => {
@@ -538,65 +538,27 @@ const CameraCard = ({ camera, ezvizToken }) => {
     }
   };
 
-  // Start streaming with EZUIKit SDK
+  // Start HLS streaming
   const startStream = async () => {
     if (!camera?.serial || loadingStream) return;
-    
-    if (!ezvizToken) {
-      toast.error('Token Ezviz non disponibile');
-      return;
-    }
     
     setLoadingStream(true);
     setErrorMsg(null);
     
     try {
-      // Load EZUIKit script if not loaded
-      if (!window.EZUIKit) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://resource.eziot.com/group1/M00/00/89/CtwQE2G4hx-AZM_HAAU8bL0tLvM044.js';
-          script.onload = resolve;
-          script.onerror = () => reject(new Error('Failed to load EZUIKit'));
-          document.head.appendChild(script);
-        });
-        await new Promise(r => setTimeout(r, 1000));
+      // Get stream URL from backend
+      const response = await axios.get(`${API_URL}/api/ezviz/camera/${camera.serial}/stream`);
+      if (response.data?.stream_url) {
+        setStreamUrl(response.data.stream_url);
+        setIsPlaying(true);
+      } else {
+        throw new Error('Nessun URL streaming disponibile');
       }
-      
-      if (!window.EZUIKit) {
-        throw new Error('EZUIKit SDK non caricato');
-      }
-
-      setIsPlaying(true);
-      
-      // Wait for container to be ready
-      await new Promise(r => setTimeout(r, 100));
-      
-      const ezUrl = `ezopen://open.ezviz.com/${camera.serial}/1.live`;
-      
-      const newPlayer = new window.EZUIKit.EZUIKitPlayer({
-        id: playerIdRef.current,
-        accessToken: ezvizToken,
-        url: ezUrl,
-        template: 'simple',
-        width: containerRef.current?.offsetWidth || 320,
-        height: containerRef.current?.offsetHeight || 180,
-        plugin: [],
-        env: {
-          domain: 'https://ieuopen.ezvizlife.com'
-        },
-        handleError: (err) => {
-          console.error('EZUIKit error:', err);
-          setErrorMsg('Errore streaming');
-        }
-      });
-      
-      setPlayer(newPlayer);
-      
     } catch (error) {
-      console.error('Stream start error:', error);
-      setErrorMsg(error.message);
-      toast.error('Errore: ' + error.message);
+      console.error('Stream error:', error);
+      const msg = error.response?.data?.detail || error.message || 'Errore streaming';
+      setErrorMsg(msg);
+      toast.error(msg);
       setIsPlaying(false);
     } finally {
       setLoadingStream(false);
@@ -605,44 +567,101 @@ const CameraCard = ({ camera, ezvizToken }) => {
 
   // Stop streaming
   const stopStream = () => {
-    if (player) {
-      try {
-        player.stop && player.stop();
-        player.destroy && player.destroy();
-      } catch (e) {
-        console.log('Player cleanup:', e);
-      }
-      setPlayer(null);
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.src = '';
     }
     setIsPlaying(false);
+    setStreamUrl(null);
     setErrorMsg(null);
   };
 
-  // Cleanup on unmount
+  // Initialize HLS player
   useEffect(() => {
-    return () => {
-      if (player) {
-        try {
-          player.stop && player.stop();
-          player.destroy && player.destroy();
-        } catch (e) {}
+    if (!streamUrl || !videoRef.current) return;
+
+    const initPlayer = async () => {
+      try {
+        const Hls = (await import('hls.js')).default;
+        
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false,
+            maxBufferLength: 10,
+            maxMaxBufferLength: 30,
+          });
+          hlsRef.current = hls;
+          
+          hls.loadSource(streamUrl);
+          hls.attachMedia(videoRef.current);
+          
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            videoRef.current?.play().catch(e => console.log('Autoplay:', e));
+          });
+          
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            console.error('HLS error:', data);
+            if (data.fatal) {
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                setErrorMsg('Errore di rete - riprova');
+              } else {
+                setErrorMsg('Errore video');
+              }
+              stopStream();
+            }
+          });
+        } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+          // Safari native
+          videoRef.current.src = streamUrl;
+          videoRef.current.play().catch(e => console.log('Safari play:', e));
+        } else {
+          setErrorMsg('Browser non supportato');
+        }
+      } catch (err) {
+        console.error('Player init error:', err);
+        setErrorMsg('Errore inizializzazione player');
       }
     };
-  }, [player]);
+
+    initPlayer();
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [streamUrl]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+    };
+  }, []);
   
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden hover:border-red-500/30 transition-all duration-300">
       {/* Video/Preview Area */}
-      <div className="aspect-video bg-slate-900 relative" ref={containerRef}>
+      <div className="aspect-video bg-slate-900 relative">
         {isPlaying ? (
-          // EZUIKit Player Container
-          <div 
-            id={playerIdRef.current} 
-            className="w-full h-full bg-black"
-            style={{ minHeight: '180px' }}
+          // Video Player
+          <video
+            ref={videoRef}
+            className="w-full h-full object-contain bg-black"
+            playsInline
+            muted
+            autoPlay
+            controls
           />
         ) : snapshotUrl && !imageError ? (
-          // Snapshot Image
+          // Snapshot
           <img 
             src={snapshotUrl} 
             alt={camera?.name}
@@ -661,19 +680,19 @@ const CameraCard = ({ camera, ezvizToken }) => {
           </div>
         )}
         
-        {/* Error message */}
-        {errorMsg && isPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
-            <div className="text-center">
-              <p className="text-red-400 text-sm mb-2">{errorMsg}</p>
-              <Button size="sm" variant="outline" onClick={stopStream} className="text-white border-white">
+        {/* Error overlay */}
+        {errorMsg && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
+            <div className="text-center p-4">
+              <p className="text-red-400 text-sm mb-3">{errorMsg}</p>
+              <Button size="sm" variant="outline" onClick={() => { setErrorMsg(null); setIsPlaying(false); }} className="text-white border-white">
                 Chiudi
               </Button>
             </div>
           </div>
         )}
         
-        {/* Loading Overlay */}
+        {/* Loading */}
         {loadingStream && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
             <div className="flex flex-col items-center">
@@ -683,7 +702,7 @@ const CameraCard = ({ camera, ezvizToken }) => {
           </div>
         )}
         
-        {/* Badge Stato */}
+        {/* Badge */}
         <div className="absolute top-2 left-2 z-20 pointer-events-none">
           <Badge variant={isOnline ? "default" : "destructive"} className={isOnline ? "bg-green-500" : ""}>
             <span className={`w-2 h-2 rounded-full mr-1 ${isOnline ? 'bg-white animate-pulse' : 'bg-red-300'}`}></span>
@@ -691,13 +710,13 @@ const CameraCard = ({ camera, ezvizToken }) => {
           </Badge>
         </div>
         
-        {/* Modello */}
+        {/* Model */}
         <div className="absolute top-2 right-2 z-20 pointer-events-none">
           <span className="text-xs bg-black/50 px-2 py-1 rounded text-white">{camera?.model || 'Camera'}</span>
         </div>
         
-        {/* Play Overlay */}
-        {!isPlaying && !loadingStream && (
+        {/* Play overlay */}
+        {!isPlaying && !loadingStream && !errorMsg && (
           <div 
             className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
             onClick={startStream}
@@ -709,7 +728,7 @@ const CameraCard = ({ camera, ezvizToken }) => {
         )}
         
         {/* Stop button */}
-        {isPlaying && (
+        {isPlaying && !errorMsg && (
           <div 
             className="absolute bottom-2 right-2 cursor-pointer z-20"
             onClick={stopStream}
@@ -721,7 +740,7 @@ const CameraCard = ({ camera, ezvizToken }) => {
         )}
       </div>
       
-      {/* Info e Pulsanti */}
+      {/* Info */}
       <div className="p-3">
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1 min-w-0">
@@ -730,7 +749,7 @@ const CameraCard = ({ camera, ezvizToken }) => {
           </div>
         </div>
         
-        {/* Pulsanti Azione */}
+        {/* Buttons */}
         <div className="flex gap-2 mt-2">
           <Button 
             size="sm" 
