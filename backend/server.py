@@ -1288,8 +1288,19 @@ async def get_elettrodomestico(elettrodomestico_id: str):
 
 
 @api_router.put("/elettrodomestici/{elettrodomestico_id}", response_model=Elettrodomestico)
-async def update_elettrodomestico(elettrodomestico_id: str, data: ElettrodomesticoUpdate):
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+async def update_elettrodomestico(elettrodomestico_id: str, data: dict = Body(...)):
+    # Handle custom categoria
+    if data.get('categoria') == 'custom':
+        data['categoria'] = 'altro'
+    
+    # Validate with Pydantic
+    try:
+        validated_data = ElettrodomesticoUpdate(**data)
+    except Exception as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=422, detail=str(e))
+    
+    update_data = {k: v for k, v in validated_data.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     result = await db.elettrodomestici.update_one(
