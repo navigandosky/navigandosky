@@ -620,9 +620,12 @@ class SmartThingsConfig(BaseModel):
 class EwelinkConfig(BaseModel):
     """Configurazione eWeLink"""
     enabled: bool = False
+    app_id: Optional[str] = None
+    app_secret: Optional[str] = None
+    region: str = "eu"  # eu, us, cn, as
+    # Legacy fields (deprecated, use OAuth2)
     email: Optional[str] = None
     password: Optional[str] = None
-    region: str = "eu"  # eu, us, cn
 
 
 class EzvizConfig(BaseModel):
