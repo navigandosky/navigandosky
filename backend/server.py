@@ -3836,6 +3836,109 @@ async def refresh_ewelink_token(refresh_token: str):
     return None
 
 
+class EwelinkLoginRequest(BaseModel):
+    email: str
+    password: str
+    region: str = "eu"
+
+
+@api_router.post("/ewelink/login")
+async def ewelink_direct_login(login_data: EwelinkLoginRequest):
+    """
+    Login direttamente con email e password eWeLink.
+    Più affidabile dell'OAuth per alcune configurazioni.
+    """
+    global ewelink_access_token, ewelink_refresh_token, ewelink_token_expires
+    
+    base_url = EWELINK_API_URLS.get(login_data.region, EWELINK_API_URLS['eu'])
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # eWeLink API v2 login endpoint
+            response = await client.post(
+                f"{base_url}/v2/user/login",
+                json={
+                    "email": login_data.email,
+                    "password": login_data.password,
+                    "countryCode": "+39"  # Italy
+                },
+                headers={
+                    "X-CK-Appid": EWELINK_APPID,
+                    "Content-Type": "application/json"
+                }
+            )
+            
+            data = response.json()
+            logger.info(f"eWeLink login response: error={data.get('error')}, msg={data.get('msg')}")
+            
+            if response.status_code != 200 or data.get("error") != 0:
+                error_msg = data.get("msg", "Login fallito")
+                raise HTTPException(status_code=401, detail=error_msg)
+            
+            user_data = data.get("data", {})
+            user_info = user_data.get("user", {})
+            access_token = user_data.get("at")
+            refresh_token = user_data.get("rt")
+            
+            if not access_token:
+                raise HTTPException(status_code=400, detail="Nessun token ricevuto")
+            
+            # Calculate expiration (default 30 days)
+            expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+            
+            # Update cache
+            ewelink_access_token = access_token
+            ewelink_refresh_token = refresh_token
+            ewelink_token_expires = expires_at
+            
+            # Store in database
+            await db.ewelink_tokens.update_one(
+                {"region": login_data.region},
+                {
+                    "$set": {
+                        "access_token": access_token,
+                        "refresh_token": refresh_token,
+                        "expires_at": expires_at.isoformat(),
+                        "region": login_data.region,
+                        "user_info": user_info,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
+                },
+                upsert=True
+            )
+            
+            # Update property config
+            await db.property_config.update_one(
+                {"is_active": True},
+                {
+                    "$set": {
+                        "integrations.ewelink.enabled": True,
+                        "integrations.ewelink.region": login_data.region,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }
+                }
+            )
+            
+            logger.info(f"eWeLink login successful! User: {user_info.get('email', 'unknown')}")
+            
+            return {
+                "success": True,
+                "message": "Login eWeLink riuscito!",
+                "user": {
+                    "email": user_info.get("email"),
+                    "nickname": user_info.get("nickname"),
+                    "countryCode": user_info.get("countryCode")
+                }
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"eWeLink login error: {e}")
+        raise HTTPException(status_code=500, detail=f"Errore login: {str(e)}")
+
+
 @api_router.get("/ewelink/auth-url")
 async def get_ewelink_auth_url():
     """
