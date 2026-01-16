@@ -4770,13 +4770,13 @@ async def get_ezviz_camera_snapshot(serial: str):
             
             if result.get('code') == '200' or result.get('code') == 200:
                 pic_url = result.get('data', {}).get('picUrl', '')
-                return {"serial": serial, "image_url": pic_url}
+                return {"serial": serial, "image_url": pic_url, "url": pic_url}
             else:
                 # Fallback - prendi dalla lista dispositivi
                 cameras = await get_ezviz_cameras()
                 for cam in cameras.get('cameras', []):
                     if cam['serial'] == serial:
-                        return {"serial": serial, "image_url": cam.get('image_url', '')}
+                        return {"serial": serial, "image_url": cam.get('image_url', ''), "url": cam.get('image_url', '')}
                 raise HTTPException(status_code=404, detail="Camera not found")
         else:
             # Usa pyezvizapi
@@ -4785,13 +4785,63 @@ async def get_ezviz_camera_snapshot(serial: str):
             
             if serial in cameras_data:
                 cover_url = cameras_data[serial].get("cover", "")
-                return {"serial": serial, "image_url": cover_url}
+                return {"serial": serial, "image_url": cover_url, "url": cover_url}
             
             raise HTTPException(status_code=404, detail="Camera not found")
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Ezviz snapshot error: {e}")
+        raise HTTPException(status_code=500, detail=f"Ezviz API error: {str(e)}")
+
+
+@api_router.get("/ezviz/camera/{serial}/capture")
+async def capture_ezviz_camera_snapshot(serial: str):
+    """Force capture a new snapshot from Ezviz camera"""
+    try:
+        auth = await get_ezviz_token()
+        
+        if auth["type"] == "api":
+            # Force new capture
+            result = await ezviz_api_request("/api/lapp/device/capture", "POST", {
+                "deviceSerial": serial,
+                "channelNo": 1
+            })
+            
+            logger.info(f"Ezviz capture result for {serial}: code={result.get('code')}")
+            
+            if result.get('code') == '200' or result.get('code') == 200:
+                pic_url = result.get('data', {}).get('picUrl', '')
+                if pic_url:
+                    return {"serial": serial, "url": pic_url, "image_url": pic_url, "success": True}
+            
+            # If capture failed, try to get existing image
+            error_msg = result.get('msg', 'Capture failed')
+            logger.warning(f"Ezviz capture failed for {serial}: {error_msg}")
+            
+            # Fallback to device info
+            cameras = await get_ezviz_cameras()
+            for cam in cameras.get('cameras', []):
+                if cam['serial'] == serial:
+                    img_url = cam.get('image_url', '')
+                    if img_url:
+                        return {"serial": serial, "url": img_url, "image_url": img_url, "success": True, "fallback": True}
+            
+            raise HTTPException(status_code=400, detail=error_msg)
+        else:
+            # Usa pyezvizapi
+            client = auth["client"]
+            cameras_data = client.get_all_cameras_info()
+            
+            if serial in cameras_data:
+                cover_url = cameras_data[serial].get("cover", "")
+                return {"serial": serial, "url": cover_url, "image_url": cover_url, "success": True}
+            
+            raise HTTPException(status_code=404, detail="Camera not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Ezviz capture error: {e}")
         raise HTTPException(status_code=500, detail=f"Ezviz API error: {str(e)}")
 
 
