@@ -550,7 +550,14 @@ const CameraCard = ({ camera }) => {
       }
     } catch (error) {
       console.error('Failed to get stream URL:', error);
-      toast.error('Impossibile avviare lo streaming');
+      const errorMsg = error.response?.data?.detail || 'Impossibile avviare lo streaming';
+      if (errorMsg.includes('Crittografia') || errorMsg.includes('9053')) {
+        toast.error('Disabilita la crittografia video nell\'app Ezviz per visualizzare lo streaming', {
+          duration: 8000
+        });
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setLoadingStream(false);
     }
