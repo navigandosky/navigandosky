@@ -556,8 +556,8 @@ const CameraCard = ({ camera, ezvizToken }) => {
   // Build iframe URL for Ezviz player
   const getIframeUrl = () => {
     if (!ezvizToken || !camera?.serial) return null;
-    // Use EU domain for iframe
-    return `https://ieuopen.ezvizlife.com/ezopen/h5/iframe?accessToken=${ezvizToken}&url=ezopen://open.ezviz.com/${camera.serial}/1.live&autoplay=1&audio=0`;
+    // Use ys7.com domain which works for all regions
+    return `https://open.ys7.com/ezopen/h5/iframe?accessToken=${ezvizToken}&url=ezopen://open.ezviz.com/${camera.serial}/1.live&autoplay=1&audio=0`;
   };
   
   return (
