@@ -4117,14 +4117,20 @@ async def ewelink_oauth_callback(
             token_data = data.get("data", {})
             access_token = token_data.get("accessToken") or token_data.get("at")
             refresh_token = token_data.get("refreshToken") or token_data.get("rt")
-            expires_in = token_data.get("atExpiredTime", 86400)
+            # atExpiredTime is a timestamp in MILLISECONDS, not seconds
+            at_expired_time = token_data.get("atExpiredTime", 0)
             user_info = token_data.get("user", {})
             
             if not access_token:
                 raise HTTPException(status_code=400, detail="No access token in response")
             
-            # Calculate expiration
-            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+            # Calculate expiration - atExpiredTime is already an absolute timestamp in ms
+            if at_expired_time > 1000000000000:  # It's a timestamp in milliseconds
+                expires_at = datetime.fromtimestamp(at_expired_time / 1000, tz=timezone.utc)
+            elif at_expired_time > 0:  # It's seconds from now
+                expires_at = datetime.now(timezone.utc) + timedelta(seconds=at_expired_time)
+            else:  # Default to 30 days
+                expires_at = datetime.now(timezone.utc) + timedelta(days=30)
             
             # Update cache
             ewelink_access_token = access_token
