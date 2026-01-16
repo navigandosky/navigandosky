@@ -4008,12 +4008,22 @@ async def ewelink_oauth_callback(
     """
     global ewelink_access_token, ewelink_refresh_token, ewelink_token_expires
     
+    logger.info(f"eWeLink OAuth callback received: code={code[:20] if code else 'None'}..., state={state}, error={error}")
+    
     if error:
         logger.error(f"eWeLink OAuth error: {error}")
-        raise HTTPException(status_code=400, detail=f"Authorization failed: {error}")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}?ewelink_auth=error&message={quote(error)}",
+            status_code=302
+        )
     
     if not code:
-        raise HTTPException(status_code=400, detail="Authorization code not provided")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}?ewelink_auth=error&message=No%20authorization%20code",
+            status_code=302
+        )
     
     # Verify state if provided
     if state:
@@ -4021,7 +4031,6 @@ async def ewelink_oauth_callback(
         if not state_doc:
             logger.warning(f"Invalid state parameter: {state}")
         else:
-            # Delete used state
             await db.ewelink_auth_states.delete_one({"state": state})
     
     # Exchange code for token
@@ -4029,19 +4038,28 @@ async def ewelink_oauth_callback(
     redirect_uri = EWELINK_REDIRECT_URI or f"{FRONTEND_URL}/api/ewelink/callback"
     
     try:
+        # Build request body
+        token_body = {
+            "grantType": "authorization_code",
+            "code": code,
+            "redirectUrl": redirect_uri
+        }
+        
+        # Calculate proper signature
+        body_str = json.dumps(token_body)
+        sign = make_ewelink_auth_sign(EWELINK_APP_SECRET, token_body)
+        
+        logger.info(f"eWeLink token exchange: body={token_body}, sign={sign[:20]}...")
+        
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{base_url}/v2/user/oauth/token",
-                json={
-                    "grantType": "authorization_code",
-                    "code": code,
-                    "redirectUrl": redirect_uri
-                },
                 headers={
                     "X-CK-Appid": EWELINK_APPID,
-                    "Authorization": f"Sign {EWELINK_APP_SECRET}",
+                    "Authorization": f"Sign {sign}",
                     "Content-Type": "application/json"
-                }
+                },
+                data=body_str
             )
             
             logger.info(f"eWeLink token response status: {response.status_code}")
