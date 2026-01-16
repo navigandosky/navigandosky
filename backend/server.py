@@ -5880,6 +5880,27 @@ async def get_sensors_report(hours: int = 24):
     """
     start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
     
+    # Get device names from SmartThings for better display
+    device_names = {}
+    try:
+        token = await get_smartthings_token()
+        if token:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(
+                    f"{SMARTTHINGS_API_URL}/devices",
+                    headers={"Authorization": f"Bearer {token}"}
+                )
+                if response.status_code == 200:
+                    devices = response.json().get("items", [])
+                    for dev in devices:
+                        dev_id = dev.get("deviceId")
+                        # Prefer label (user-friendly) over name (technical)
+                        friendly_name = dev.get("label") or dev.get("name", "")
+                        if dev_id and friendly_name:
+                            device_names[dev_id] = friendly_name
+    except Exception as e:
+        logger.debug(f"Could not fetch SmartThings device names: {e}")
+    
     # Get unique device/sensor combinations
     pipeline = [
         {
@@ -5916,9 +5937,17 @@ async def get_sensors_report(hours: int = 24):
     }
     
     for r in results:
+        device_id = r["_id"]["device_id"]
+        # Use SmartThings label if available, fallback to stored name
+        stored_name = r.get("device_name", "")
+        display_name = device_names.get(device_id, stored_name)
+        # If stored name is technical (like c2c-humidity), prefer SmartThings name
+        if stored_name and stored_name.startswith("c2c-") or stored_name.startswith("switch"):
+            display_name = device_names.get(device_id) or stored_name
+        
         sensor_data = {
-            "device_id": r["_id"]["device_id"],
-            "device_name": r.get("device_name", ""),
+            "device_id": device_id,
+            "device_name": display_name or stored_name or "Sensore",
             "sensor_type": r["_id"]["sensor_type"],
             "unit": r.get("unit", ""),
             "current_value": round(r["last_value"], 2) if r["last_value"] else None,
