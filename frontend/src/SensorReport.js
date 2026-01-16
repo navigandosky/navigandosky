@@ -187,7 +187,7 @@ const SensorCard = ({ sensor, onClick, isSelected }) => {
             </div>
             <div>
               <p className="font-medium text-sm truncate max-w-[150px]" title={sensor.device_name}>
-                {sensor.device_name || "Sensore"}
+                {getFriendlyDeviceName(sensor.device_name)}
               </p>
               <p className="text-xs text-gray-500">{config.name}</p>
             </div>
