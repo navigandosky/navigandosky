@@ -753,6 +753,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
   const [devicesByRoom, setDevicesByRoom] = useState([]);
   const [ezvizCameras, setEzvizCameras] = useState([]);
+  const [ezvizToken, setEzvizToken] = useState(null);
   const [weather, setWeather] = useState(null);
   const [climaData, setClimaData] = useState(null); // Dati sensore temperatura SmartThings
   const [systemStatus, setSystemStatus] = useState({ ok: 0, attenzione: 0, critici: 0, totali: 0 });
