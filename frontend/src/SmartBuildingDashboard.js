@@ -502,15 +502,15 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
   );
 };
 
-// Ezviz Camera Card with HLS streaming
-const CameraCard = ({ camera }) => {
+// Ezviz Camera Card with EZUIKit player
+const CameraCard = ({ camera, ezvizToken }) => {
   const isOnline = camera?.status === 'online';
   const [imageError, setImageError] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [streamUrl, setStreamUrl] = useState(null);
   const [loadingStream, setLoadingStream] = useState(false);
-  const videoRef = useRef(null);
-  const hlsRef = useRef(null);
+  const [player, setPlayer] = useState(null);
+  const containerRef = useRef(null);
+  const playerIdRef = useRef(`ezuikit-${camera?.serial || Math.random().toString(36).substr(2, 9)}`);
   
   // Deep link per aprire l'app Ezviz
   const openEzvizApp = () => {
@@ -537,27 +537,56 @@ const CameraCard = ({ camera }) => {
     }
   };
 
-  // Start HLS streaming
+  // Start EZUIKit streaming
   const startStream = async () => {
-    if (!camera?.serial || loadingStream) return;
+    if (!camera?.serial || loadingStream || !ezvizToken) {
+      if (!ezvizToken) {
+        toast.error('Token Ezviz non disponibile');
+      }
+      return;
+    }
     
     setLoadingStream(true);
+    setIsPlaying(true);
+    
     try {
-      const response = await axios.get(`${API_URL}/api/ezviz/camera/${camera.serial}/stream`);
-      if (response.data?.stream_url) {
-        setStreamUrl(response.data.stream_url);
-        setIsPlaying(true);
+      // Load EZUIKit script dynamically if not loaded
+      if (!window.EZUIKit) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://resource.eziot.com/group1/M00/00/89/CtwQE2G4hx-AZM_HAAU8bL0tLvM044.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+        // Wait a bit for SDK to initialize
+        await new Promise(r => setTimeout(r, 500));
+      }
+      
+      if (window.EZUIKit) {
+        const ezUrl = `ezopen://open.ezviz.com/${camera.serial}/1.live`;
+        
+        const newPlayer = new window.EZUIKit.EZUIKitPlayer({
+          id: playerIdRef.current,
+          accessToken: ezvizToken,
+          url: ezUrl,
+          template: 'simple',
+          width: containerRef.current?.offsetWidth || 320,
+          height: containerRef.current?.offsetHeight || 180,
+          plugin: [],
+          env: {
+            domain: 'https://ieuopen.ezvizlife.com'
+          }
+        });
+        
+        setPlayer(newPlayer);
+      } else {
+        throw new Error('EZUIKit SDK not loaded');
       }
     } catch (error) {
-      console.error('Failed to get stream URL:', error);
-      const errorMsg = error.response?.data?.detail || 'Impossibile avviare lo streaming';
-      if (errorMsg.includes('Crittografia') || errorMsg.includes('9053')) {
-        toast.error('Disabilita la crittografia video nell\'app Ezviz per visualizzare lo streaming', {
-          duration: 8000
-        });
-      } else {
-        toast.error(errorMsg);
-      }
+      console.error('Failed to start stream:', error);
+      toast.error('Errore avvio streaming: ' + error.message);
+      setIsPlaying(false);
     } finally {
       setLoadingStream(false);
     }
@@ -565,78 +594,40 @@ const CameraCard = ({ camera }) => {
 
   // Stop streaming
   const stopStream = () => {
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
+    if (player) {
+      try {
+        player.stop();
+        player.destroy && player.destroy();
+      } catch (e) {
+        console.log('Player cleanup error:', e);
+      }
+      setPlayer(null);
     }
     setIsPlaying(false);
-    setStreamUrl(null);
   };
-
-  // Initialize HLS player when streamUrl changes
-  useEffect(() => {
-    if (!streamUrl || !videoRef.current) return;
-
-    const initHls = async () => {
-      const Hls = (await import('hls.js')).default;
-      
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-        });
-        hlsRef.current = hls;
-        hls.loadSource(streamUrl);
-        hls.attachMedia(videoRef.current);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          videoRef.current?.play().catch(e => console.log('Autoplay blocked:', e));
-        });
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            console.error('HLS fatal error:', data);
-            stopStream();
-            toast.error('Errore streaming video');
-          }
-        });
-      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-        // Safari native HLS support
-        videoRef.current.src = streamUrl;
-        videoRef.current.play().catch(e => console.log('Autoplay blocked:', e));
-      }
-    };
-
-    initHls();
-
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-    };
-  }, [streamUrl]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
+      if (player) {
+        try {
+          player.stop();
+          player.destroy && player.destroy();
+        } catch (e) {}
       }
     };
-  }, []);
+  }, [player]);
   
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden hover:border-red-500/30 transition-all duration-300">
       {/* Video/Preview Area */}
-      <div className="aspect-video bg-slate-900 relative">
-        {isPlaying && streamUrl ? (
-          // HLS Video Player
-          <video
-            ref={videoRef}
-            className="w-full h-full object-cover"
-            playsInline
-            muted
-            autoPlay
-            controls={false}
+      <div className="aspect-video bg-slate-900 relative" ref={containerRef}>
+        {isPlaying ? (
+          // EZUIKit Player Container
+          <div 
+            id={playerIdRef.current} 
+            className="w-full h-full"
+            style={{ minHeight: '180px' }}
           />
         ) : snapshotUrl && !imageError ? (
           // Snapshot Image
@@ -660,7 +651,7 @@ const CameraCard = ({ camera }) => {
         
         {/* Loading Overlay */}
         {loadingStream && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-red-500 border-t-transparent mb-2"></div>
               <p className="text-xs text-white">Caricamento...</p>
@@ -669,15 +660,15 @@ const CameraCard = ({ camera }) => {
         )}
         
         {/* Badge Stato */}
-        <div className="absolute top-2 left-2">
+        <div className="absolute top-2 left-2 z-20">
           <Badge variant={isOnline ? "default" : "destructive"} className={isOnline ? "bg-green-500" : ""}>
             <span className={`w-2 h-2 rounded-full mr-1 ${isOnline ? 'bg-white animate-pulse' : 'bg-red-300'}`}></span>
-            {isPlaying ? "STREAMING" : (isOnline ? "LIVE" : "OFFLINE")}
+            {isPlaying ? "LIVE" : (isOnline ? "ONLINE" : "OFFLINE")}
           </Badge>
         </div>
         
         {/* Modello */}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2 z-20">
           <span className="text-xs bg-black/50 px-2 py-1 rounded text-white">{camera?.model || 'Camera'}</span>
         </div>
         
@@ -696,7 +687,7 @@ const CameraCard = ({ camera }) => {
         {/* Stop button when playing */}
         {isPlaying && (
           <div 
-            className="absolute bottom-2 right-2 cursor-pointer"
+            className="absolute bottom-2 right-2 cursor-pointer z-20"
             onClick={stopStream}
           >
             <div className="bg-red-500/80 rounded-full p-2 hover:bg-red-600">
