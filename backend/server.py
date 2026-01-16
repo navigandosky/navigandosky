@@ -1199,8 +1199,19 @@ async def delete_centro_assistenza(centro_id: str):
 # ------------ ELETTRODOMESTICI ------------
 
 @api_router.post("/elettrodomestici", response_model=Elettrodomestico)
-async def create_elettrodomestico(data: ElettrodomesticoCreate):
-    elettrodomestico = Elettrodomestico(**data.model_dump())
+async def create_elettrodomestico(data: dict = Body(...)):
+    # Handle custom categoria - map "custom" to "altro"
+    if data.get('categoria') == 'custom':
+        data['categoria'] = 'altro'
+    
+    # Validate with Pydantic model
+    try:
+        validated_data = ElettrodomesticoCreate(**data)
+    except Exception as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=422, detail=str(e))
+    
+    elettrodomestico = Elettrodomestico(**validated_data.model_dump())
     doc = serialize_doc(elettrodomestico.model_dump())
     await db.elettrodomestici.insert_one(doc)
     return elettrodomestico
