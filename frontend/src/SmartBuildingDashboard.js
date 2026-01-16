@@ -502,15 +502,12 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
   );
 };
 
-// Ezviz Camera Card with EZUIKit player
+// Ezviz Camera Card with iframe player
 const CameraCard = ({ camera, ezvizToken }) => {
   const isOnline = camera?.status === 'online';
   const [imageError, setImageError] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loadingStream, setLoadingStream] = useState(false);
-  const [player, setPlayer] = useState(null);
-  const containerRef = useRef(null);
-  const playerIdRef = useRef(`ezuikit-${camera?.serial || Math.random().toString(36).substr(2, 9)}`);
   
   // Deep link per aprire l'app Ezviz
   const openEzvizApp = () => {
@@ -537,97 +534,44 @@ const CameraCard = ({ camera, ezvizToken }) => {
     }
   };
 
-  // Start EZUIKit streaming
-  const startStream = async () => {
-    if (!camera?.serial || loadingStream || !ezvizToken) {
+  // Start streaming via iframe
+  const startStream = () => {
+    if (!camera?.serial || !ezvizToken) {
       if (!ezvizToken) {
         toast.error('Token Ezviz non disponibile');
       }
       return;
     }
-    
     setLoadingStream(true);
     setIsPlaying(true);
-    
-    try {
-      // Load EZUIKit script dynamically if not loaded
-      if (!window.EZUIKit) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://resource.eziot.com/group1/M00/00/89/CtwQE2G4hx-AZM_HAAU8bL0tLvM044.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-        // Wait a bit for SDK to initialize
-        await new Promise(r => setTimeout(r, 500));
-      }
-      
-      if (window.EZUIKit) {
-        const ezUrl = `ezopen://open.ezviz.com/${camera.serial}/1.live`;
-        
-        const newPlayer = new window.EZUIKit.EZUIKitPlayer({
-          id: playerIdRef.current,
-          accessToken: ezvizToken,
-          url: ezUrl,
-          template: 'simple',
-          width: containerRef.current?.offsetWidth || 320,
-          height: containerRef.current?.offsetHeight || 180,
-          plugin: [],
-          env: {
-            domain: 'https://ieuopen.ezvizlife.com'
-          }
-        });
-        
-        setPlayer(newPlayer);
-      } else {
-        throw new Error('EZUIKit SDK not loaded');
-      }
-    } catch (error) {
-      console.error('Failed to start stream:', error);
-      toast.error('Errore avvio streaming: ' + error.message);
-      setIsPlaying(false);
-    } finally {
-      setLoadingStream(false);
-    }
+    // Loading will be hidden when iframe loads
+    setTimeout(() => setLoadingStream(false), 2000);
   };
 
   // Stop streaming
   const stopStream = () => {
-    if (player) {
-      try {
-        player.stop();
-        player.destroy && player.destroy();
-      } catch (e) {
-        console.log('Player cleanup error:', e);
-      }
-      setPlayer(null);
-    }
     setIsPlaying(false);
   };
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (player) {
-        try {
-          player.stop();
-          player.destroy && player.destroy();
-        } catch (e) {}
-      }
-    };
-  }, [player]);
+  // Build iframe URL for Ezviz player
+  const getIframeUrl = () => {
+    if (!ezvizToken || !camera?.serial) return null;
+    // Use EU domain for iframe
+    return `https://ieuopen.ezvizlife.com/ezopen/h5/iframe?accessToken=${ezvizToken}&url=ezopen://open.ezviz.com/${camera.serial}/1.live&autoplay=1&audio=0`;
+  };
   
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden hover:border-red-500/30 transition-all duration-300">
       {/* Video/Preview Area */}
-      <div className="aspect-video bg-slate-900 relative" ref={containerRef}>
-        {isPlaying ? (
-          // EZUIKit Player Container
-          <div 
-            id={playerIdRef.current} 
-            className="w-full h-full"
-            style={{ minHeight: '180px' }}
+      <div className="aspect-video bg-slate-900 relative">
+        {isPlaying && ezvizToken ? (
+          // Iframe Player
+          <iframe
+            src={getIframeUrl()}
+            className="w-full h-full border-0"
+            allow="autoplay; fullscreen"
+            allowFullScreen
+            onLoad={() => setLoadingStream(false)}
           />
         ) : snapshotUrl && !imageError ? (
           // Snapshot Image
@@ -660,7 +604,7 @@ const CameraCard = ({ camera, ezvizToken }) => {
         )}
         
         {/* Badge Stato */}
-        <div className="absolute top-2 left-2 z-20">
+        <div className="absolute top-2 left-2 z-20 pointer-events-none">
           <Badge variant={isOnline ? "default" : "destructive"} className={isOnline ? "bg-green-500" : ""}>
             <span className={`w-2 h-2 rounded-full mr-1 ${isOnline ? 'bg-white animate-pulse' : 'bg-red-300'}`}></span>
             {isPlaying ? "LIVE" : (isOnline ? "ONLINE" : "OFFLINE")}
@@ -668,11 +612,11 @@ const CameraCard = ({ camera, ezvizToken }) => {
         </div>
         
         {/* Modello */}
-        <div className="absolute top-2 right-2 z-20">
+        <div className="absolute top-2 right-2 z-20 pointer-events-none">
           <span className="text-xs bg-black/50 px-2 py-1 rounded text-white">{camera?.model || 'Camera'}</span>
         </div>
         
-        {/* Play/Stop Overlay */}
+        {/* Play Overlay (only when not playing) */}
         {!isPlaying && !loadingStream && (
           <div 
             className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
