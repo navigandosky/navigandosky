@@ -821,10 +821,16 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
         console.log('Clima sensor not available:', e.message);
       }
       
-      // Fetch Ezviz cameras (may fail)
+      // Fetch Ezviz cameras and token (may fail)
       try {
-        const camerasRes = await axios.get(`${API_URL}/api/ezviz/cameras`);
+        const [camerasRes, tokenRes] = await Promise.all([
+          axios.get(`${API_URL}/api/ezviz/cameras`),
+          axios.get(`${API_URL}/api/ezviz/access-token`).catch(() => null)
+        ]);
         setEzvizCameras(camerasRes.data.cameras || []);
+        if (tokenRes?.data?.accessToken) {
+          setEzvizToken(tokenRes.data.accessToken);
+        }
       } catch (e) {
         console.log('Ezviz not available:', e.message);
       }
