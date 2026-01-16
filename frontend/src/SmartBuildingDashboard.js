@@ -748,18 +748,6 @@ const CameraCard = ({ camera }) => {
     </div>
   );
 }; 
-            variant="outline" 
-            className="text-xs border-slate-600"
-            onClick={refreshSnapshot}
-            title="Aggiorna immagine"
-          >
-            <RefreshCw size={12} />
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // Main Dashboard Component
 export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], elettrodomestici = [] }) {
