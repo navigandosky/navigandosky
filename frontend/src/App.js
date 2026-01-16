@@ -1462,7 +1462,21 @@ function App() {
     } catch (error) {
       console.error("Errore salvataggio elettrodomestico:", error);
       console.error("Response:", error.response?.data);
-      const errorMsg = error.response?.data?.detail || "Errore nel salvataggio";
+      
+      // Handle different error formats
+      let errorMsg = "Errore nel salvataggio";
+      const detail = error.response?.data?.detail;
+      
+      if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else if (Array.isArray(detail)) {
+        // Pydantic validation errors array
+        errorMsg = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+      } else if (detail && typeof detail === 'object') {
+        // Single error object
+        errorMsg = detail.msg || detail.message || JSON.stringify(detail);
+      }
+      
       toast.error(errorMsg);
     }
   };
