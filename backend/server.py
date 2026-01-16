@@ -1290,8 +1290,9 @@ async def get_elettrodomestico(elettrodomestico_id: str):
 
 @api_router.put("/elettrodomestici/{elettrodomestico_id}", response_model=Elettrodomestico)
 async def update_elettrodomestico(elettrodomestico_id: str, data: dict = Body(...)):
-    # Handle custom categoria
-    if data.get('categoria') == 'custom':
+    # Handle custom categoria - any value starting with "custom" should map to "altro"
+    categoria = data.get('categoria', '')
+    if categoria and (categoria == 'custom' or categoria.startswith('custom_')):
         data['categoria'] = 'altro'
     
     # Validate with Pydantic
