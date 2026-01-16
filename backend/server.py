@@ -3968,14 +3968,30 @@ async def ewelink_direct_login(login_data: EwelinkLoginRequest):
 @api_router.get("/ewelink/auth-url")
 async def get_ewelink_auth_url():
     """
-    Generate eWeLink OAuth2 authorization URL.
-    User will be redirected to this URL to authorize the app.
+    Generate eWeLink OAuth2 authorization URL with proper signature.
     """
-    if not EWELINK_APPID:
-        raise HTTPException(status_code=500, detail="eWeLink App ID not configured")
-    
+    import hmac
+    import hashlib
+    import base64
     import secrets
+    import time
+    
+    if not EWELINK_APPID or not EWELINK_APP_SECRET:
+        raise HTTPException(status_code=500, detail="eWeLink credentials not configured")
+    
+    # Generate required parameters
+    seq = str(int(time.time() * 1000))  # Timestamp in milliseconds
+    nonce = ''.join(secrets.choice('abcdefghijklmnopqrstuvwxyz0123456789') for _ in range(8))
     state = secrets.token_urlsafe(16)
+    
+    # Calculate authorization signature: HMAC-SHA256({clientId}_{seq}) with clientSecret as key
+    message = f"{EWELINK_APPID}_{seq}"
+    signature = hmac.new(
+        EWELINK_APP_SECRET.encode('utf-8'),
+        message.encode('utf-8'),
+        hashlib.sha256
+    ).digest()
+    authorization = base64.b64encode(signature).decode('utf-8')
     
     # Store state in database for verification
     await db.ewelink_auth_states.insert_one({
@@ -3984,9 +4000,25 @@ async def get_ewelink_auth_url():
         "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat()
     })
     
-    # Build authorization URL
+    # Build authorization URL with all required parameters
     redirect_uri = EWELINK_REDIRECT_URI or f"{FRONTEND_URL}/api/ewelink/callback"
-    auth_url = f"{EWELINK_AUTH_URL}?clientId={EWELINK_APPID}&redirectUrl={quote(redirect_uri)}&state={state}&grantType=authorization_code"
+    
+    # URL encode the redirect URI
+    encoded_redirect = quote(redirect_uri, safe='')
+    encoded_auth = quote(authorization, safe='')
+    
+    auth_url = (
+        f"{EWELINK_AUTH_URL}"
+        f"?clientId={EWELINK_APPID}"
+        f"&seq={seq}"
+        f"&authorization={encoded_auth}"
+        f"&redirectUrl={encoded_redirect}"
+        f"&grantType=authorization_code"
+        f"&state={state}"
+        f"&nonce={nonce}"
+    )
+    
+    logger.info(f"Generated eWeLink auth URL with seq={seq}, nonce={nonce}")
     
     return {
         "auth_url": auth_url,
