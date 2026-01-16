@@ -115,6 +115,36 @@ const INTERVAL_OPTIONS = [
   { value: "day", label: "Giorni" }
 ];
 
+// Device name mapping - fallback for technical names
+const DEVICE_NAME_MAP = {
+  "SNZB-02D": "Sensore Temperatura/Umidità",
+  "c2c-humidity": "Sensore Umidità",
+  "c2c-switch": "Interruttore Smart",
+  "switchTemperatureSensor": "Sensore Temperatura Aria"
+};
+
+// Helper to get friendly device name
+const getFriendlyDeviceName = (deviceName) => {
+  if (!deviceName) return "Sensore";
+  
+  // Check if it's a technical name that needs mapping
+  if (DEVICE_NAME_MAP[deviceName]) {
+    return DEVICE_NAME_MAP[deviceName];
+  }
+  
+  // If it starts with technical prefixes, try to clean it up
+  if (deviceName.startsWith("c2c-") || deviceName.startsWith("switch")) {
+    return deviceName
+      .replace("c2c-", "")
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .trim();
+  }
+  
+  // Return as-is if it looks like a real name
+  return deviceName;
+};
+
 // Sensor Card Component
 const SensorCard = ({ sensor, onClick, isSelected }) => {
   const config = SENSOR_TYPES[sensor.sensor_type] || SENSOR_TYPES.temperature;
