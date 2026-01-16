@@ -4070,18 +4070,30 @@ async def ewelink_oauth_callback(
     redirect_uri = EWELINK_REDIRECT_URI or f"{FRONTEND_URL}/api/ewelink/callback"
     
     try:
-        # Build request body
+        # Build request body - order matters for signature!
         token_body = {
             "grantType": "authorization_code",
             "code": code,
             "redirectUrl": redirect_uri
         }
         
-        # Calculate proper signature
-        body_str = json.dumps(token_body)
-        sign = make_ewelink_auth_sign(EWELINK_APP_SECRET, token_body)
+        # Calculate signature on the EXACT body string we'll send
+        # Use compact JSON without spaces
+        body_str = json.dumps(token_body, separators=(',', ':'), ensure_ascii=False)
         
-        logger.info(f"eWeLink token exchange: body={token_body}, sign={sign[:20]}...")
+        # Calculate HMAC-SHA256 signature
+        import hmac
+        import hashlib
+        import base64
+        signature = hmac.new(
+            EWELINK_APP_SECRET.encode('utf-8'),
+            body_str.encode('utf-8'),
+            hashlib.sha256
+        ).digest()
+        sign = base64.b64encode(signature).decode('utf-8')
+        
+        logger.info(f"eWeLink token exchange: body_str={body_str}")
+        logger.info(f"eWeLink token exchange: sign={sign}")
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -4091,7 +4103,7 @@ async def ewelink_oauth_callback(
                     "Authorization": f"Sign {sign}",
                     "Content-Type": "application/json"
                 },
-                data=body_str
+                content=body_str  # Send the EXACT same string used for signature
             )
             
             logger.info(f"eWeLink token response status: {response.status_code}")
