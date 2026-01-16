@@ -4779,34 +4779,58 @@ async def get_ezviz_camera_snapshot(serial: str):
 
 
 @api_router.get("/ezviz/camera/{serial}/stream")
-async def get_ezviz_camera_stream_url(serial: str):
-    """Get stream URL for Ezviz camera"""
+async def get_ezviz_camera_stream_url(serial: str, protocol: int = 2, quality: int = 1):
+    """
+    Get stream URL for Ezviz camera
+    protocol: 1=ezopen, 2=hls, 3=rtmp
+    quality: 1=HD, 2=SD
+    """
     try:
         auth = await get_ezviz_token()
         
         if auth["type"] == "api":
-            # Usa API ufficiale per ottenere URL stream
+            # Try HLS first (protocol 2)
             result = await ezviz_api_request("/api/lapp/live/address/get", "POST", {
                 "deviceSerial": serial,
                 "channelNo": 1,
-                "protocol": 2,  # 1=ezopen, 2=hls, 3=rtmp
-                "quality": 1    # 1=HD, 2=SD
+                "protocol": protocol,
+                "quality": quality
             })
+            
+            logger.info(f"Ezviz stream response for {serial}: code={result.get('code')}, msg={result.get('msg')}")
             
             if result.get('code') == '200' or result.get('code') == 200:
                 stream_url = result.get('data', {}).get('url', '')
-                return {"serial": serial, "stream_url": stream_url}
-            else:
-                # Fallback - prova con protocollo diverso
+                return {
+                    "serial": serial, 
+                    "stream_url": stream_url,
+                    "protocol": protocol,
+                    "quality": quality
+                }
+            
+            # If HLS failed, try all protocols
+            for try_protocol in [1, 2, 3]:
+                if try_protocol == protocol:
+                    continue
                 result2 = await ezviz_api_request("/api/lapp/live/address/get", "POST", {
                     "deviceSerial": serial,
                     "channelNo": 1,
-                    "protocol": 1,
-                    "quality": 1
+                    "protocol": try_protocol,
+                    "quality": quality
                 })
                 if result2.get('code') == '200' or result2.get('code') == 200:
-                    return {"serial": serial, "stream_url": result2.get('data', {}).get('url', '')}
-                raise HTTPException(status_code=404, detail=f"Stream not available: {result.get('msg', 'Unknown error')}")
+                    return {
+                        "serial": serial, 
+                        "stream_url": result2.get('data', {}).get('url', ''),
+                        "protocol": try_protocol,
+                        "quality": quality
+                    }
+            
+            # Return error with message
+            error_msg = result.get('msg', 'Stream non disponibile')
+            if '9053' in str(result):
+                error_msg = "Crittografia video attiva. Disabilitala nell'app Ezviz: Impostazioni > Crittografia Video > OFF"
+            raise HTTPException(status_code=400, detail=error_msg)
         else:
             # Usa pyezvizapi
             client = auth["client"]
