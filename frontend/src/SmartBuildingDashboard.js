@@ -502,16 +502,15 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
   );
 };
 
-// Ezviz Camera Card with HLS video player
+// Ezviz Camera Card with periodic snapshots
 const CameraCard = ({ camera, ezvizToken }) => {
   const isOnline = camera?.status === 'online';
   const [imageError, setImageError] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [loadingStream, setLoadingStream] = useState(false);
-  const [streamUrl, setStreamUrl] = useState(null);
-  const [errorMsg, setErrorMsg] = useState(null);
-  const videoRef = useRef(null);
-  const hlsRef = useRef(null);
+  const [isLive, setIsLive] = useState(false);
+  const [snapshotUrl, setSnapshotUrl] = useState(camera?.image_url || null);
+  const [loading, setLoading] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const intervalRef = useRef(null);
   
   // Deep link per aprire l'app Ezviz
   const openEzvizApp = () => {
@@ -523,203 +522,154 @@ const CameraCard = ({ camera, ezvizToken }) => {
     }, 2000);
   };
 
-  // Fetch snapshot della camera
-  const [snapshotUrl, setSnapshotUrl] = useState(camera?.image_url || null);
-  
-  const refreshSnapshot = async () => {
+  // Fetch snapshot
+  const fetchSnapshot = async (showLoading = false) => {
+    if (!camera?.serial) return;
+    
+    if (showLoading) setLoading(true);
+    
     try {
-      const response = await axios.get(`${API_URL}/api/ezviz/camera/${camera?.serial}/snapshot`);
-      if (response.data?.image_url) {
-        setSnapshotUrl(response.data.image_url);
+      // Add timestamp to prevent caching
+      const response = await axios.get(`${API_URL}/api/ezviz/camera/${camera.serial}/capture`);
+      if (response.data?.url || response.data?.image_url) {
+        const newUrl = (response.data.url || response.data.image_url) + '&t=' + Date.now();
+        setSnapshotUrl(newUrl);
         setImageError(false);
+        setLastUpdate(new Date());
       }
     } catch (error) {
-      console.log('Snapshot not available');
-    }
-  };
-
-  // Start HLS streaming
-  const startStream = async () => {
-    if (!camera?.serial || loadingStream) return;
-    
-    setLoadingStream(true);
-    setErrorMsg(null);
-    
-    try {
-      // Get stream URL from backend
-      const response = await axios.get(`${API_URL}/api/ezviz/camera/${camera.serial}/stream`);
-      if (response.data?.stream_url) {
-        setStreamUrl(response.data.stream_url);
-        setIsPlaying(true);
-      } else {
-        throw new Error('Nessun URL streaming disponibile');
-      }
-    } catch (error) {
-      console.error('Stream error:', error);
-      const msg = error.response?.data?.detail || error.message || 'Errore streaming';
-      setErrorMsg(msg);
-      toast.error(msg);
-      setIsPlaying(false);
-    } finally {
-      setLoadingStream(false);
-    }
-  };
-
-  // Stop streaming
-  const stopStream = () => {
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.src = '';
-    }
-    setIsPlaying(false);
-    setStreamUrl(null);
-    setErrorMsg(null);
-  };
-
-  // Initialize HLS player
-  useEffect(() => {
-    if (!streamUrl || !videoRef.current) return;
-
-    const initPlayer = async () => {
+      console.log('Snapshot error:', error.message);
+      // Try alternative endpoint
       try {
-        const Hls = (await import('hls.js')).default;
-        
-        if (Hls.isSupported()) {
-          const hls = new Hls({
-            enableWorker: true,
-            lowLatencyMode: false,
-            maxBufferLength: 10,
-            maxMaxBufferLength: 30,
-          });
-          hlsRef.current = hls;
-          
-          hls.loadSource(streamUrl);
-          hls.attachMedia(videoRef.current);
-          
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            videoRef.current?.play().catch(e => console.log('Autoplay:', e));
-          });
-          
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            console.error('HLS error:', data);
-            if (data.fatal) {
-              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                setErrorMsg('Errore di rete - riprova');
-              } else {
-                setErrorMsg('Errore video');
-              }
-              stopStream();
-            }
-          });
-        } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-          // Safari native
-          videoRef.current.src = streamUrl;
-          videoRef.current.play().catch(e => console.log('Safari play:', e));
-        } else {
-          setErrorMsg('Browser non supportato');
+        const altResponse = await axios.get(`${API_URL}/api/ezviz/camera/${camera.serial}/snapshot`);
+        if (altResponse.data?.image_url) {
+          setSnapshotUrl(altResponse.data.image_url + '&t=' + Date.now());
+          setImageError(false);
+          setLastUpdate(new Date());
         }
-      } catch (err) {
-        console.error('Player init error:', err);
-        setErrorMsg('Errore inizializzazione player');
+      } catch (e) {
+        // Silent fail for periodic updates
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    initPlayer();
+  // Start live mode (periodic snapshots)
+  const startLive = () => {
+    setIsLive(true);
+    fetchSnapshot(true);
+    
+    // Update every 5 seconds
+    intervalRef.current = setInterval(() => {
+      fetchSnapshot(false);
+    }, 5000);
+  };
 
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-    };
-  }, [streamUrl]);
+  // Stop live mode
+  const stopLive = () => {
+    setIsLive(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
 
-  // Cleanup
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
       }
     };
   }, []);
+
+  // Format last update time
+  const formatLastUpdate = () => {
+    if (!lastUpdate) return '';
+    const seconds = Math.floor((new Date() - lastUpdate) / 1000);
+    if (seconds < 5) return 'Ora';
+    if (seconds < 60) return `${seconds}s fa`;
+    return `${Math.floor(seconds / 60)}m fa`;
+  };
+
+  // Update the "time ago" display
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    if (isLive) {
+      const timer = setInterval(() => forceUpdate(n => n + 1), 1000);
+      return () => clearInterval(timer);
+    }
+  }, [isLive]);
   
   return (
     <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden hover:border-red-500/30 transition-all duration-300">
-      {/* Video/Preview Area */}
+      {/* Image Area */}
       <div className="aspect-video bg-slate-900 relative">
-        {isPlaying ? (
-          // Video Player
-          <video
-            ref={videoRef}
-            className="w-full h-full object-contain bg-black"
-            playsInline
-            muted
-            autoPlay
-            controls
-          />
-        ) : snapshotUrl && !imageError ? (
-          // Snapshot
+        {snapshotUrl && !imageError ? (
           <img 
             src={snapshotUrl} 
             alt={camera?.name}
             className="w-full h-full object-cover cursor-pointer"
             onError={() => setImageError(true)}
-            onClick={startStream}
+            onClick={isLive ? stopLive : startLive}
           />
         ) : (
-          // Placeholder
           <div 
             className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 cursor-pointer"
-            onClick={startStream}
+            onClick={startLive}
           >
             <Camera size={48} className="text-slate-600 mb-2" />
-            <p className="text-xs text-slate-500">Clicca per avviare streaming</p>
+            <p className="text-xs text-slate-500">Clicca per visualizzare</p>
           </div>
         )}
         
-        {/* Error overlay */}
-        {errorMsg && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-            <div className="text-center p-4">
-              <p className="text-red-400 text-sm mb-3">{errorMsg}</p>
-              <Button size="sm" variant="outline" onClick={() => { setErrorMsg(null); setIsPlaying(false); }} className="text-white border-white">
-                Chiudi
-              </Button>
-            </div>
+        {/* Loading overlay */}
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-red-500 border-t-transparent"></div>
           </div>
         )}
         
-        {/* Loading */}
-        {loadingStream && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
-            <div className="flex flex-col items-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-red-500 border-t-transparent mb-2"></div>
-              <p className="text-xs text-white">Caricamento...</p>
-            </div>
+        {/* Live indicator */}
+        {isLive && (
+          <div className="absolute top-2 left-2 z-20">
+            <Badge className="bg-red-500 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-white mr-1 animate-ping"></span>
+              LIVE
+            </Badge>
           </div>
         )}
         
-        {/* Badge */}
-        <div className="absolute top-2 left-2 z-20 pointer-events-none">
-          <Badge variant={isOnline ? "default" : "destructive"} className={isOnline ? "bg-green-500" : ""}>
-            <span className={`w-2 h-2 rounded-full mr-1 ${isOnline ? 'bg-white animate-pulse' : 'bg-red-300'}`}></span>
-            {isPlaying ? "LIVE" : (isOnline ? "ONLINE" : "OFFLINE")}
-          </Badge>
-        </div>
+        {/* Status badge (when not live) */}
+        {!isLive && (
+          <div className="absolute top-2 left-2 z-20">
+            <Badge variant={isOnline ? "default" : "destructive"} className={isOnline ? "bg-green-500" : ""}>
+              <span className={`w-2 h-2 rounded-full mr-1 ${isOnline ? 'bg-white' : 'bg-red-300'}`}></span>
+              {isOnline ? "ONLINE" : "OFFLINE"}
+            </Badge>
+          </div>
+        )}
         
         {/* Model */}
         <div className="absolute top-2 right-2 z-20 pointer-events-none">
           <span className="text-xs bg-black/50 px-2 py-1 rounded text-white">{camera?.model || 'Camera'}</span>
         </div>
         
+        {/* Last update time */}
+        {isLive && lastUpdate && (
+          <div className="absolute bottom-2 left-2 z-20">
+            <span className="text-xs bg-black/70 px-2 py-1 rounded text-white">
+              Aggiornato: {formatLastUpdate()}
+            </span>
+          </div>
+        )}
+        
         {/* Play overlay */}
-        {!isPlaying && !loadingStream && !errorMsg && (
+        {!isLive && !loading && (
           <div 
             className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
-            onClick={startStream}
+            onClick={startLive}
           >
             <div className="bg-red-500/80 rounded-full p-3">
               <Play size={24} className="text-white ml-1" />
@@ -728,10 +678,10 @@ const CameraCard = ({ camera, ezvizToken }) => {
         )}
         
         {/* Stop button */}
-        {isPlaying && !errorMsg && (
+        {isLive && (
           <div 
             className="absolute bottom-2 right-2 cursor-pointer z-20"
-            onClick={stopStream}
+            onClick={stopLive}
           >
             <div className="bg-red-500/80 rounded-full p-2 hover:bg-red-600">
               <X size={16} className="text-white" />
@@ -754,16 +704,16 @@ const CameraCard = ({ camera, ezvizToken }) => {
           <Button 
             size="sm" 
             variant="outline" 
-            className={`flex-1 text-xs ${isPlaying ? 'border-red-500 text-red-400 hover:bg-red-500/20' : 'border-green-500/50 text-green-400 hover:bg-green-500/20'}`}
-            onClick={isPlaying ? stopStream : startStream}
-            disabled={loadingStream}
+            className={`flex-1 text-xs ${isLive ? 'border-red-500 text-red-400 hover:bg-red-500/20' : 'border-green-500/50 text-green-400 hover:bg-green-500/20'}`}
+            onClick={isLive ? stopLive : startLive}
+            disabled={loading}
           >
-            {loadingStream ? (
+            {loading ? (
               <>
                 <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent mr-1"></div>
                 Caricamento...
               </>
-            ) : isPlaying ? (
+            ) : isLive ? (
               <>
                 <X size={12} className="mr-1" />
                 Stop
@@ -771,7 +721,7 @@ const CameraCard = ({ camera, ezvizToken }) => {
             ) : (
               <>
                 <Play size={12} className="mr-1" />
-                Play
+                Live
               </>
             )}
           </Button>
