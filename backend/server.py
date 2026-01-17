@@ -1535,9 +1535,13 @@ async def create_elettrodomestico(data: dict = Body(...)):
 
 @api_router.get("/elettrodomestici", response_model=List[ElettrodomesticoConDettagli])
 async def get_elettrodomestici(
-    user_id: str = DEFAULT_USER_ID,
+    token: Optional[str] = Query(None),
     categoria: Optional[CategoriaElettrodomestico] = None
 ):
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     query = {"user_id": user_id}
     if categoria:
         query["categoria"] = categoria.value
