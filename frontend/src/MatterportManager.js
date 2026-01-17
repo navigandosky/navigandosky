@@ -52,6 +52,9 @@ import {
   Power,
   Link,
   Unlink,
+  Cloud,
+  CloudUpload,
+  CheckCircle,
   // Icons for POI types
   Thermometer,
   Flame,
