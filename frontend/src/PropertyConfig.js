@@ -1134,6 +1134,11 @@ export default function PropertyConfig() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Tab: Centri Assistenza */}
+        <TabsContent value="centri" className="space-y-4">
+          <CentriAssistenzaManager />
+        </TabsContent>
       </Tabs>
     </div>
   );
