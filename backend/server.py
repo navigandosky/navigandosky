@@ -6729,11 +6729,19 @@ async def sync_poi_to_matterport_cloud(poi_id: str):
         title = first_trans.get("title", "POI")
         description = first_trans.get("description", "")
     
+    # Extract only x, y, z from position
+    pos = poi["position"]
+    position_xyz = {
+        "x": float(pos.get("x", 0)),
+        "y": float(pos.get("y", 0)),
+        "z": float(pos.get("z", 0))
+    }
+    
     # Create tag in Matterport Cloud
     tag_data = MatterportTagCreate(
         label=title,
         description=description,
-        position=poi["position"]
+        position=position_xyz
     )
     
     result = await create_matterport_cloud_tag(
