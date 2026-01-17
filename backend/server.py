@@ -5392,10 +5392,15 @@ async def activate_matterport_space(space_id: str):
 # --- POI Management ---
 
 @api_router.get("/matterport/pois", response_model=List[POI])
-async def get_all_pois(space_id: Optional[str] = None):
-    """Get all POIs, optionally filtered by space"""
-    query = {"user_id": DEFAULT_USER_ID}
-    if space_id:
+async def get_all_pois(space_id: Optional[str] = None, token: Optional[str] = Query(None)):
+    """Get all POIs, optionally filtered by space and user"""
+    user = await get_user_from_token(token)
+    query = {"user_id": user["id"]}
+    
+    # If user has a specific space assigned, filter by it
+    if user.get("matterport_space_id"):
+        query["space_id"] = user["matterport_space_id"]
+    elif space_id:
         query["space_id"] = space_id
     
     pois = await db.pois.find(query, {"_id": 0}).to_list(500)
@@ -5403,10 +5408,11 @@ async def get_all_pois(space_id: Optional[str] = None):
 
 
 @api_router.get("/matterport/pois/{poi_id}", response_model=POIWithDetails)
-async def get_poi(poi_id: str):
+async def get_poi(poi_id: str, token: Optional[str] = Query(None)):
     """Get a single POI with details"""
+    user = await get_user_from_token(token)
     poi = await db.pois.find_one(
-        {"id": poi_id, "user_id": DEFAULT_USER_ID},
+        {"id": poi_id, "user_id": user["id"]},
         {"_id": 0}
     )
     if not poi:
@@ -5431,11 +5437,12 @@ async def get_poi(poi_id: str):
 
 
 @api_router.post("/matterport/pois", response_model=POI)
-async def create_poi(poi: POICreate):
+async def create_poi(poi: POICreate, token: Optional[str] = Query(None)):
     """Create a new POI"""
+    user = await get_user_from_token(token)
     poi_dict = poi.model_dump()
     poi_dict["id"] = str(uuid.uuid4())
-    poi_dict["user_id"] = DEFAULT_USER_ID
+    poi_dict["user_id"] = user["id"]
     poi_dict["created_at"] = datetime.now(timezone.utc)
     poi_dict["updated_at"] = datetime.now(timezone.utc)
     
