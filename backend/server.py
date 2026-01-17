@@ -6646,7 +6646,6 @@ async def create_matterport_cloud_tag(
         model(id: $modelId) {
             floors {
                 id
-                name
             }
         }
     }
