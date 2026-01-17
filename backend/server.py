@@ -6595,17 +6595,9 @@ async def get_matterport_spaces():
                 models = data.get("data", {}).get("models", {}).get("results", [])
                 spaces = []
                 for m in models:
-                    address_parts = []
-                    if m.get("address"):
-                        if m["address"].get("addressLine1"):
-                            address_parts.append(m["address"]["addressLine1"])
-                        if m["address"].get("city"):
-                            address_parts.append(m["address"]["city"])
-                    
                     spaces.append({
                         "id": m.get("id"),
                         "name": m.get("name", "Senza nome"),
-                        "address": ", ".join(address_parts) if address_parts else None,
                         "visibility": m.get("visibility", "private"),
                         "created": m.get("created"),
                         "modified": m.get("modified")
