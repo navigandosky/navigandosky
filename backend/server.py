@@ -1514,11 +1514,17 @@ async def delete_centro_assistenza(centro_id: str):
 # ------------ ELETTRODOMESTICI ------------
 
 @api_router.post("/elettrodomestici", response_model=Elettrodomestico)
-async def create_elettrodomestico(data: dict = Body(...)):
+async def create_elettrodomestico(data: dict = Body(...), token: Optional[str] = Query(None)):
+    # Get user from token for multi-tenant
+    user = await get_user_from_token(token)
+    
     # Handle custom categoria - any value starting with "custom" should map to "altro"
     categoria = data.get('categoria', '')
     if categoria and (categoria == 'custom' or categoria.startswith('custom_')):
         data['categoria'] = 'altro'
+    
+    # Set user_id from session
+    data['user_id'] = user["id"]
     
     # Validate with Pydantic model
     try:
