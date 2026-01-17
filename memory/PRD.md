@@ -2,109 +2,105 @@
 
 ## Stato Attuale (17/01/2026)
 
-### ✅ Funzionalità Completate Oggi
+### ✅ Funzionalità Completate
 
-#### Sistema Multi-Utente (NUOVO)
-- **Login Page**: Interfaccia moderna con gradiente blu/slate
-- **Autenticazione**: Username/password con hash SHA256
-- **Ruoli**: Admin e User
+#### 1. Sistema Multi-Utente con Multi-Tenant
+- **Login Page**: Interfaccia moderna con autenticazione
 - **Admin Master**: User=Admin, Password=SmartMaster2026
-- **Gestione Utenti**: Solo admin può creare/modificare/eliminare utenti
-- **Sessioni**: Token con scadenza 7 giorni
-- **Tab "Utenti"**: Visibile solo agli admin nel menu principale
-- **Selezione Spazio Matterport**: Ogni utente può avere uno spazio Matterport associato
+- **Ruoli**: Admin e User
+- **Multi-Tenant**: Ogni utente vede solo i propri dati
+- **Selezione Spazio Matterport**: Ogni utente può avere uno spazio assegnato
+- **Migration completata**: Tutti i dati migrati all'Admin
 
-#### Menu e UI Refactoring
-- **Rinominato**: "Elettrodomestici" → "Apparati"  
-- **Rinominato**: "Proprietà" → "Setup"
-- **Spostato**: "Centri Assistenza" dentro Setup (nuova sottotab)
-- **Aggiunta**: Tab "Utenti" per gestione multi-utente (solo admin)
-- **Header**: Mostra utente corrente con ruolo e pulsante logout
+#### 2. Sincronizzazione POI su Matterport Cloud ✅
+- **"Sincronizza su Cloud"**: Pulsante per ogni POI
+- **Badge stato**: "Sincronizzato su Cloud" verde / "Non sincronizzato" grigio
+- **Risincronizza**: Pulsante per aggiornare POI già sincronizzati
+- **POI Test**: Sensore_T1 sincronizzato con tag ID `7ngjGPepnE4`
+- **API GraphQL**: `addMattertag` mutation con floor detection automatico
 
-#### Matterport Cloud API ✅ FUNZIONANTE
-- **Autenticazione**: Basic Auth con Token ID + Token Secret
-- **Lista Spazi**: 10 modelli disponibili nell'account
-- **Sincronizza su Cloud**: Pulsante per ogni POI
-- **API Endpoints**:
+#### 3. Filtro Categorie Dinamico ✅
+- **Endpoint**: `GET /api/categorie-all` - Ritorna tutte le categorie
+- **Categorie standard**: 16 (frigorifero, lavatrice, climatizzatore, etc.)
+- **Categorie custom**: Supporto per categorie personalizzate
+- **Frontend**: Dropdown aggiornato con liste dinamiche
+
+#### 4. Menu e UI Refactoring ✅
+- **"Proprietà"** → **"Setup"**
+- **"Elettrodomestici"** → **"Apparati"**
+- **"Centri Assistenza"** spostato dentro Setup
+- **"Utenti"**: Tab visibile solo per Admin
+
+#### 5. Matterport Cloud API ✅
+- **Autenticazione**: Basic Auth (Token ID + Token Secret)
+- **Spazi disponibili**: 10 modelli dall'account
+- **Endpoint funzionanti**:
   - `GET /api/matterport/cloud/spaces` - Lista spazi
   - `POST /api/matterport/cloud/test-connection` - Test credenziali
   - `POST /api/matterport/cloud/sync-poi/{poi_id}` - Sincronizza POI
   - `POST /api/matterport/cloud/models/{model_id}/tags` - Crea Mattertag
 
-#### Pannello POI Completo
-- **Badge stato sincronizzazione**: "Non sincronizzato" / "Sincronizzato su Cloud"
-- **Sezione Matterport Cloud**: Con descrizione e pulsante
-- **Traduzioni**: 5 lingue (IT, EN, DE, FR, ES) con pulsante "Traduci"
-- **Audio Guide**: Pulsante "Genera Audio"
-- **SmartThings**: Collegamento dispositivi con controllo ON/OFF
-- **Allegati**: Upload file
-- **Navigazione 3D**: "Vai al POI"
+### Integrazioni Attive
 
-### ✅ Funzionalità Precedenti
-
-#### eWeLink Integration (OAuth2)
-- OAuth2 completo con firma HMAC-SHA256
-- 17 dispositivi visibili
-
-#### Ezviz Camera
-- Workaround con snapshot refresh ogni 5 secondi
-
-#### Altre Funzionalità
-- SmartThings caching (TTL 2 min)
-- LED stato POI (🔴 ON, ⚫ OFF)
-- Report Sensori
-- Ticket e Manutenzioni
-- Calendario
-
-## Architettura
+| Integrazione | Stato | Note |
+|--------------|-------|------|
+| Matterport SDK | ✅ FUNZIONANTE | Vista 3D con 10 POI |
+| Matterport Cloud API | ✅ FUNZIONANTE | Sincronizzazione tag |
+| SmartThings | ⚠️ Token scaduto | Richiede rigenerazione |
+| eWeLink | ✅ FUNZIONANTE | OAuth2, 17 dispositivi |
+| Ezviz | ✅ WORKAROUND | Snapshot refresh 5s |
 
 ### Database Collections
-- `users` - Utenti con ruoli e spazio Matterport
-- `sessions` - Token di sessione
-- `property_config` - Configurazione proprietà
-- `elettrodomestici` - Apparati/Elettrodomestici
-- `manutenzioni`, `tickets`, `centri_assistenza`
-- `matterport_pois` - POI con sync status
 
-### API Autenticazione
-- `POST /api/auth/init-admin` - Crea admin iniziale
-- `POST /api/auth/login` - Login utente
-- `POST /api/auth/logout` - Logout
-- `GET /api/auth/verify` - Verifica sessione
-- `GET /api/users` - Lista utenti (admin)
-- `POST /api/users` - Crea utente (admin)
-- `PUT /api/users/{id}` - Modifica utente
-- `DELETE /api/users/{id}` - Elimina utente
+| Collection | Dati |
+|------------|------|
+| users | 2 utenti (Admin, Geasar) |
+| elettrodomestici | 11 apparati |
+| pois | 10 POI (1 sincronizzato su cloud) |
+| manutenzioni | 12 |
+| tickets | 11 |
+| sessions | Token attivi |
 
-### API Matterport Cloud
-- `GET /api/matterport/cloud/spaces` - Lista spazi account
-- `POST /api/matterport/cloud/test-connection` - Test connessione
-- `POST /api/matterport/cloud/models/{model_id}/tags` - Crea Mattertag
-- `POST /api/matterport/cloud/sync-poi/{poi_id}` - Sincronizza POI
+### Credenziali
 
-## Credenziali
-
-### Admin Master
+#### Admin Master
 - **Username**: Admin
 - **Password**: SmartMaster2026
 
-### Matterport API ✅
+#### Matterport API
 - **Token ID**: 90ec1bd71e4935b5
 - **Token Secret**: c9c684136ae5797fdecf3ed6bc0aca61
-- **Spazi trovati**: 10 (Aerostazione Costa Smeralda, Viale Murichessa, etc.)
+
+### API Autenticazione
+
+```
+POST /api/auth/login - Login
+POST /api/auth/logout - Logout
+GET /api/auth/verify - Verifica sessione
+GET /api/users - Lista utenti (admin)
+POST /api/users - Crea utente (admin)
+```
+
+### API Multi-Tenant
+
+Tutte le API principali ora accettano `?token=...` per filtrare i dati per utente:
+- `GET /api/elettrodomestici?token=...`
+- `GET /api/manutenzioni?token=...`
+- `GET /api/matterport/pois?token=...`
+- `GET /api/categorie-all?token=...`
 
 ## Task Futuri
 
 ### P0 (Alta Priorità)
-- [ ] Testare sincronizzazione POI → Mattertag (cliccare "Sincronizza su Cloud")
-- [ ] Verificare che il POI appaia su my.matterport.com
+- [ ] Rigenerare SmartThings token
+- [ ] Testare creazione nuovo utente con spazio dedicato
 
 ### P1 (Media Priorità)
-- [ ] Filtro categorie dinamico
-- [ ] Raccolta automatica dati sensori
-- [ ] Multi-tenant completo (dati separati per utente)
+- [ ] Raccolta automatica dati sensori (background job)
+- [ ] Notifiche push per eventi critici
+- [ ] Dashboard statistiche per utente
 
 ### P2 (Bassa Priorità)
 - [ ] QR Code scanning
 - [ ] Export dati CSV/Excel
-- [ ] Traduzione POI multilingua automatica
+- [ ] Traduzione POI automatica multilingua
