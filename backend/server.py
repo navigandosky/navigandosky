@@ -1855,11 +1855,12 @@ async def create_manutenzione(data: ManutenzioneCreate):
 
 @api_router.get("/manutenzioni", response_model=List[ManutenzioneConDettagli])
 async def get_manutenzioni(
-    user_id: str = DEFAULT_USER_ID,
+    token: Optional[str] = Query(None),
     stato: Optional[StatoManutenzione] = None,
     elettrodomestico_id: Optional[str] = None
 ):
-    query = {"user_id": user_id}
+    user = await get_user_from_token(token)
+    query = {"user_id": user["id"]}
     if stato:
         query["stato"] = stato.value
     if elettrodomestico_id:
