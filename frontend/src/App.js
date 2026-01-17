@@ -1603,6 +1603,20 @@ function App() {
     e.posizione?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Show loading while verifying auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!currentUser) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" richColors />
@@ -1614,11 +1628,31 @@ function App() {
             <div className="flex items-center gap-3">
               <Building2 className="h-8 w-8 text-blue-600" />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">SmartBuilding</h1>
-                <p className="text-xs text-gray-500">Gestione Immobili Intelligente</p>
+                <h1 className="text-xl font-bold text-gray-900">SmartDomo</h1>
+                <p className="text-xs text-gray-500">Gestione Intelligente Edifici</p>
               </div>
             </div>
-            <NotificationBadge onClick={() => setActiveTab("suggerimenti")} />
+            <div className="flex items-center gap-4">
+              <NotificationBadge onClick={() => setActiveTab("suggerimenti")} />
+              <div className="flex items-center gap-2 pl-4 border-l">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-700">{currentUser.full_name || currentUser.username}</p>
+                  <p className="text-xs text-gray-500 flex items-center gap-1 justify-end">
+                    {currentUser.role === "admin" && <Shield className="h-3 w-3" />}
+                    {currentUser.role === "admin" ? "Amministratore" : "Utente"}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-gray-500 hover:text-red-500"
+                  title="Logout"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -1636,6 +1670,7 @@ function App() {
               { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
               { id: "tickets", label: "Ticket", icon: Ticket },
               { id: "proprieta", label: "Setup", icon: Settings },
+              ...(currentUser?.role === "admin" ? [{ id: "utenti", label: "Utenti", icon: Users }] : []),
             ].map((tab) => {
               // Colori specifici per ogni tab
               const tabColors = {
@@ -1652,6 +1687,7 @@ function App() {
                 elettrodomestici: { active: "text-amber-600 border-amber-600", icon: "text-amber-500" },
                 manutenzioni: { active: "text-red-600 border-red-600", icon: "text-red-500" },
                 centri: { active: "text-teal-600 border-teal-600", icon: "text-teal-500" },
+                utenti: { active: "text-violet-600 border-violet-600", icon: "text-violet-500" },
               };
               const colors = tabColors[tab.id] || { active: "text-blue-600 border-blue-600", icon: "text-gray-500" };
               
