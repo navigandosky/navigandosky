@@ -912,6 +912,84 @@ class SensorReport(BaseModel):
     readings: List[Dict[str, Any]] = []  # Time series data
 
 
+# ============== USER / AUTH MODELS ==============
+
+import hashlib
+import secrets
+
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    USER = "user"
+
+class UserBase(BaseModel):
+    username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: UserRole = UserRole.USER
+    is_active: bool = True
+
+class UserCreate(UserBase):
+    password: str
+
+class UserUpdate(BaseModel):
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+class User(UserBase):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    password_hash: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class UserResponse(BaseModel):
+    """User response without password"""
+    id: str
+    username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class LoginResponse(BaseModel):
+    success: bool
+    user: Optional[UserResponse] = None
+    token: Optional[str] = None
+    message: str = ""
+
+class SessionToken(BaseModel):
+    """Session token for authentication"""
+    token: str
+    user_id: str
+    username: str
+    role: UserRole
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(days=7))
+
+
+# Helper functions for auth
+def hash_password(password: str) -> str:
+    """Hash password with SHA256 + salt"""
+    salt = "smartdomo2026"
+    return hashlib.sha256(f"{password}{salt}".encode()).hexdigest()
+
+def verify_password(password: str, password_hash: str) -> bool:
+    """Verify password against hash"""
+    return hash_password(password) == password_hash
+
+def generate_token() -> str:
+    """Generate a secure session token"""
+    return secrets.token_urlsafe(32)
+
+
 # ============== ROUTES ==============
 
 @api_router.get("/")
