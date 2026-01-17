@@ -1388,13 +1388,14 @@ function App() {
 
   const loadElettrodomestici = useCallback(async () => {
     try {
-      const params = filtroCategoria ? { categoria: filtroCategoria } : {};
+      const params = { token: authToken };
+      if (filtroCategoria) params.categoria = filtroCategoria;
       const response = await axios.get(`${API}/elettrodomestici`, { params });
       setElettrodomestici(response.data);
     } catch (error) {
       console.error("Error loading elettrodomestici:", error);
     }
-  }, [filtroCategoria]);
+  }, [filtroCategoria, authToken]);
 
   const loadSmartThingsDevices = useCallback(async () => {
     try {
