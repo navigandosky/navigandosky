@@ -492,14 +492,14 @@ export default function PropertyConfig() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Home className="h-4 w-4" />
             Generale
           </TabsTrigger>
           <TabsTrigger value="cadastral" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Dati Catastali
+            Catastali
           </TabsTrigger>
           <TabsTrigger value="integrations" className="flex items-center gap-2">
             <Wifi className="h-4 w-4" />
@@ -508,6 +508,10 @@ export default function PropertyConfig() {
           <TabsTrigger value="matterport" className="flex items-center gap-2">
             <Eye className="h-4 w-4" />
             Matterport
+          </TabsTrigger>
+          <TabsTrigger value="centri" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Centri
           </TabsTrigger>
         </TabsList>
 
