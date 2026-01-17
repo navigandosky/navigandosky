@@ -1259,6 +1259,11 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
 
 // Main App Component
 function App() {
+  // Auth state
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authToken, setAuthToken] = useState(localStorage.getItem("smartdomo_token"));
+  const [authLoading, setAuthLoading] = useState(true);
+  
   const [activeTab, setActiveTab] = useState("smartdomo");
   const [config, setConfig] = useState(null);
   const [stats, setStats] = useState(null);
@@ -1290,6 +1295,64 @@ function App() {
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroStatoManut, setFiltroStatoManut] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Auth functions
+  const handleLogin = (user, token) => {
+    setCurrentUser(user);
+    setAuthToken(token);
+    localStorage.setItem("smartdomo_token", token);
+    localStorage.setItem("smartdomo_user", JSON.stringify(user));
+  };
+
+  const handleLogout = async () => {
+    if (authToken) {
+      try {
+        await axios.post(`${API}/auth/logout?token=${authToken}`);
+      } catch (e) {
+        // Ignore logout errors
+      }
+    }
+    setCurrentUser(null);
+    setAuthToken(null);
+    localStorage.removeItem("smartdomo_token");
+    localStorage.removeItem("smartdomo_user");
+    toast.success("Logout effettuato");
+  };
+
+  // Verify session on mount
+  useEffect(() => {
+    const verifySession = async () => {
+      const token = localStorage.getItem("smartdomo_token");
+      if (!token) {
+        // Init admin if needed
+        try {
+          await axios.post(`${API}/auth/init-admin`);
+        } catch (e) {
+          // Ignore
+        }
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        const response = await axios.get(`${API}/auth/verify?token=${token}`);
+        if (response.data.valid) {
+          setCurrentUser(response.data.user);
+          setAuthToken(token);
+        } else {
+          localStorage.removeItem("smartdomo_token");
+          localStorage.removeItem("smartdomo_user");
+        }
+      } catch (error) {
+        console.error("Session verification failed:", error);
+        localStorage.removeItem("smartdomo_token");
+        localStorage.removeItem("smartdomo_user");
+      }
+      setAuthLoading(false);
+    };
+
+    verifySession();
+  }, []);
 
   // Load data functions
   const loadConfig = useCallback(async () => {
