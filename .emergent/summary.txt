@@ -1,208 +1,200 @@
 <analysis>**original_problem_statement:**
-The user's primary goal is to build a SmartDomo application for managing a smart building. Key features include managing appliances, service centers, maintenance schedules, and a comprehensive Matterport 3D digital twin integration. The application must integrate with SmartThings and Ezviz for smart devices and cameras.
+The user's primary goal is to build a SmartDomo application for managing a smart building. The initial scope included managing appliances, service centers, maintenance schedules, and a Matterport 3D digital twin integration with SmartThings and Ezviz.
 
-During this session, the user's requests evolved to include:
--   A centralized Property Configuration page to store API keys and settings persistently, moving away from environment files.
--   A system to record, store, and visualize historical sensor data (temperature, humidity) with graphs.
--   Visual pathfinding within the Matterport 3D view.
--   Display of live sensor data directly on the Mattertags in the 3D model.
--   UI/UX improvements to the main dashboard to better organize climate control devices.
--   Resolution of recurring API connection issues with SmartThings and Ezviz.
-
-The secondary project to fix the  website was confirmed to be out of scope for this job.
+During this session, the user's requests expanded to solve several critical issues and add new functionality:
+-   **Integrate eWeLink:** The user requested a direct integration with eWeLink to manage Sonoff devices, aiming to bypass the recurring issue of SmartThings tokens expiring.
+-   **Fix Ezviz Camera Streaming:** The user reported that the previously working Ezviz camera view was now showing a black screen.
+-   **Fix Appliance Creation:** A bug was preventing the user from creating new appliances (elettrodomestici), especially those with custom categories.
+-   **Fix Category Filters:** Custom categories, once created, were not appearing in the filter dropdowns.
+-   **UI/UX Refactoring:** The user provided a detailed list of changes for the main navigation menu, including reordering tabs, renaming them (e.g., Proprietà to Setup, Elettrodomestici to Apparati), and restructuring content.
+-   The user also expressed concerns about the agent's efficiency and cost, urging for faster, more direct solutions.
 
 **User's preferred language**: Italian
 
 **what currently exists?**
-A full-stack application (FastAPI backend, React frontend, MongoDB) with several advanced features:
--   **Persistent Configuration:** A Proprietà (Property) page allows managing application settings, which are stored in a dedicated MongoDB collection ().
--   **SmartThings Integration:** The backend now reads the SmartThings token from the database, making it persistent across restarts and solving a major recurring issue. The integration is currently functional, showing live device status.
--   **Ezviz Integration:** The integration was fixed by using the correct AppKey (instead of an expired AccessToken) from the  file. The system now automatically refreshes the token. All 7 cameras are reported as online.
--   **Sensor History System:**
-    -   A MongoDB collection () stores historical data for temperature, humidity, and battery.
-    -   Backend endpoints exist to record and query this historical data.
-    -   A Report Sensori page and a history dialog with graphs (using ) are available on the frontend.
--   **Matterport Integration:**
-    -   **Visual Pathfinding:** A Go to POI action now calculates and displays a visual path (breadcrumbs) within the 3D model.
-    -   **Live Data Overlays:** Mattertags in the 3D view are dynamically updated to show live sensor values (e.g., 🌡️ 23.7°C, 💧 40%) and on/off status.
-    -   The backend is prepared with placeholder endpoints and configuration models to support a future integration with the Matterport Cloud API for creating persistent tags.
+A full-stack application (FastAPI backend, React frontend, MongoDB) with existing integrations for SmartThings, Ezviz, and Matterport. The key additions and changes in this session are:
+-   **eWeLink Integration:** A full OAuth2 integration for eWeLink is now implemented. The user successfully authenticated, and the system can access their 17 eWeLink devices. This serves as a more stable alternative for Sonoff sensors, mitigating the SmartThings token issue.
+-   **Ezviz Camera Snapshot Workaround:** Live video streaming (HLS, EZUIKit) repeatedly failed due to API-level errors (reporting encryption or unavailable streams). The current, working solution is a periodic snapshot refresh: when the user clicks Live, the frontend captures and displays a new image from the camera every 5 seconds.
+-   **Appliance Creation Bugfix:** The backend was fixed to correctly handle the creation of appliances with custom categories, resolving a validation error.
+-   **Partial Menu Refactor:** The agent started implementing the user's requested UI refactor by editing  to reorder and rename the main navigation tabs.
 
 **Last working item**:
-- Last item agent was working: The agent was refactoring the main dashboard UI () based on user feedback. The goals were to move all climate sensor devices into the main Temperatura Interna card for a more compact view and to display user-friendly device names instead of technical model names (e.g., SNZB-02D).
+- Last item agent was working: The agent was performing a significant UI refactor based on explicit user instructions. This involved renaming and reordering the main navigation tabs in .
 - Status: IN PROGRESS
 - Agent Testing Done: N
 - Which testing method agent to use? screenshot tool
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: Complete and Test Dashboard UI Refactor (P0)**
--   **Issue 2: Recurring API Token Invalidation (P1)**
--   **Issue 3: User Verification for Vai a POI Navigation (P2)**
+-   **Issue 1: Complete and Test Major UI Refactor (P0)**
+-   **Issue 2: Fix Custom Category Filter (P1)**
+-   **Issue 3: Recurring SmartThings Token Invalidation (P1)**
+-   **Issue 4: User Verification for Vai a POI Navigation (P2)**
 
 **Issues Detail:**
--   **Issue 1: Complete and Test Dashboard UI Refactor**
-    -   **Attempted fixes:** The agent has modified  to change the data fetching logic () and redesign the JSX layout for the climate sensors.
+-   **Issue 1: Complete and Test Major UI Refactor**
+    -   **Attempted fixes:** The agent edited  to change the order and labels of the navigation tabs as requested by the user.
     -   **Next debug checklist:**
-        1.  Start the application and navigate to the SmartDomo dashboard.
-        2.  Take a screenshot to verify that the Temperatura Interna card now contains a grid of all climate sensor devices (up to 6).
-        3.  Confirm that each sensor card displays temperature and humidity values.
-        4.  Verify that the device names are more descriptive (this may require a backend change if custom names aren't available).
-        5.  Test that clicking the history button on each sensor card still opens the correct historical data graph.
-    -   **Why fix this issue and what will be achieved with the fix?** This addresses a direct user request to improve the dashboard's usability and information density.
+        1.  Review the changes in  to ensure all renames (Elettrodomestici -> Apparati, Proprietà -> Setup) and the new order are correctly implemented.
+        2.  Rename the Elettrodomestici database collection and associated models/APIs to Apparati.
+        3.  Move the Centri Assistenza functionality into the Setup (formerly Proprietà) page.
+        4.  Take a screenshot to confirm the new menu layout and labels are visible and correct.
+    -   **Why fix this issue and what will be achieved with the fix?** This is a direct and high-priority request from the user to improve the application's structure and usability.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Should Test frontend/backend/both after fix?** Both
     -   **Blocked on other issue:** None
 
--   **Issue 2: Recurring API Token Invalidation**
-    -   **Attempted fixes:**
-        -   **SmartThings:** The agent successfully refactored the backend to read the token from the database, which is a robust fix. However, the token itself became invalid three times during the session, forcing the user to regenerate it.
-        -   **Ezviz:** The agent fixed the issue by replacing an expired  with the permanent  in the  file, allowing the backend to generate new tokens.
-    -   **Next debug checklist:** This is a monitoring task. If a  error occurs again, the agent should:
-        1.  Advise the user to check the permissions granted to the token when it was generated.
-        -   Investigate if there's an API endpoint to programmatically refresh the SmartThings token (similar to OAuth2).
-    -   **Why fix this issue and what will be achieved with the fix?** This is a major point of friction for the user. While the persistence mechanism is fixed, the token lifecycle itself is unstable, causing repeated interruptions.
+-   **Issue 2: Fix Custom Category Filter**
+    -   **Attempted fixes:** The agent identified that the category filter dropdown in  uses a hardcoded constant array () instead of fetching categories from the database. The agent verified that custom categories exist in the database.
+    -   **Next debug checklist:**
+        1.  Create a new backend endpoint (e.g., ) that returns a distinct list of all categories from the database.
+        2.  In , fetch this list in a  hook.
+        3.  Populate the filter  component with the dynamic list from the API call, merging it with any default values if necessary.
+    -   **Why fix this issue and what will be achieved with the fix?** To allow users to filter appliances by the custom categories they create, making the feature fully functional.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** N
+    -   **Should Test frontend/backend/both after fix?** Both
+    -   **Blocked on other issue:** None
+
+-   **Issue 3: Recurring SmartThings Token Invalidation**
+    -   **Attempted fixes:** The primary workaround was implementing the eWeLink integration to move critical sensors off SmartThings. The underlying token instability was not resolved. The token expired again during this session, breaking sensor name resolution and other SmartThings-dependent features.
+    -   **Next debug checklist:**
+        1.  When the  error occurs, guide the user to generate a new token at .
+        2.  Guide the user to update the token in the Setup (Proprietà) page of the application.
+        3.  Investigate the SmartThings API documentation for an OAuth2 flow or a token refresh mechanism to replace the static Personal Access Token (PAT).
+    -   **Why fix this issue and what will be achieved with the fix?** This is a major point of friction. A permanent solution would make the SmartThings integration reliable.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Backend
     -   **Blocked on other issue:** None
 
--   **Issue 3: User Verification for Vai a POI Navigation**
-    -   **Attempted fixes:** The agent implemented visual pathfinding and confirmed via screenshots that clicking the Go to POI button successfully calculates a path and moves the camera.
+-   **Issue 4: User Verification for Vai a POI Navigation**
+    -   **Attempted fixes:** Agent implementation was completed in a previous session and appeared successful in agent tests.
     -   **Next debug checklist:** Ask the user to perform a final test on the Vai a POI functionality for both a Matterport-imported POI and a manually created one.
-    -   **Why fix this issue and what will be achieved with the fix?** This was a major blocker from the previous session. Closing this issue will confirm a core feature is stable.
+    -   **Why fix this issue and what will be achieved with the fix?** Confirms a core feature is stable and closes out a blocker from a previous session.
     -   **Status:** USER VERIFICATION PENDING
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Frontend
     -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   **Task 1: Dashboard UI Refactor**
-    -   **Where to resume:** The code in  has been modified. The task needs to be resumed from the testing phase.
-    -   **What will be achieved with this?** A cleaner, more user-friendly dashboard for climate sensors.
+-   **Task 1: Complete UI and Backend Refactor for Renaming**
+    -   **Where to resume:** Start by reviewing the tab changes in . Then, proceed with the more complex changes: renaming Elettrodomestici to Apparati throughout the stack and restructuring the Setup page.
+    -   **What will be achieved with this?** A user interface and data model that aligns with the user's terminology and desired application structure.
     -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Frontend
+    -   **Should Test frontend/backend/both after fix?** Both
     -   **Blocked on something:** None
 
 **Upcoming and Future Tasks**
 *   **Upcoming Tasks:**
-    *   **Automatic Sensor Data Collection (P0):** Implement a recurring background job (e.g., every 5-10 minutes) to automatically fetch and save sensor data to MongoDB, as proposed to the user.
-    *   **Multi-User System (P1):** Build upon the Property Configuration to create a full multi-user system with roles (e.g., Owner, Tenant) and registration.
-    *   **Matterport Cloud API Integration (P1):** Implement the client-side logic and API calls to create persistent Mattertags using the credentials stored in the property configuration.
-    *   **Header Menu Revision (P2):** Redesign the main application header/menu as requested by the user.
+    *   **Fix Custom Category Filter (P0):** Implement the dynamic category list for the filter dropdown.
+    *   **Automatic Sensor Data Collection (P1):** Implement a recurring background job to automatically fetch and save sensor data to MongoDB.
+    *   **Multi-User System (P1):** Build a full multi-user system with roles and registration.
+    *   **Matterport Cloud API Integration (P2):** Implement client-side logic and API calls to create persistent Mattertags.
 *   **Future Tasks:**
-    *   Implement an intelligent notification system for alerts (e.g., temperature thresholds).
+    *   Implement an intelligent notification system for alerts.
     *   Add QR code scanning functionality.
     *   Add POI Translation and Audio Generation.
     *   Allow exporting sensor data to CSV/Excel.
 
 **Completed work in this session**
--   **Resolved Critical API Failures:**
-    -   Fixed multiple  errors for SmartThings by updating tokens.
-    -   Fixed  error for Ezviz by correcting the  in the environment configuration.
--   **Implemented Persistent Token Storage:**
-    -   Refactored the entire backend to fetch the SmartThings token from the MongoDB database ( collection) instead of the volatile  file, making the connection persistent.
--   **Created Property Configuration Page:**
-    -   Built a new page and corresponding backend APIs for centralized management of Matterport, SmartThings, and Ezviz credentials, storing them in the database.
--   **Enhanced Matterport 3D View:**
-    -   Implemented a visual pathfinding system (breadcrumbs) to draw a path to a selected POI.
-    -   Added live data overlays on Mattertags to show on/off status and sensor values (temperature, humidity).
--   **Implemented Sensor History & Reporting:**
-    -   Created a new MongoDB collection () to store historical sensor data.
-    -   Built backend APIs and a background task for data collection.
-    -   Added a Report Sensori page and a history dialog with  graphs to visualize temperature trends.
--   **Enhanced Dashboard UI:**
-    -   Added live temperature and humidity values to climate device cards.
-    -   Added a button to open a dialog showing the historical graph for each sensor.
+-   **eWeLink Integration:** Successfully implemented a full OAuth2 integration for eWeLink, allowing direct control of Sonoff devices and providing a stable alternative to SmartThings for sensors.
+-   **Ezviz Camera Live View Workaround:** Replaced a non-functional video stream with a periodic snapshot refresh (every 5 seconds), providing a live image feed as a workaround.
+-   **Appliance Creation Bug Fix:** Resolved a backend validation error that prevented the creation of new appliances with custom categories.
+-   **Improved Frontend Error Handling:** Updated  to parse Pydantic validation errors and display user-friendly messages in toasts instead of raw JSON objects.
 
 **Earlier issues found/mentioned but not fixed**
-- The  timing out or failing to find elements was a recurring minor issue, but it was not addressed as the agent found workarounds.
+-   The screenshot tool timed out once, and the pod was restarted due to a memory limit, which are platform-level events.
 
 **Known issue recurrence from previous fork**
--   **Issue recurrence in previous fork:** Vai a POI Navigation Bug and SmartThings  error.
--   **Recurrence count:** High (SmartThings token failed 3 times in this session).
--   **Status:** Vai a POI is pending verification. SmartThings persistence is fixed, but the underlying token lifecycle remains a risk.
+-   **Issue recurrence in previous fork:** SmartThings  error.
+-   **Recurrence count:** High (token expired again in this session).
+-   **Status:** NOT RESOLVED. The eWeLink integration is a partial workaround, but the root cause for SmartThings token instability remains.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Backend**: FastAPI, MongoDB (), Pydantic.
--   **Frontend**: React, , Tailwind CSS, Shadcn UI,  for charts.
--   **Integrations**: SmartThings (PAT), Ezviz (AppKey/Secret), Open-Meteo, Matterport SDK.
--   **Architecture**: The backend now uses the database as a source of truth for API tokens, a significant improvement over relying on  files.
+-   **eWeLink OAuth2 Integration:** A complex, multi-step process was implemented:
+    1.  Generating a signed authorization URL with , , , and an HMAC-SHA256 signature.
+    2.  Handling the redirect callback to receive an .
+    3.  Exchanging the code for an  and , which also required a signed request body.
+-   **Periodic Snapshot Refresh:** Used  in React to repeatedly call a backend endpoint that captures a new camera snapshot, providing a pseudo-live view.
+-   **FastAPI Pre-processing:** Used a dependency with  in the  and  appliance endpoints to modify incoming data before it hits the Pydantic model validator, solving the custom category issue.
 
 **key DB schema**
--   **property_configs**: 
--   **sensor_readings**: 
--   **matterport_pois**: 
+-   **property_configs**: The  field was updated to store OAuth2 credentials (, ) and tokens (, , ).
+-   **elettrodomestici**: Contains custom category names like 'Categoria Personalizzata'. The user has requested this collection be renamed to .
 
 **changes in tech stack**
--    and its dependencies were added to the frontend for creating graphs.
+-    was added to  during an early attempt to fix Ezviz streaming. It is no longer used by the final snapshot solution.
 
 **All files of reference**
--   : Major changes. Added models and endpoints for Property Config and Sensor History. Refactored all SmartThings calls to fetch the token from the database.
--   : Major changes. Added the sensor history dialog and graph. Currently in the middle of a significant UI layout refactor.
--   : Major changes. Added logic to fetch all sensor states and pass updates to the .
--   : Major changes. Added SDK-level functions to draw 3D paths and update Mattertag content and appearance dynamically.
--   : Added new tabs for Proprietà and Report Sensori.
--    (New): UI for managing application settings.
--    (New): UI for viewing historical sensor reports.
--   : Updated with the correct Ezviz .
+-   : Heavily modified to add the full eWeLink OAuth2 flow, fix the appliance creation bug, and add an endpoint to get the Ezviz token.
+-   : Modified for menu refactoring and improved error handling for appliance creation.
+-   : Entirely reworked the  component to implement the snapshot refresh mechanism instead of a video player.
+-   : Updated the eWeLink section to support the OAuth2 login flow.
+-   : Updated with new, working eWeLink credentials.
+-   : Modified to add a client-side mapping for sensor names as a temporary fix.
 
 **Areas that need refactoring**:
--   **** is critically monolithic and has grown significantly. It must be broken down into separate  files (e.g., , , ).
--   **** and **** are both extremely large and handle too much state. They should be decomposed into smaller, more focused components.
+-   **** is critically monolithic. It MUST be broken down into separate  files.
+-   **UI & Data Model Renaming:** The user's request to rename Elettrodomestici to Apparati requires a global find-and-replace across the frontend and backend, including component names, API endpoints, function names, and database collection names.
+-   **Page Restructuring:** The Setup page needs to be redesigned to incorporate Centri Assistenza.
 
 **key api endpoints**
--   : Manages the global property configuration.
--   : Background endpoint to save sensor readings.
--   : Retrieves historical sensor data for graphs.
--   : (New) Efficiently fetches devices with switch states and all sensor component values.
--   All  endpoints were internally refactored to use a new  helper that queries the database.
+-   : Generates the signed eWeLink OAuth2 authorization URL.
+-   : Handles the OAuth2 callback to exchange the code for a token.
+-   , , : API endpoints to interact with eWeLink devices.
+-   : Fixed to handle custom categories.
+-   : Fixed to handle custom categories.
+-   : Endpoint that forces a new snapshot from an Ezviz camera.
 
 **Critical Info for New Agent**
--   **SmartThings Token Persistence:** The backend is now architected to read the SmartThings token from the database ( collection). Do not rely on the  file for this token. This was a major fix.
--   **Dashboard UI is Mid-Refactor:** The last task was modifying . You must start by testing these changes and finishing the implementation.
--   **Recurring Token Expiry:** Be aware that both SmartThings and Ezviz tokens have become invalid during the session. While the persistence/refresh mechanisms are now better, the root cause of the frequent invalidations is unknown and may happen again.
--    is out of scope.
+-   **User wants efficiency:** The user has explicitly complained about cost and performance. Be direct, prioritize the user's requests, and avoid getting stuck. The menu refactoring is the top priority.
+-   **SmartThings Token is Unstable:** The token expired again. Be prepared to guide the user through generating a new one. The eWeLink integration is the preferred path for Sonoff devices.
+-   **Ezviz Streaming is a Workaround:** Do NOT attempt to re-implement HLS or video streaming. The current snapshot-based solution works. The root cause is on the Ezviz side (CloudPlay not enabled or API restrictions).
+-   **eWeLink Auth is Complex:** The agent struggled significantly with eWeLink authentication. The final, working method is OAuth2 with signed requests for both the initial auth URL and the token exchange. The direct login with email/password is not viable with the user's developer APPID. The user also had to re-create the app on the developer portal to get a working App ID.
 
 **documents and test reports created in this job**
 -   None.
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User:** Requests to move all climate sensors into the Temperatura Interna card and use custom names instead of model IDs. (IN PROGRESS)
-2.  **Agent:** Acknowledges and starts working on the UI changes.
-3.  **User:** Asks if sensor data is stored in MongoDB.
-4.  **Agent:** Confirms via mongo shell commands that data is being stored in the  collection. Proposes automatic data collection. (COMPLETED)
-5.  **User:** Reports Matterport is not loading anymore (provides screenshot). (IN PROGRESS)
-6.  **Agent:** Investigates, finds no configuration error, restarts services, and confirms Matterport is working again, likely a transient issue. (COMPLETED)
-7.  **User:** Reports Ezviz cameras are not visible. (IN PROGRESS)
-8.  **Agent:** Debugs, finds an expired , gets the correct  from the user, updates the , and fixes the integration. (COMPLETED)
-9.  **User:** Provides the correct  for Ezviz via a screenshot. (COMPLETED)
-10. **User:** Asks the agent to find an alternative European developer portal for Ezviz. (COMPLETED)
+10. **User:** Reports error when creating an appliance. (Resolved)
+9.  **User:** Asks agent to fix the appliance creation error, noting it worked before. (Resolved)
+8.  **User:** Reports custom categories are not appearing in filters after being added. (Pending)
+7.  **User:** Provides a detailed list of UI refactoring tasks (renaming/reordering tabs) and complains about agent cost/performance. (In Progress)
+6.  **Agent:** Acknowledges and starts working on the menu refactoring in .
+5.  **User:** prosegui (Continue). (Acknowledged)
+4.  **Agent:** Makes further changes for the appliance creation fix.
+3.  **User:** Asks agent to verify the category list in filters because new ones don't appear. (Acknowledged, Pending)
+2.  **Agent:** Makes changes to fix the appliance creation bug again.
+1.  **User:** Provides new eWeLink credentials. (Completed)
 
 **Project Health Check:**
--   **Broken**: None currently, but the UI on the main dashboard is in a half-refactored state.
+-   **Broken**: The SmartThings integration is down due to an expired token. The category filter does not show custom categories.
 -   **Mocked**: None.
 
 **3rd Party Integrations**
--   **SmartThings**: **WORKING**. Reads token from the database.
--   **Ezviz**: **WORKING**. Uses correct AppKey to auto-generate tokens.
+-   **eWeLink**: **WORKING**. Integrated via OAuth2. 17 devices are visible.
+-   **SmartThings**: **BROKEN**. The Personal Access Token has expired (). Requires user to generate a new token.
+-   **Ezviz**: **WORKING (Workaround)**. Live view is implemented via periodic snapshot refresh, as direct video streaming failed.
 -   **Open-Meteo**: Integrated and presumed working.
--   **Matterport**: SDK integration is **WORKING**, with visual pathfinding and live data overlays.
--   ****: Added to frontend for charting.
+-   **Matterport**: SDK integration is working.
+-   ****: Integrated for charting.
 
 **Testing status**
 -   **Testing agent used after significant changes**: NO
 -   **Troubleshoot agent used after agent stuck in loop**: NO
 -   **Test files created**: []
--   **Known regressions**: None.
+-   **Known regressions**: The appliance creation and filtering that worked previously were broken by other changes and then fixed/partially addressed in this session.
 
 **Credentials to test flow:**
--   Credentials are now managed via the Proprietà page, which reads from/writes to the  collection in MongoDB. The  files act as a fallback/initial seed.
+-   eWeLink credentials are now stored in  and tokens are in the  DB collection.
+-   SmartThings token is stored in the  DB collection and is currently invalid.
+-   Ezviz credentials are in the  file.
 
 **What agent forgot to execute**
--   The user agreed to the agent's proposal to set up an **automatic, periodic data collection** for sensors, but this was not implemented. The agent only built the manual collection mechanism.
--   The user's request to **revise the header menu** was acknowledged but not started.
--   The agent did not get final user verification for the **Vai a POI** navigation fix, although its own tests were successful.</analysis>
+-   The agent identified the cause of the custom category filter bug (static list) but did not implement the fix (creating a backend endpoint and updating the frontend to use it).
+-   The full scope of the menu refactor (renaming database collections, moving functionality between pages) was not completed; only the tab labels and order were started.</analysis>
