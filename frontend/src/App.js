@@ -1435,13 +1435,14 @@ function App() {
 
   const loadManutenzioni = useCallback(async () => {
     try {
-      const params = filtroStatoManut ? { stato: filtroStatoManut } : {};
+      const params = { token: authToken };
+      if (filtroStatoManut) params.stato = filtroStatoManut;
       const response = await axios.get(`${API}/manutenzioni`, { params });
       setManutenzioni(response.data);
     } catch (error) {
       console.error("Error loading manutenzioni:", error);
     }
-  }, [filtroStatoManut]);
+  }, [filtroStatoManut, authToken]);
 
   // Initial load
   useEffect(() => {
