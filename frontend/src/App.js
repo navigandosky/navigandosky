@@ -52,8 +52,11 @@ import {
   Lightbulb,
   Map,
   Thermometer,
-  Activity
+  Activity,
+  LogOut,
+  Shield
 } from "lucide-react";
+import { LoginPage, UserManagement } from "./AuthPage";
 import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "./TicketCalendarQR";
 import { PlanimetriaEditor, SuggerimentiProattivi, NotificationBadge } from "./PlanimetriaSuggerimenti";
 import SmartBuildingDashboard from "./SmartBuildingDashboard";
