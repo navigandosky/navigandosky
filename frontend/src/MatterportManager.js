@@ -1923,9 +1923,60 @@ export default function MatterportManager() {
                       {getAllCategories().find(c => c.id === selectedPoi.category)?.name || "Generale"}
                     </Badge>
                   )}
+                  {/* Cloud sync status */}
+                  {selectedPoi.synced_to_cloud ? (
+                    <Badge className="mt-1 ml-2 text-xs bg-green-600/20 text-green-400 border-green-500">
+                      <CheckCircle size={12} className="mr-1" />
+                      Sincronizzato su Cloud
+                    </Badge>
+                  ) : (
+                    <Badge className="mt-1 ml-2 text-xs bg-slate-600/50 text-slate-300 border-slate-500">
+                      <Cloud size={12} className="mr-1" />
+                      Non sincronizzato
+                    </Badge>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
+                    {/* Sync to Cloud Button */}
+                    <div className="border border-blue-500/30 rounded-lg p-3 bg-blue-500/10">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-blue-300">Matterport Cloud</p>
+                          <p className="text-xs text-slate-400">
+                            {selectedPoi.synced_to_cloud 
+                              ? "Questo POI è visibile su my.matterport.com" 
+                              : "Sincronizza per rendere visibile su my.matterport.com"}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleSyncToCloud(selectedPoi)}
+                          disabled={syncingToCloud === selectedPoi.id}
+                          className={selectedPoi.synced_to_cloud 
+                            ? "bg-green-600 hover:bg-green-700" 
+                            : "bg-blue-600 hover:bg-blue-700"}
+                        >
+                          {syncingToCloud === selectedPoi.id ? (
+                            <>
+                              <Loader2 size={14} className="mr-1 animate-spin" />
+                              Sincronizzando...
+                            </>
+                          ) : selectedPoi.synced_to_cloud ? (
+                            <>
+                              <CheckCircle size={14} className="mr-1" />
+                              Risincronizza
+                            </>
+                          ) : (
+                            <>
+                              <CloudUpload size={14} className="mr-1" />
+                              Sincronizza su Cloud
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    
                     {/* Translations */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
