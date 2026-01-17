@@ -1727,7 +1727,7 @@ function App() {
           <Dashboard stats={stats} consumiPerCategoria={consumiPerCategoria} />
         )}
 
-        {/* Proprietà Tab */}
+        {/* Proprietà Tab - ora Setup */}
         {activeTab === "proprieta" && (
           <PropertyConfig />
         )}
@@ -1735,6 +1735,15 @@ function App() {
         {/* Report Sensori Tab */}
         {activeTab === "sensori" && (
           <SensorReport />
+        )}
+
+        {/* User Management Tab - Admin only */}
+        {activeTab === "utenti" && currentUser?.role === "admin" && (
+          <UserManagement 
+            currentUser={currentUser} 
+            token={authToken}
+            onUserUpdate={() => {}}
+          />
         )}
 
         {/* Suggerimenti Tab */}
