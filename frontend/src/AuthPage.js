@@ -371,6 +371,12 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
                         {user.email}
                       </p>
                     )}
+                    {user.matterport_space_name && (
+                      <p className="text-sm text-blue-600 flex items-center gap-1 mt-1">
+                        <Eye className="h-3 w-3" />
+                        Spazio: {user.matterport_space_name}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="flex gap-2">
