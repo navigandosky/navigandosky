@@ -1762,19 +1762,65 @@ async def get_file(tipo: str, filename: str):
 # ------------ CATEGORIE CUSTOM ------------
 
 @api_router.get("/categorie-custom")
-async def get_categorie_custom(user_id: str = DEFAULT_USER_ID):
+async def get_categorie_custom(token: Optional[str] = Query(None)):
     """Get custom categories added by user"""
-    categorie = await db.categorie_custom.find({"user_id": user_id}, {"_id": 0}).to_list(100)
+    user = await get_user_from_token(token)
+    categorie = await db.categorie_custom.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
     return categorie
 
 
+@api_router.get("/categorie-all")
+async def get_all_categorie(token: Optional[str] = Query(None)):
+    """Get all categories (standard + custom + in-use) for filtering"""
+    user = await get_user_from_token(token)
+    
+    # Standard categories from enum
+    standard = [
+        {"id": "frigorifero", "nome": "Frigorifero"},
+        {"id": "lavatrice", "nome": "Lavatrice"},
+        {"id": "lavastoviglie", "nome": "Lavastoviglie"},
+        {"id": "forno", "nome": "Forno"},
+        {"id": "microonde", "nome": "Microonde"},
+        {"id": "climatizzatore", "nome": "Climatizzatore"},
+        {"id": "tv", "nome": "TV"},
+        {"id": "computer", "nome": "Computer"},
+        {"id": "stampante", "nome": "Stampante"},
+        {"id": "aspirapolvere", "nome": "Aspirapolvere"},
+        {"id": "asciugatrice", "nome": "Asciugatrice"},
+        {"id": "scaldabagno", "nome": "Scaldabagno"},
+        {"id": "caldaia", "nome": "Caldaia"},
+        {"id": "condizionatore", "nome": "Condizionatore"},
+        {"id": "deumidificatore", "nome": "Deumidificatore"},
+        {"id": "altro", "nome": "Altro"},
+    ]
+    
+    # Get custom categories
+    custom = await db.categorie_custom.find({"user_id": user["id"]}, {"_id": 0, "id": 1, "nome": 1}).to_list(100)
+    
+    # Get distinct categories from elettrodomestici (in case custom names stored directly)
+    in_use = await db.elettrodomestici.distinct("categoria_custom", {"user_id": user["id"]})
+    in_use_categorie = [{"id": c, "nome": c, "custom": True} for c in in_use if c and c not in [s["id"] for s in standard]]
+    
+    # Merge all
+    all_categorie = standard + [{"id": c["id"], "nome": c["nome"], "custom": True} for c in custom]
+    
+    # Add any in-use categories not already in list
+    existing_ids = [c["id"] for c in all_categorie]
+    for c in in_use_categorie:
+        if c["id"] not in existing_ids:
+            all_categorie.append(c)
+    
+    return all_categorie
+
+
 @api_router.post("/categorie-custom")
-async def add_categoria_custom(nome: str = Form(...), user_id: str = DEFAULT_USER_ID):
+async def add_categoria_custom(nome: str = Form(...), token: Optional[str] = Query(None)):
     """Add a custom category"""
+    user = await get_user_from_token(token)
     categoria = {
         "id": str(uuid.uuid4()),
         "nome": nome,
-        "user_id": user_id,
+        "user_id": user["id"],
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.categorie_custom.insert_one(categoria)
