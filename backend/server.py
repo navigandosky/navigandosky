@@ -6559,12 +6559,11 @@ async def create_matterport_cloud_tag(
     if not client_id or not client_secret:
         raise HTTPException(
             status_code=400, 
-            detail="Credenziali API Matterport non configurate. Vai su Proprietà > Matterport."
+            detail="Credenziali API Matterport non configurate. Vai su Setup > Matterport."
         )
     
-    token = await get_matterport_access_token(client_id, client_secret)
-    if not token:
-        raise HTTPException(status_code=401, detail="Impossibile autenticarsi con Matterport Cloud")
+    # Use Basic Auth
+    auth_header = get_matterport_basic_auth(client_id, client_secret)
     
     # GraphQL mutation to add a Mattertag
     mutation = """
@@ -6594,7 +6593,7 @@ async def create_matterport_cloud_tag(
             response = await client.post(
                 "https://api.matterport.com/api/models/graph",
                 headers={
-                    "Authorization": f"Bearer {token}",
+                    "Authorization": auth_header,
                     "Content-Type": "application/json"
                 },
                 json={
