@@ -618,6 +618,35 @@ export default function MatterportManager() {
     }
   };
 
+  // Sync POI to Matterport Cloud
+  const handleSyncToCloud = async (poi) => {
+    if (!poi) return;
+    
+    setSyncingToCloud(poi.id);
+    try {
+      const response = await axios.post(`${API_URL}/api/matterport/cloud/sync-poi/${poi.id}`);
+      
+      if (response.data.success) {
+        toast.success("POI sincronizzato su Matterport Cloud!");
+        // Reload POI to get updated synced status
+        loadPois(activeSpace.id);
+        // Update selected POI if it's the same
+        if (selectedPoi?.id === poi.id) {
+          const updatedPoi = await axios.get(`${API_URL}/api/matterport/pois/${poi.id}`);
+          setSelectedPoi(updatedPoi.data);
+        }
+      } else {
+        toast.error(response.data.error || "Errore nella sincronizzazione");
+      }
+    } catch (error) {
+      console.error("Error syncing to cloud:", error);
+      const errorMsg = error.response?.data?.detail || "Errore nella sincronizzazione su Cloud";
+      toast.error(errorMsg);
+    } finally {
+      setSyncingToCloud(null);
+    }
+  };
+
   // Edit POI - Open dialog
   const handleEditPoi = (poi) => {
     const itTrans = poi.translations?.find(t => t.language === "it") || {};
