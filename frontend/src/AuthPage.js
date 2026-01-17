@@ -185,13 +185,17 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [matterportSpaces, setMatterportSpaces] = useState([]);
+  const [loadingSpaces, setLoadingSpaces] = useState(false);
   const [formData, setFormData] = useState({
     username: "",
     email: "",
     full_name: "",
     password: "",
     role: "user",
-    is_active: true
+    is_active: true,
+    matterport_space_id: "",
+    matterport_space_name: ""
   });
 
   const loadUsers = async () => {
@@ -206,9 +210,27 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
     }
   };
 
+  const loadMatterportSpaces = async () => {
+    setLoadingSpaces(true);
+    try {
+      const response = await axios.get(`${API}/matterport/cloud/spaces`);
+      if (response.data.spaces) {
+        setMatterportSpaces(response.data.spaces);
+      }
+      if (response.data.error) {
+        console.warn("Matterport spaces error:", response.data.error);
+      }
+    } catch (error) {
+      console.error("Error loading Matterport spaces:", error);
+    } finally {
+      setLoadingSpaces(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
       loadUsers();
+      loadMatterportSpaces();
     }
   }, [token]);
 
@@ -221,7 +243,9 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
         full_name: user.full_name || "",
         password: "",
         role: user.role,
-        is_active: user.is_active
+        is_active: user.is_active,
+        matterport_space_id: user.matterport_space_id || "",
+        matterport_space_name: user.matterport_space_name || ""
       });
     } else {
       setEditingUser(null);
@@ -231,10 +255,21 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
         full_name: "",
         password: "",
         role: "user",
-        is_active: true
+        is_active: true,
+        matterport_space_id: "",
+        matterport_space_name: ""
       });
     }
     setDialogOpen(true);
+  };
+
+  const handleSpaceSelect = (spaceId) => {
+    const space = matterportSpaces.find(s => s.id === spaceId);
+    setFormData({
+      ...formData,
+      matterport_space_id: spaceId,
+      matterport_space_name: space ? space.name : ""
+    });
   };
 
   const handleSave = async () => {
