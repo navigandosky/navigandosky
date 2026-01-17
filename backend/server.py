@@ -1007,6 +1007,213 @@ async def get_config():
     }
 
 
+# ------------ AUTHENTICATION / USERS ------------
+
+@api_router.post("/auth/init-admin")
+async def init_admin_user():
+    """Initialize admin user if not exists (run once)"""
+    existing = await db.users.find_one({"username": "Admin"})
+    if existing:
+        return {"message": "Admin già esistente", "admin_exists": True}
+    
+    admin_user = User(
+        username="Admin",
+        email="admin@smartdomo.local",
+        full_name="Amministratore",
+        role=UserRole.ADMIN,
+        is_active=True,
+        password_hash=hash_password("SmartMaster2026")
+    )
+    
+    doc = serialize_doc(admin_user.model_dump())
+    await db.users.insert_one(doc)
+    
+    return {"message": "Admin creato con successo", "admin_exists": True}
+
+
+@api_router.post("/auth/login", response_model=LoginResponse)
+async def login(data: LoginRequest):
+    """User login"""
+    user = await db.users.find_one({"username": data.username}, {"_id": 0})
+    
+    if not user:
+        return LoginResponse(success=False, message="Utente non trovato")
+    
+    if not user.get("is_active", True):
+        return LoginResponse(success=False, message="Account disabilitato")
+    
+    if not verify_password(data.password, user.get("password_hash", "")):
+        return LoginResponse(success=False, message="Password errata")
+    
+    # Create session token
+    token = generate_token()
+    session = SessionToken(
+        token=token,
+        user_id=user["id"],
+        username=user["username"],
+        role=UserRole(user.get("role", "user"))
+    )
+    
+    # Store session
+    await db.sessions.delete_many({"user_id": user["id"]})  # Remove old sessions
+    await db.sessions.insert_one(serialize_doc(session.model_dump()))
+    
+    user_response = UserResponse(
+        id=user["id"],
+        username=user["username"],
+        email=user.get("email"),
+        full_name=user.get("full_name"),
+        role=UserRole(user.get("role", "user")),
+        is_active=user.get("is_active", True),
+        created_at=user.get("created_at", datetime.now(timezone.utc))
+    )
+    
+    return LoginResponse(success=True, user=user_response, token=token, message="Login effettuato")
+
+
+@api_router.post("/auth/logout")
+async def logout(token: str = Query(...)):
+    """User logout"""
+    await db.sessions.delete_many({"token": token})
+    return {"message": "Logout effettuato"}
+
+
+@api_router.get("/auth/verify")
+async def verify_session(token: str = Query(...)):
+    """Verify session token"""
+    session = await db.sessions.find_one({"token": token}, {"_id": 0})
+    
+    if not session:
+        return {"valid": False, "message": "Sessione non valida"}
+    
+    # Check expiration
+    expires_at = session.get("expires_at")
+    if expires_at:
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        if datetime.now(timezone.utc) > expires_at:
+            await db.sessions.delete_one({"token": token})
+            return {"valid": False, "message": "Sessione scaduta"}
+    
+    # Get user
+    user = await db.users.find_one({"id": session["user_id"]}, {"_id": 0})
+    if not user or not user.get("is_active", True):
+        return {"valid": False, "message": "Utente non valido"}
+    
+    return {
+        "valid": True,
+        "user": {
+            "id": user["id"],
+            "username": user["username"],
+            "email": user.get("email"),
+            "full_name": user.get("full_name"),
+            "role": user.get("role", "user"),
+            "is_active": user.get("is_active", True)
+        }
+    }
+
+
+@api_router.get("/users", response_model=List[UserResponse])
+async def get_users(token: str = Query(...)):
+    """Get all users (admin only)"""
+    session = await db.sessions.find_one({"token": token}, {"_id": 0})
+    if not session or session.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accesso negato")
+    
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(100)
+    return [UserResponse(**u) for u in users]
+
+
+@api_router.post("/users", response_model=UserResponse)
+async def create_user(data: UserCreate, token: str = Query(...)):
+    """Create a new user (admin only)"""
+    session = await db.sessions.find_one({"token": token}, {"_id": 0})
+    if not session or session.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin può creare utenti")
+    
+    # Check if username exists
+    existing = await db.users.find_one({"username": data.username})
+    if existing:
+        raise HTTPException(status_code=400, detail="Username già in uso")
+    
+    user = User(
+        username=data.username,
+        email=data.email,
+        full_name=data.full_name,
+        role=data.role,
+        is_active=data.is_active,
+        password_hash=hash_password(data.password)
+    )
+    
+    doc = serialize_doc(user.model_dump())
+    await db.users.insert_one(doc)
+    
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at
+    )
+
+
+@api_router.put("/users/{user_id}", response_model=UserResponse)
+async def update_user(user_id: str, data: UserUpdate, token: str = Query(...)):
+    """Update a user (admin only, or self)"""
+    session = await db.sessions.find_one({"token": token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Non autenticato")
+    
+    # Admin can edit anyone, users can edit themselves
+    is_admin = session.get("role") == "admin"
+    is_self = session.get("user_id") == user_id
+    
+    if not is_admin and not is_self:
+        raise HTTPException(status_code=403, detail="Accesso negato")
+    
+    # Non-admin cannot change role
+    if not is_admin and data.role is not None:
+        data.role = None
+    
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    
+    # Hash password if provided
+    if "password" in update_data:
+        update_data["password_hash"] = hash_password(update_data.pop("password"))
+    
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    result = await db.users.update_one({"id": user_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Utente non trovato")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    return UserResponse(**user)
+
+
+@api_router.delete("/users/{user_id}")
+async def delete_user(user_id: str, token: str = Query(...)):
+    """Delete a user (admin only)"""
+    session = await db.sessions.find_one({"token": token}, {"_id": 0})
+    if not session or session.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin può eliminare utenti")
+    
+    # Cannot delete self
+    if session.get("user_id") == user_id:
+        raise HTTPException(status_code=400, detail="Non puoi eliminare te stesso")
+    
+    result = await db.users.delete_one({"id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Utente non trovato")
+    
+    # Delete user sessions
+    await db.sessions.delete_many({"user_id": user_id})
+    
+    return {"message": "Utente eliminato"}
+
+
 # ------------ PROPERTY CONFIGURATION ------------
 
 @api_router.post("/property", response_model=PropertyConfig)
