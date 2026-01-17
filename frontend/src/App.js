@@ -1851,9 +1851,9 @@ function App() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutte</SelectItem>
-                    {CATEGORIE_ELETTRODOMESTICI.map((cat) => (
+                    {categorieList.map((cat) => (
                       <SelectItem key={cat.value} value={cat.value}>
-                        {cat.icon} {cat.label}
+                        {cat.icon} {cat.label} {cat.custom && <span className="text-xs text-blue-500">(custom)</span>}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1874,7 +1874,7 @@ function App() {
             {/* Elettrodomestici Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredElettrodomestici.map((e) => {
-                const catInfo = CATEGORIE_ELETTRODOMESTICI.find(c => c.value === e.categoria);
+                const catInfo = categorieList.find(c => c.value === e.categoria) || CATEGORIE_ELETTRODOMESTICI.find(c => c.value === e.categoria);
                 const hasSmartPlug = e.smart_plug_id && e.smart_plug_provider !== "nessuno";
                 const smartState = hasSmartPlug ? smartThingsStates[e.smart_plug_id] : null;
                 
