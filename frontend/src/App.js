@@ -1387,6 +1387,24 @@ function App() {
     }
   }, []);
 
+  const loadCategorie = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/categorie-all`, { params: { token: authToken } });
+      if (response.data && response.data.length > 0) {
+        // Transform to format expected by filter
+        const dynamicCategories = response.data.map(cat => ({
+          value: cat.id,
+          label: cat.nome,
+          icon: cat.custom ? "📋" : (CATEGORIE_ELETTRODOMESTICI.find(c => c.value === cat.id)?.icon || "📦"),
+          custom: cat.custom || false
+        }));
+        setCategorieList(dynamicCategories);
+      }
+    } catch (error) {
+      console.error("Error loading categories:", error);
+    }
+  }, [authToken]);
+
   const loadElettrodomestici = useCallback(async () => {
     try {
       const params = { token: authToken };
