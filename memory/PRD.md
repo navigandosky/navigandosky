@@ -1,60 +1,104 @@
 # SmartDomo - PRD
 
-## Stato Attuale (10/01/2026)
+## Stato Attuale (17/01/2026)
 
-### ✅ Funzionalità Completate
+### ✅ Funzionalità Completate Oggi
 
-#### SmartThings (22 dispositivi)
-- Caching backend (TTL 2 min) per evitare 429 errors
-- LED stato in lista POI (🔴 ON, ⚫ OFF)
-- Pulsante Power per on/off
-- Dialog collegamento POI ↔ Device
-- Token aggiornato (10/01/2026): `4066cd17-6bb5-45d1-887f-1dd84e2a204c`
+#### Sistema Multi-Utente (NUOVO)
+- **Login Page**: Interfaccia moderna con gradiente blu/slate
+- **Autenticazione**: Username/password con hash SHA256
+- **Ruoli**: Admin e User
+- **Admin Master**: User=Admin, Password=SmartMaster2026
+- **Gestione Utenti**: Solo admin può creare/modificare/eliminare utenti
+- **Sessioni**: Token con scadenza 7 giorni
+- **Tab "Utenti"**: Visibile solo agli admin nel menu principale
 
-#### Pagina Configurazione Proprietà (NUOVO 10/01/2026)
-- Tab "Proprietà" nel menu principale
-- **Generale**: Nome, descrizione, meteo (città, lat/lon)
-- **Dati Catastali**: Indirizzo, foglio/particella/subalterno, categoria, rendita, superficie, classe energetica, vani, anno costruzione
-- **Integrazioni**: SmartThings (token), eWeLink (email/password), Ezviz (credenziali)
-- **Matterport**: Space ID, SDK Key
-- Inizializzazione automatica da .env esistente
+#### Menu e UI Refactoring
+- **Rinominato**: "Elettrodomestici" → "Apparati"  
+- **Rinominato**: "Proprietà" → "Setup"
+- **Spostato**: "Centri Assistenza" dentro Setup (nuova sottotab)
+- **Aggiunta**: Tab "Utenti" per gestione multi-utente (solo admin)
+- **Header**: Mostra utente corrente con ruolo e pulsante logout
 
-#### Indicatore Stato negli Elettrodomestici
-- Badge "Smart" con stato ACCESO/SPENTO
-- LED rosso lampeggiante se ON
-- LED grigio se OFF
-- Aggiornamento automatico
+#### Matterport Cloud API
+- Sezione configurazione in Setup → Matterport
+- Istruzioni per ottenere Client ID e Client Secret
+- Campi per inserire credenziali API
+- Backend endpoint `/api/matterport/cloud/sync-poi/{poi_id}` per sincronizzare POI
 
-#### Navigazione POI 
-- Metodo 1: `navigateToTag()` per tag Matterport
-- Metodo 2: `Sweep.moveTo()` con sweep_id salvato
-- Metodo 3: Ricerca dinamica sweep più vicino
-- **VERIFICA UTENTE PENDENTE**
+#### SmartThings Token
+- Token aggiornato nel database: `ddde0bd8-0d53-48c7-a94d-4cb55c890fd0`
+- Nota: Token potrebbe richiedere rigenerazione da parte utente
 
-## Note Tecniche
+### ✅ Funzionalità Precedenti
+
+#### eWeLink Integration (OAuth2)
+- OAuth2 completo con firma HMAC-SHA256
+- 17 dispositivi visibili
+- Alternativa stabile a SmartThings per Sonoff
+
+#### Ezviz Camera
+- Workaround con snapshot refresh ogni 5 secondi
+- Endpoint `/api/ezviz/camera/{serial}/capture`
+
+#### Altre Funzionalità
+- SmartThings caching (TTL 2 min)
+- LED stato POI (🔴 ON, ⚫ OFF)
+- Navigazione 3D verso POI
+- Report Sensori
+- Ticket e Manutenzioni
+- Calendario
+- Configurazione Proprietà completa
+
+## Architettura
 
 ### Database Collections
-- `property_config` - Configurazione proprietà centralizzata
+- `users` - Utenti con ruoli
+- `sessions` - Token di sessione
+- `property_config` - Configurazione proprietà
+- `elettrodomestici` - Apparati/Elettrodomestici
+- `manutenzioni`, `tickets`, `centri_assistenza`
 - `matterport_pois` - POI con link SmartThings
-- `elettrodomestici`, `manutenzioni`, `tickets`, `centri_assistenza`
 
-### API Nuove
-- `POST /api/property` - Crea proprietà
-- `GET /api/property/active` - Proprietà attiva
-- `PUT /api/property/{id}` - Aggiorna proprietà
-- `POST /api/property/init-from-env` - Inizializza da .env
+### API Nuove (17/01/2026)
+- `POST /api/auth/init-admin` - Crea admin iniziale
+- `POST /api/auth/login` - Login utente
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/verify` - Verifica sessione
+- `GET /api/users` - Lista utenti (admin)
+- `POST /api/users` - Crea utente (admin)
+- `PUT /api/users/{id}` - Modifica utente
+- `DELETE /api/users/{id}` - Elimina utente (admin)
 
-## Prossimi Task
-1. Verifica "Vai a POI" da parte utente
-2. Integrazione eWeLink (quando pronto)
-3. Sistema Multi-Utente con ruoli
-4. Revisione menu header
+## Credenziali Test
 
-## File Modificati (Sessione 10/01/2026)
-- `backend/server.py` - Modelli PropertyConfig + API
-- `backend/.env` - Token SmartThings
-- `frontend/src/PropertyConfig.js` - NUOVO
-- `frontend/src/App.js` - Tab Proprietà
+### Admin Master
+- **Username**: Admin
+- **Password**: SmartMaster2026
 
----
-*Ultimo aggiornamento: 10 Gennaio 2026*
+### SmartThings
+- Token nel database, da verificare se valido
+
+### eWeLink
+- App ID e Secret configurati in backend/.env
+- OAuth2 funzionante
+
+### Ezviz
+- Credenziali in backend/.env
+
+## Task Futuri
+
+### P0 (Alta Priorità)
+- [ ] Testare creazione nuovo utente
+- [ ] Verificare login con nuovo utente
+- [ ] Verificare SmartThings con nuovo token (potrebbe essere scaduto)
+
+### P1 (Media Priorità)
+- [ ] Filtro categorie dinamico (endpoint backend)
+- [ ] Raccolta automatica dati sensori (background job)
+- [ ] Notifiche intelligenti
+
+### P2 (Bassa Priorità)
+- [ ] QR Code scanning
+- [ ] Export dati CSV/Excel
+- [ ] Traduzione POI multilingua
