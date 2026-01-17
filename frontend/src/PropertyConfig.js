@@ -292,6 +292,322 @@ const EweLinkLoginSection = () => {
   );
 };
 
+// Centri Assistenza Manager Component
+const CentriAssistenzaManager = () => {
+  const [centri, setCentri] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCentro, setEditingCentro] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [formData, setFormData] = useState({
+    nome_azienda: "",
+    referente: "",
+    telefono: "",
+    email: "",
+    indirizzo: "",
+    specializzazioni: [],
+    note: ""
+  });
+  const [specInput, setSpecInput] = useState("");
+
+  const loadCentri = async () => {
+    try {
+      const response = await axios.get(`${API}/centri-assistenza`);
+      setCentri(response.data);
+    } catch (error) {
+      console.error("Error loading centri:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCentri();
+  }, []);
+
+  const handleOpenDialog = (centro = null) => {
+    if (centro) {
+      setEditingCentro(centro);
+      setFormData({
+        nome_azienda: centro.nome_azienda || "",
+        referente: centro.referente || "",
+        telefono: centro.telefono || "",
+        email: centro.email || "",
+        indirizzo: centro.indirizzo || "",
+        specializzazioni: centro.specializzazioni || [],
+        note: centro.note || ""
+      });
+    } else {
+      setEditingCentro(null);
+      setFormData({
+        nome_azienda: "",
+        referente: "",
+        telefono: "",
+        email: "",
+        indirizzo: "",
+        specializzazioni: [],
+        note: ""
+      });
+    }
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formData.nome_azienda || !formData.telefono) {
+      toast.error("Nome azienda e telefono sono obbligatori");
+      return;
+    }
+
+    try {
+      if (editingCentro) {
+        await axios.put(`${API}/centri-assistenza/${editingCentro.id}`, formData);
+        toast.success("Centro assistenza aggiornato");
+      } else {
+        await axios.post(`${API}/centri-assistenza`, formData);
+        toast.success("Centro assistenza creato");
+      }
+      setDialogOpen(false);
+      loadCentri();
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error("Errore nel salvataggio");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Eliminare questo centro assistenza?")) return;
+    try {
+      await axios.delete(`${API}/centri-assistenza/${id}`);
+      toast.success("Centro eliminato");
+      loadCentri();
+    } catch (error) {
+      toast.error("Errore nell'eliminazione");
+    }
+  };
+
+  const addSpecializzazione = () => {
+    if (specInput.trim() && !formData.specializzazioni.includes(specInput.trim())) {
+      setFormData({
+        ...formData,
+        specializzazioni: [...formData.specializzazioni, specInput.trim()]
+      });
+      setSpecInput("");
+    }
+  };
+
+  const removeSpecializzazione = (spec) => {
+    setFormData({
+      ...formData,
+      specializzazioni: formData.specializzazioni.filter(s => s !== spec)
+    });
+  };
+
+  const filteredCentri = centri.filter(c => 
+    !searchTerm ||
+    c.nome_azienda?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.specializzazioni?.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-teal-500" />
+            Centri Assistenza
+          </CardTitle>
+          <CardDescription>
+            Gestisci i centri di assistenza per i tuoi elettrodomestici
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cerca centri..."
+                className="pl-10"
+              />
+            </div>
+            <Button onClick={() => handleOpenDialog()} data-testid="add-centro-btn">
+              <Plus className="h-4 w-4 mr-2" />
+              Nuovo Centro
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : filteredCentri.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {searchTerm ? "Nessun centro trovato" : "Nessun centro assistenza configurato"}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredCentri.map((centro) => (
+                <div
+                  key={centro.id}
+                  className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <h4 className="font-medium">{centro.nome_azienda}</h4>
+                      {centro.referente && (
+                        <p className="text-sm text-gray-600">Ref: {centro.referente}</p>
+                      )}
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {centro.telefono}
+                        </span>
+                        {centro.email && (
+                          <span className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            {centro.email}
+                          </span>
+                        )}
+                      </div>
+                      {centro.specializzazioni?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {centro.specializzazioni.map((spec, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              {spec}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenDialog(centro)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(centro.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog Form */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingCentro ? "Modifica Centro" : "Nuovo Centro Assistenza"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome Azienda *</Label>
+              <Input
+                value={formData.nome_azienda}
+                onChange={(e) => setFormData({ ...formData, nome_azienda: e.target.value })}
+                placeholder="Es: Assistenza Samsung Sardegna"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Referente</Label>
+                <Input
+                  value={formData.referente}
+                  onChange={(e) => setFormData({ ...formData, referente: e.target.value })}
+                  placeholder="Nome referente"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Telefono *</Label>
+                <Input
+                  value={formData.telefono}
+                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                  placeholder="0784 123456"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="assistenza@esempio.it"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Indirizzo</Label>
+              <Input
+                value={formData.indirizzo}
+                onChange={(e) => setFormData({ ...formData, indirizzo: e.target.value })}
+                placeholder="Via Roma 123, Nuoro"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Specializzazioni</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={specInput}
+                  onChange={(e) => setSpecInput(e.target.value)}
+                  placeholder="Es: Samsung, Climatizzazione"
+                  onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addSpecializzazione())}
+                />
+                <Button type="button" variant="outline" onClick={addSpecializzazione}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {formData.specializzazioni.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {formData.specializzazioni.map((spec, i) => (
+                    <Badge key={i} variant="secondary" className="gap-1">
+                      {spec}
+                      <X
+                        className="h-3 w-3 cursor-pointer"
+                        onClick={() => removeSpecializzazione(spec)}
+                      />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Note</Label>
+              <Textarea
+                value={formData.note}
+                onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                rows={2}
+                placeholder="Note aggiuntive..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleSave}>
+              {editingCentro ? "Salva" : "Crea"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
 export default function PropertyConfig() {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
