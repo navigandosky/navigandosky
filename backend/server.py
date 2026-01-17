@@ -71,6 +71,30 @@ DEFAULT_USER_ID = "default-user"
 # Matterport Space ID (can be configured per user in multi-tenant mode)
 MATTERPORT_SPACE_ID = os.environ.get('MATTERPORT_SPACE_ID', 'SxQL3iGyoDo')
 
+
+# Helper function to get user from session token
+async def get_user_from_token(token: Optional[str]) -> dict:
+    """Get user info from session token. Returns default user if no token."""
+    if not token:
+        return {"id": DEFAULT_USER_ID, "username": "default", "role": "user", "matterport_space_id": None}
+    
+    session = await db.sessions.find_one({"token": token}, {"_id": 0})
+    if not session:
+        return {"id": DEFAULT_USER_ID, "username": "default", "role": "user", "matterport_space_id": None}
+    
+    user = await db.users.find_one({"id": session["user_id"]}, {"_id": 0})
+    if not user:
+        return {"id": DEFAULT_USER_ID, "username": "default", "role": "user", "matterport_space_id": None}
+    
+    return {
+        "id": user.get("id", DEFAULT_USER_ID),
+        "username": user.get("username", "default"),
+        "role": user.get("role", "user"),
+        "matterport_space_id": user.get("matterport_space_id"),
+        "matterport_space_name": user.get("matterport_space_name")
+    }
+
+
 # OpenAI client for AI Assistant (using Emergent LLM Key via emergentintegrations)
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
