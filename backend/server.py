@@ -851,6 +851,9 @@ class POI(POIBase):
     user_id: str = DEFAULT_USER_ID
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Matterport Cloud sync fields
+    synced_to_cloud: Optional[bool] = False
+    matterport_cloud_tag_id: Optional[str] = None
 
 
 class POIWithDetails(POI):
