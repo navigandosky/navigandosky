@@ -6640,9 +6640,50 @@ async def create_matterport_cloud_tag(
     # Use Basic Auth
     auth_header = get_matterport_basic_auth(client_id, client_secret)
     
+    # First, get the floor ID for this model
+    floor_query = """
+    query GetFloors($modelId: ID!) {
+        model(id: $modelId) {
+            floors {
+                id
+                name
+            }
+        }
+    }
+    """
+    
+    floor_id = None
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            floor_response = await client.post(
+                "https://api.matterport.com/api/models/graph",
+                headers={
+                    "Authorization": auth_header,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "query": floor_query,
+                    "variables": {"modelId": model_id}
+                }
+            )
+            if floor_response.status_code == 200:
+                floor_data = floor_response.json()
+                floors = floor_data.get("data", {}).get("model", {}).get("floors", [])
+                if floors:
+                    floor_id = floors[0]["id"]  # Use first floor
+    except Exception as e:
+        print(f"Error getting floors: {e}")
+    
+    if not floor_id:
+        # Try a default floor ID or return error
+        return {
+            "success": False,
+            "error": "Impossibile determinare il piano del modello"
+        }
+    
     # GraphQL mutation to add a Mattertag
     mutation = """
-    mutation AddMattertag($modelId: ID!, $tag: MattertagInput!) {
+    mutation AddMattertag($modelId: ID!, $tag: MattertagDetails!) {
       addMattertag(modelId: $modelId, mattertag: $tag) {
         id
         label
@@ -6652,15 +6693,29 @@ async def create_matterport_cloud_tag(
     }
     """
     
+    # Build tag data with required fields
+    tag_input = {
+        "label": tag_data.label,
+        "description": tag_data.description or "",
+        "anchorPosition": tag_data.position,
+        "enabled": True,
+        "floorId": floor_id
+    }
+    
+    # Add optional fields
+    if tag_data.stem_vector:
+        tag_input["stemDirection"] = tag_data.stem_vector
+    if tag_data.color:
+        # Convert RGB dict to hex color string
+        if isinstance(tag_data.color, dict):
+            r = int(tag_data.color.get("r", 0) * 255)
+            g = int(tag_data.color.get("g", 0.75) * 255)
+            b = int(tag_data.color.get("b", 1) * 255)
+            tag_input["color"] = f"#{r:02x}{g:02x}{b:02x}"
+    
     variables = {
         "modelId": model_id,
-        "tag": {
-            "label": tag_data.label,
-            "description": tag_data.description or "",
-            "anchorPosition": tag_data.position,
-            "stemVector": tag_data.stem_vector or {"x": 0, "y": 0.15, "z": 0},
-            "color": tag_data.color or {"r": 0, "g": 0.75, "b": 1}
-        }
+        "tag": tag_input
     }
     
     try:
@@ -6676,6 +6731,8 @@ async def create_matterport_cloud_tag(
                     "variables": variables
                 }
             )
+            
+            print(f"Matterport addMattertag response: {response.status_code} - {response.text[:500]}")
             
             if response.status_code == 200:
                 data = response.json()
