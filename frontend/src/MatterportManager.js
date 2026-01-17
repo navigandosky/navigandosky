@@ -164,6 +164,7 @@ export default function MatterportManager() {
   const [matterportTags, setMatterportTags] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("spaces");
+  const [syncingToCloud, setSyncingToCloud] = useState(null); // POI ID being synced
   
   // SmartThings state
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
