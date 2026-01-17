@@ -927,6 +927,8 @@ class UserBase(BaseModel):
     full_name: Optional[str] = None
     role: UserRole = UserRole.USER
     is_active: bool = True
+    matterport_space_id: Optional[str] = None
+    matterport_space_name: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
@@ -937,6 +939,8 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[UserRole] = None
     is_active: Optional[bool] = None
+    matterport_space_id: Optional[str] = None
+    matterport_space_name: Optional[str] = None
 
 class User(UserBase):
     model_config = ConfigDict(extra="ignore")
@@ -954,6 +958,8 @@ class UserResponse(BaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+    matterport_space_id: Optional[str] = None
+    matterport_space_name: Optional[str] = None
 
 class LoginRequest(BaseModel):
     username: str
