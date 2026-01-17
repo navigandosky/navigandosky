@@ -6544,6 +6544,87 @@ async def test_matterport_cloud_connection(credentials: MatterportCloudCredentia
         }
 
 
+@api_router.get("/matterport/cloud/spaces")
+async def get_matterport_spaces():
+    """Get list of Matterport spaces (models) from the connected account"""
+    # Get credentials from property config
+    prop = await db.property_config.find_one({"is_active": True}, {"_id": 0})
+    if not prop or not prop.get("matterport"):
+        return {"spaces": [], "error": "Configurazione Matterport non trovata"}
+    
+    mp_config = prop["matterport"]
+    if not mp_config.get("api_client_id") or not mp_config.get("api_client_secret"):
+        return {"spaces": [], "error": "Credenziali API Matterport non configurate"}
+    
+    auth_header = get_matterport_basic_auth(
+        mp_config["api_client_id"], 
+        mp_config["api_client_secret"]
+    )
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.matterport.com/api/models/graph",
+                headers={
+                    "Authorization": auth_header,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "query": """
+                    query {
+                        models(query: "*") {
+                            totalResults
+                            results {
+                                id
+                                name
+                                created
+                                modified
+                                visibility
+                                address {
+                                    addressLine1
+                                    city
+                                }
+                            }
+                        }
+                    }
+                    """
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "errors" in data:
+                    return {"spaces": [], "error": data["errors"][0].get("message", "Errore GraphQL")}
+                
+                models = data.get("data", {}).get("models", {}).get("results", [])
+                spaces = []
+                for m in models:
+                    address_parts = []
+                    if m.get("address"):
+                        if m["address"].get("addressLine1"):
+                            address_parts.append(m["address"]["addressLine1"])
+                        if m["address"].get("city"):
+                            address_parts.append(m["address"]["city"])
+                    
+                    spaces.append({
+                        "id": m.get("id"),
+                        "name": m.get("name", "Senza nome"),
+                        "address": ", ".join(address_parts) if address_parts else None,
+                        "visibility": m.get("visibility", "private"),
+                        "created": m.get("created"),
+                        "modified": m.get("modified")
+                    })
+                
+                return {
+                    "spaces": spaces,
+                    "total": len(spaces)
+                }
+            else:
+                return {"spaces": [], "error": f"Errore API: {response.status_code}"}
+    except Exception as e:
+        return {"spaces": [], "error": str(e)}
+
+
 @api_router.post("/matterport/cloud/models/{model_id}/tags")
 async def create_matterport_cloud_tag(
     model_id: str, 
