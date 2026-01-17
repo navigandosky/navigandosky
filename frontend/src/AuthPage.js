@@ -501,12 +501,7 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
                     <SelectItem value="none">-- Nessuno spazio --</SelectItem>
                     {matterportSpaces.map((space) => (
                       <SelectItem key={space.id} value={space.id}>
-                        <div className="flex flex-col">
-                          <span>{space.name}</span>
-                          {space.address && (
-                            <span className="text-xs text-gray-500">{space.address}</span>
-                          )}
-                        </div>
+                        {space.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
