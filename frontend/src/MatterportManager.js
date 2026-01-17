@@ -223,12 +223,14 @@ export default function MatterportManager({ authToken }) {
   // Load POIs for a space
   const loadPois = useCallback(async (spaceId) => {
     try {
-      const res = await axios.get(`${API_URL}/api/matterport/pois?space_id=${spaceId}`);
+      const params = { space_id: spaceId };
+      if (authToken) params.token = authToken;
+      const res = await axios.get(`${API_URL}/api/matterport/pois`, { params });
       setPois(res.data);
     } catch (error) {
       console.error("Error loading POIs:", error);
     }
-  }, []);
+  }, [authToken]);
 
   // Load SmartThings devices with sensor values
   const loadSmartThingsDevices = useCallback(async () => {
