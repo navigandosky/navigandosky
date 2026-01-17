@@ -474,6 +474,51 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
               </Select>
             </div>
 
+            {/* Matterport Space Selection */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-blue-500" />
+                Spazio Matterport
+              </Label>
+              {loadingSpaces ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Caricamento spazi...
+                </div>
+              ) : matterportSpaces.length === 0 ? (
+                <p className="text-sm text-amber-600">
+                  Nessuno spazio disponibile. Configura prima le credenziali Matterport in Setup.
+                </p>
+              ) : (
+                <Select
+                  value={formData.matterport_space_id || "none"}
+                  onValueChange={(value) => handleSpaceSelect(value === "none" ? "" : value)}
+                >
+                  <SelectTrigger data-testid="user-form-space">
+                    <SelectValue placeholder="Seleziona uno spazio..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">-- Nessuno spazio --</SelectItem>
+                    {matterportSpaces.map((space) => (
+                      <SelectItem key={space.id} value={space.id}>
+                        <div className="flex flex-col">
+                          <span>{space.name}</span>
+                          {space.address && (
+                            <span className="text-xs text-gray-500">{space.address}</span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {formData.matterport_space_id && (
+                <p className="text-xs text-blue-600">
+                  ID: {formData.matterport_space_id}
+                </p>
+              )}
+            </div>
+
             <div className="flex items-center space-x-2">
               <Switch
                 id="is_active"
