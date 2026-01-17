@@ -1468,7 +1468,8 @@ function App() {
     loadConfig();
     loadCentriAssistenza();
     loadSmartThingsDevices();
-  }, [loadConfig, loadCentriAssistenza, loadSmartThingsDevices]);
+    loadCategorie();
+  }, [loadConfig, loadCentriAssistenza, loadSmartThingsDevices, loadCategorie]);
 
   // Load data based on active tab
   useEffect(() => {
@@ -1479,6 +1480,7 @@ function App() {
       loadManutenzioni();
     } else if (activeTab === "elettrodomestici") {
       loadElettrodomestici();
+      loadCategorie(); // Refresh categories when viewing elettrodomestici
     } else if (activeTab === "manutenzioni") {
       loadManutenzioni();
       loadElettrodomestici();
@@ -1490,7 +1492,7 @@ function App() {
     } else if (activeTab === "planimetria") {
       loadElettrodomestici();
     }
-  }, [activeTab, loadStats, loadElettrodomestici, loadManutenzioni, loadCentriAssistenza]);
+  }, [activeTab, loadStats, loadElettrodomestici, loadManutenzioni, loadCentriAssistenza, loadCategorie]);
 
   // CRUD handlers for Centri Assistenza
   const handleSaveCentro = async (data) => {
