@@ -1406,29 +1406,32 @@ export default function PropertyConfig() {
                 <p className="font-medium text-blue-800 mb-2">Come ottenere le credenziali:</p>
                 <ol className="list-decimal list-inside space-y-1 text-blue-700">
                   <li>Vai su <a href="https://my.matterport.com" target="_blank" rel="noopener noreferrer" className="underline">my.matterport.com</a></li>
-                  <li>Account Settings → Developer Tools → API Applications</li>
-                  <li>Crea nuova applicazione "Machine-to-Machine"</li>
-                  <li>Copia Client ID e Client Secret</li>
+                  <li>Settings (in basso a sinistra) → Developer Tools</li>
+                  <li>Nella sezione <strong>API Token Management</strong>, clicca "Request API keys"</li>
+                  <li>Copia il <strong>Token ID</strong> e il <strong>Token Secret</strong> (mostrato solo una volta!)</li>
                 </ol>
+                <p className="mt-2 text-blue-600 font-medium">
+                  ⚠️ Il Token Secret viene mostrato solo una volta. Salvalo subito!
+                </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="matterport-clientid">Client ID</Label>
+                  <Label htmlFor="matterport-clientid">Token ID</Label>
                   <PasswordInput
                     id="matterport-clientid"
                     value={formData.matterport?.api_client_id}
                     onChange={(e) => updateFormData("matterport.api_client_id", e.target.value)}
-                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    placeholder="es: 90ec1bd71e4935b5"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="matterport-clientsecret">Client Secret</Label>
+                  <Label htmlFor="matterport-clientsecret">Token Secret</Label>
                   <PasswordInput
                     id="matterport-clientsecret"
                     value={formData.matterport?.api_client_secret}
                     onChange={(e) => updateFormData("matterport.api_client_secret", e.target.value)}
-                    placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    placeholder="es: c9c684136ae5..."
                   />
                 </div>
               </div>
