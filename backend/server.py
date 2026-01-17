@@ -6580,10 +6580,6 @@ async def get_matterport_spaces():
                                 created
                                 modified
                                 visibility
-                                address {
-                                    addressLine1
-                                    city
-                                }
                             }
                         }
                     }
