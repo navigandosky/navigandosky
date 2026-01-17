@@ -6477,66 +6477,59 @@ class MatterportTagCreate(BaseModel):
     color: Optional[Dict[str, float]] = None  # {r, g, b}
 
 
-async def get_matterport_access_token(client_id: str, client_secret: str) -> Optional[str]:
-    """Get OAuth2 access token from Matterport API"""
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                "https://api.matterport.com/api/oauth/token",
-                data={
-                    "grant_type": "client_credentials",
-                    "client_id": client_id,
-                    "client_secret": client_secret
-                },
-                headers={"Content-Type": "application/x-www-form-urlencoded"}
-            )
-            if response.status_code == 200:
-                data = response.json()
-                return data.get("access_token")
-            else:
-                print(f"Matterport OAuth error: {response.status_code} - {response.text}")
-                return None
-    except Exception as e:
-        print(f"Matterport OAuth exception: {e}")
-        return None
+import base64
+
+def get_matterport_basic_auth(token_id: str, token_secret: str) -> str:
+    """Generate Basic Auth header for Matterport API"""
+    credentials = f"{token_id}:{token_secret}"
+    encoded = base64.b64encode(credentials.encode()).decode()
+    return f"Basic {encoded}"
 
 
 @api_router.post("/matterport/cloud/test-connection")
 async def test_matterport_cloud_connection(credentials: MatterportCloudCredentials):
-    """Test Matterport Cloud API connection"""
-    token = await get_matterport_access_token(credentials.client_id, credentials.client_secret)
+    """Test Matterport Cloud API connection using Basic Auth"""
+    # Matterport API uses Basic Auth with Token ID:Token Secret
+    auth_header = get_matterport_basic_auth(credentials.client_id, credentials.client_secret)
     
-    if not token:
-        return {
-            "connected": False,
-            "error": "Impossibile ottenere token di accesso. Verifica Client ID e Secret."
-        }
-    
-    # Test the token by fetching user models
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 "https://api.matterport.com/api/models/graph",
                 headers={
-                    "Authorization": f"Bearer {token}",
+                    "Authorization": auth_header,
                     "Content-Type": "application/json"
                 },
                 json={
                     "query": "query { models { totalResults } }"
                 }
             )
+            
+            print(f"Matterport test response: {response.status_code} - {response.text[:500]}")
+            
             if response.status_code == 200:
                 data = response.json()
+                if "errors" in data:
+                    error_msg = data["errors"][0].get("message", "Errore sconosciuto")
+                    return {
+                        "connected": False,
+                        "error": f"Errore GraphQL: {error_msg}"
+                    }
                 total = data.get("data", {}).get("models", {}).get("totalResults", 0)
                 return {
                     "connected": True,
                     "message": f"Connesso! Trovati {total} modelli nel tuo account.",
                     "models_count": total
                 }
+            elif response.status_code == 401:
+                return {
+                    "connected": False,
+                    "error": "Credenziali non valide. Verifica Token ID e Token Secret."
+                }
             else:
                 return {
                     "connected": False,
-                    "error": f"Errore API: {response.status_code}"
+                    "error": f"Errore API: {response.status_code} - {response.text[:200]}"
                 }
     except Exception as e:
         return {
