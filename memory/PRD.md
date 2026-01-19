@@ -31,7 +31,29 @@
 - **"Centri Assistenza"** spostato dentro Setup
 - **"Utenti"**: Tab visibile solo per Admin
 
-#### 5. Matterport Cloud API ✅
+#### 5. Scheda Apparato ✅ (19/01/2026)
+- **Pulsante "Apri Scheda"**: Su ogni card apparato
+- **Dialog con Tabs**:
+  - Tab "Manutenzioni": Lista completa interventi con stato, tipo, data, costo
+  - Tab "Dettagli": Info complete apparato (marca, modello, seriale, garanzia)
+  - Tab "Documenti": Placeholder per allegati
+- **Riepilogo**: Interventi totali, completate, totale speso (€)
+- **Azione rapida**: "+ Nuova Manutenzione" dal dialog
+
+#### 6. Layout Vista 3D Ottimizzato ✅ (19/01/2026)
+- **Viewer 3D grande**: ~80% dello schermo
+- **Sidebar compatta**: Lista POI/Spazi a destra
+- **Sidebar collassabile**: Toggle per espandere/comprimere
+- **Tabs nella sidebar**: "POI" e "Spazi" separati
+- **Indicatori sensori**: Temperatura/umidità live nei POI
+
+#### 7. Percorso Navigazione POI ✅ (19/01/2026)
+- **State navigationPath**: Array punti navigazione
+- **Dots animati**: Pulse animation con delay progressivo
+- **Pulsante "Clear"**: Per pulire il percorso
+- **Indicatore**: "{n} punti" nel header
+
+#### 8. Matterport Cloud API ✅
 - **Autenticazione**: Basic Auth (Token ID + Token Secret)
 - **Spazi disponibili**: 10 modelli dall'account
 - **Endpoint funzionanti**:
