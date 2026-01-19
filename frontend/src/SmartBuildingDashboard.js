@@ -754,15 +754,19 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const [expandedRooms, setExpandedRooms] = useState({});
   const [matterportTags, setMatterportTags] = useState([]);
   
-  // Get Matterport space ID based on user
-  const getMatterportSpaceId = () => {
+  // Get Matterport space ID based on user - memoized to update when user changes
+  const matterportSpaceId = useMemo(() => {
     // If user has assigned space, use it
     if (currentUser?.matterport_space_id) {
+      console.log("Using user's Matterport space:", currentUser.matterport_space_id);
       return currentUser.matterport_space_id;
     }
     // Fallback to env variable or default
-    return process.env.REACT_APP_MATTERPORT_SPACE_ID || "j1r4zUjanif";
-  };
+    const fallbackId = process.env.REACT_APP_MATTERPORT_SPACE_ID || "j1r4zUjanif";
+    console.log("Using fallback Matterport space:", fallbackId);
+    return fallbackId;
+  }, [currentUser?.matterport_space_id]);
+  
   const matterportRef = useRef(null);
   
   // State per dialog storico sensori
