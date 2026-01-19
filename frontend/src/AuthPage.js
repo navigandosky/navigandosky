@@ -380,6 +380,12 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
                         Spazio: {user.matterport_space_name}
                       </p>
                     )}
+                    {user.mpskin_url && (
+                      <p className="text-sm text-purple-600 flex items-center gap-1">
+                        <Globe className="h-3 w-3" />
+                        MPSKIN Tour
+                      </p>
+                    )}
                   </div>
                   
                   <div className="flex gap-2">
