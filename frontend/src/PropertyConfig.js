@@ -725,31 +725,21 @@ export default function PropertyConfig({ currentUser, authToken }) {
   }, []);
 
   // Pre-populate MPSKIN URL and Space ID from currentUser if available
+  // This runs after property is loaded to ensure user data takes precedence
   useEffect(() => {
-    if (!loading && currentUser) {
-      setFormData(prev => {
-        const updates = { ...prev };
-        
-        // Set MPSKIN URL from user if available
-        if (currentUser.mpskin_url) {
-          updates.matterport = {
-            ...updates.matterport,
-            mpskin_url: currentUser.mpskin_url
-          };
+    if (currentUser) {
+      setFormData(prev => ({
+        ...prev,
+        matterport: {
+          ...prev.matterport,
+          // User's MPSKIN URL takes precedence
+          mpskin_url: currentUser.mpskin_url || prev.matterport?.mpskin_url || "",
+          // User's Matterport space_id takes precedence
+          space_id: currentUser.matterport_space_id || prev.matterport?.space_id || ""
         }
-        
-        // Set Matterport space_id from user if available
-        if (currentUser.matterport_space_id) {
-          updates.matterport = {
-            ...updates.matterport,
-            space_id: currentUser.matterport_space_id
-          };
-        }
-        
-        return updates;
-      });
+      }));
     }
-  }, [currentUser, loading]);
+  }, [currentUser]);
 
   // Check SmartThings connection
   const checkSmartThingsConnection = useCallback(async () => {
