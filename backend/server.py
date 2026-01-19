@@ -2002,12 +2002,13 @@ async def get_manutenzione(manutenzione_id: str):
 
 
 @api_router.put("/manutenzioni/{manutenzione_id}", response_model=Manutenzione)
-async def update_manutenzione(manutenzione_id: str, data: ManutenzioneUpdate):
+async def update_manutenzione(manutenzione_id: str, data: ManutenzioneUpdate, token: Optional[str] = Query(None)):
+    user = await get_user_from_token(token)
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     result = await db.manutenzioni.update_one(
-        {"id": manutenzione_id},
+        {"id": manutenzione_id, "user_id": user["id"]},
         {"$set": update_data}
     )
     if result.matched_count == 0:
@@ -2018,8 +2019,9 @@ async def update_manutenzione(manutenzione_id: str, data: ManutenzioneUpdate):
 
 
 @api_router.delete("/manutenzioni/{manutenzione_id}")
-async def delete_manutenzione(manutenzione_id: str):
-    result = await db.manutenzioni.delete_one({"id": manutenzione_id})
+async def delete_manutenzione(manutenzione_id: str, token: Optional[str] = Query(None)):
+    user = await get_user_from_token(token)
+    result = await db.manutenzioni.delete_one({"id": manutenzione_id, "user_id": user["id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Manutenzione non trovata")
     return {"message": "Manutenzione eliminata"}
