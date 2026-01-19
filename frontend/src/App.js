@@ -1773,7 +1773,7 @@ function App() {
 
         {/* Proprietà Tab - ora Setup */}
         {activeTab === "proprieta" && (
-          <PropertyConfig />
+          <PropertyConfig currentUser={currentUser} authToken={authToken} />
         )}
 
         {/* Report Sensori Tab */}
