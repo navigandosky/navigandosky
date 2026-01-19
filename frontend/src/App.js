@@ -1537,6 +1537,23 @@ function App() {
   };
 
   // CRUD handlers for Elettrodomestici
+  // Open scheda apparato with manutenzioni
+  const handleOpenSchedaApparato = async (apparato) => {
+    setViewingApparato(apparato);
+    setSchedaApparatoOpen(true);
+    
+    // Load manutenzioni for this apparato
+    try {
+      const response = await axios.get(`${API}/manutenzioni`, {
+        params: { token: authToken, elettrodomestico_id: apparato.id }
+      });
+      setApparatoManutenzioni(response.data);
+    } catch (error) {
+      console.error("Error loading manutenzioni:", error);
+      setApparatoManutenzioni([]);
+    }
+  };
+
   const handleSaveElettro = async (data) => {
     try {
       console.log("Saving elettrodomestico:", data);
