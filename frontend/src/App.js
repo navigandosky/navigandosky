@@ -1617,6 +1617,7 @@ function App() {
       }
       setManutDialogOpen(false);
       setEditingManut(null);
+      setPreselectedElettroId(null);
       loadManutenzioni();
       loadStats();
     } catch (error) {
