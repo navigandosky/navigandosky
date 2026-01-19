@@ -1067,6 +1067,15 @@ export default function MatterportManager({ authToken }) {
     }
   };
 
+  // Clear navigation path
+  const clearNavigationPath = useCallback(async () => {
+    if (matterportRef.current?.clearPathMarkers) {
+      await matterportRef.current.clearPathMarkers();
+    }
+    setNavigationPath([]);
+    toast.info("Percorso pulito");
+  }, []);
+
   const handleNavigateToPoi = async (poi) => {
     console.log("handleNavigateToPoi called for:", poi.translations?.[0]?.title);
     
@@ -1092,6 +1101,11 @@ export default function MatterportManager({ authToken }) {
     
     toast.info("🗺️ Calcolo percorso...");
     
+    // Store path for visual display
+    if (poi.position) {
+      setNavigationPath(prev => [...prev, poi.position]);
+    }
+    
     // Try navigation with visual path if we have position
     if (poi.position && matterportRef.current.navigateWithPath) {
       try {
@@ -1106,6 +1120,8 @@ export default function MatterportManager({ authToken }) {
         
         if (result.success) {
           toast.success("✅ Destinazione raggiunta!");
+          // Clear path after successful navigation
+          setTimeout(() => setNavigationPath([]), 3000);
           return;
         }
       } catch (error) {
@@ -1125,6 +1141,7 @@ export default function MatterportManager({ authToken }) {
         );
         toast.success("✅ Destinazione raggiunta!");
         console.log("navigateToTag successful");
+        setTimeout(() => setNavigationPath([]), 3000);
         return;
       } catch (error) {
         console.log("navigateToTag failed:", error.message);
@@ -1141,6 +1158,7 @@ export default function MatterportManager({ authToken }) {
           transitionTime: 1500
         });
         toast.success("✅ Destinazione raggiunta!");
+        setTimeout(() => setNavigationPath([]), 3000);
         return;
       } catch (error) {
         console.log("Sweep.moveTo failed:", error.message);
