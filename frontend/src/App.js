@@ -1287,6 +1287,9 @@ function App() {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [qrElettro, setQrElettro] = useState(null);
   const [ricercaCentriOpen, setRicercaCentriOpen] = useState(false);
+  const [schedaApparatoOpen, setSchedaApparatoOpen] = useState(false);
+  const [viewingApparato, setViewingApparato] = useState(null);
+  const [apparatoManutenzioni, setApparatoManutenzioni] = useState([]);
   
   // SmartThings devices for form
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
