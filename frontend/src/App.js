@@ -1845,7 +1845,7 @@ function App() {
 
         {/* Matterport Tab */}
         {activeTab === "matterport" && (
-          <MatterportManager authToken={authToken} />
+          <MatterportManager authToken={authToken} currentUser={currentUser} />
         )}
 
         {/* Elettrodomestici Tab */}
