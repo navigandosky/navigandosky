@@ -1870,13 +1870,17 @@ async def add_marca_custom(nome: str = Form(...), user_id: str = DEFAULT_USER_ID
 # ------------ MANUTENZIONI ------------
 
 @api_router.post("/manutenzioni", response_model=Manutenzione)
-async def create_manutenzione(data: ManutenzioneCreate):
+async def create_manutenzione(data: ManutenzioneCreate, token: Optional[str] = Query(None)):
+    # Get user from token
+    user = await get_user_from_token(token)
+    
     # Estrai crea_ticket_automatico prima di creare manutenzione
     crea_ticket = data.crea_ticket_automatico
     data_dict = data.model_dump()
     data_dict.pop('crea_ticket_automatico', None)
     
     manutenzione = Manutenzione(**data_dict)
+    manutenzione.user_id = user["id"]  # Set correct user_id
     doc = serialize_doc(manutenzione.model_dump())
     await db.manutenzioni.insert_one(doc)
     
