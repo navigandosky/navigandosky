@@ -1386,6 +1386,25 @@ export default function PropertyConfig() {
                       </a>
                     </p>
                   </div>
+                  
+                  {/* MPSKIN URL */}
+                  <div className="pt-4 border-t">
+                    <Label htmlFor="matterport-mpskin" className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-purple-600" />
+                      MPSKIN Tour URL <span className="text-xs text-gray-500">(opzionale)</span>
+                    </Label>
+                    <Input
+                      id="matterport-mpskin"
+                      value={formData.matterport?.mpskin_url || ""}
+                      onChange={(e) => updateFormData("matterport.mpskin_url", e.target.value)}
+                      placeholder="https://tour.fairsgate.com/it/tour/xxx"
+                      className="mt-2"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Se configurato, verrà usato al posto del viewer Matterport nativo nella Dashboard.
+                      La Vista 3D continuerà ad usare Matterport nativo per la gestione POI.
+                    </p>
+                  </div>
                 </div>
               )}
             </CardContent>
