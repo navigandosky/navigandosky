@@ -1047,21 +1047,42 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
             </Card>
           </div>
 
-          {/* Main Content - Matterport + Tabs */}
+          {/* Main Content - Matterport/MPSKIN + Tabs */}
           <div className="lg:col-span-3 space-y-6">
-            {/* Matterport 3D Viewer with SDK Integration */}
-            <MatterportViewer
-              ref={matterportRef}
-              spaceId={matterportSpaceId}
-              onSdkReady={(sdk) => {
-                console.log("Matterport SDK pronto per l'uso", sdk);
-              }}
-              onTagsLoaded={(tags) => {
-                console.log("Mattertags caricati:", tags);
-                setMatterportTags(tags);
-              }}
-              className="bg-slate-900/50 border border-slate-800 rounded-xl"
-            />
+            {/* 3D Viewer - MPSKIN or Matterport based on user config */}
+            {mpskinUrl ? (
+              /* MPSKIN Iframe Viewer */
+              <div className="relative bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden" style={{ height: '400px' }}>
+                <iframe
+                  src={`${mpskinUrl}${mpskinUrl.includes('?') ? '&' : '?'}play=1`}
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  allowFullScreen
+                  allow="xr-spatial-tracking"
+                  title="MPSKIN Tour"
+                  className="w-full h-full"
+                />
+                <div className="absolute top-2 left-2 px-2 py-1 bg-purple-600/80 text-white text-xs rounded flex items-center gap-1">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                  MPSKIN Tour
+                </div>
+              </div>
+            ) : (
+              /* Native Matterport Viewer */
+              <MatterportViewer
+                ref={matterportRef}
+                spaceId={matterportSpaceId}
+                onSdkReady={(sdk) => {
+                  console.log("Matterport SDK pronto per l'uso", sdk);
+                }}
+                onTagsLoaded={(tags) => {
+                  console.log("Mattertags caricati:", tags);
+                  setMatterportTags(tags);
+                }}
+                className="bg-slate-900/50 border border-slate-800 rounded-xl"
+              />
+            )}
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
