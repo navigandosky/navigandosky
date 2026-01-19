@@ -1234,7 +1234,7 @@ export default function MatterportManager({ authToken, currentUser }) {
             // Save for future use
             if (poi.id) {
               try {
-                await axios.put(`${API_URL}/api/matterport/pois/${poi.id}`, {
+                await axios.put(`${API_URL}/api/matterport/pois/${poi.id}?token=${authToken}`, {
                   nearest_sweep_id: sweepId
                 });
               } catch (e) {
