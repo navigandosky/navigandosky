@@ -741,7 +741,7 @@ export default function MatterportManager({ authToken, currentUser }) {
         updateData.position = editPoiForm.position;
       }
       
-      await axios.put(`${API_URL}/api/matterport/pois/${editPoiForm.id}`, updateData);
+      await axios.put(`${API_URL}/api/matterport/pois/${editPoiForm.id}?token=${authToken}`, updateData);
       
       // If position changed and POI has a Matterport tag, update it
       if (editPoiForm.position && editPoiForm.matterport_tag_id && matterportRef.current) {
@@ -764,7 +764,7 @@ export default function MatterportManager({ authToken, currentUser }) {
           });
           
           if (newTagId) {
-            await axios.put(`${API_URL}/api/matterport/pois/${editPoiForm.id}`, {
+            await axios.put(`${API_URL}/api/matterport/pois/${editPoiForm.id}?token=${authToken}`, {
               matterport_tag_id: newTagId
             });
           }
@@ -778,7 +778,7 @@ export default function MatterportManager({ authToken, currentUser }) {
       setEditPoiForm(null);
       
       // Refresh
-      const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${editPoiForm.id}`);
+      const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${editPoiForm.id}?token=${authToken}`);
       setSelectedPoi(poiRes.data);
       loadPois(activeSpace.id);
     } catch (error) {
