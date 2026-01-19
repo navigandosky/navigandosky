@@ -618,15 +618,25 @@ const MatterportViewer = forwardRef(({
     moveTo: async (position, rotation) => {
       if (!sdkRef.current) return false;
       try {
-        // Find nearest sweep
-        const sweepData = [];
-        await sdkRef.current.Sweep.data.subscribe({
-          onCollectionUpdated: (sweeps) => {
-            sweeps.forEach(sweep => sweepData.push(sweep));
-          }
+        // Get sweeps using the correct SDK method
+        const sweepData = await new Promise((resolve) => {
+          const sweeps = [];
+          sdkRef.current.Sweep.data.subscribe({
+            onCollectionUpdated: (collection) => {
+              if (collection && typeof collection.forEach === 'function') {
+                collection.forEach((sweep, sid) => {
+                  sweeps.push({ ...sweep, id: sid });
+                });
+              } else if (collection && typeof collection[Symbol.iterator] === 'function') {
+                for (const [sid, sweep] of collection) {
+                  sweeps.push({ ...sweep, id: sid });
+                }
+              }
+              resolve(sweeps);
+            }
+          });
+          setTimeout(() => resolve([]), 1000);
         });
-        
-        await new Promise(resolve => setTimeout(resolve, 300));
         
         if (sweepData.length > 0) {
           let nearestSweep = null;
