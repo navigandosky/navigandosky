@@ -1282,6 +1282,7 @@ function App() {
   const [editingElettro, setEditingElettro] = useState(null);
   const [manutDialogOpen, setManutDialogOpen] = useState(false);
   const [editingManut, setEditingManut] = useState(null);
+  const [preselectedElettroId, setPreselectedElettroId] = useState(null); // For new maintenance from appliance card
   const [dettaglioManutOpen, setDettaglioManutOpen] = useState(false);
   const [viewingManut, setViewingManut] = useState(null);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
