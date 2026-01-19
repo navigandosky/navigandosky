@@ -688,7 +688,15 @@ export default function PropertyConfig({ currentUser, authToken }) {
         }
       } else {
         setProperty(response.data);
-        setFormData(response.data);
+        // Merge property data with user-specific data
+        setFormData(prevFormData => ({
+          ...prevFormData,
+          ...response.data,
+          matterport: {
+            ...prevFormData.matterport,
+            ...response.data.matterport
+          }
+        }));
       }
     } catch (error) {
       console.error("Error loading property:", error);
@@ -698,7 +706,14 @@ export default function PropertyConfig({ currentUser, authToken }) {
           const initResponse = await axios.post(`${API}/property/init-from-env`);
           if (initResponse.data.property) {
             setProperty(initResponse.data.property);
-            setFormData(initResponse.data.property);
+            setFormData(prevFormData => ({
+              ...prevFormData,
+              ...initResponse.data.property,
+              matterport: {
+                ...prevFormData.matterport,
+                ...initResponse.data.property.matterport
+              }
+            }));
           }
         } catch (initError) {
           toast.error("Errore nel caricamento della proprietà");
