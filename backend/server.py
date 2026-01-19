@@ -956,6 +956,7 @@ class UserBase(BaseModel):
     is_active: bool = True
     matterport_space_id: Optional[str] = None
     matterport_space_name: Optional[str] = None
+    mpskin_url: Optional[str] = None  # URL per tour MPSKIN (es: https://tour.fairsgate.com/it/tour/xxx)
 
 class UserCreate(UserBase):
     password: str
@@ -968,6 +969,7 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     matterport_space_id: Optional[str] = None
     matterport_space_name: Optional[str] = None
+    mpskin_url: Optional[str] = None
 
 class User(UserBase):
     model_config = ConfigDict(extra="ignore")
@@ -987,6 +989,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     matterport_space_id: Optional[str] = None
     matterport_space_name: Optional[str] = None
+    mpskin_url: Optional[str] = None
 
 class LoginRequest(BaseModel):
     username: str
