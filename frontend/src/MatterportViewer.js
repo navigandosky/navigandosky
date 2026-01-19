@@ -600,14 +600,46 @@ const MatterportViewer = forwardRef(({
     },
 
     /**
-     * Move to a specific position in the model
+     * Move to a specific position in the model using nearest sweep
      */
     moveTo: async (position, rotation) => {
       if (!sdkRef.current) return false;
       try {
-        await sdkRef.current.Camera.setRotation(rotation || { x: 0, y: 0 });
-        await sdkRef.current.Camera.zoomTo(position);
-        return true;
+        // Find nearest sweep
+        const sweepData = [];
+        await sdkRef.current.Sweep.data.subscribe({
+          onCollectionUpdated: (sweeps) => {
+            sweeps.forEach(sweep => sweepData.push(sweep));
+          }
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        if (sweepData.length > 0) {
+          let nearestSweep = null;
+          let minDistance = Infinity;
+          
+          for (const sweep of sweepData) {
+            if (sweep.position) {
+              const dx = sweep.position.x - position.x;
+              const dz = sweep.position.z - position.z;
+              const dist = Math.sqrt(dx * dx + dz * dz);
+              if (dist < minDistance) {
+                minDistance = dist;
+                nearestSweep = sweep;
+              }
+            }
+          }
+          
+          if (nearestSweep) {
+            await sdkRef.current.Sweep.moveTo(nearestSweep.id, {
+              transition: sdkRef.current.Sweep.Transition?.FLY || 1,
+              transitionTime: 1500
+            });
+            return true;
+          }
+        }
+        return false;
       } catch (error) {
         console.error("Move error:", error);
         return false;
