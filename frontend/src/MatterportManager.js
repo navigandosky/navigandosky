@@ -646,7 +646,7 @@ export default function MatterportManager({ authToken, currentUser }) {
       }
       
       // Delete from database
-      await axios.delete(`${API_URL}/api/matterport/pois/${poi.id}`);
+      await axios.delete(`${API_URL}/api/matterport/pois/${poi.id}?token=${authToken}`);
       
       toast.success("POI eliminato");
       setSelectedPoi(null);
