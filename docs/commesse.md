@@ -437,7 +437,7 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ## 🔗 COLLEGAMENTI
 
-- **Preview App:** https://building-manager-13.preview.emergentagent.com
+- **Preview App:** https://mpskin-integrator.preview.emergentagent.com
 - **Matterport Space Test:** SxQL3iGyoDo
 - **Documentazione Matterport SDK:** https://matterport.github.io/showcase-sdk/
 
