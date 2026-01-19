@@ -165,7 +165,6 @@ export default function MatterportManager({ authToken }) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("spaces");
   const [syncingToCloud, setSyncingToCloud] = useState(null); // POI ID being synced
-  const [navigationPath, setNavigationPath] = useState([]); // Path points for navigation
   
   // SmartThings state
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
@@ -1067,15 +1066,6 @@ export default function MatterportManager({ authToken }) {
     }
   };
 
-  // Clear navigation path
-  const clearNavigationPath = useCallback(async () => {
-    if (matterportRef.current?.clearPathMarkers) {
-      await matterportRef.current.clearPathMarkers();
-    }
-    setNavigationPath([]);
-    toast.info("Percorso pulito");
-  }, []);
-
   const handleNavigateToPoi = async (poi) => {
     console.log("handleNavigateToPoi called for:", poi.translations?.[0]?.title);
     
@@ -1101,11 +1091,6 @@ export default function MatterportManager({ authToken }) {
     
     toast.info("🗺️ Calcolo percorso...");
     
-    // Store path for visual display
-    if (poi.position) {
-      setNavigationPath(prev => [...prev, poi.position]);
-    }
-    
     // Try navigation with visual path if we have position
     if (poi.position && matterportRef.current.navigateWithPath) {
       try {
@@ -1120,8 +1105,6 @@ export default function MatterportManager({ authToken }) {
         
         if (result.success) {
           toast.success("✅ Destinazione raggiunta!");
-          // Clear path after successful navigation
-          setTimeout(() => setNavigationPath([]), 3000);
           return;
         }
       } catch (error) {
@@ -1141,7 +1124,6 @@ export default function MatterportManager({ authToken }) {
         );
         toast.success("✅ Destinazione raggiunta!");
         console.log("navigateToTag successful");
-        setTimeout(() => setNavigationPath([]), 3000);
         return;
       } catch (error) {
         console.log("navigateToTag failed:", error.message);
@@ -1158,7 +1140,6 @@ export default function MatterportManager({ authToken }) {
           transitionTime: 1500
         });
         toast.success("✅ Destinazione raggiunta!");
-        setTimeout(() => setNavigationPath([]), 3000);
         return;
       } catch (error) {
         console.log("Sweep.moveTo failed:", error.message);
@@ -1412,104 +1393,61 @@ export default function MatterportManager({ authToken }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white">
-      {/* Header compatto */}
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Box className="text-cyan-400 h-6 w-6" />
+    <div className="min-h-screen bg-[#09090B] text-white p-4 lg:p-6">
+      <div className="max-w-full mx-auto lg:px-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-lg font-bold">Spazi 3D & POI</h1>
-            {activeSpace && (
-              <p className="text-xs text-slate-400">{activeSpace.name}</p>
-            )}
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Box className="text-cyan-400" />
+              Gestione Spazi 3D & POI
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">
+              Importa, crea e gestisci i Point of Interest nei tuoi spazi Matterport
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="border-cyan-500/50 text-cyan-400"
+              onClick={() => loadSpaces()}
+            >
+              <RefreshCw size={16} className="mr-2" />
+              Aggiorna
+            </Button>
+            <Button
+              className="bg-cyan-600 hover:bg-cyan-700"
+              onClick={() => {
+                setSpaceForm({ name: "", space_id: "", description: "", sdk_key: "" });
+                setShowSpaceDialog(true);
+              }}
+            >
+              <Plus size={16} className="mr-2" />
+              Nuovo Spazio
+            </Button>
           </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          {/* Path clear button */}
-          {navigationPath.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-orange-500/50 text-orange-400 text-xs"
-              onClick={clearNavigationPath}
-            >
-              <X size={14} className="mr-1" />
-              Pulisci Percorso
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-cyan-500/50 text-cyan-400"
-            onClick={() => loadSpaces()}
-          >
-            <RefreshCw size={14} className="mr-1" />
-            Aggiorna
-          </Button>
-          <Button
-            size="sm"
-            className="bg-cyan-600 hover:bg-cyan-700"
-            onClick={() => {
-              setSpaceForm({ name: "", space_id: "", description: "", sdk_key: "" });
-              setShowSpaceDialog(true);
-            }}
-          >
-            <Plus size={14} className="mr-1" />
-            Spazio
-          </Button>
-        </div>
-      </div>
 
-      {/* Main layout: Viewer + Sidebar */}
-      <div className="flex h-[calc(100vh-120px)]">
-        {/* Viewer 3D - Main area (80%) */}
-        <div className="flex-1 relative">
-          {activeSpace ? (
-            <div className="h-full">
-              <MatterportViewer
-                ref={matterportRef}
-                spaceId={activeSpace.space_id}
-                sdkKey={activeSpace.sdk_key}
-                onTagsLoaded={handleMatterportTagsLoaded}
-                className="w-full h-full"
-              />
-              {/* Navigation path dots overlay */}
-              {navigationPath.length > 0 && (
-                <div className="absolute bottom-4 left-4 bg-black/70 rounded-lg px-3 py-2 text-xs text-cyan-400 flex items-center gap-2">
-                  <Navigation size={14} />
-                  <span>Percorso attivo: {navigationPath.length} punti</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="h-full flex items-center justify-center bg-slate-900">
-              <div className="text-center">
-                <Box size={64} className="mx-auto text-slate-600 mb-4" />
-                <p className="text-slate-400">Seleziona uno spazio dalla sidebar</p>
-              </div>
-            </div>
-          )}
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          {/* Left Panel - POI List (Compact View) */}
+          <div className="lg:col-span-2 space-y-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="w-full bg-slate-800">
+                <TabsTrigger value="pois" className="flex-1">POI</TabsTrigger>
+                <TabsTrigger value="spaces" className="flex-1">Spazi</TabsTrigger>
+              </TabsList>
 
-        {/* Sidebar - POI & Spaces (300px) */}
-        <div className="w-[320px] border-l border-slate-800 bg-slate-900/50 flex flex-col">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <TabsList className="w-full bg-slate-800 rounded-none border-b border-slate-700">
-              <TabsTrigger value="pois" className="flex-1 text-xs">POI ({pois.length})</TabsTrigger>
-              <TabsTrigger value="spaces" className="flex-1 text-xs">Spazi ({spaces.length})</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="spaces" className="flex-1 overflow-hidden m-0 p-2">
-              <ScrollArea className="h-full">
-                <div className="space-y-2">
-                  {spaces.length === 0 ? (
-                    <div className="p-4 text-center text-slate-400 text-sm">
-                      <Box size={32} className="mx-auto mb-2 opacity-50" />
-                      <p>Nessuno spazio</p>
-                    </div>
-                  ) : (
-                    spaces.map((space) => (
+              <TabsContent value="spaces" className="mt-4">
+                <ScrollArea className="h-[500px]">
+                  <div className="space-y-3">
+                    {spaces.length === 0 ? (
+                      <Card className="bg-slate-800/50 border-slate-700">
+                        <CardContent className="p-6 text-center">
+                          <Box size={48} className="mx-auto text-slate-600 mb-4" />
+                          <p className="text-slate-400">Nessuno spazio configurato</p>
+                          <Button
+                            className="mt-4 bg-cyan-600"
                             onClick={() => setShowSpaceDialog(true)}
                           >
                             <Plus size={16} className="mr-2" />
