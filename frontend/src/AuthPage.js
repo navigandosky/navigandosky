@@ -195,7 +195,8 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
     role: "user",
     is_active: true,
     matterport_space_id: "",
-    matterport_space_name: ""
+    matterport_space_name: "",
+    mpskin_url: ""
   });
 
   const loadUsers = async () => {
