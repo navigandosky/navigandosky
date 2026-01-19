@@ -609,7 +609,7 @@ const CentriAssistenzaManager = () => {
   );
 };
 
-export default function PropertyConfig() {
+export default function PropertyConfig({ currentUser, authToken }) {
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
