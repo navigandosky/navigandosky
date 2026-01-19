@@ -1410,44 +1410,277 @@ export default function MatterportManager({ authToken }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white p-4 lg:p-6">
-      <div className="max-w-full mx-auto lg:px-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+    <div className="h-[calc(100vh-140px)] bg-[#09090B] text-white flex flex-col">
+      {/* Header compatto */}
+      <div className="px-4 py-2 border-b border-slate-800 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <Box className="text-cyan-400 h-5 w-5" />
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Box className="text-cyan-400" />
-              Gestione Spazi 3D & POI
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              Importa, crea e gestisci i Point of Interest nei tuoi spazi Matterport
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="border-cyan-500/50 text-cyan-400"
-              onClick={() => loadSpaces()}
-            >
-              <RefreshCw size={16} className="mr-2" />
-              Aggiorna
-            </Button>
-            <Button
-              className="bg-cyan-600 hover:bg-cyan-700"
-              onClick={() => {
-                setSpaceForm({ name: "", space_id: "", description: "", sdk_key: "" });
-                setShowSpaceDialog(true);
-              }}
-            >
-              <Plus size={16} className="mr-2" />
-              Nuovo Spazio
-            </Button>
+            <h1 className="text-base font-bold">Spazi 3D & POI</h1>
+            {activeSpace && (
+              <p className="text-xs text-slate-400">{activeSpace.name}</p>
+            )}
           </div>
         </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Path indicator & clear button */}
+          {navigationPath.length > 0 && (
+            <div className="flex items-center gap-2 mr-2 px-3 py-1 bg-orange-500/20 rounded-full">
+              <div className="flex items-center gap-1">
+                {navigationPath.map((_, i) => (
+                  <div key={i} className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" style={{animationDelay: `${i * 0.2}s`}} />
+                ))}
+              </div>
+              <span className="text-xs text-orange-300">{navigationPath.length} punti</span>
+              <button
+                onClick={clearNavigationPath}
+                className="text-orange-400 hover:text-orange-300 ml-1"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-cyan-500/50 text-cyan-400 h-8"
+            onClick={() => loadSpaces()}
+          >
+            <RefreshCw size={14} className="mr-1" />
+            Aggiorna
+          </Button>
+          <Button
+            size="sm"
+            className="bg-cyan-600 hover:bg-cyan-700 h-8"
+            onClick={() => {
+              setSpaceForm({ name: "", space_id: "", description: "", sdk_key: "" });
+              setShowSpaceDialog(true);
+            }}
+          >
+            <Plus size={14} className="mr-1" />
+            Spazio
+          </Button>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-          {/* Left Panel - POI List (Compact View) */}
+      {/* Main area: Viewer + Sidebar */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Viewer 3D - Main area */}
+        <div className="flex-1 relative bg-slate-900">
+          {activeSpace ? (
+            <MatterportViewer
+              ref={matterportRef}
+              spaceId={activeSpace.space_id}
+              sdkKey={activeSpace.sdk_key}
+              onTagsLoaded={handleMatterportTagsLoaded}
+              className="w-full h-full"
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <Box size={64} className="mx-auto text-slate-600 mb-4" />
+                <p className="text-slate-400">Seleziona uno spazio dalla sidebar</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar - POI & Spaces */}
+        <div className={`${sidebarCollapsed ? 'w-12' : 'w-80'} border-l border-slate-800 bg-slate-900/80 flex flex-col transition-all duration-300`}>
+          {/* Collapse toggle */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-2 border-b border-slate-800 text-slate-400 hover:text-white flex justify-center"
+          >
+            {sidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+          </button>
+          
+          {!sidebarCollapsed && (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+              <TabsList className="w-full bg-slate-800/50 rounded-none shrink-0">
+                <TabsTrigger value="pois" className="flex-1 text-xs">POI ({pois.length})</TabsTrigger>
+                <TabsTrigger value="spaces" className="flex-1 text-xs">Spazi ({spaces.length})</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="spaces" className="flex-1 overflow-auto m-0 p-2">
+                <div className="space-y-2">
+                  {spaces.length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 text-sm">
+                      <Box size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>Nessuno spazio</p>
+                      <Button
+                        size="sm"
+                        className="mt-2 bg-cyan-600"
+                        onClick={() => setShowSpaceDialog(true)}
+                      >
+                        <Plus size={14} className="mr-1" />
+                        Aggiungi
+                      </Button>
+                    </div>
+                  ) : (
+                    spaces.map(space => (
+                      <div
+                        key={space.id}
+                        className={`p-3 rounded-lg cursor-pointer transition-all ${
+                          activeSpace?.id === space.id 
+                            ? 'bg-cyan-600/30 border border-cyan-500/50' 
+                            : 'bg-slate-800/50 border border-slate-700 hover:border-slate-600'
+                        }`}
+                        onClick={() => handleSelectSpace(space)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm truncate">{space.name}</h4>
+                            <p className="text-xs text-slate-400 truncate">{space.space_id}</p>
+                          </div>
+                          {activeSpace?.id === space.id && (
+                            <Check size={16} className="text-cyan-400 shrink-0" />
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="pois" className="flex-1 overflow-auto m-0 p-2">
+                {/* POI Actions */}
+                <div className="flex gap-1 mb-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-cyan-600 hover:bg-cyan-700 h-8 text-xs"
+                    onClick={() => setShowPoiDialog(true)}
+                    disabled={!activeSpace}
+                  >
+                    <Plus size={12} className="mr-1" />
+                    Nuovo
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 border-purple-500/50 text-purple-400 h-8 text-xs"
+                    onClick={() => setShowImportDialog(true)}
+                    disabled={!activeSpace || matterportTags.length === 0}
+                  >
+                    <Download size={12} className="mr-1" />
+                    Importa ({matterportTags.length})
+                  </Button>
+                </div>
+
+                {/* POI List */}
+                <div className="space-y-1">
+                  {pois.length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 text-sm">
+                      <MapPin size={24} className="mx-auto mb-2 opacity-50" />
+                      <p>Nessun POI</p>
+                    </div>
+                  ) : (
+                    pois.map(poi => {
+                      const itTrans = poi.translations?.find(t => t.language === "it") || {};
+                      const isSelected = selectedPoi?.id === poi.id;
+                      const category = getAllCategories().find(c => c.id === poi.category);
+                      
+                      return (
+                        <div
+                          key={poi.id}
+                          className={`p-2 rounded cursor-pointer transition-all ${
+                            isSelected 
+                              ? 'bg-cyan-600/30 border border-cyan-500/50' 
+                              : 'bg-slate-800/30 border border-transparent hover:bg-slate-800/50'
+                          }`}
+                          onClick={() => {
+                            setSelectedPoi(poi);
+                            handleNavigateToPoi(poi);
+                          }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-6 h-6 rounded flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: category?.color + "30" || "#3B82F630" }}
+                            >
+                              <MapPin size={12} style={{ color: category?.color || "#3B82F6" }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate">{itTrans.title || "POI"}</p>
+                              {/* Sensor values */}
+                              {poi.smartthings_device_id && sensorValues[poi.smartthings_device_id] && (
+                                <p className="text-[10px] text-emerald-400">
+                                  {sensorValues[poi.smartthings_device_id].temperature?.toFixed(1)}° 
+                                  {sensorValues[poi.smartthings_device_id].humidity && ` ${sensorValues[poi.smartthings_device_id].humidity}%`}
+                                </p>
+                              )}
+                            </div>
+                            {/* Sync badge */}
+                            {poi.synced_to_cloud && (
+                              <Cloud size={12} className="text-green-400 shrink-0" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
+        </div>
+      </div>
+
+      {/* Selected POI Detail Panel - Bottom */}
+      {selectedPoi && (
+        <div className="border-t border-slate-800 bg-slate-900/90 p-3 shrink-0">
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <h3 className="font-bold">{selectedPoi.translations?.[0]?.title || "POI"}</h3>
+                {selectedPoi.synced_to_cloud ? (
+                  <Badge className="bg-green-600/20 text-green-400 text-xs">
+                    <Cloud size={10} className="mr-1" />Sincronizzato
+                  </Badge>
+                ) : (
+                  <Badge className="bg-slate-600/50 text-slate-300 text-xs">Non sync</Badge>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 line-clamp-2">{selectedPoi.translations?.[0]?.description}</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+                onClick={() => handleEditPoi(selectedPoi)}
+              >
+                <Pencil size={12} className="mr-1" />
+                Modifica
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleSyncToCloud(selectedPoi)}
+                disabled={syncingToCloud === selectedPoi.id}
+                className={`h-8 text-xs ${selectedPoi.synced_to_cloud ? 'bg-green-600' : 'bg-blue-600'}`}
+              >
+                {syncingToCloud === selectedPoi.id ? (
+                  <Loader2 size={12} className="mr-1 animate-spin" />
+                ) : (
+                  <CloudUpload size={12} className="mr-1" />
+                )}
+                {selectedPoi.synced_to_cloud ? 'Risync' : 'Sync Cloud'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-red-500/50 text-red-400"
+                onClick={() => setSelectedPoi(null)}
+              >
+                <X size={12} />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keep all existing dialogs below - they remain unchanged */}
           <div className="lg:col-span-2 space-y-4">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="w-full bg-slate-800">
