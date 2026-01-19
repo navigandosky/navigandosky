@@ -541,15 +541,48 @@ const MatterportViewer = forwardRef(({
         if (autoNavigate) {
           // Wait a moment for user to see the path
           if (showPath && markerIds.length > 0) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 1500));
           }
 
-          // Move to destination
-          await sdkRef.current.Camera.moveTo({
-            position: targetPosition,
-            transition: sdkRef.current.Camera.Transition?.FLY || "FLY",
-            transitionTime: 2000
-          });
+          // Find nearest sweep to destination and move there
+          try {
+            const sweepData = [];
+            await sdkRef.current.Sweep.data.subscribe({
+              onCollectionUpdated: (sweeps) => {
+                sweeps.forEach(sweep => sweepData.push(sweep));
+              }
+            });
+            
+            // Wait for sweep data
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (sweepData.length > 0) {
+              // Find closest sweep to target position
+              let nearestSweep = null;
+              let minDistance = Infinity;
+              
+              for (const sweep of sweepData) {
+                if (sweep.position) {
+                  const dx = sweep.position.x - targetPosition.x;
+                  const dz = sweep.position.z - targetPosition.z;
+                  const dist = Math.sqrt(dx * dx + dz * dz);
+                  if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestSweep = sweep;
+                  }
+                }
+              }
+              
+              if (nearestSweep) {
+                await sdkRef.current.Sweep.moveTo(nearestSweep.id, {
+                  transition: sdkRef.current.Sweep.Transition?.FLY || 1,
+                  transitionTime: 2000
+                });
+              }
+            }
+          } catch (navError) {
+            console.log("Sweep navigation error:", navError);
+          }
         }
 
         // Schedule marker removal
