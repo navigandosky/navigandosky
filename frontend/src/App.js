@@ -1968,12 +1968,9 @@ function App() {
                           variant="outline"
                           size="sm"
                           className="flex-1"
-                          onClick={() => {
-                            setEditingElettro(e);
-                            setElettroDialogOpen(true);
-                          }}
+                          onClick={() => handleOpenSchedaApparato(e)}
                         >
-                          <Pencil className="h-3 w-3 mr-1" /> Modifica
+                          <Eye className="h-3 w-3 mr-1" /> Apri Scheda
                         </Button>
                         <Button
                           variant="outline"
