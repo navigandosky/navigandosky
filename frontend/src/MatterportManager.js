@@ -333,7 +333,7 @@ export default function MatterportManager({ authToken, currentUser }) {
   // Link POI to SmartThings device
   const linkPoiToDevice = async (poiId, deviceId) => {
     try {
-      await axios.put(`${API_URL}/api/matterport/pois/${poiId}`, {
+      await axios.put(`${API_URL}/api/matterport/pois/${poiId}?token=${authToken}`, {
         smartthings_device_id: deviceId
       });
       toast.success("POI collegato al dispositivo!");
@@ -349,7 +349,7 @@ export default function MatterportManager({ authToken, currentUser }) {
   // Unlink POI from SmartThings device
   const unlinkPoiFromDevice = async (poiId) => {
     try {
-      await axios.put(`${API_URL}/api/matterport/pois/${poiId}`, {
+      await axios.put(`${API_URL}/api/matterport/pois/${poiId}?token=${authToken}`, {
         smartthings_device_id: null
       });
       toast.success("Collegamento rimosso!");
