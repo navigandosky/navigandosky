@@ -971,7 +971,7 @@ const DettaglioManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettro
 };
 
 // ============== MANUTENZIONE DIALOG (Modifica) ==============
-const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici, centriAssistenza, onSave }) => {
+const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, preselectedElettroId, elettrodomestici, centriAssistenza, onSave }) => {
   const [formData, setFormData] = useState({
     elettrodomestico_id: "",
     tipo: "ordinaria",
@@ -1003,7 +1003,7 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
       });
     } else {
       setFormData({
-        elettrodomestico_id: "",
+        elettrodomestico_id: preselectedElettroId || "",
         tipo: "ordinaria",
         descrizione: "",
         data_programmata: "",
@@ -1018,7 +1018,7 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettrodomestici
         crea_ticket_automatico: false,
       });
     }
-  }, [manutenzione]);
+  }, [manutenzione, preselectedElettroId]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
