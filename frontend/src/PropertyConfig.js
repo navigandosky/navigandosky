@@ -773,7 +773,24 @@ export default function PropertyConfig({ currentUser, authToken }) {
     setSaving(true);
     try {
       await axios.put(`${API}/property/${property.id}`, formData);
-      toast.success("Proprietà salvata con successo!");
+      
+      // Also update user's MPSKIN URL and Matterport space if changed
+      if (currentUser && authToken) {
+        const userUpdate = {};
+        if (formData.matterport?.mpskin_url !== currentUser.mpskin_url) {
+          userUpdate.mpskin_url = formData.matterport?.mpskin_url || null;
+        }
+        if (formData.matterport?.space_id !== currentUser.matterport_space_id) {
+          userUpdate.matterport_space_id = formData.matterport?.space_id || null;
+        }
+        
+        if (Object.keys(userUpdate).length > 0) {
+          await axios.put(`${API}/users/${currentUser.id}?token=${authToken}`, userUpdate);
+          console.log("User MPSKIN/Matterport config updated:", userUpdate);
+        }
+      }
+      
+      toast.success("Configurazione salvata con successo!");
       await loadProperty();
       checkSmartThingsConnection();
     } catch (error) {
