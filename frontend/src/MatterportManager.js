@@ -248,14 +248,20 @@ export default function MatterportManager({ authToken, currentUser }) {
   // Load POIs for a space
   const loadPois = useCallback(async (spaceId) => {
     try {
-      const params = { space_id: spaceId };
+      // For virtual spaces (user_xxx), use the Matterport space_id from currentUser
+      let actualSpaceId = spaceId;
+      if (spaceId?.startsWith("user_") && currentUser?.matterport_space_id) {
+        actualSpaceId = currentUser.matterport_space_id;
+      }
+      
+      const params = { space_id: actualSpaceId };
       if (authToken) params.token = authToken;
       const res = await axios.get(`${API_URL}/api/matterport/pois`, { params });
       setPois(res.data);
     } catch (error) {
       console.error("Error loading POIs:", error);
     }
-  }, [authToken]);
+  }, [authToken, currentUser]);
 
   // Handler for when Matterport SDK loads tags
   const handleMatterportTagsLoaded = useCallback((tags) => {
