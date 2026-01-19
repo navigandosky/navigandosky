@@ -1043,7 +1043,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
             {/* Matterport 3D Viewer with SDK Integration */}
             <MatterportViewer
               ref={matterportRef}
-              spaceId={getMatterportSpaceId()}
+              spaceId={matterportSpaceId}
               onSdkReady={(sdk) => {
                 console.log("Matterport SDK pronto per l'uso", sdk);
               }}
