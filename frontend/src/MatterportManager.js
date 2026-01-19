@@ -1068,8 +1068,23 @@ export default function MatterportManager({ authToken }) {
     }
   };
 
+  // Clear navigation path
+  const clearNavigationPath = useCallback(() => {
+    setNavigationPath([]);
+    toast.info("Percorso pulito");
+  }, []);
+
   const handleNavigateToPoi = async (poi) => {
     console.log("handleNavigateToPoi called for:", poi.translations?.[0]?.title);
+    
+    // Add to navigation path
+    if (poi.position) {
+      setNavigationPath(prev => [...prev, { 
+        id: poi.id, 
+        name: poi.translations?.[0]?.title || "POI",
+        position: poi.position 
+      }]);
+    }
     
     if (!matterportRef.current) {
       toast.error("SDK Matterport non connesso");
