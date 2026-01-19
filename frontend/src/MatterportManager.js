@@ -164,14 +164,16 @@ export default function MatterportManager({ authToken }) {
   const [matterportTags, setMatterportTags] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("spaces");
-  const [syncingToCloud, setSyncingToCloud] = useState(null); // POI ID being synced
+  const [syncingToCloud, setSyncingToCloud] = useState(null);
+  const [navigationPath, setNavigationPath] = useState([]); // Path points for navigation
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   // SmartThings state
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
-  const [deviceStates, setDeviceStates] = useState({}); // { deviceId: "on" | "off" }
-  const [sensorValues, setSensorValues] = useState({}); // { deviceId: { temperature, humidity, etc } }
-  const [statusOverlayIds, setStatusOverlayIds] = useState([]); // IDs of status tags in 3D view
-  const [showStatusOverlays, setShowStatusOverlays] = useState(true); // Toggle for status display
+  const [deviceStates, setDeviceStates] = useState({});
+  const [sensorValues, setSensorValues] = useState({});
+  const [statusOverlayIds, setStatusOverlayIds] = useState([]);
+  const [showStatusOverlays, setShowStatusOverlays] = useState(true);
   
   // Dialogs
   const [showSpaceDialog, setShowSpaceDialog] = useState(false);
