@@ -2287,6 +2287,190 @@ function App() {
         onSave={handleSaveElettro}
       />
 
+      {/* Scheda Apparato Dialog */}
+      <Dialog open={schedaApparatoOpen} onOpenChange={setSchedaApparatoOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              {viewingApparato?.nome || "Scheda Apparato"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {viewingApparato && (
+            <Tabs defaultValue="manutenzioni" className="mt-4">
+              <TabsList className="w-full">
+                <TabsTrigger value="manutenzioni" className="flex-1">
+                  <Wrench className="h-4 w-4 mr-2" />
+                  Manutenzioni ({apparatoManutenzioni.length})
+                </TabsTrigger>
+                <TabsTrigger value="dettagli" className="flex-1">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Dettagli
+                </TabsTrigger>
+                <TabsTrigger value="documenti" className="flex-1">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Documenti
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="manutenzioni" className="mt-4">
+                {/* Riepilogo */}
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-blue-600">{apparatoManutenzioni.length}</p>
+                      <p className="text-sm text-blue-700">Interventi Totali</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-green-50 border-green-200">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-green-600">
+                        {apparatoManutenzioni.filter(m => m.stato === 'completata').length}
+                      </p>
+                      <p className="text-sm text-green-700">Completate</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-amber-50 border-amber-200">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-2xl font-bold text-amber-600">
+                        €{apparatoManutenzioni.reduce((sum, m) => sum + (m.costo || 0), 0).toFixed(2)}
+                      </p>
+                      <p className="text-sm text-amber-700">Totale Speso</p>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                {/* Lista Manutenzioni */}
+                {apparatoManutenzioni.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Wrench className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                    <p>Nessuna manutenzione registrata</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {apparatoManutenzioni.map(m => (
+                      <div key={m.id} className="border rounded-lg p-3 hover:bg-gray-50">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={m.stato === 'completata' ? 'default' : m.stato === 'in_corso' ? 'secondary' : 'outline'}>
+                                {m.stato}
+                              </Badge>
+                              <Badge variant="outline">{m.tipo}</Badge>
+                            </div>
+                            <p className="font-medium mt-1">{m.descrizione}</p>
+                            <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {m.data_programmata ? format(parseISO(m.data_programmata), "dd/MM/yyyy", { locale: it }) : "N/D"}
+                              </span>
+                              {m.tecnico && (
+                                <span className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  {m.tecnico}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {m.costo > 0 && (
+                              <p className="font-bold text-green-600">€{m.costo.toFixed(2)}</p>
+                            )}
+                          </div>
+                        </div>
+                        {m.note && (
+                          <p className="text-sm text-gray-600 mt-2 bg-gray-50 p-2 rounded">{m.note}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Add maintenance button */}
+                <Button
+                  className="w-full mt-4"
+                  variant="outline"
+                  onClick={() => {
+                    setSchedaApparatoOpen(false);
+                    setEditingManut({ elettrodomestico_id: viewingApparato.id });
+                    setManutDialogOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nuova Manutenzione
+                </Button>
+              </TabsContent>
+              
+              <TabsContent value="dettagli" className="mt-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-500">Marca</Label>
+                    <p className="font-medium">{viewingApparato.marca || "N/D"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-500">Modello</Label>
+                    <p className="font-medium">{viewingApparato.modello || "N/D"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-500">Categoria</Label>
+                    <p className="font-medium">{viewingApparato.categoria}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-500">Ubicazione</Label>
+                    <p className="font-medium">{viewingApparato.ubicazione || "N/D"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-500">Data Acquisto</Label>
+                    <p className="font-medium">
+                      {viewingApparato.data_acquisto 
+                        ? format(parseISO(viewingApparato.data_acquisto), "dd/MM/yyyy", { locale: it })
+                        : "N/D"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-gray-500">Scadenza Garanzia</Label>
+                    <p className="font-medium">
+                      {viewingApparato.scadenza_garanzia 
+                        ? format(parseISO(viewingApparato.scadenza_garanzia), "dd/MM/yyyy", { locale: it })
+                        : "N/D"}
+                    </p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-gray-500">Seriale</Label>
+                    <p className="font-medium font-mono">{viewingApparato.seriale || "N/D"}</p>
+                  </div>
+                </div>
+                
+                <Button
+                  className="w-full mt-4"
+                  variant="outline"
+                  onClick={() => {
+                    setSchedaApparatoOpen(false);
+                    setEditingElettro(viewingApparato);
+                    setElettroDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Modifica Dettagli
+                </Button>
+              </TabsContent>
+              
+              <TabsContent value="documenti" className="mt-4">
+                <div className="text-center py-8 text-gray-500">
+                  <Upload className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                  <p>Nessun documento allegato</p>
+                  <Button className="mt-4" variant="outline" disabled>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Carica Documento
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <ManutenzioneDialog
         open={manutDialogOpen}
         onOpenChange={setManutDialogOpen}
