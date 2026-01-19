@@ -1103,7 +1103,8 @@ async def login(data: LoginRequest):
         is_active=user.get("is_active", True),
         created_at=user.get("created_at", datetime.now(timezone.utc)),
         matterport_space_id=user.get("matterport_space_id"),
-        matterport_space_name=user.get("matterport_space_name")
+        matterport_space_name=user.get("matterport_space_name"),
+        mpskin_url=user.get("mpskin_url")
     )
     
     return LoginResponse(success=True, user=user_response, token=token, message="Login effettuato")
