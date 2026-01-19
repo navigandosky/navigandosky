@@ -709,6 +709,29 @@ export default function PropertyConfig({ currentUser, authToken }) {
     }
   }, []);
 
+  // Pre-populate MPSKIN URL from currentUser if available
+  useEffect(() => {
+    if (currentUser?.mpskin_url && !formData.matterport?.mpskin_url) {
+      setFormData(prev => ({
+        ...prev,
+        matterport: {
+          ...prev.matterport,
+          mpskin_url: currentUser.mpskin_url
+        }
+      }));
+    }
+    // Also set Matterport space_id from user if available
+    if (currentUser?.matterport_space_id && !formData.matterport?.space_id) {
+      setFormData(prev => ({
+        ...prev,
+        matterport: {
+          ...prev.matterport,
+          space_id: currentUser.matterport_space_id
+        }
+      }));
+    }
+  }, [currentUser]);
+
   // Check SmartThings connection
   const checkSmartThingsConnection = useCallback(async () => {
     if (!formData.integrations?.smartthings?.enabled) {
