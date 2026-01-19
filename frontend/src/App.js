@@ -1608,10 +1608,10 @@ function App() {
   const handleSaveManut = async (data) => {
     try {
       if (editingManut) {
-        await axios.put(`${API}/manutenzioni/${editingManut.id}`, data);
+        await axios.put(`${API}/manutenzioni/${editingManut.id}?token=${authToken}`, data);
         toast.success("Manutenzione aggiornata");
       } else {
-        await axios.post(`${API}/manutenzioni`, data);
+        await axios.post(`${API}/manutenzioni?token=${authToken}`, data);
         toast.success("Manutenzione creata");
       }
       setManutDialogOpen(false);
@@ -1627,7 +1627,7 @@ function App() {
   const handleDeleteManut = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questa manutenzione?")) {
       try {
-        await axios.delete(`${API}/manutenzioni/${id}`);
+        await axios.delete(`${API}/manutenzioni/${id}?token=${authToken}`);
         toast.success("Manutenzione eliminata");
         loadManutenzioni();
         loadStats();
