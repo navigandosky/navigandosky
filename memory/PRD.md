@@ -114,8 +114,8 @@ Tutte le API principali ora accettano `?token=...` per filtrare i dati per utent
 ## Task Futuri
 
 ### P0 (Alta Priorità)
-- [ ] Rigenerare SmartThings token
-- [ ] Testare creazione nuovo utente con spazio dedicato
+- [ ] Segregazione SmartThings/eWeLink: Usare eWeLink per sensori non-Samsung
+- [ ] Rigenerare SmartThings token (solo per dispositivi Samsung)
 
 ### P1 (Media Priorità)
 - [ ] Raccolta automatica dati sensori (background job)
