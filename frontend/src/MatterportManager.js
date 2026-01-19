@@ -85,7 +85,8 @@ import {
   Phone,
   Mail,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Pencil
 } from "lucide-react";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
