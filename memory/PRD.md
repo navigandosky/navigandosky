@@ -2,6 +2,13 @@
 
 ## Stato Attuale (19/01/2026)
 
+### ✅ Bug Fix Recenti
+
+#### Assegnazione Spazio Matterport agli Utenti ✅ (19/01/2026)
+- **Problema**: I campi `matterport_space_id` e `matterport_space_name` non venivano salvati nella creazione utente
+- **Soluzione**: Aggiunto i campi mancanti nel costruttore `User` e nella response `UserResponse` in `server.py`
+- **Utente Geasar**: Aggiornato con spazio `cmf7H5A4JdY` (GEASAR)
+
 ### ✅ Funzionalità Completate
 
 #### 1. Sistema Multi-Utente con Multi-Tenant
