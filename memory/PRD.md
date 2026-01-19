@@ -1,6 +1,6 @@
 # SmartDomo - PRD
 
-## Stato Attuale (17/01/2026)
+## Stato Attuale (19/01/2026)
 
 ### ✅ Funzionalità Completate
 
