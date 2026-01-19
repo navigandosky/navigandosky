@@ -638,7 +638,8 @@ export default function PropertyConfig() {
     matterport: {
       space_id: "",
       sdk_key: "",
-      enabled: true
+      enabled: true,
+      mpskin_url: ""  // URL per tour MPSKIN alternativo
     },
     integrations: {
       smartthings: {
