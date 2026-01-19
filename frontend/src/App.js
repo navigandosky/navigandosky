@@ -1761,6 +1761,7 @@ function App() {
           onNavigate={setActiveTab}
           manutenzioni={manutenzioni}
           elettrodomestici={elettrodomestici}
+          currentUser={currentUser}
         />
       )}
 
