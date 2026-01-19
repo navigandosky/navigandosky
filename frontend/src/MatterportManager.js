@@ -1104,22 +1104,52 @@ export default function MatterportManager({ authToken, currentUser }) {
     }
   };
 
-  // Clear navigation path
-  const clearNavigationPath = useCallback(() => {
+  // Clear navigation path and remove floor markers
+  const clearNavigationPath = useCallback(async () => {
+    // Remove floor markers from 3D view
+    if (matterportRef.current && pathMarkerIds.length > 0) {
+      try {
+        await matterportRef.current.removePathMarkers(pathMarkerIds);
+      } catch (e) {
+        console.log("Error removing path markers:", e);
+      }
+    }
+    setPathMarkerIds([]);
     setNavigationPath([]);
     toast.info("Percorso pulito");
-  }, []);
+  }, [pathMarkerIds]);
 
   const handleNavigateToPoi = async (poi) => {
     console.log("handleNavigateToPoi called for:", poi.translations?.[0]?.title);
     
     // Add to navigation path
     if (poi.position) {
-      setNavigationPath(prev => [...prev, { 
+      const newPoint = { 
         id: poi.id, 
         name: poi.translations?.[0]?.title || "POI",
         position: poi.position 
-      }]);
+      };
+      
+      setNavigationPath(prev => {
+        const newPath = [...prev, newPoint];
+        
+        // Create floor markers for the path
+        if (matterportRef.current) {
+          const waypoints = newPath.map(p => p.position);
+          matterportRef.current.createPathMarkers(waypoints, {
+            color: { r: 1, g: 0.5, b: 0 }, // Orange
+            showArrows: true
+          }).then(markerIds => {
+            // First remove old markers
+            if (pathMarkerIds.length > 0) {
+              matterportRef.current.removePathMarkers(pathMarkerIds);
+            }
+            setPathMarkerIds(markerIds);
+          }).catch(e => console.log("Could not create path markers:", e));
+        }
+        
+        return newPath;
+      });
     }
     
     if (!matterportRef.current) {
