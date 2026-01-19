@@ -470,7 +470,7 @@ export default function MatterportManager({ authToken, currentUser }) {
       );
       
       const res = await axios.post(
-        `${API_URL}/api/matterport/spaces/${activeSpace.id}/import-tags`,
+        `${API_URL}/api/matterport/spaces/${activeSpace.id}/import-tags?token=${authToken}`,
         tagsToImport
       );
       
