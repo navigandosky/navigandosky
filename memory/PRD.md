@@ -7,7 +7,9 @@
 #### Assegnazione Spazio Matterport agli Utenti ✅ (19/01/2026)
 - **Problema**: I campi `matterport_space_id` e `matterport_space_name` non venivano salvati nella creazione utente
 - **Soluzione**: Aggiunto i campi mancanti nel costruttore `User` e nella response `UserResponse` in `server.py`
-- **Utente Geasar**: Aggiornato con spazio `cmf7H5A4JdY` (GEASAR)
+- **Bug fix 2**: Login e verify session ora restituiscono `matterport_space_id` per l'utente
+- **Bug fix 3**: `SmartBuildingDashboard` e `MatterportManager` ora usano lo spazio assegnato all'utente invece del default globale
+- **Utente Geasar**: Testato con spazio `cmf7H5A4JdY` (GEASAR - Aeroporto Olbia) ✅
 
 ### ✅ Funzionalità Completate
 
