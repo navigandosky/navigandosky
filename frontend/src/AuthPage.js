@@ -517,6 +517,23 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
               )}
             </div>
 
+            {/* MPSKIN URL */}
+            <div className="space-y-2">
+              <Label htmlFor="mpskin_url">
+                MPSKIN Tour URL <span className="text-xs text-gray-500">(opzionale)</span>
+              </Label>
+              <Input
+                id="mpskin_url"
+                value={formData.mpskin_url}
+                onChange={(e) => setFormData({ ...formData, mpskin_url: e.target.value })}
+                placeholder="https://tour.fairsgate.com/it/tour/xxx"
+                data-testid="user-form-mpskin"
+              />
+              <p className="text-xs text-gray-500">
+                Se configurato, verrà usato invece del viewer Matterport nativo
+              </p>
+            </div>
+
             <div className="flex items-center space-x-2">
               <Switch
                 id="is_active"
