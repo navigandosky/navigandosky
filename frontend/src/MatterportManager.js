@@ -1656,6 +1656,14 @@ export default function MatterportManager({ authToken }) {
             <div className="flex gap-2 shrink-0">
               <Button
                 size="sm"
+                className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700"
+                onClick={() => handleNavigateToPoi(selectedPoi)}
+              >
+                <Navigation size={12} className="mr-1" />
+                Vai
+              </Button>
+              <Button
+                size="sm"
                 variant="outline"
                 className="h-8 text-xs"
                 onClick={() => handleEditPoi(selectedPoi)}
