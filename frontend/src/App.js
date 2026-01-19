@@ -2476,8 +2476,12 @@ function App() {
 
       <ManutenzioneDialog
         open={manutDialogOpen}
-        onOpenChange={setManutDialogOpen}
+        onOpenChange={(open) => {
+          setManutDialogOpen(open);
+          if (!open) setPreselectedElettroId(null);
+        }}
         manutenzione={editingManut}
+        preselectedElettroId={preselectedElettroId}
         elettrodomestici={elettrodomestici}
         centriAssistenza={centriAssistenza}
         onSave={handleSaveManut}
