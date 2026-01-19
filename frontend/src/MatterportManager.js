@@ -169,6 +169,7 @@ export default function MatterportManager({ authToken, currentUser }) {
   const [activeTab, setActiveTab] = useState("spaces");
   const [syncingToCloud, setSyncingToCloud] = useState(null);
   const [navigationPath, setNavigationPath] = useState([]); // Path points for navigation
+  const [pathMarkerIds, setPathMarkerIds] = useState([]); // IDs of floor markers in 3D view
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   // SmartThings state
