@@ -1039,7 +1039,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
             {/* Matterport 3D Viewer with SDK Integration */}
             <MatterportViewer
               ref={matterportRef}
-              spaceId={process.env.REACT_APP_MATTERPORT_SPACE_ID || "j1r4zUjanif"}
+              spaceId={getMatterportSpaceId()}
               onSdkReady={(sdk) => {
                 console.log("Matterport SDK pronto per l'uso", sdk);
               }}
