@@ -1504,13 +1504,108 @@ export default function MatterportManager({ authToken, currentUser }) {
         {/* Viewer 3D - Main area */}
         <div className="flex-1 relative bg-slate-900">
           {activeSpace ? (
-            <MatterportViewer
-              ref={matterportRef}
-              spaceId={activeSpace.space_id}
-              sdkKey={activeSpace.sdk_key}
-              onTagsLoaded={handleMatterportTagsLoaded}
-              className="w-full h-full"
-            />
+            <>
+              <MatterportViewer
+                ref={matterportRef}
+                spaceId={activeSpace.space_id}
+                sdkKey={activeSpace.sdk_key}
+                onTagsLoaded={handleMatterportTagsLoaded}
+                className="w-full h-full"
+              />
+              
+              {/* Navigation Path Overlay - Animated dots showing the route */}
+              {navigationPath.length > 1 && (
+                <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
+                  {/* Animated path line */}
+                  <svg className="absolute inset-0 w-full h-full">
+                    <defs>
+                      <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#f97316" stopOpacity="0.8" />
+                        <stop offset="50%" stopColor="#fb923c" stopOpacity="1" />
+                        <stop offset="100%" stopColor="#f97316" stopOpacity="0.8" />
+                      </linearGradient>
+                    </defs>
+                    {/* Animated dashed line connecting points */}
+                    <path
+                      d={`M ${20} ${50 + navigationPath.length * 5} ${navigationPath.map((_, i) => `L ${20 + (i + 1) * 60} ${50 + (navigationPath.length - i) * 5}`).join(' ')}`}
+                      stroke="url(#pathGradient)"
+                      strokeWidth="3"
+                      strokeDasharray="10,5"
+                      fill="none"
+                      className="animate-pulse"
+                      style={{ strokeDashoffset: '0', animation: 'dash 2s linear infinite' }}
+                    />
+                  </svg>
+                  
+                  {/* Path indicator panel */}
+                  <div className="absolute top-4 left-4 bg-gradient-to-r from-orange-600/90 to-amber-600/90 backdrop-blur-sm rounded-xl p-4 shadow-xl border border-orange-400/30">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Navigation className="text-white" size={20} />
+                      <span className="text-white font-semibold">Percorso Attivo</span>
+                      <button 
+                        onClick={clearNavigationPath}
+                        className="ml-auto bg-white/20 hover:bg-white/30 rounded-full p-1 pointer-events-auto transition-colors"
+                      >
+                        <X size={14} className="text-white" />
+                      </button>
+                    </div>
+                    
+                    {/* Animated waypoints */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {navigationPath.map((point, i) => (
+                        <div key={point.id} className="flex items-center">
+                          {/* Animated dot */}
+                          <div 
+                            className="relative"
+                            style={{ animationDelay: `${i * 0.3}s` }}
+                          >
+                            <div 
+                              className="w-4 h-4 rounded-full bg-white shadow-lg animate-bounce"
+                              style={{ 
+                                animationDelay: `${i * 0.15}s`,
+                                animationDuration: '1s'
+                              }}
+                            />
+                            <div 
+                              className="absolute inset-0 w-4 h-4 rounded-full bg-white/50 animate-ping"
+                              style={{ animationDelay: `${i * 0.15}s` }}
+                            />
+                            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] text-white font-bold bg-orange-800/80 px-1.5 py-0.5 rounded">
+                              {i + 1}
+                            </span>
+                          </div>
+                          
+                          {/* Connector line between dots */}
+                          {i < navigationPath.length - 1 && (
+                            <div className="flex items-center mx-1">
+                              <div className="w-6 h-0.5 bg-white/40 relative overflow-hidden">
+                                <div 
+                                  className="absolute inset-y-0 left-0 w-2 bg-white animate-pulse"
+                                  style={{ 
+                                    animation: 'slideRight 1s ease-in-out infinite',
+                                    animationDelay: `${i * 0.2}s`
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Waypoint names */}
+                    <div className="mt-3 text-xs text-white/80 max-w-xs">
+                      {navigationPath.map((point, i) => (
+                        <span key={point.id}>
+                          {i > 0 && <span className="text-orange-300"> → </span>}
+                          <span className="text-white">{point.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
