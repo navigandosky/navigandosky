@@ -546,15 +546,27 @@ const MatterportViewer = forwardRef(({
 
           // Find nearest sweep to destination and move there
           try {
-            const sweepData = [];
-            await sdkRef.current.Sweep.data.subscribe({
-              onCollectionUpdated: (sweeps) => {
-                sweeps.forEach(sweep => sweepData.push(sweep));
-              }
+            // Get sweeps using the correct SDK method
+            const sweepData = await new Promise((resolve) => {
+              const sweeps = [];
+              const subscription = sdkRef.current.Sweep.data.subscribe({
+                onCollectionUpdated: (collection) => {
+                  // Collection is a Map-like structure
+                  if (collection && typeof collection.forEach === 'function') {
+                    collection.forEach((sweep, sid) => {
+                      sweeps.push({ ...sweep, id: sid });
+                    });
+                  } else if (collection && typeof collection[Symbol.iterator] === 'function') {
+                    for (const [sid, sweep] of collection) {
+                      sweeps.push({ ...sweep, id: sid });
+                    }
+                  }
+                  resolve(sweeps);
+                }
+              });
+              // Timeout fallback
+              setTimeout(() => resolve([]), 2000);
             });
-            
-            // Wait for sweep data
-            await new Promise(resolve => setTimeout(resolve, 500));
             
             if (sweepData.length > 0) {
               // Find closest sweep to target position
@@ -574,6 +586,7 @@ const MatterportViewer = forwardRef(({
               }
               
               if (nearestSweep) {
+                console.log("Moving to nearest sweep:", nearestSweep.id);
                 await sdkRef.current.Sweep.moveTo(nearestSweep.id, {
                   transition: sdkRef.current.Sweep.Transition?.FLY || 1,
                   transitionTime: 2000
