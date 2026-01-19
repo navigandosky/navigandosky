@@ -16,6 +16,8 @@
 - **Gestione Utenti**: Campo "MPSKIN Tour URL" nel dialog di modifica utente
 - **Dashboard Dinamica**: Se l'utente ha `mpskin_url` configurato, mostra iframe MPSKIN invece di Matterport nativo
 - **Badge Visuale**: Indicatore "MPSKIN Tour" viola nella lista utenti e nel viewer
+- **Setup Allineato**: Tab Matterport in Setup mostra e permette di modificare MPSKIN URL dell'utente
+- **Dati Utente Pre-popolati**: Space ID e MPSKIN URL vengono caricati automaticamente dal profilo utente
 - **Utente Geasar**: Configurato con `https://tour.fairsgate.com/it/tour/mppdp7qpem`
 
 ### ✅ Funzionalità Completate
