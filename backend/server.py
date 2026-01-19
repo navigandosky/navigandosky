@@ -5568,20 +5568,35 @@ async def delete_poi(poi_id: str):
 # --- Import Tags from Matterport ---
 
 @api_router.post("/matterport/spaces/{space_id}/import-tags")
-async def import_matterport_tags(space_id: str, tags: List[Dict[str, Any]]):
+async def import_matterport_tags(space_id: str, tags: List[Dict[str, Any]], token: str = Query(None)):
     """
     Import selected tags from Matterport SDK into POIs.
     Frontend sends the tags data fetched from SDK.
     """
+    # Get user from token
+    user_id = DEFAULT_USER_ID
+    if token:
+        session = await db.sessions.find_one({"token": token}, {"_id": 0})
+        if session:
+            user_id = session.get("user_id", DEFAULT_USER_ID)
+    
+    # Handle virtual space IDs (user_xxx) - extract real space_id
+    actual_space_id = space_id
+    if space_id.startswith("user_"):
+        # This is a virtual space, need to get the real matterport space_id from user
+        user_doc = await db.users.find_one({"id": space_id.replace("user_", "")}, {"_id": 0})
+        if user_doc and user_doc.get("matterport_space_id"):
+            actual_space_id = user_doc["matterport_space_id"]
+    
     imported_count = 0
     skipped_count = 0
     
     for tag in tags:
         # Check if tag already imported
         existing = await db.pois.find_one({
-            "space_id": space_id,
+            "space_id": actual_space_id,
             "matterport_tag_id": tag.get("sid") or tag.get("id"),
-            "user_id": DEFAULT_USER_ID
+            "user_id": user_id
         })
         
         if existing:
@@ -5616,8 +5631,8 @@ async def import_matterport_tags(space_id: str, tags: List[Dict[str, Any]]):
         # Create POI
         poi_dict = {
             "id": str(uuid.uuid4()),
-            "user_id": DEFAULT_USER_ID,
-            "space_id": space_id,
+            "user_id": user_id,
+            "space_id": actual_space_id,
             "matterport_tag_id": tag.get("sid") or tag.get("id"),
             "position": position,
             "translations": translations,
