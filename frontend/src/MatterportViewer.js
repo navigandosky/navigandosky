@@ -316,7 +316,7 @@ const MatterportViewer = forwardRef(({
       if (!sdkRef.current || !waypoints || waypoints.length === 0) return [];
       
       const {
-        color = { r: 0, g: 0.8, b: 0.3 }, // Green by default
+        color = { r: 1, g: 0.5, b: 0 }, // Orange by default
         markerLabel = "●",
         showArrows = true
       } = options;
@@ -329,18 +329,24 @@ const MatterportViewer = forwardRef(({
           const isLast = i === waypoints.length - 1;
           const isFirst = i === 0;
           
-          // Create marker at each waypoint
+          // Create floor marker at each waypoint - low stem to keep on floor
           const markerDesc = {
-            label: isLast ? "🎯" : (isFirst ? "📍" : (showArrows ? "→" : "•")),
-            description: isLast ? "Destinazione" : (isFirst ? "Partenza" : `Punto ${i}`),
-            anchorPosition: { x: wp.x, y: wp.y, z: wp.z },
-            stemVector: { x: 0, y: 0.1, z: 0 },
-            color: isLast ? { r: 1, g: 0, b: 0 } : (isFirst ? { r: 0, g: 0, b: 1 } : color)
+            label: isLast ? "🎯 ARRIVO" : (isFirst ? "📍 PARTENZA" : `● ${i}`),
+            description: isLast ? "Destinazione finale" : (isFirst ? "Punto di partenza" : `Waypoint ${i}`),
+            anchorPosition: { 
+              x: wp.x, 
+              y: wp.y - 0.5, // Slightly below original position (floor level)
+              z: wp.z 
+            },
+            stemVector: { x: 0, y: 0.3, z: 0 }, // Short stem to stay close to floor
+            color: isLast ? { r: 1, g: 0, b: 0 } : (isFirst ? { r: 0, g: 0.7, b: 1 } : color),
+            floorIndex: 0 // Ensure it's on the floor
           };
 
           try {
             const [markerId] = await sdkRef.current.Mattertag.add(markerDesc);
             markerIds.push(markerId);
+            console.log(`Path marker ${i} created:`, markerId);
           } catch (e) {
             console.log("Could not add path marker:", e);
           }
