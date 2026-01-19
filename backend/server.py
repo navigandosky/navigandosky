@@ -1098,7 +1098,9 @@ async def login(data: LoginRequest):
         full_name=user.get("full_name"),
         role=UserRole(user.get("role", "user")),
         is_active=user.get("is_active", True),
-        created_at=user.get("created_at", datetime.now(timezone.utc))
+        created_at=user.get("created_at", datetime.now(timezone.utc)),
+        matterport_space_id=user.get("matterport_space_id"),
+        matterport_space_name=user.get("matterport_space_name")
     )
     
     return LoginResponse(success=True, user=user_response, token=token, message="Login effettuato")
