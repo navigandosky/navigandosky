@@ -236,6 +236,12 @@ export default function MatterportManager({ authToken }) {
     }
   }, [authToken]);
 
+  // Handler for when Matterport SDK loads tags
+  const handleMatterportTagsLoaded = useCallback((tags) => {
+    console.log("Matterport tags loaded:", tags?.length || 0);
+    setMatterportTags(tags || []);
+  }, []);
+
   // Load SmartThings devices with sensor values
   const loadSmartThingsDevices = useCallback(async () => {
     try {
