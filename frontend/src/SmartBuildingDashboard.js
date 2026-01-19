@@ -741,7 +741,7 @@ const CameraCard = ({ camera, ezvizToken }) => {
 }; 
 
 // Main Dashboard Component
-export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], elettrodomestici = [] }) {
+export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], elettrodomestici = [], currentUser }) {
   const [activeTab, setActiveTab] = useState('clima');
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
   const [devicesByRoom, setDevicesByRoom] = useState([]);
@@ -753,6 +753,16 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const [loading, setLoading] = useState(true);
   const [expandedRooms, setExpandedRooms] = useState({});
   const [matterportTags, setMatterportTags] = useState([]);
+  
+  // Get Matterport space ID based on user
+  const getMatterportSpaceId = () => {
+    // If user has assigned space, use it
+    if (currentUser?.matterport_space_id) {
+      return currentUser.matterport_space_id;
+    }
+    // Fallback to env variable or default
+    return process.env.REACT_APP_MATTERPORT_SPACE_ID || "j1r4zUjanif";
+  };
   const matterportRef = useRef(null);
   
   // State per dialog storico sensori
