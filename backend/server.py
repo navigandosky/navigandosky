@@ -1175,7 +1175,9 @@ async def create_user(data: UserCreate, token: str = Query(...)):
         full_name=data.full_name,
         role=data.role,
         is_active=data.is_active,
-        password_hash=hash_password(data.password)
+        password_hash=hash_password(data.password),
+        matterport_space_id=data.matterport_space_id,
+        matterport_space_name=data.matterport_space_name
     )
     
     doc = serialize_doc(user.model_dump())
@@ -1188,7 +1190,9 @@ async def create_user(data: UserCreate, token: str = Query(...)):
         full_name=user.full_name,
         role=user.role,
         is_active=user.is_active,
-        created_at=user.created_at
+        created_at=user.created_at,
+        matterport_space_id=user.matterport_space_id,
+        matterport_space_name=user.matterport_space_name
     )
 
 
