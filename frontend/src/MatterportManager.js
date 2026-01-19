@@ -1125,26 +1125,32 @@ export default function MatterportManager({ authToken, currentUser }) {
     // Add to navigation path
     if (poi.position) {
       const newPoint = { 
-        id: poi.id, 
+        id: `${poi.id}-${Date.now()}`, // Unique ID to avoid duplicates
         name: poi.translations?.[0]?.title || "POI",
         position: poi.position 
       };
       
+      // First remove old markers
+      if (matterportRef.current && pathMarkerIds.length > 0) {
+        try {
+          await matterportRef.current.removePathMarkers(pathMarkerIds);
+        } catch (e) {
+          console.log("Error removing old markers:", e);
+        }
+      }
+      
       setNavigationPath(prev => {
         const newPath = [...prev, newPoint];
         
-        // Create floor markers for the path
+        // Create new floor markers for the entire path
         if (matterportRef.current) {
           const waypoints = newPath.map(p => p.position);
           matterportRef.current.createPathMarkers(waypoints, {
             color: { r: 1, g: 0.5, b: 0 }, // Orange
             showArrows: true
           }).then(markerIds => {
-            // First remove old markers
-            if (pathMarkerIds.length > 0) {
-              matterportRef.current.removePathMarkers(pathMarkerIds);
-            }
             setPathMarkerIds(markerIds);
+            console.log("Created path markers:", markerIds.length);
           }).catch(e => console.log("Could not create path markers:", e));
         }
         
