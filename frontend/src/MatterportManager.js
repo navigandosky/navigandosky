@@ -1333,12 +1333,12 @@ export default function MatterportManager({ authToken, currentUser }) {
       
       if (mattertagId) {
         // Aggiorna il POI nel database con il tag ID
-        await axios.put(`${API_URL}/api/matterport/pois/${poi.id}`, {
+        await axios.put(`${API_URL}/api/matterport/pois/${poi.id}?token=${authToken}`, {
           matterport_tag_id: mattertagId
         });
         
         // Aggiorna il POI selezionato
-        const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${poi.id}`);
+        const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${poi.id}?token=${authToken}`);
         setSelectedPoi(poiRes.data);
         loadPois(activeSpace.id);
         
