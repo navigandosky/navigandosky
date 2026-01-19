@@ -212,10 +212,30 @@ export default function MatterportManager({ authToken, currentUser }) {
   const loadSpaces = useCallback(async () => {
     try {
       const res = await axios.get(`${API_URL}/api/matterport/spaces`);
-      setSpaces(res.data);
+      let availableSpaces = res.data;
+      
+      // If user has assigned space and is not admin, filter to only their space
+      if (currentUser?.matterport_space_id && currentUser?.role !== "admin") {
+        // User has assigned space - create a virtual space entry for them
+        const userSpace = {
+          id: `user_${currentUser.id}`,
+          name: currentUser.matterport_space_name || "Il mio spazio",
+          space_id: currentUser.matterport_space_id,
+          description: `Spazio assegnato a ${currentUser.username}`,
+          is_active: true,
+          sdk_key: "" // Will use global SDK key
+        };
+        availableSpaces = [userSpace];
+        setSpaces(availableSpaces);
+        setActiveSpace(userSpace);
+        loadPois(userSpace.id);
+        return;
+      }
+      
+      setSpaces(availableSpaces);
       
       // Set active space
-      const active = res.data.find(s => s.is_active);
+      const active = availableSpaces.find(s => s.is_active);
       if (active) {
         setActiveSpace(active);
         loadPois(active.id);
@@ -223,7 +243,7 @@ export default function MatterportManager({ authToken, currentUser }) {
     } catch (error) {
       console.error("Error loading spaces:", error);
     }
-  }, []);
+  }, [currentUser]);
 
   // Load POIs for a space
   const loadPois = useCallback(async (spaceId) => {
