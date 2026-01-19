@@ -767,6 +767,15 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
     return fallbackId;
   }, [currentUser?.matterport_space_id]);
   
+  // Check if user has MPSKIN URL configured
+  const mpskinUrl = useMemo(() => {
+    if (currentUser?.mpskin_url) {
+      console.log("Using user's MPSKIN URL:", currentUser.mpskin_url);
+      return currentUser.mpskin_url;
+    }
+    return null;
+  }, [currentUser?.mpskin_url]);
+  
   const matterportRef = useRef(null);
   
   // State per dialog storico sensori
