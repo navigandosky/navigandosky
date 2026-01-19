@@ -1446,6 +1446,17 @@ export default function MatterportManager({ authToken, currentUser }) {
 
   return (
     <div className="h-[calc(100vh-140px)] bg-[#09090B] text-white flex flex-col">
+      {/* Animation styles for navigation path */}
+      <style>{`
+        @keyframes slideRight {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(400%); }
+        }
+        @keyframes dash {
+          to { stroke-dashoffset: -30; }
+        }
+      `}</style>
+      
       {/* Header compatto */}
       <div className="px-4 py-2 border-b border-slate-800 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
