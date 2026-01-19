@@ -165,6 +165,7 @@ export default function MatterportManager({ authToken }) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("spaces");
   const [syncingToCloud, setSyncingToCloud] = useState(null); // POI ID being synced
+  const [navigationPath, setNavigationPath] = useState([]); // Path points for navigation
   
   // SmartThings state
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
