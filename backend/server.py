@@ -5510,14 +5510,26 @@ async def create_poi(poi: POICreate, token: Optional[str] = Query(None)):
     poi_dict["created_at"] = datetime.now(timezone.utc)
     poi_dict["updated_at"] = datetime.now(timezone.utc)
     
+    # Handle virtual space IDs (user_xxx) - use user's matterport_space_id
+    if poi_dict.get("space_id", "").startswith("user_"):
+        if user.get("matterport_space_id"):
+            poi_dict["space_id"] = user["matterport_space_id"]
+        else:
+            # Try to get space_id from the virtual ID
+            user_id_from_space = poi_dict["space_id"].replace("user_", "")
+            user_doc = await db.users.find_one({"id": user_id_from_space}, {"_id": 0})
+            if user_doc and user_doc.get("matterport_space_id"):
+                poi_dict["space_id"] = user_doc["matterport_space_id"]
+    
     await db.pois.insert_one(poi_dict)
     poi_dict.pop("_id", None)
     return poi_dict
 
 
 @api_router.put("/matterport/pois/{poi_id}", response_model=POI)
-async def update_poi(poi_id: str, poi: POIUpdate):
+async def update_poi(poi_id: str, poi: POIUpdate, token: Optional[str] = Query(None)):
     """Update a POI"""
+    user = await get_user_from_token(token)
     update_data = {k: v for k, v in poi.model_dump().items() if v is not None}
     update_data["updated_at"] = datetime.now(timezone.utc)
     
@@ -5530,7 +5542,7 @@ async def update_poi(poi_id: str, poi: POIUpdate):
         update_data["attachments"] = [a if isinstance(a, dict) else a.model_dump() for a in update_data["attachments"]]
     
     result = await db.pois.find_one_and_update(
-        {"id": poi_id, "user_id": DEFAULT_USER_ID},
+        {"id": poi_id, "user_id": user["id"]},
         {"$set": update_data},
         return_document=True
     )
