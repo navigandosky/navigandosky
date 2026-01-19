@@ -5553,10 +5553,12 @@ async def update_poi(poi_id: str, poi: POIUpdate, token: Optional[str] = Query(N
 
 
 @api_router.delete("/matterport/pois/{poi_id}")
-async def delete_poi(poi_id: str):
+async def delete_poi(poi_id: str, token: Optional[str] = Query(None)):
     """Delete a POI and its files"""
+    user = await get_user_from_token(token)
+    
     # Get POI first to delete associated files
-    poi = await db.pois.find_one({"id": poi_id, "user_id": DEFAULT_USER_ID})
+    poi = await db.pois.find_one({"id": poi_id, "user_id": user["id"]})
     if not poi:
         raise HTTPException(status_code=404, detail="POI not found")
     
@@ -5573,7 +5575,7 @@ async def delete_poi(poi_id: str):
         if att_path.exists():
             att_path.unlink()
     
-    await db.pois.delete_one({"id": poi_id})
+    await db.pois.delete_one({"id": poi_id, "user_id": user["id"]})
     return {"message": "POI deleted"}
 
 
