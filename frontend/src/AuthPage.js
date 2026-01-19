@@ -246,7 +246,8 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
         role: user.role,
         is_active: user.is_active,
         matterport_space_id: user.matterport_space_id || "",
-        matterport_space_name: user.matterport_space_name || ""
+        matterport_space_name: user.matterport_space_name || "",
+        mpskin_url: user.mpskin_url || ""
       });
     } else {
       setEditingUser(null);
@@ -258,7 +259,8 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
         role: "user",
         is_active: true,
         matterport_space_id: "",
-        matterport_space_name: ""
+        matterport_space_name: "",
+        mpskin_url: ""
       });
     }
     setDialogOpen(true);
