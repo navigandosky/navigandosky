@@ -2395,7 +2395,8 @@ function App() {
                   variant="outline"
                   onClick={() => {
                     setSchedaApparatoOpen(false);
-                    setEditingManut({ elettrodomestico_id: viewingApparato.id });
+                    setEditingManut(null);
+                    setPreselectedElettroId(viewingApparato.id);
                     setManutDialogOpen(true);
                   }}
                 >
