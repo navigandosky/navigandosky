@@ -158,7 +158,7 @@ const TTS_VOICES = [
   { id: "onyx", name: "Onyx (Profonda)" }
 ];
 
-export default function MatterportManager({ authToken }) {
+export default function MatterportManager({ authToken, currentUser }) {
   // State
   const [spaces, setSpaces] = useState([]);
   const [activeSpace, setActiveSpace] = useState(null);
