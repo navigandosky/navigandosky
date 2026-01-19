@@ -591,7 +591,7 @@ export default function MatterportManager({ authToken, currentUser }) {
       const nearestSweepId = await findNearestSweepId(poiForm.position);
       
       // Create POI in database
-      const response = await axios.post(`${API_URL}/api/matterport/pois`, {
+      const response = await axios.post(`${API_URL}/api/matterport/pois?token=${authToken}`, {
         space_id: activeSpace?.id || activeSpace?.space_id,
         position: poiForm.position,
         nearest_sweep_id: nearestSweepId, // Save sweep ID for navigation
@@ -617,7 +617,7 @@ export default function MatterportManager({ authToken, currentUser }) {
         
         if (mattertagId) {
           // Update POI with the Matterport tag ID
-          await axios.put(`${API_URL}/api/matterport/pois/${response.data.id}`, {
+          await axios.put(`${API_URL}/api/matterport/pois/${response.data.id}?token=${authToken}`, {
             matterport_tag_id: mattertagId
           });
         }
