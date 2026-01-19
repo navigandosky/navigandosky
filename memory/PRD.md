@@ -4,6 +4,13 @@
 
 ### ✅ Bug Fix Recenti
 
+#### Creazione Manutenzione da Scheda Apparato ✅ (19/01/2026)
+- **Problema**: Cliccando "Nuova Manutenzione" dalla scheda apparato, la manutenzione non veniva creata ("Errore nel salvataggio")
+- **Causa**: Il codice impostava `editingManut = { elettrodomestico_id: ... }` che il sistema interpretava come richiesta di MODIFICA invece di CREAZIONE
+- **Soluzione**: Introdotto nuovo stato `preselectedElettroId` separato per pre-compilare l'elettrodomestico senza interferire con la logica edit/create
+- **File modificato**: `frontend/src/App.js` (ManutenzioneDialog, handleSaveManut, onClick del pulsante nella scheda)
+- **Testato**: ✅ Backend con curl, Frontend con Playwright
+
 #### Assegnazione Spazio Matterport agli Utenti ✅ (19/01/2026)
 - **Problema**: I campi `matterport_space_id` e `matterport_space_name` non venivano salvati nella creazione utente
 - **Soluzione**: Aggiunto i campi mancanti nel costruttore `User` e nella response `UserResponse` in `server.py`
