@@ -1149,7 +1149,8 @@ async def verify_session(token: str = Query(...)):
             "role": user.get("role", "user"),
             "is_active": user.get("is_active", True),
             "matterport_space_id": user.get("matterport_space_id"),
-            "matterport_space_name": user.get("matterport_space_name")
+            "matterport_space_name": user.get("matterport_space_name"),
+            "mpskin_url": user.get("mpskin_url")
         }
     }
 
