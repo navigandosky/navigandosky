@@ -11,6 +11,13 @@
 - **Bug fix 3**: `SmartBuildingDashboard` e `MatterportManager` ora usano lo spazio assegnato all'utente invece del default globale
 - **Utente Geasar**: Testato con spazio `cmf7H5A4JdY` (GEASAR - Aeroporto Olbia) ✅
 
+#### Supporto MPSKIN Tour ✅ (19/01/2026)
+- **Nuovo campo**: `mpskin_url` aggiunto al modello utente
+- **Gestione Utenti**: Campo "MPSKIN Tour URL" nel dialog di modifica utente
+- **Dashboard Dinamica**: Se l'utente ha `mpskin_url` configurato, mostra iframe MPSKIN invece di Matterport nativo
+- **Badge Visuale**: Indicatore "MPSKIN Tour" viola nella lista utenti e nel viewer
+- **Utente Geasar**: Configurato con `https://tour.fairsgate.com/it/tour/mppdp7qpem`
+
 ### ✅ Funzionalità Completate
 
 #### 1. Sistema Multi-Utente con Multi-Tenant
