@@ -4030,7 +4030,90 @@ async def get_devices_with_sensor_values():
             
     except httpx.HTTPError as e:
         logger.error(f"SmartThings devices with sensors error: {e}")
-        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+        # Try eWeLink fallback if SmartThings fails
+        try:
+            logger.info("SmartThings failed, trying eWeLink fallback...")
+            ewelink_devices = await get_ewelink_devices_internal()
+            if ewelink_devices and ewelink_devices.get("devices"):
+                result = {
+                    "devices": [],
+                    "states": {},
+                    "sensors": {},
+                    "count": len(ewelink_devices.get("devices", [])),
+                    "source": "ewelink",
+                    "smartthings_error": str(e)
+                }
+                for device in ewelink_devices.get("devices", []):
+                    device_id = device.get("deviceid")
+                    device_info = {
+                        "id": device_id,
+                        "name": device.get("name", "Dispositivo eWeLink"),
+                        "type": "ewelink",
+                        "capabilities": [],
+                        "source": "ewelink"
+                    }
+                    result["devices"].append(device_info)
+                    
+                    # Extract sensor values from eWeLink device
+                    params = device.get("params", {})
+                    sensors = {}
+                    if params.get("temperature"):
+                        sensors["temperature"] = params.get("temperature")
+                    if params.get("humidity"):
+                        sensors["humidity"] = params.get("humidity")
+                    if params.get("power"):
+                        sensors["power"] = params.get("power")
+                    
+                    # Switch state
+                    if params.get("switch"):
+                        result["states"][device_id] = params.get("switch")
+                    
+                    if sensors:
+                        result["sensors"][device_id] = sensors
+                
+                return result
+        except Exception as ewelink_error:
+            logger.error(f"eWeLink fallback also failed: {ewelink_error}")
+        
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}. eWeLink fallback also unavailable.")
+
+
+async def get_ewelink_devices_internal():
+    """Internal function to get eWeLink devices for fallback"""
+    try:
+        token = await get_ewelink_token()
+        if not token:
+            return None
+        
+        config = await get_ewelink_config()
+        region = config.get("region", "eu")
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"https://{region}-apia.coolkit.cc/v2/device/thing",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                }
+            )
+            if response.status_code == 200:
+                data = response.json()
+                things = data.get("data", {}).get("thingList", [])
+                devices = []
+                for thing in things:
+                    item_data = thing.get("itemData", {})
+                    devices.append({
+                        "deviceid": item_data.get("deviceid"),
+                        "name": item_data.get("name"),
+                        "brandName": item_data.get("brandName", "eWeLink"),
+                        "productModel": item_data.get("productModel"),
+                        "params": item_data.get("params", {}),
+                        "online": item_data.get("online", False)
+                    })
+                return {"devices": devices, "count": len(devices)}
+    except Exception as e:
+        logger.error(f"eWeLink internal devices error: {e}")
+        return None
 
 
 @api_router.post("/smartthings/device/{device_id}/switch/{action}")
