@@ -1336,7 +1336,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                     // Modalità eWeLink - mostra dispositivi senza stanze
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {domoticaDevices.map(device => (
-                        <SmartThingsDeviceCard 
+                        <DeviceCard 
                           key={device.id} 
                           device={device} 
                           onShowHistory={handleShowHistory}
