@@ -888,8 +888,10 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const climaDevices = smartThingsDevices.filter(d => 
     d.name.toLowerCase().includes('condizionatore') || 
     d.name.toLowerCase().includes('temperatura') ||
+    d.name.toLowerCase().includes('temp ') ||
     d.name.toLowerCase().includes('aria') ||
-    d.capabilities?.includes('temperatureMeasurement')
+    d.capabilities?.includes('temperatureMeasurement') ||
+    d.sensorData?.temperature != null  // Include devices with temperature data from eWeLink
   );
 
   const domoticaDevices = smartThingsDevices.filter(d => 
