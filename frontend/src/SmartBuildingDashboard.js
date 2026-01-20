@@ -412,10 +412,11 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
     return () => clearInterval(interval);
   }, [device.id, device.capabilities, device.name, isEwelink]);
   
-  // For eWeLink, most devices can be switched. For SmartThings, check capabilities
-  const hasSwitch = isEwelink ? true : device.capabilities?.includes('switch');
+  // For eWeLink, check canSwitch field. For SmartThings, check capabilities
+  const hasSwitch = isEwelink ? (device.canSwitch !== false && device.online !== false) : device.capabilities?.includes('switch');
   const hasTemp = isEwelink ? (sensorData?.temperature != null) : device.capabilities?.includes('temperatureMeasurement');
   const hasHumidity = isEwelink ? (sensorData?.humidity != null) : device.capabilities?.includes('relativeHumidityMeasurement');
+  const isOffline = device.online === false;
   
   const handleToggle = async () => {
     if (!hasSwitch) return;
