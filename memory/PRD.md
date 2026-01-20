@@ -2,6 +2,33 @@
 
 ## Stato Attuale (20/01/2026)
 
+### 🎯 Test Suite - 16/16 PASSED ✅
+
+File test: `/app/tests/test_smartdomo_multitenancy.py`
+
+| Test Category | Status |
+|--------------|--------|
+| Authentication (Admin, Geasar, Invalid) | ✅ 4/4 |
+| Token Verification | ✅ 3/3 |
+| Multi-Tenant Data Isolation | ✅ 3/3 |
+| Matterport POIs | ✅ 2/2 |
+| SmartThings/eWeLink Integration | ✅ 2/2 |
+| Manutenzioni CRUD | ✅ 1/1 |
+| Config Endpoints | ✅ 1/1 |
+
+### 📊 Multi-Tenant Isolation Verified
+
+| Utente | Elettrodomestici | Manutenzioni | POI | Space |
+|--------|-----------------|--------------|-----|-------|
+| Admin | 11 | 16 | 7 | j1r4zUjanif |
+| Geasar | 0 | 0 | 99 | cmf7H5A4JdY |
+
+### 🔧 Credenziali Test
+- **Admin**: `Admin` / `SmartMaster2026` (Space: `j1r4zUjanif`)
+- **Geasar**: `Geasar` / `Geasar2026` (Space: `cmf7H5A4JdY`)
+
+---
+
 ### ✅ Bug Fix Recenti
 
 #### Property Configuration Multi-Tenant ✅ (20/01/2026)
