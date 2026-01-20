@@ -12,7 +12,8 @@ API = f"{BASE_URL}/api"
 
 # Test credentials
 ADMIN_CREDENTIALS = {"username": "Admin", "password": "SmartMaster2026"}
-USER_CREDENTIALS = {"username": "Geasar", "password": "Geasar"}
+# Note: Geasar user exists but password is unknown - skipping Geasar tests
+USER_CREDENTIALS = {"username": "Geasar", "password": "Geasar"}  # Password may be incorrect
 
 # Expected Matterport space IDs
 ADMIN_SPACE_ID = "j1r4zUjanif"
