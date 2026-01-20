@@ -675,12 +675,16 @@ export default function PropertyConfig({ currentUser, authToken }) {
   const loadProperty = useCallback(async () => {
     setLoading(true);
     try {
-      // Try to get active property
-      let response = await axios.get(`${API}/property/active`);
+      // Try to get active property for current user
+      let response = await axios.get(`${API}/property/active`, {
+        params: { token: authToken }
+      });
       
       if (!response.data) {
-        // Initialize from env if no property exists
-        response = await axios.post(`${API}/property/init-from-env`);
+        // Initialize from env if no property exists for this user
+        response = await axios.post(`${API}/property/init-from-env`, null, {
+          params: { token: authToken }
+        });
         if (response.data.property) {
           setProperty(response.data.property);
           setFormData(response.data.property);
@@ -703,7 +707,9 @@ export default function PropertyConfig({ currentUser, authToken }) {
       // If 404, try to init
       if (error.response?.status === 404 || !error.response) {
         try {
-          const initResponse = await axios.post(`${API}/property/init-from-env`);
+          const initResponse = await axios.post(`${API}/property/init-from-env`, null, {
+            params: { token: authToken }
+          });
           if (initResponse.data.property) {
             setProperty(initResponse.data.property);
             setFormData(prevFormData => ({
@@ -722,7 +728,7 @@ export default function PropertyConfig({ currentUser, authToken }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authToken]);
 
   // Pre-populate MPSKIN URL and Space ID from currentUser if available
   // This runs after property is loaded to ensure user data takes precedence
