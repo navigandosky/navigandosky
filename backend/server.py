@@ -4834,19 +4834,37 @@ async def get_ewelink_devices():
             devices = []
             for thing in things:
                 item_data = thing.get("itemData", {})
+                uiid = item_data.get("extra", {}).get("uiid", 0)
+                params = item_data.get("params", {})
+                
+                # Determine if device supports switch control
+                # Sensor-only UIIDs that don't support switch
+                sensor_only_uiids = [1770, 7014, 7017, 102, 1000, 1009, 1256, 1257, 1258, 1259, 3026]
+                # Power monitoring UIIDs that don't support switch
+                power_monitor_uiids = [5, 32, 182, 190]
+                # Camera UIIDs
+                camera_uiids = [87, 260, 260]
+                
+                can_switch = (
+                    uiid not in sensor_only_uiids and 
+                    uiid not in power_monitor_uiids and
+                    uiid not in camera_uiids and
+                    ("switch" in params or "switches" in params or uiid < 1000)  # Most basic switches have low UIID
+                )
+                
                 device = {
                     "id": item_data.get("deviceid"),
                     "name": item_data.get("name", "Dispositivo Sconosciuto"),
                     "model": item_data.get("productModel", ""),
                     "brand": item_data.get("brandName", "Sonoff"),
                     "online": item_data.get("online", False),
-                    "params": item_data.get("params", {}),
+                    "params": params,
                     "type": thing.get("itemType", 1),  # 1=device, 2=group
-                    "uiid": item_data.get("extra", {}).get("uiid", 0)
+                    "uiid": uiid,
+                    "canSwitch": can_switch
                 }
                 
                 # Extract common sensor values
-                params = device["params"]
                 if "temperature" in params:
                     device["temperature"] = params["temperature"]
                 if "humidity" in params:
@@ -4859,6 +4877,8 @@ async def get_ewelink_devices():
                     device["battery"] = params["battery"]
                 if "switch" in params:
                     device["switch"] = params["switch"]
+                if "switches" in params and len(params["switches"]) > 0:
+                    device["switch"] = params["switches"][0].get("switch")
                 
                 devices.append(device)
             
