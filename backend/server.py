@@ -4069,13 +4069,35 @@ async def get_devices_with_sensor_values():
                     "smartthings_error": str(e)
                 }
                 for device in ewelink_devices.get("devices", []):
-                    device_id = device.get("deviceid")
+                    device_id = device.get("deviceid") or device.get("id")
+                    uiid = device.get("uiid", 0)
+                    params = device.get("params", {})
+                    
+                    # Determine if device supports switch
+                    sensor_only_uiids = [1770, 7014, 7017, 102, 1000, 1009, 1256, 1257, 1258, 1259, 3026]
+                    power_monitor_uiids = [5, 32, 182, 190]
+                    camera_uiids = [87, 260]
+                    can_switch = (
+                        uiid not in sensor_only_uiids and 
+                        uiid not in power_monitor_uiids and
+                        uiid not in camera_uiids and
+                        ("switch" in params or "switches" in params or uiid < 1000)
+                    )
+                    
+                    # Get switch state
+                    switch_state = params.get("switch")
+                    if not switch_state and "switches" in params and len(params.get("switches", [])) > 0:
+                        switch_state = params["switches"][0].get("switch")
+                    
                     device_info = {
                         "id": device_id,
                         "name": device.get("name", "Dispositivo eWeLink"),
                         "type": "ewelink",
                         "capabilities": [],
-                        "source": "ewelink"
+                        "source": "ewelink",
+                        "online": device.get("online", False),
+                        "canSwitch": can_switch,
+                        "switchState": switch_state
                     }
                     result["devices"].append(device_info)
                     
