@@ -1344,10 +1344,12 @@ async def delete_property(property_id: str):
 
 
 @api_router.post("/property/init-from-env")
-async def init_property_from_env(user_id: str = DEFAULT_USER_ID):
-    """Inizializza una proprietà dai valori .env esistenti"""
+async def init_property_from_env(token: Optional[str] = Query(None)):
+    """Inizializza una proprietà dai valori .env esistenti per l'utente corrente"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
     
-    # Check if property already exists
+    # Check if property already exists for this user
     existing = await db.property_config.find_one({"user_id": user_id}, {"_id": 0})
     if existing:
         return {"message": "Proprietà già esistente", "property": deserialize_datetime(existing)}
@@ -1356,8 +1358,9 @@ async def init_property_from_env(user_id: str = DEFAULT_USER_ID):
     prop = PropertyConfig(
         name="La Mia Proprietà",
         description="Proprietà principale",
+        user_id=user_id,  # Set correct user_id
         matterport=MatterportConfig(
-            space_id=os.environ.get('MATTERPORT_SPACE_ID', 'j1r4zUjanif'),
+            space_id=user.get("matterport_space_id") or os.environ.get('MATTERPORT_SPACE_ID', 'j1r4zUjanif'),
             sdk_key=os.environ.get('MATTERPORT_SDK_KEY', ''),
             enabled=True
         ),
