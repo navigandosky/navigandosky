@@ -432,8 +432,10 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
   // Determina il colore della temperatura
   const getTempColor = (temp) => {
     if (temp === undefined || temp === null) return 'text-slate-400';
-    if (temp > 26) return 'text-orange-400';
-    if (temp < 18) return 'text-blue-400';
+    const numTemp = Number(temp);
+    if (isNaN(numTemp)) return 'text-slate-400';
+    if (numTemp > 26) return 'text-orange-400';
+    if (numTemp < 18) return 'text-blue-400';
     return 'text-green-400';
   };
 
