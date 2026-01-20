@@ -1190,14 +1190,14 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                                 </div>
                                 <div className="flex items-baseline gap-1">
                                   <span className="text-2xl font-bold text-green-400">
-                                    {device.sensorData?.temperature?.toFixed(1) || '--'}
+                                    {device.sensorData?.temperature != null ? Number(device.sensorData.temperature).toFixed(1) : '--'}
                                   </span>
                                   <span className="text-sm text-green-400/70">°C</span>
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
                                   <Droplets size={12} className="text-cyan-400" />
                                   <span className="text-xs text-cyan-400">
-                                    {device.sensorData?.humidity || '--'}%
+                                    {device.sensorData?.humidity != null ? Number(device.sensorData.humidity) : '--'}%
                                   </span>
                                 </div>
                               </div>
