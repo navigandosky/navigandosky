@@ -367,21 +367,29 @@ const SensorHistoryDialog = ({ device, open, onClose }) => {
 
 // SmartThings Device Card
 const DeviceCard = ({ device, onToggle, onShowHistory }) => {
+  // Check if device is from eWeLink
+  const isEwelink = device.source === 'ewelink' || device.type === 'ewelink';
+  
   // Leggi lo stato iniziale dal dispositivo (se disponibile)
   const initialState = device.status?.switch === 'on' || device.switchState === 'on' || false;
   const [isOn, setIsOn] = useState(initialState);
   const [loading, setLoading] = useState(false);
-  const [sensorData, setSensorData] = useState(null);
+  const [sensorData, setSensorData] = useState(device.sensorData || null);
   const Icon = getDeviceIcon(device.name, device.capabilities);
   
   // Aggiorna stato quando cambia il dispositivo
   useEffect(() => {
     const newState = device.status?.switch === 'on' || device.switchState === 'on' || false;
     setIsOn(newState);
+    if (device.sensorData) {
+      setSensorData(device.sensorData);
+    }
   }, [device]);
 
-  // Carica dati sensori per questo dispositivo
+  // Carica dati sensori per questo dispositivo (solo SmartThings)
   useEffect(() => {
+    if (isEwelink) return; // eWeLink sensors are already loaded
+    
     const fetchSensorData = async () => {
       if (device.capabilities?.includes('temperatureMeasurement') || 
           device.capabilities?.includes('relativeHumidityMeasurement')) {
@@ -402,22 +410,30 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
     // Refresh every 60 seconds
     const interval = setInterval(fetchSensorData, 60000);
     return () => clearInterval(interval);
-  }, [device.id, device.capabilities, device.name]);
+  }, [device.id, device.capabilities, device.name, isEwelink]);
   
-  const hasSwitch = device.capabilities?.includes('switch');
-  const hasTemp = device.capabilities?.includes('temperatureMeasurement');
-  const hasHumidity = device.capabilities?.includes('relativeHumidityMeasurement');
+  // For eWeLink, most devices can be switched. For SmartThings, check capabilities
+  const hasSwitch = isEwelink ? true : device.capabilities?.includes('switch');
+  const hasTemp = isEwelink ? (sensorData?.temperature != null) : device.capabilities?.includes('temperatureMeasurement');
+  const hasHumidity = isEwelink ? (sensorData?.humidity != null) : device.capabilities?.includes('relativeHumidityMeasurement');
   
   const handleToggle = async () => {
     if (!hasSwitch) return;
     setLoading(true);
     try {
       const action = isOn ? 'off' : 'on';
-      await axios.post(`${API_URL}/api/smartthings/device/${device.id}/switch/${action}`);
+      
+      // Use different endpoint for eWeLink vs SmartThings
+      if (isEwelink) {
+        await axios.post(`${API_URL}/api/ewelink/device/${device.id}/switch/${action}`);
+      } else {
+        await axios.post(`${API_URL}/api/smartthings/device/${device.id}/switch/${action}`);
+      }
+      
       setIsOn(!isOn);
       toast.success(`${device.name} ${action === 'on' ? 'acceso' : 'spento'}`);
     } catch (error) {
-      toast.error(`Errore: ${error.message}`);
+      toast.error(`Errore: ${error.response?.data?.detail || error.message}`);
     } finally {
       setLoading(false);
     }
