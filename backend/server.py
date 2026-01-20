@@ -4055,12 +4055,22 @@ async def get_devices_with_sensor_values():
                     result["devices"].append(device_info)
                     
                     # Extract sensor values from eWeLink device
+                    # Note: eWeLink often sends values x100 (e.g., 2210 = 22.10°C)
                     params = device.get("params", {})
                     sensors = {}
-                    if params.get("temperature"):
-                        sensors["temperature"] = params.get("temperature")
-                    if params.get("humidity"):
-                        sensors["humidity"] = params.get("humidity")
+                    if params.get("temperature") is not None:
+                        temp = params.get("temperature")
+                        # If temp > 100, it's likely x100 format, convert
+                        if isinstance(temp, (int, float)) and temp > 100:
+                            temp = temp / 100
+                        sensors["temperature"] = temp
+                        sensors["temperatureUnit"] = "C"
+                    if params.get("humidity") is not None:
+                        humid = params.get("humidity")
+                        # If humidity > 100, it's likely x100 format, convert
+                        if isinstance(humid, (int, float)) and humid > 100:
+                            humid = humid / 100
+                        sensors["humidity"] = humid
                     if params.get("power"):
                         sensors["power"] = params.get("power")
                     
