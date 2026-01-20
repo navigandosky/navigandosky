@@ -4935,15 +4935,54 @@ async def control_ewelink_device(device_id: str, action: str):
     base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
     
     try:
+        # First, get device info to check online status and UIID
         async with httpx.AsyncClient(timeout=15.0) as client:
+            # Get device list to check if device is online
+            devices_response = await client.get(
+                f"{base_url}/v2/device/thing",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "X-CK-Appid": EWELINK_APPID,
+                    "Content-Type": "application/json"
+                }
+            )
+            
+            device_info = None
+            if devices_response.status_code == 200:
+                things = devices_response.json().get("data", {}).get("thingList", [])
+                for thing in things:
+                    item_data = thing.get("itemData", {})
+                    if item_data.get("deviceid") == device_id:
+                        device_info = item_data
+                        break
+            
+            if device_info and not device_info.get("online", False):
+                raise HTTPException(status_code=400, detail="Dispositivo offline. Verificare la connessione.")
+            
+            # Determine params based on UIID
+            uiid = device_info.get("extra", {}).get("uiid", 0) if device_info else 0
+            
+            # UIIDs that use "switches" array format (multi-channel devices)
+            multi_channel_uiids = [2, 3, 4, 7, 8, 77, 78, 112, 113, 114, 138, 139, 140, 141]
+            
+            if uiid in multi_channel_uiids:
+                # Multi-channel format
+                params = {
+                    "switches": [{"switch": action, "outlet": 0}]
+                }
+            else:
+                # Single channel format
+                params = {
+                    "switch": action
+                }
+            
+            # Send control command
             response = await client.post(
                 f"{base_url}/v2/device/thing/status",
                 json={
                     "type": 1,
                     "id": device_id,
-                    "params": {
-                        "switch": action
-                    }
+                    "params": params
                 },
                 headers={
                     "Authorization": f"Bearer {token}",
@@ -4953,9 +4992,12 @@ async def control_ewelink_device(device_id: str, action: str):
             )
             
             data = response.json()
+            logger.info(f"eWeLink control response for {device_id}: {data}")
             
             if response.status_code != 200 or data.get("error") != 0:
-                raise HTTPException(status_code=400, detail=data.get("msg", "Control failed"))
+                error_msg = data.get("msg", "Control failed")
+                logger.error(f"eWeLink control error: {error_msg}")
+                raise HTTPException(status_code=400, detail=f"Errore controllo: {error_msg}")
             
             return {
                 "success": True,
