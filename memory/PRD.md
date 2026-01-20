@@ -1,8 +1,25 @@
 # SmartDomo - PRD
 
-## Stato Attuale (19/01/2026)
+## Stato Attuale (20/01/2026)
 
 ### ✅ Bug Fix Recenti
+
+#### Property Configuration Multi-Tenant ✅ (20/01/2026)
+- **Problema**: L'Admin vedeva i dati della proprietà di Geasar (GEASAR SPA) invece dei propri dati nella pagina Setup
+- **Causa**: L'endpoint `/property/active` non usava il token dell'utente corrente, ma un `DEFAULT_USER_ID` hardcoded
+- **Soluzione**: 
+  - Modificato `/api/property/active` per accettare `token` come query param e usare `get_user_from_token()`
+  - Modificato `/api/property/init-from-env` per creare proprietà con il corretto `user_id`
+  - Aggiornato `PropertyConfig.js` per passare `authToken` agli endpoint
+- **File modificati**: `backend/server.py`, `frontend/src/PropertyConfig.js`
+- **Testato**: ✅ Admin ora vede "La Mia Proprietà" con spazio Matterport `j1r4zUjanif`
+
+#### Fallback SmartThings → eWeLink ✅ (20/01/2026)
+- **Problema**: SmartThings restituiva 401 Unauthorized (token scaduto) e i sensori non si caricavano
+- **Soluzione**: Implementato fallback automatico a eWeLink nell'endpoint `/smartthings/devices-with-sensors`
+- **Normalizzazione dati**: I valori eWeLink (spesso x100) vengono convertiti correttamente (es. 2210 → 22.1°C)
+- **File modificati**: `backend/server.py` (aggiunto `get_ewelink_devices_internal()`, logica fallback)
+- **Testato**: ✅ 21 dispositivi eWeLink caricati, sensori mostrano valori corretti (22.1°C, 51%)
 
 #### Creazione Manutenzione da Scheda Apparato ✅ (19/01/2026)
 - **Problema**: Cliccando "Nuova Manutenzione" dalla scheda apparato, la manutenzione non veniva creata ("Errore nel salvataggio")
