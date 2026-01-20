@@ -3759,7 +3759,32 @@ async def get_smartthings_devices():
         if cached:
             logger.info("Returning stale cache due to API error")
             return cached
-        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
+        
+        # Try eWeLink fallback
+        try:
+            logger.info("SmartThings failed, trying eWeLink fallback for devices...")
+            ewelink_devices = await get_ewelink_devices_internal()
+            if ewelink_devices and ewelink_devices.get("devices"):
+                devices = []
+                for device in ewelink_devices.get("devices", []):
+                    devices.append({
+                        "id": device.get("deviceid"),
+                        "name": device.get("name", "Dispositivo eWeLink"),
+                        "type": "ewelink",
+                        "status": "online" if device.get("online") else "offline",
+                        "capabilities": [],
+                        "roomId": None,
+                        "locationId": None,
+                        "switchState": device.get("params", {}).get("switch"),
+                        "source": "ewelink"
+                    })
+                result = {"devices": devices, "count": len(devices), "source": "ewelink"}
+                logger.info(f"eWeLink fallback devices: {len(devices)}")
+                return result
+        except Exception as ewelink_error:
+            logger.error(f"eWeLink fallback also failed: {ewelink_error}")
+        
+        raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}. eWeLink fallback unavailable.")
 
 
 @api_router.get("/smartthings/devices-with-states")
