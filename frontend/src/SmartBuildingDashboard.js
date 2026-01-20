@@ -1251,10 +1251,10 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-white">
-                      Dispositivi SmartThings ({smartThingsDevices.length}) - {devicesByRoom.length} Stanze
+                      Dispositivi ({smartThingsDevices.length}) {devicesByRoom.length > 0 ? `- ${devicesByRoom.length} Stanze` : ''}
                     </h3>
                     <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
-                      <Wifi size={12} className="mr-1" /> Connesso
+                      <Wifi size={12} className="mr-1" /> {domoticaDevices.length > 0 ? 'Connesso' : 'eWeLink'}
                     </Badge>
                   </div>
                   
@@ -1264,8 +1264,8 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                         <Skeleton key={i} className="h-48 bg-slate-800 rounded-xl" />
                       ))}
                     </div>
-                  ) : (
-                    // Stanze in colonne verticali
+                  ) : devicesByRoom.length > 0 ? (
+                    // Stanze in colonne verticali (SmartThings mode)
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                       {devicesByRoom.map((room) => {
                         // Get room icon based on name
