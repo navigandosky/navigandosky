@@ -1332,6 +1332,27 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                         );
                       })}
                     </div>
+                  ) : domoticaDevices.length > 0 ? (
+                    // Modalità eWeLink - mostra dispositivi senza stanze
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {domoticaDevices.map(device => (
+                        <SmartThingsDeviceCard 
+                          key={device.id} 
+                          device={device} 
+                          onShowHistory={handleShowHistory}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="bg-slate-900/50 border-slate-800">
+                      <CardContent className="py-12 text-center">
+                        <Wifi size={48} className="mx-auto text-slate-600 mb-4" />
+                        <p className="text-slate-400">Nessun dispositivo domotica trovato</p>
+                        <p className="text-sm text-slate-500 mt-2">
+                          I sensori temperatura sono visibili nel tab Clima
+                        </p>
+                      </CardContent>
+                    </Card>
                   )}
                 </div>
               </TabsContent>
