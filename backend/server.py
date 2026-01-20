@@ -4056,23 +4056,38 @@ async def get_devices_with_sensor_values():
                     
                     # Extract sensor values from eWeLink device
                     # Note: eWeLink often sends values x100 (e.g., 2210 = 22.10°C)
+                    # Values can be strings or numbers
                     params = device.get("params", {})
                     sensors = {}
-                    if params.get("temperature") is not None:
-                        temp = params.get("temperature")
-                        # If temp > 100, it's likely x100 format, convert
-                        if isinstance(temp, (int, float)) and temp > 100:
-                            temp = temp / 100
-                        sensors["temperature"] = temp
-                        sensors["temperatureUnit"] = "C"
-                    if params.get("humidity") is not None:
-                        humid = params.get("humidity")
-                        # If humidity > 100, it's likely x100 format, convert
-                        if isinstance(humid, (int, float)) and humid > 100:
-                            humid = humid / 100
-                        sensors["humidity"] = humid
+                    
+                    raw_temp = params.get("temperature")
+                    if raw_temp is not None:
+                        try:
+                            temp = float(raw_temp)
+                            # If temp > 100, it's likely x100 format, convert
+                            if temp > 100:
+                                temp = temp / 100
+                            sensors["temperature"] = round(temp, 1)
+                            sensors["temperatureUnit"] = "C"
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    raw_humid = params.get("humidity")
+                    if raw_humid is not None:
+                        try:
+                            humid = float(raw_humid)
+                            # If humidity > 100, it's likely x100 format, convert
+                            if humid > 100:
+                                humid = humid / 100
+                            sensors["humidity"] = round(humid, 1)
+                        except (ValueError, TypeError):
+                            pass
+                    
                     if params.get("power"):
-                        sensors["power"] = params.get("power")
+                        try:
+                            sensors["power"] = float(params.get("power"))
+                        except (ValueError, TypeError):
+                            pass
                     
                     # Switch state
                     if params.get("switch"):
