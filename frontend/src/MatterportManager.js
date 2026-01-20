@@ -476,16 +476,20 @@ export default function MatterportManager({ authToken, currentUser }) {
         selectedTagsForImport.includes(t.sid || t.id)
       );
       
+      // Use the real Matterport space_id, not the virtual space ID
+      const spaceId = activeSpace.space_id || currentUser?.matterport_space_id || activeSpace.id;
+      
       const res = await axios.post(
-        `${API_URL}/api/matterport/spaces/${activeSpace.id}/import-tags?token=${authToken}`,
+        `${API_URL}/api/matterport/spaces/${spaceId}/import-tags?token=${authToken}`,
         tagsToImport
       );
       
       toast.success(res.data.message);
       setShowImportDialog(false);
       setSelectedTagsForImport([]);
-      loadPois(activeSpace.id);
+      loadPois(spaceId);
     } catch (error) {
+      console.error("Import error:", error);
       toast.error("Errore nell'importazione");
     } finally {
       setIsImporting(false);
