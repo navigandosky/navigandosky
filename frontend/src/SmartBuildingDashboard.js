@@ -458,15 +458,15 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
 
   return (
     <div 
-      className={`bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 hover:border-cyan-500/30 transition-all duration-300 group ${(hasTemp || hasHumidity) ? 'cursor-pointer' : ''}`}
+      className={`bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4 hover:border-cyan-500/30 transition-all duration-300 group ${(hasTemp || hasHumidity) ? 'cursor-pointer' : ''} ${isOffline ? 'opacity-50' : ''}`}
       onClick={handleCardClick}
       data-testid={`device-card-${device.id}`}
     >
       <div className="flex items-start justify-between mb-3">
-        <div className={`p-2 rounded-lg ${isOn ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-700/50 text-slate-400'}`}>
+        <div className={`p-2 rounded-lg ${isOffline ? 'bg-red-500/20 text-red-400' : isOn ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-700/50 text-slate-400'}`}>
           <Icon size={20} />
         </div>
-        {hasSwitch && (
+        {hasSwitch && !isOffline && (
           <Switch 
             checked={isOn} 
             onCheckedChange={handleToggle}
@@ -474,6 +474,9 @@ const DeviceCard = ({ device, onToggle, onShowHistory }) => {
             className="data-[state=checked]:bg-cyan-500"
             onClick={(e) => e.stopPropagation()}
           />
+        )}
+        {isOffline && (
+          <span className="text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded">Offline</span>
         )}
       </div>
       <h3 className="text-sm font-medium text-white mb-1 truncate" title={device.name}>{device.name}</h3>
