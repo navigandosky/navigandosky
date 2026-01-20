@@ -1333,7 +1333,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                       })}
                     </div>
                   ) : domoticaDevices.length > 0 ? (
-                    // Modalità eWeLink - mostra dispositivi senza stanze
+                    // Modalita eWeLink - mostra dispositivi senza stanze
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {domoticaDevices.map(device => (
                         <DeviceCard 
