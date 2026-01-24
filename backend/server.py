@@ -6871,6 +6871,30 @@ async def get_sensors_report(hours: int = 24):
                 max_val = max_val / 100
             if avg_val and avg_val > 100:
                 avg_val = avg_val / 100
+        elif sensor_type == "power":
+            # Power > 10000W is likely not normalized
+            if min_val and min_val > 10000:
+                min_val = min_val / 100
+            if max_val and max_val > 10000:
+                max_val = max_val / 100
+            if avg_val and avg_val > 10000:
+                avg_val = avg_val / 100
+        elif sensor_type == "voltage":
+            # Voltage > 1000V is likely not normalized
+            if min_val and min_val > 1000:
+                min_val = min_val / 100
+            if max_val and max_val > 1000:
+                max_val = max_val / 100
+            if avg_val and avg_val > 1000:
+                avg_val = avg_val / 100
+        elif sensor_type == "current":
+            # Current > 50A is likely not normalized
+            if min_val and min_val > 50:
+                min_val = min_val / 100
+            if max_val and max_val > 50:
+                max_val = max_val / 100
+            if avg_val and avg_val > 50:
+                avg_val = avg_val / 100
         
         sensor_data = {
             "device_id": device_id,
