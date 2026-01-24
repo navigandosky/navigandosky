@@ -421,6 +421,34 @@ export default function MatterportManager({ authToken, currentUser }) {
     return () => clearInterval(interval);
   }, [loadSpaces, loadSmartThingsDevices]);
 
+  // Load linked appliance when a POI is selected
+  const loadLinkedApparato = useCallback(async (poiId) => {
+    if (!poiId) {
+      setLinkedApparato(null);
+      return;
+    }
+    setLoadingApparato(true);
+    try {
+      const params = authToken ? { token: authToken } : {};
+      const res = await axios.get(`${API_URL}/api/elettrodomestici/by-poi/${poiId}`, { params });
+      setLinkedApparato(res.data);
+    } catch (error) {
+      console.log("No linked apparato for POI:", poiId);
+      setLinkedApparato(null);
+    } finally {
+      setLoadingApparato(false);
+    }
+  }, [authToken]);
+
+  // Load linked apparato when selected POI changes
+  useEffect(() => {
+    if (selectedPoi?.id) {
+      loadLinkedApparato(selectedPoi.id);
+    } else {
+      setLinkedApparato(null);
+    }
+  }, [selectedPoi?.id, loadLinkedApparato]);
+
   // Create/Update space
   const handleSaveSpace = async () => {
     setLoading(true);
