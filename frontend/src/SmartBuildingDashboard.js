@@ -141,8 +141,14 @@ const SensorHistoryDialog = ({ device, open, onClose }) => {
   const [period, setPeriod] = useState("24");
   const [sensorType, setSensorType] = useState("temperature");
 
-  const hasTemp = device?.capabilities?.includes('temperatureMeasurement');
-  const hasHumidity = device?.capabilities?.includes('relativeHumidityMeasurement');
+  // Check capabilities for both SmartThings and eWeLink
+  const isEwelink = device?.source === 'ewelink' || device?.type === 'ewelink';
+  const hasTemp = isEwelink 
+    ? (device?.sensorData?.temperature != null) 
+    : device?.capabilities?.includes('temperatureMeasurement');
+  const hasHumidity = isEwelink 
+    ? (device?.sensorData?.humidity != null) 
+    : device?.capabilities?.includes('relativeHumidityMeasurement');
 
   useEffect(() => {
     if (open && device) {
