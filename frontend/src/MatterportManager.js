@@ -1913,10 +1913,60 @@ export default function MatterportManager({ authToken, currentUser }) {
               )}
               {linkedApparato && !loadingApparato && (
                 <div className="mt-3 p-2 bg-slate-800/50 rounded-lg border border-amber-500/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Zap className="h-4 w-4 text-amber-400" />
-                    <span className="font-medium text-sm text-amber-300">{linkedApparato.nome}</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-amber-400" />
+                      <span className="font-medium text-sm text-amber-300">{linkedApparato.nome}</span>
+                    </div>
+                    {liveSensorData?.has_sensor && liveSensorData?.sensor?.online !== undefined && (
+                      <Badge className={`text-xs ${liveSensorData.sensor.online ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'}`}>
+                        {liveSensorData.sensor.online ? '🟢 Online' : '🔴 Offline'}
+                      </Badge>
+                    )}
                   </div>
+                  
+                  {/* Live Sensor Data */}
+                  {liveSensorData?.has_sensor && liveSensorData?.sensor && (
+                    <div className="mb-2 p-2 bg-gradient-to-r from-cyan-900/30 to-emerald-900/30 rounded border border-cyan-500/30">
+                      <p className="text-xs text-cyan-300 mb-1 font-medium">📡 Dati Live Sensore</p>
+                      <div className="grid grid-cols-4 gap-2 text-xs">
+                        {liveSensorData.sensor.temperature !== null && liveSensorData.sensor.temperature !== undefined && (
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-cyan-400">{liveSensorData.sensor.temperature.toFixed(1)}°</p>
+                            <p className="text-cyan-600 text-[10px]">Temp</p>
+                          </div>
+                        )}
+                        {liveSensorData.sensor.humidity !== null && liveSensorData.sensor.humidity !== undefined && (
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-blue-400">{liveSensorData.sensor.humidity.toFixed(0)}%</p>
+                            <p className="text-blue-600 text-[10px]">Umidità</p>
+                          </div>
+                        )}
+                        {liveSensorData.sensor.power !== null && liveSensorData.sensor.power !== undefined && (
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-amber-400">{liveSensorData.sensor.power.toFixed(0)}W</p>
+                            <p className="text-amber-600 text-[10px]">Potenza</p>
+                          </div>
+                        )}
+                        {liveSensorData.sensor.voltage !== null && liveSensorData.sensor.voltage !== undefined && (
+                          <div className="text-center">
+                            <p className="text-2xl font-bold text-purple-400">{liveSensorData.sensor.voltage.toFixed(0)}V</p>
+                            <p className="text-purple-600 text-[10px]">Volt</p>
+                          </div>
+                        )}
+                      </div>
+                      {liveSensorData.sensor.switch_state !== undefined && (
+                        <div className="mt-2 flex items-center justify-center gap-2">
+                          <span className="text-xs text-slate-400">Stato:</span>
+                          <Badge className={`text-xs ${liveSensorData.sensor.switch_state === 'on' ? 'bg-green-600 text-white' : 'bg-slate-600 text-slate-300'}`}>
+                            {liveSensorData.sensor.switch_state === 'on' ? '⚡ ACCESO' : '○ SPENTO'}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Apparato Details */}
                   <div className="grid grid-cols-3 gap-3 text-xs">
                     <div>
                       <span className="text-slate-500">Marca:</span>
@@ -1930,20 +1980,6 @@ export default function MatterportManager({ authToken, currentUser }) {
                       <span className="text-slate-500">Posizione:</span>
                       <span className="ml-1 text-white">{linkedApparato.posizione || "-"}</span>
                     </div>
-                    {linkedApparato.consumo_orario_kw > 0 && (
-                      <div>
-                        <span className="text-slate-500">Consumo:</span>
-                        <span className="ml-1 text-green-400">{Math.round(linkedApparato.consumo_orario_kw * 1000)}W</span>
-                      </div>
-                    )}
-                    {linkedApparato.data_scadenza_garanzia && (
-                      <div>
-                        <span className="text-slate-500">Garanzia:</span>
-                        <span className={`ml-1 ${new Date(linkedApparato.data_scadenza_garanzia) > new Date() ? 'text-green-400' : 'text-red-400'}`}>
-                          {new Date(linkedApparato.data_scadenza_garanzia).toLocaleDateString('it-IT')}
-                        </span>
-                      </div>
-                    )}
                   </div>
                   <Button
                     size="sm"
