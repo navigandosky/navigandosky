@@ -194,6 +194,10 @@ export default function MatterportManager({ authToken, currentUser }) {
   const [linkedApparato, setLinkedApparato] = useState(null);
   const [loadingApparato, setLoadingApparato] = useState(false);
   
+  // Live sensor data for linked appliance
+  const [liveSensorData, setLiveSensorData] = useState(null);
+  const [loadingLiveSensor, setLoadingLiveSensor] = useState(false);
+  
   // Forms
   const [spaceForm, setSpaceForm] = useState({ name: "", space_id: "", description: "", sdk_key: "" });
   const [poiForm, setPoiForm] = useState({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF", category: "general" });
