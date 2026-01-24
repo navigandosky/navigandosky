@@ -195,11 +195,12 @@ Tutte le API principali ora accettano `?token=...` per filtrare i dati per utent
 ## Task Futuri
 
 ### P0 (Alta Priorità)
+- [x] ~~Associazione Apparati con POI Matterport~~ ✅ COMPLETATO 24/01/2026
 - [ ] Segregazione SmartThings/eWeLink: Usare eWeLink per sensori non-Samsung
 - [ ] Rigenerare SmartThings token (solo per dispositivi Samsung)
 
 ### P1 (Media Priorità)
-- [ ] Raccolta automatica dati sensori (background job)
+- [ ] Raccolta automatica dati sensori (background job eWeLink)
 - [ ] Notifiche push per eventi critici
 - [ ] Dashboard statistiche per utente
 
@@ -207,3 +208,4 @@ Tutte le API principali ora accettano `?token=...` per filtrare i dati per utent
 - [ ] QR Code scanning
 - [ ] Export dati CSV/Excel
 - [ ] Traduzione POI automatica multilingua
+- [ ] App Mobile (PWA o React Native)
