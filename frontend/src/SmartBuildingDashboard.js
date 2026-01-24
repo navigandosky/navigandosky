@@ -781,6 +781,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const [loading, setLoading] = useState(true);
   const [expandedRooms, setExpandedRooms] = useState({});
   const [matterportTags, setMatterportTags] = useState([]);
+  const [energyData, setEnergyData] = useState(null); // Energy consumption data
   
   // Get Matterport space ID based on user - memoized to update when user changes
   const matterportSpaceId = useMemo(() => {
