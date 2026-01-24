@@ -7011,11 +7011,31 @@ async def get_energy_summary(hours: int = 24):
     
     # Calculate totals
     total_power = sum(d["power"]["current"] for d in devices.values() if d.get("power") and d["power"].get("current"))
+    avg_power = sum(d["power"]["avg"] for d in devices.values() if d.get("power") and d["power"].get("avg"))
+    
+    # Estimate daily and monthly consumption (kWh)
+    # Daily: avg_power (W) * 24h / 1000 = kWh/day
+    # Monthly: daily * 30.5 days
+    daily_kwh = round((avg_power * 24) / 1000, 2) if avg_power else 0
+    monthly_kwh = round(daily_kwh * 30.5, 2) if daily_kwh else 0
+    
+    # Estimate cost (assuming 0.25 €/kWh average Italian tariff)
+    cost_per_kwh = 0.25
+    daily_cost = round(daily_kwh * cost_per_kwh, 2)
+    monthly_cost = round(monthly_kwh * cost_per_kwh, 2)
     
     return {
         "period_hours": hours,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "total_power_w": round(total_power, 2),
+        "avg_power_w": round(avg_power, 2),
+        "consumption": {
+            "daily_kwh": daily_kwh,
+            "monthly_kwh": monthly_kwh,
+            "daily_cost_eur": daily_cost,
+            "monthly_cost_eur": monthly_cost,
+            "cost_per_kwh": cost_per_kwh
+        },
         "devices": list(devices.values()),
         "device_count": len(devices)
     }
