@@ -76,6 +76,7 @@ export default function ElettrodomesticoDialog({
   elettrodomestico, 
   centriAssistenza = [], 
   smartThingsDevices = [],
+  pois = [],
   onSave 
 }) {
   const [formData, setFormData] = useState({
@@ -97,6 +98,7 @@ export default function ElettrodomesticoDialog({
     smart_plug_id: "",
     smartthings_device_id: "",
     smartthings_device_name: "",
+    matterport_tag_id: "",
     centro_assistenza_id: "",
     manuale_link_sito: "",
     note: "",
