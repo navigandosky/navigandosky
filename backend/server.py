@@ -5182,6 +5182,57 @@ async def collect_ewelink_sensor_data():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@api_router.get("/sensors/collection-status")
+async def get_sensor_collection_status():
+    """Get the status of automatic sensor data collection"""
+    global sensor_collection_task
+    
+    # Get latest readings
+    latest_reading = await db.sensor_readings.find_one(
+        {"source": "ewelink"},
+        sort=[("timestamp", -1)]
+    )
+    
+    # Count readings in last hour
+    one_hour_ago = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    readings_last_hour = await db.sensor_readings.count_documents({
+        "source": "ewelink",
+        "timestamp": {"$gte": one_hour_ago}
+    })
+    
+    # Count total readings today
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    readings_today = await db.sensor_readings.count_documents({
+        "source": "ewelink",
+        "timestamp": {"$gte": today_start}
+    })
+    
+    return {
+        "background_collector_active": sensor_collection_task is not None and not sensor_collection_task.done(),
+        "collection_interval_seconds": SENSOR_COLLECTION_INTERVAL,
+        "collection_interval_minutes": SENSOR_COLLECTION_INTERVAL // 60,
+        "last_reading_timestamp": latest_reading.get("timestamp") if latest_reading else None,
+        "readings_last_hour": readings_last_hour,
+        "readings_today": readings_today,
+        "source": "ewelink"
+    }
+
+
+@api_router.post("/sensors/force-collect")
+async def force_sensor_collection():
+    """Force immediate sensor data collection (manual trigger)"""
+    try:
+        # Use the existing eWeLink collection endpoint
+        result = await collect_ewelink_sensor_data()
+        return {
+            "success": True,
+            "message": "Raccolta manuale completata",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ============== EZVIZ CAMERA INTEGRATION ==============
 # Supporta sia l'API ufficiale Open Platform (con AppKey) che pyezvizapi (fallback)
 
