@@ -401,7 +401,12 @@ export default function SensorReport() {
   // Initial load
   useEffect(() => {
     loadReport();
-  }, [loadReport]);
+    loadCollectionStatus();
+    
+    // Refresh collection status every 30 seconds
+    const statusInterval = setInterval(loadCollectionStatus, 30000);
+    return () => clearInterval(statusInterval);
+  }, [loadReport, loadCollectionStatus]);
 
   // Reload chart when interval changes
   useEffect(() => {
