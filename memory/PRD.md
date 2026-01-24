@@ -30,6 +30,21 @@
 
 ### ✅ Bug Fix e Feature Recenti
 
+#### Indicatori Live sui POI 3D ✅ (24/01/2026)
+- **Feature**: Dati sensore in tempo reale visibili quando si seleziona un POI collegato
+- **Dati mostrati**: Temperatura, Umidità, Potenza, Voltaggio, Stato ON/OFF
+- **Auto-refresh**: Ogni 15 secondi quando il POI è selezionato
+- **Endpoint**: `GET /api/elettrodomestici/by-poi/{poi_id}/live-sensor`
+- **Badge status**: Online/Offline per ogni sensore
+- **File modificati**: 
+  - `backend/server.py` (endpoint live-sensor)
+  - `frontend/src/MatterportManager.js` (liveSensorData state, UI pannello)
+- **Testato**: ✅ Endpoint funzionante
+
+#### Manuale Istruzioni ✅ (24/01/2026)
+- Creato `/app/MANUALE_POI_APPARATI_SENSORI.md`
+- Guida completa per creare POI, associare apparati e sensori
+
 #### Raccolta Automatica Dati Sensori ✅ (24/01/2026)
 - **Feature**: Background job che raccoglie automaticamente i dati dai sensori eWeLink ogni 5 minuti
 - **Dati raccolti**: Temperatura, umidità, potenza, voltaggio, corrente
