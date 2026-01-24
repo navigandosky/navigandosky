@@ -866,6 +866,14 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
         console.log('Clima sensor not available:', e.message);
       }
       
+      // Fetch energy consumption data
+      try {
+        const energyRes = await axios.get(`${API_URL}/api/sensors/energy-summary?hours=24`);
+        setEnergyData(energyRes.data);
+      } catch (e) {
+        console.log('Energy data not available:', e.message);
+      }
+      
       // Fetch Ezviz cameras and token (may fail)
       try {
         const [camerasRes, tokenRes] = await Promise.all([
