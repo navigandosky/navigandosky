@@ -1274,6 +1274,7 @@ function App() {
   const [manutenzioni, setManutenzioni] = useState([]);
   const [centriAssistenza, setCentriAssistenza] = useState([]);
   const [categorieList, setCategorieList] = useState(CATEGORIE_ELETTRODOMESTICI); // Dynamic categories
+  const [matterportPois, setMatterportPois] = useState([]); // POIs for appliance linking
   
   // Dialog states
   const [centroDialogOpen, setCentroDialogOpen] = useState(false);
