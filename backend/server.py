@@ -6979,27 +6979,30 @@ async def get_energy_summary(hours: int = 24):
         }
         
         # Normalize old data that wasn't divided by 100
-        # Power > 10000W, Voltage > 1000V, Current > 50A are likely not normalized
+        # Typical values: Power ~50-500W, Voltage ~220-240V, Current ~0.1-5A
         if sensor_type == "power":
-            if stat_data["min"] and stat_data["min"] > 10000:
-                stat_data["min"] = round(stat_data["min"] / 100, 2)
-            if stat_data["max"] and stat_data["max"] > 10000:
-                stat_data["max"] = round(stat_data["max"] / 100, 2)
-            if stat_data["avg"] and stat_data["avg"] > 10000:
-                stat_data["avg"] = round(stat_data["avg"] / 100, 2)
-        elif sensor_type == "voltage":
+            # Power avg > 1000W for a single device is likely not normalized
             if stat_data["min"] and stat_data["min"] > 1000:
                 stat_data["min"] = round(stat_data["min"] / 100, 2)
             if stat_data["max"] and stat_data["max"] > 1000:
                 stat_data["max"] = round(stat_data["max"] / 100, 2)
             if stat_data["avg"] and stat_data["avg"] > 1000:
                 stat_data["avg"] = round(stat_data["avg"] / 100, 2)
-        elif sensor_type == "current":
-            if stat_data["min"] and stat_data["min"] > 50:
+        elif sensor_type == "voltage":
+            # Voltage > 500V is likely not normalized
+            if stat_data["min"] and stat_data["min"] > 500:
                 stat_data["min"] = round(stat_data["min"] / 100, 2)
-            if stat_data["max"] and stat_data["max"] > 50:
+            if stat_data["max"] and stat_data["max"] > 500:
                 stat_data["max"] = round(stat_data["max"] / 100, 2)
-            if stat_data["avg"] and stat_data["avg"] > 50:
+            if stat_data["avg"] and stat_data["avg"] > 500:
+                stat_data["avg"] = round(stat_data["avg"] / 100, 2)
+        elif sensor_type == "current":
+            # Current > 20A for home devices is likely not normalized
+            if stat_data["min"] and stat_data["min"] > 20:
+                stat_data["min"] = round(stat_data["min"] / 100, 2)
+            if stat_data["max"] and stat_data["max"] > 20:
+                stat_data["max"] = round(stat_data["max"] / 100, 2)
+            if stat_data["avg"] and stat_data["avg"] > 20:
                 stat_data["avg"] = round(stat_data["avg"] / 100, 2)
         
         devices[device_id][sensor_type] = stat_data
