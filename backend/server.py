@@ -7553,6 +7553,131 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Background task control
+sensor_collection_task = None
+SENSOR_COLLECTION_INTERVAL = 300  # 5 minutes in seconds
+
+async def background_sensor_collector():
+    """Background task that collects sensor data every 5 minutes"""
+    while True:
+        try:
+            logger.info("🔄 Background sensor collection starting...")
+            
+            # Get eWeLink sensors
+            sensors_response = await get_ewelink_sensors()
+            sensors = sensors_response.get("sensors", [])
+            
+            readings_saved = 0
+            for sensor in sensors:
+                if not sensor.get("online"):
+                    continue
+                
+                timestamp = datetime.now(timezone.utc).isoformat()
+                device_id = sensor.get("id", "")
+                device_name = sensor.get("name", "Unknown")
+                
+                # Save temperature
+                if sensor.get("temperature") is not None:
+                    await db.sensor_readings.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "device_id": device_id,
+                        "device_name": device_name,
+                        "sensor_type": "temperature",
+                        "value": float(sensor["temperature"]),
+                        "unit": "C",
+                        "source": "ewelink",
+                        "timestamp": timestamp,
+                        "user_id": DEFAULT_USER_ID
+                    })
+                    readings_saved += 1
+                
+                # Save humidity
+                if sensor.get("humidity") is not None:
+                    await db.sensor_readings.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "device_id": device_id,
+                        "device_name": device_name,
+                        "sensor_type": "humidity",
+                        "value": float(sensor["humidity"]),
+                        "unit": "%",
+                        "source": "ewelink",
+                        "timestamp": timestamp,
+                        "user_id": DEFAULT_USER_ID
+                    })
+                    readings_saved += 1
+                
+                # Save power consumption
+                if sensor.get("power") is not None:
+                    await db.sensor_readings.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "device_id": device_id,
+                        "device_name": device_name,
+                        "sensor_type": "power",
+                        "value": float(sensor["power"]),
+                        "unit": "W",
+                        "source": "ewelink",
+                        "timestamp": timestamp,
+                        "user_id": DEFAULT_USER_ID
+                    })
+                    readings_saved += 1
+                
+                # Save voltage
+                if sensor.get("voltage") is not None:
+                    await db.sensor_readings.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "device_id": device_id,
+                        "device_name": device_name,
+                        "sensor_type": "voltage",
+                        "value": float(sensor["voltage"]),
+                        "unit": "V",
+                        "source": "ewelink",
+                        "timestamp": timestamp,
+                        "user_id": DEFAULT_USER_ID
+                    })
+                    readings_saved += 1
+                
+                # Save current
+                if sensor.get("current") is not None:
+                    await db.sensor_readings.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "device_id": device_id,
+                        "device_name": device_name,
+                        "sensor_type": "current",
+                        "value": float(sensor["current"]),
+                        "unit": "A",
+                        "source": "ewelink",
+                        "timestamp": timestamp,
+                        "user_id": DEFAULT_USER_ID
+                    })
+                    readings_saved += 1
+            
+            logger.info(f"✅ Background sensor collection: saved {readings_saved} readings from {len(sensors)} sensors")
+            
+        except Exception as e:
+            logger.error(f"❌ Background sensor collection error: {e}")
+        
+        # Wait for next collection cycle
+        await asyncio.sleep(SENSOR_COLLECTION_INTERVAL)
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background tasks on app startup"""
+    global sensor_collection_task
+    logger.info("🚀 Starting SmartDomo API server...")
+    
+    # Start background sensor collector
+    sensor_collection_task = asyncio.create_task(background_sensor_collector())
+    logger.info("✅ Background sensor collector started (interval: 5 minutes)")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global sensor_collection_task
+    # Cancel background task
+    if sensor_collection_task:
+        sensor_collection_task.cancel()
+        try:
+            await sensor_collection_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("🛑 Background sensor collector stopped")
     client.close()
