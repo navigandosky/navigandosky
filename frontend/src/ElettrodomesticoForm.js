@@ -753,6 +753,40 @@ export default function ElettrodomesticoDialog({
                   />
                 </div>
               )}
+              
+              {/* Associazione POI Matterport */}
+              <div className="mt-6 pt-4 border-t border-slate-700">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <span className="text-lg">📍</span>
+                    Posizione 3D (Tag Matterport/MPSKIN)
+                  </Label>
+                  <p className="text-xs text-slate-500 mb-2">
+                    Associa questo dispositivo a un punto di interesse nella vista 3D
+                  </p>
+                  <Select
+                    value={formData.matterport_tag_id || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, matterport_tag_id: value === "none" ? "" : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona POI..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nessun POI associato</SelectItem>
+                      {pois.map((poi) => (
+                        <SelectItem key={poi.id} value={poi.id}>
+                          📍 {poi.name || poi.title || poi.label || `POI ${poi.id.slice(0,8)}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {formData.matterport_tag_id && (
+                    <p className="text-xs text-green-500 mt-1">
+                      ✓ Questo dispositivo sarà visibile nella Vista 3D
+                    </p>
+                  )}
+                </div>
+              </div>
             </TabsContent>
 
             {/* TAB ASSISTENZA */}
