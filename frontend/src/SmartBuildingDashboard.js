@@ -1279,6 +1279,88 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Energy Consumption Section */}
+                {energyData && energyData.devices && energyData.devices.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                      <Zap size={20} className="text-yellow-400" />
+                      Consumi Energia
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {energyData.devices.map((device) => (
+                        <Card key={device.device_id} className="bg-slate-900/50 border-slate-800">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-medium text-white truncate" title={device.device_name}>
+                                {device.device_name}
+                              </h4>
+                              <Zap size={16} className="text-yellow-400" />
+                            </div>
+                            
+                            {/* Current Values */}
+                            <div className="grid grid-cols-3 gap-2 mb-3">
+                              {device.power && (
+                                <div className="text-center p-2 bg-slate-800/50 rounded-lg">
+                                  <div className="text-lg font-bold text-yellow-400">
+                                    {device.power.current}
+                                  </div>
+                                  <div className="text-xs text-slate-500">Watt</div>
+                                </div>
+                              )}
+                              {device.voltage && (
+                                <div className="text-center p-2 bg-slate-800/50 rounded-lg">
+                                  <div className="text-lg font-bold text-blue-400">
+                                    {device.voltage.current}
+                                  </div>
+                                  <div className="text-xs text-slate-500">Volt</div>
+                                </div>
+                              )}
+                              {device.current && (
+                                <div className="text-center p-2 bg-slate-800/50 rounded-lg">
+                                  <div className="text-lg font-bold text-green-400">
+                                    {device.current.current}
+                                  </div>
+                                  <div className="text-xs text-slate-500">Ampere</div>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Stats */}
+                            {device.power && (
+                              <div className="text-xs text-slate-500 space-y-1">
+                                <div className="flex justify-between">
+                                  <span>Min / Max (24h):</span>
+                                  <span className="text-slate-400">
+                                    {device.power.min}W - {device.power.max}W
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Media:</span>
+                                  <span className="text-slate-400">{device.power.avg}W</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Letture:</span>
+                                  <span className="text-slate-400">{device.readings_count}</span>
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                    
+                    {/* Total Power */}
+                    <div className="mt-4 p-4 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-400">Potenza Totale Attuale</span>
+                        <span className="text-2xl font-bold text-yellow-400">
+                          {energyData.total_power_w} W
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </TabsContent>
 
               {/* DOMOTICA TAB */}
