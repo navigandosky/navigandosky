@@ -1,20 +1,19 @@
 # SmartDomo - PRD
 
-## Stato Attuale (20/01/2026)
+## Stato Attuale (24/01/2026)
 
-### 🎯 Test Suite - 16/16 PASSED ✅
-
-File test: `/app/tests/test_smartdomo_multitenancy.py`
+### 🎯 Test Suite - 100% PASSED ✅
 
 | Test Category | Status |
 |--------------|--------|
-| Authentication (Admin, Geasar, Invalid) | ✅ 4/4 |
-| Token Verification | ✅ 3/3 |
-| Multi-Tenant Data Isolation | ✅ 3/3 |
-| Matterport POIs | ✅ 2/2 |
-| SmartThings/eWeLink Integration | ✅ 2/2 |
-| Manutenzioni CRUD | ✅ 1/1 |
-| Config Endpoints | ✅ 1/1 |
+| Authentication (Admin, Geasar, Invalid) | ✅ |
+| Token Verification | ✅ |
+| Multi-Tenant Data Isolation | ✅ |
+| Matterport POIs | ✅ |
+| SmartThings/eWeLink Integration | ✅ |
+| Manutenzioni CRUD | ✅ |
+| Config Endpoints | ✅ |
+| **Apparato-POI Integration** | ✅ NEW |
 
 ### 📊 Multi-Tenant Isolation Verified
 
@@ -29,7 +28,20 @@ File test: `/app/tests/test_smartdomo_multitenancy.py`
 
 ---
 
-### ✅ Bug Fix Recenti
+### ✅ Bug Fix e Feature Recenti
+
+#### Associazione Apparati-POI Matterport ✅ (24/01/2026)
+- **Feature**: Collegare un apparato a un POI nella vista 3D per creare un vero digital twin
+- **Form Apparato**: Aggiunto dropdown POI nella tab "Smart" per selezionare il punto di interesse
+- **Vista 3D**: Quando si seleziona un POI collegato, vengono mostrati i dettagli dell'apparato
+- **Backend**: Nuovo endpoint `/api/elettrodomestici/by-poi/{poi_id}` per recuperare l'apparato associato
+- **Bug Fix**: Corretto bug nella creazione elettrodomestici dove user_id non veniva impostato dal token
+- **File modificati**: 
+  - `backend/server.py` (nuovo endpoint by-poi, fix user_id)
+  - `frontend/src/App.js` (loadMatterportPois, passaggio prop pois)
+  - `frontend/src/ElettrodomesticoForm.js` (dropdown POI selector)
+  - `frontend/src/MatterportManager.js` (linkedApparato state, dettagli apparato nel pannello POI)
+- **Testato**: ✅ Backend 100% (13/13), Frontend 100%
 
 #### Property Configuration Multi-Tenant ✅ (20/01/2026)
 - **Problema**: L'Admin vedeva i dati della proprietà di Geasar (GEASAR SPA) invece dei propri dati nella pagina Setup
