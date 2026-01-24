@@ -6581,16 +6581,54 @@ async def collect_and_store_sensor_data():
                         except (ValueError, TypeError):
                             pass
                     
-                    # Power
+                    # Power (normalize - eWeLink sends values x100)
                     power = params.get("power")
-                    if power is not None:
+                    if power is not None and power != "on" and power != "off":
                         try:
+                            power_val = float(power)
+                            # eWeLink POW devices send power x100
+                            if power_val > 10000:
+                                power_val = power_val / 100
                             readings_to_store.append({
                                 "device_id": device_id,
                                 "device_name": device_name,
                                 "sensor_type": "power",
-                                "value": float(power),
+                                "value": round(power_val, 2),
                                 "unit": "W"
+                            })
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Voltage (normalize - eWeLink sends values x100)
+                    voltage = params.get("voltage")
+                    if voltage is not None:
+                        try:
+                            voltage_val = float(voltage)
+                            if voltage_val > 1000:
+                                voltage_val = voltage_val / 100
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "voltage",
+                                "value": round(voltage_val, 1),
+                                "unit": "V"
+                            })
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Current (normalize - eWeLink sends values x100)
+                    current = params.get("current")
+                    if current is not None:
+                        try:
+                            current_val = float(current)
+                            if current_val > 100:
+                                current_val = current_val / 100
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "current",
+                                "value": round(current_val, 2),
+                                "unit": "A"
                             })
                         except (ValueError, TypeError):
                             pass
