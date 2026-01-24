@@ -1673,6 +1673,21 @@ async def delete_elettrodomestico(elettrodomestico_id: str):
     return {"message": "Elettrodomestico eliminato"}
 
 
+@api_router.get("/elettrodomestici/by-poi/{poi_id}")
+async def get_elettrodomestico_by_poi(poi_id: str, token: Optional[str] = None):
+    """Get elettrodomestico associated with a Matterport POI"""
+    query = {"matterport_tag_id": poi_id}
+    if token:
+        session = await db.sessions.find_one({"token": token})
+        if session:
+            query["user_id"] = session["user_id"]
+    
+    elettro = await db.elettrodomestici.find_one(query, {"_id": 0})
+    if not elettro:
+        return None
+    return deserialize_datetime(elettro)
+
+
 # ------------ FILE UPLOAD ------------
 
 UPLOAD_DIR = Path("/app/uploads")
