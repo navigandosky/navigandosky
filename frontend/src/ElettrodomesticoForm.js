@@ -755,14 +755,14 @@ export default function ElettrodomesticoDialog({
               )}
               
               {/* Associazione POI Matterport */}
-              <div className="mt-6 pt-4 border-t border-slate-700">
+              <div className="mt-6 pt-4 border-t">
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
-                    <span className="text-lg">📍</span>
-                    Posizione 3D (Tag Matterport/MPSKIN)
+                    <MapPin className="h-4 w-4 text-cyan-500" />
+                    Posizione 3D (Tag Matterport)
                   </Label>
-                  <p className="text-xs text-slate-500 mb-2">
-                    Associa questo dispositivo a un punto di interesse nella vista 3D
+                  <p className="text-xs text-gray-500 mb-2">
+                    Associa questo apparato a un punto di interesse nella vista 3D per visualizzarlo nel modello Matterport
                   </p>
                   <Select
                     value={formData.matterport_tag_id || "none"}
@@ -773,16 +773,24 @@ export default function ElettrodomesticoDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nessun POI associato</SelectItem>
-                      {pois.map((poi) => (
-                        <SelectItem key={poi.id} value={poi.id}>
-                          📍 {poi.name || poi.title || poi.label || `POI ${poi.id.slice(0,8)}`}
-                        </SelectItem>
-                      ))}
+                      {pois.map((poi) => {
+                        const itTrans = poi.translations?.find(t => t.language === "it");
+                        const poiTitle = itTrans?.title || poi.title || `POI ${poi.id?.slice(0,8) || ""}`;
+                        return (
+                          <SelectItem key={poi.id} value={poi.id}>
+                            <span className="flex items-center gap-2">
+                              <MapPin className="h-3 w-3 text-cyan-500" />
+                              {poiTitle}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   {formData.matterport_tag_id && (
-                    <p className="text-xs text-green-500 mt-1">
-                      ✓ Questo dispositivo sarà visibile nella Vista 3D
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <Check className="h-3 w-3" />
+                      Questo apparato sarà visibile nella Vista 3D
                     </p>
                   )}
                 </div>
