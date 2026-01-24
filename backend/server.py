@@ -6838,6 +6838,7 @@ async def get_sensors_report(hours: int = 24):
     
     for r in results:
         device_id = r["_id"]["device_id"]
+        sensor_type = r["_id"]["sensor_type"]
         # Use SmartThings label if available, fallback to stored name
         stored_name = r.get("device_name", "")
         display_name = device_names.get(device_id, stored_name)
@@ -6845,15 +6846,41 @@ async def get_sensors_report(hours: int = 24):
         if stored_name and stored_name.startswith("c2c-") or stored_name.startswith("switch"):
             display_name = device_names.get(device_id) or stored_name
         
+        # Get raw values
+        current_val = r["last_value"]
+        min_val = r["min_value"]
+        max_val = r["max_value"]
+        avg_val = r["avg_value"]
+        
+        # Normalize old data that wasn't divided properly
+        if sensor_type == "temperature":
+            if current_val and current_val > 100:
+                current_val = current_val / 100
+            if min_val and min_val > 100:
+                min_val = min_val / 100
+            if max_val and max_val > 100:
+                max_val = max_val / 100
+            if avg_val and avg_val > 100:
+                avg_val = avg_val / 100
+        elif sensor_type == "humidity":
+            if current_val and current_val > 100:
+                current_val = current_val / 100
+            if min_val and min_val > 100:
+                min_val = min_val / 100
+            if max_val and max_val > 100:
+                max_val = max_val / 100
+            if avg_val and avg_val > 100:
+                avg_val = avg_val / 100
+        
         sensor_data = {
             "device_id": device_id,
             "device_name": display_name or stored_name or "Sensore",
-            "sensor_type": r["_id"]["sensor_type"],
+            "sensor_type": sensor_type,
             "unit": r.get("unit", ""),
-            "current_value": round(r["last_value"], 2) if r["last_value"] else None,
-            "min": round(r["min_value"], 2),
-            "max": round(r["max_value"], 2),
-            "avg": round(r["avg_value"], 2),
+            "current_value": round(current_val, 1) if current_val else None,
+            "min": round(min_val, 1) if min_val else None,
+            "max": round(max_val, 1) if max_val else None,
+            "avg": round(avg_val, 1) if avg_val else None,
             "readings_count": r["count"],
             "last_update": r["last_timestamp"]
         }
