@@ -1690,6 +1690,95 @@ async def get_elettrodomestico_by_poi(poi_id: str, token: Optional[str] = None):
     return deserialize_datetime(elettro)
 
 
+@api_router.get("/elettrodomestici/by-poi/{poi_id}/live-sensor")
+async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
+    """Get live sensor data for the appliance associated with a POI"""
+    # Find the appliance linked to this POI
+    query = {"matterport_tag_id": poi_id}
+    if token:
+        session = await db.sessions.find_one({"token": token})
+        if session:
+            query["user_id"] = session["user_id"]
+    
+    elettro = await db.elettrodomestici.find_one(query, {"_id": 0})
+    if not elettro:
+        return {"has_sensor": False, "message": "Nessun apparato collegato a questo POI"}
+    
+    # Check if appliance has a linked smart device
+    device_id = elettro.get("smart_plug_id") or elettro.get("smartthings_device_id")
+    if not device_id:
+        return {
+            "has_sensor": False, 
+            "apparato": {
+                "nome": elettro.get("nome"),
+                "marca": elettro.get("marca"),
+                "modello": elettro.get("modello")
+            },
+            "message": "Apparato non collegato a un sensore smart"
+        }
+    
+    # Get live sensor data from eWeLink
+    try:
+        sensors_response = await get_ewelink_sensors()
+        sensors = sensors_response.get("sensors", [])
+        
+        # Find the matching sensor
+        sensor_data = None
+        for sensor in sensors:
+            if sensor.get("id") == device_id:
+                sensor_data = sensor
+                break
+        
+        if sensor_data:
+            return {
+                "has_sensor": True,
+                "apparato": {
+                    "id": elettro.get("id"),
+                    "nome": elettro.get("nome"),
+                    "marca": elettro.get("marca"),
+                    "modello": elettro.get("modello"),
+                    "posizione": elettro.get("posizione"),
+                    "consumo_orario_kw": elettro.get("consumo_orario_kw")
+                },
+                "sensor": {
+                    "device_id": device_id,
+                    "device_name": sensor_data.get("name"),
+                    "online": sensor_data.get("online", False),
+                    "temperature": sensor_data.get("temperature"),
+                    "humidity": sensor_data.get("humidity"),
+                    "power": sensor_data.get("power"),
+                    "voltage": sensor_data.get("voltage"),
+                    "current": sensor_data.get("current"),
+                    "switch_state": sensor_data.get("switch"),
+                    "source": "ewelink"
+                },
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        else:
+            return {
+                "has_sensor": True,
+                "apparato": {
+                    "nome": elettro.get("nome"),
+                    "marca": elettro.get("marca"),
+                    "modello": elettro.get("modello")
+                },
+                "sensor": {
+                    "device_id": device_id,
+                    "online": False
+                },
+                "message": "Sensore offline o non trovato"
+            }
+    except Exception as e:
+        logger.error(f"Error fetching live sensor for POI {poi_id}: {e}")
+        return {
+            "has_sensor": False,
+            "apparato": {
+                "nome": elettro.get("nome")
+            },
+            "error": str(e)
+        }
+
+
 # ------------ FILE UPLOAD ------------
 
 UPLOAD_DIR = Path("/app/uploads")
