@@ -1350,14 +1350,46 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                       ))}
                     </div>
                     
-                    {/* Total Power */}
-                    <div className="mt-4 p-4 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-400">Potenza Totale Attuale</span>
-                        <span className="text-2xl font-bold text-yellow-400">
+                    {/* Total Power and Consumption Stats */}
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Current Power */}
+                      <div className="p-4 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl">
+                        <div className="text-sm text-slate-400 mb-1">Potenza Attuale</div>
+                        <div className="text-2xl font-bold text-yellow-400">
                           {energyData.total_power_w} W
-                        </span>
+                        </div>
+                        {energyData.avg_power_w && (
+                          <div className="text-xs text-slate-500 mt-1">
+                            Media: {energyData.avg_power_w} W
+                          </div>
+                        )}
                       </div>
+                      
+                      {/* Daily Consumption */}
+                      {energyData.consumption && (
+                        <div className="p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-xl">
+                          <div className="text-sm text-slate-400 mb-1">Consumo Giornaliero (stima)</div>
+                          <div className="text-2xl font-bold text-green-400">
+                            {energyData.consumption.daily_kwh} kWh
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            ~{energyData.consumption.daily_cost_eur} €/giorno
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Monthly Consumption */}
+                      {energyData.consumption && (
+                        <div className="p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-xl">
+                          <div className="text-sm text-slate-400 mb-1">Consumo Mensile (stima)</div>
+                          <div className="text-2xl font-bold text-blue-400">
+                            {energyData.consumption.monthly_kwh} kWh
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1">
+                            ~{energyData.consumption.monthly_cost_eur} €/mese
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
