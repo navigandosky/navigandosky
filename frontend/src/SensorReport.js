@@ -320,12 +320,23 @@ export default function SensorReport() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [collecting, setCollecting] = useState(false);
+  const [collectionStatus, setCollectionStatus] = useState(null);
   const [selectedSensor, setSelectedSensor] = useState(null);
   const [chartData, setChartData] = useState(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [timePeriod, setTimePeriod] = useState("24");
   const [interval, setInterval] = useState("hour");
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Load collection status
+  const loadCollectionStatus = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/sensors/collection-status`);
+      setCollectionStatus(response.data);
+    } catch (error) {
+      console.error("Error loading collection status:", error);
+    }
+  }, []);
 
   // Load report
   const loadReport = useCallback(async () => {
