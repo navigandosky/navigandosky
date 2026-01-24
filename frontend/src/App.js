@@ -1468,6 +1468,17 @@ function App() {
     }
   }, [filtroStatoManut, authToken]);
 
+  // Load Matterport POIs for appliance linking
+  const loadMatterportPois = useCallback(async () => {
+    try {
+      const params = { token: authToken };
+      const response = await axios.get(`${API}/matterport/pois`, { params });
+      setMatterportPois(response.data);
+    } catch (error) {
+      console.error("Error loading Matterport POIs:", error);
+    }
+  }, [authToken]);
+
   // Initial load
   useEffect(() => {
     loadConfig();
