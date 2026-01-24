@@ -2300,6 +2300,7 @@ function App() {
         elettrodomestico={editingElettro}
         centriAssistenza={centriAssistenza}
         smartThingsDevices={smartThingsDevices}
+        pois={matterportPois}
         onSave={handleSaveElettro}
       />
 
