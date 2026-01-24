@@ -1485,7 +1485,8 @@ function App() {
     loadCentriAssistenza();
     loadSmartThingsDevices();
     loadCategorie();
-  }, [loadConfig, loadCentriAssistenza, loadSmartThingsDevices, loadCategorie]);
+    loadMatterportPois();
+  }, [loadConfig, loadCentriAssistenza, loadSmartThingsDevices, loadCategorie, loadMatterportPois]);
 
   // Load data based on active tab
   useEffect(() => {
