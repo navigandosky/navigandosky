@@ -434,6 +434,46 @@ export default function SensorReport() {
 
   return (
     <div className="space-y-6" data-testid="sensor-report">
+      {/* Collection Status Banner */}
+      {collectionStatus && (
+        <Card className="bg-gradient-to-r from-emerald-50 to-cyan-50 border-emerald-200">
+          <CardContent className="py-3 px-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${collectionStatus.background_collector_active ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                <div>
+                  <p className="text-sm font-medium text-emerald-800">
+                    {collectionStatus.background_collector_active ? '🔄 Raccolta Automatica Attiva' : '⏸️ Raccolta Automatica Disattiva'}
+                  </p>
+                  <p className="text-xs text-emerald-600">
+                    Intervallo: ogni {collectionStatus.collection_interval_minutes} minuti • 
+                    Sorgente: {collectionStatus.source?.toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 text-xs">
+                <div className="text-center">
+                  <p className="text-emerald-800 font-bold">{collectionStatus.readings_last_hour}</p>
+                  <p className="text-emerald-600">Ultima ora</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-emerald-800 font-bold">{collectionStatus.readings_today}</p>
+                  <p className="text-emerald-600">Oggi</p>
+                </div>
+                {collectionStatus.last_reading_timestamp && (
+                  <div className="text-center">
+                    <p className="text-emerald-800 font-bold">
+                      {new Date(collectionStatus.last_reading_timestamp).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p className="text-emerald-600">Ultima lettura</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
