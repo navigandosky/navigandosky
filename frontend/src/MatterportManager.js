@@ -188,6 +188,11 @@ export default function MatterportManager({ authToken, currentUser }) {
   const [showAudioDialog, setShowAudioDialog] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [showLinkDeviceDialog, setShowLinkDeviceDialog] = useState(false);
+  const [showApparatoDialog, setShowApparatoDialog] = useState(false);
+  
+  // Linked appliance data
+  const [linkedApparato, setLinkedApparato] = useState(null);
+  const [loadingApparato, setLoadingApparato] = useState(false);
   
   // Forms
   const [spaceForm, setSpaceForm] = useState({ name: "", space_id: "", description: "", sdk_key: "" });
