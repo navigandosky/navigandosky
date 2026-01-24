@@ -1856,8 +1856,66 @@ export default function MatterportManager({ authToken, currentUser }) {
                 ) : (
                   <Badge className="bg-slate-600/50 text-slate-300 text-xs">Non sync</Badge>
                 )}
+                {linkedApparato && (
+                  <Badge className="bg-amber-600/20 text-amber-400 text-xs">
+                    <Zap size={10} className="mr-1" />Apparato Collegato
+                  </Badge>
+                )}
               </div>
               <p className="text-xs text-slate-400 line-clamp-2">{selectedPoi.translations?.[0]?.description}</p>
+              
+              {/* Linked Apparato Info */}
+              {loadingApparato && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+                  <Loader2 size={12} className="animate-spin" />
+                  Caricamento apparato...
+                </div>
+              )}
+              {linkedApparato && !loadingApparato && (
+                <div className="mt-3 p-2 bg-slate-800/50 rounded-lg border border-amber-500/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-4 w-4 text-amber-400" />
+                    <span className="font-medium text-sm text-amber-300">{linkedApparato.nome}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-500">Marca:</span>
+                      <span className="ml-1 text-white">{linkedApparato.marca || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Modello:</span>
+                      <span className="ml-1 text-white">{linkedApparato.modello || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Posizione:</span>
+                      <span className="ml-1 text-white">{linkedApparato.posizione || "-"}</span>
+                    </div>
+                    {linkedApparato.consumo_orario_kw > 0 && (
+                      <div>
+                        <span className="text-slate-500">Consumo:</span>
+                        <span className="ml-1 text-green-400">{Math.round(linkedApparato.consumo_orario_kw * 1000)}W</span>
+                      </div>
+                    )}
+                    {linkedApparato.data_scadenza_garanzia && (
+                      <div>
+                        <span className="text-slate-500">Garanzia:</span>
+                        <span className={`ml-1 ${new Date(linkedApparato.data_scadenza_garanzia) > new Date() ? 'text-green-400' : 'text-red-400'}`}>
+                          {new Date(linkedApparato.data_scadenza_garanzia).toLocaleDateString('it-IT')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 h-7 text-xs border-amber-500/50 text-amber-400 hover:bg-amber-500/20"
+                    onClick={() => setShowApparatoDialog(true)}
+                  >
+                    <Eye size={12} className="mr-1" />
+                    Dettagli Completi
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 shrink-0">
               <Button
