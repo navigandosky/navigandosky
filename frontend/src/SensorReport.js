@@ -538,7 +538,7 @@ export default function SensorReport() {
           <h3 className="text-lg font-medium text-gray-700 mb-2">Nessun Dato Storico</h3>
           <p className="text-gray-500 mb-6 max-w-md mx-auto">
             Non ci sono ancora letture dei sensori nel database. 
-            Clicca "Raccogli Ora" per iniziare a raccogliere dati dai tuoi sensori SmartThings.
+            Clicca il pulsante Raccogli Ora per iniziare a raccogliere dati dai tuoi sensori eWeLink.
           </p>
           <Button onClick={collectData} disabled={collecting} size="lg">
             {collecting ? (
