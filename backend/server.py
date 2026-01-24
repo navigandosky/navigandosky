@@ -7043,10 +7043,32 @@ async def get_sensor_chart_data(
     }
     
     for r in results:
+        avg_val = r["avg_value"]
+        min_val = r["min_value"]
+        max_val = r["max_value"]
+        
+        # Normalize old data that wasn't divided by 100
+        # Temperature > 100 is likely not normalized (eWeLink sends 2210 for 22.1°C)
+        # Humidity > 100 is likely not normalized (eWeLink sends 5100 for 51%)
+        if sensor_type == "temperature":
+            if avg_val and avg_val > 100:
+                avg_val = avg_val / 100
+            if min_val and min_val > 100:
+                min_val = min_val / 100
+            if max_val and max_val > 100:
+                max_val = max_val / 100
+        elif sensor_type == "humidity":
+            if avg_val and avg_val > 100:
+                avg_val = avg_val / 100
+            if min_val and min_val > 100:
+                min_val = min_val / 100
+            if max_val and max_val > 100:
+                max_val = max_val / 100
+        
         chart_data["labels"].append(r["_id"])
-        chart_data["datasets"]["avg"].append(round(r["avg_value"], 2))
-        chart_data["datasets"]["min"].append(round(r["min_value"], 2))
-        chart_data["datasets"]["max"].append(round(r["max_value"], 2))
+        chart_data["datasets"]["avg"].append(round(avg_val, 1) if avg_val else None)
+        chart_data["datasets"]["min"].append(round(min_val, 1) if min_val else None)
+        chart_data["datasets"]["max"].append(round(max_val, 1) if max_val else None)
     
     return chart_data
 
