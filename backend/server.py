@@ -6410,117 +6410,208 @@ async def store_sensor_readings_batch(readings: List[SensorReadingCreate]):
 @api_router.post("/sensors/collect")
 async def collect_and_store_sensor_data():
     """
-    Collect current sensor values from SmartThings and store them.
+    Collect current sensor values from SmartThings or eWeLink and store them.
     This endpoint should be called periodically (e.g., every 5 minutes via cron).
+    Falls back to eWeLink if SmartThings is unavailable.
     """
-    token = await get_smartthings_token()
-    if not token:
-        raise HTTPException(status_code=500, detail="SmartThings not configured")
-    
     stored_count = 0
+    source = "smartthings"
     
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            # Get all devices
-            response = await client.get(
-                f"{SMARTTHINGS_API_URL}/devices",
-                headers={"Authorization": f"Bearer {token}"}
-            )
-            response.raise_for_status()
-            devices = response.json().get("items", [])
-            
-            readings_to_store = []
-            
-            for device in devices[:25]:
-                device_id = device.get("deviceId")
-                # Prefer label over name (label is user-friendly, name is technical)
-                device_name = device.get("label") or device.get("name", "Dispositivo")
+    # Try SmartThings first
+    token = await get_smartthings_token()
+    smartthings_failed = False
+    
+    if token:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Get all devices
+                response = await client.get(
+                    f"{SMARTTHINGS_API_URL}/devices",
+                    headers={"Authorization": f"Bearer {token}"}
+                )
+                response.raise_for_status()
+                devices = response.json().get("items", [])
                 
-                try:
-                    status_response = await client.get(
-                        f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
-                        headers={"Authorization": f"Bearer {token}"}
-                    )
-                    if status_response.status_code != 200:
-                        continue
+                readings_to_store = []
+                
+                for device in devices[:25]:
+                    device_id = device.get("deviceId")
+                    # Prefer label over name (label is user-friendly, name is technical)
+                    device_name = device.get("label") or device.get("name", "Dispositivo")
+                    
+                    try:
+                        status_response = await client.get(
+                            f"{SMARTTHINGS_API_URL}/devices/{device_id}/status",
+                            headers={"Authorization": f"Bearer {token}"}
+                        )
+                        if status_response.status_code != 200:
+                            continue
+                            
+                        status = status_response.json()
+                        main = status.get("components", {}).get("main", {})
                         
-                    status = status_response.json()
-                    main = status.get("components", {}).get("main", {})
+                        # Temperature
+                        temp = main.get("temperatureMeasurement", {}).get("temperature", {})
+                        if temp.get("value") is not None:
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "temperature",
+                                "value": float(temp.get("value")),
+                                "unit": temp.get("unit", "C")
+                            })
+                        
+                        # Humidity
+                        humidity = main.get("relativeHumidityMeasurement", {}).get("humidity", {})
+                        if humidity.get("value") is not None:
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "humidity",
+                                "value": float(humidity.get("value")),
+                                "unit": "%"
+                            })
+                        
+                        # Power
+                        power = main.get("powerMeter", {}).get("power", {})
+                        if power.get("value") is not None:
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "power",
+                                "value": float(power.get("value")),
+                                "unit": "W"
+                            })
+                        
+                        # Energy
+                        energy = main.get("energyMeter", {}).get("energy", {})
+                        if energy.get("value") is not None:
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "energy",
+                                "value": float(energy.get("value")),
+                                "unit": "kWh"
+                            })
+                        
+                        # Battery
+                        battery = main.get("battery", {}).get("battery", {})
+                        if battery.get("value") is not None:
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "battery",
+                                "value": float(battery.get("value")),
+                                "unit": "%"
+                            })
+                            
+                    except Exception as e:
+                        logger.debug(f"Error getting status for {device_id}: {e}")
+                        continue
+                
+                # Store all readings
+                if readings_to_store:
+                    docs = []
+                    for r in readings_to_store:
+                        doc = SensorReading(**r).model_dump()
+                        doc["timestamp"] = doc["timestamp"].isoformat()
+                        docs.append(doc)
+                    await db.sensor_readings.insert_many(docs)
+                    stored_count = len(docs)
+                    return {"status": "collected", "readings_stored": stored_count, "source": "smartthings"}
                     
-                    # Temperature
-                    temp = main.get("temperatureMeasurement", {}).get("temperature", {})
-                    if temp.get("value") is not None:
-                        readings_to_store.append({
-                            "device_id": device_id,
-                            "device_name": device_name,
-                            "sensor_type": "temperature",
-                            "value": float(temp.get("value")),
-                            "unit": temp.get("unit", "C")
-                        })
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                logger.warning("SmartThings token expired, falling back to eWeLink")
+                smartthings_failed = True
+            else:
+                raise
+        except Exception as e:
+            logger.error(f"SmartThings error: {e}")
+            smartthings_failed = True
+    else:
+        smartthings_failed = True
+    
+    # Fallback to eWeLink
+    if smartthings_failed:
+        logger.info("Using eWeLink fallback for sensor collection")
+        source = "ewelink"
+        
+        try:
+            ewelink_devices = await get_ewelink_devices_internal()
+            if ewelink_devices and ewelink_devices.get("devices"):
+                readings_to_store = []
+                
+                for device in ewelink_devices.get("devices", []):
+                    device_id = device.get("deviceid")
+                    device_name = device.get("name", "Dispositivo eWeLink")
+                    params = device.get("params", {})
                     
-                    # Humidity
-                    humidity = main.get("relativeHumidityMeasurement", {}).get("humidity", {})
-                    if humidity.get("value") is not None:
-                        readings_to_store.append({
-                            "device_id": device_id,
-                            "device_name": device_name,
-                            "sensor_type": "humidity",
-                            "value": float(humidity.get("value")),
-                            "unit": "%"
-                        })
+                    # Temperature (normalize if > 100)
+                    temp = params.get("temperature") or params.get("currentTemperature")
+                    if temp is not None:
+                        try:
+                            temp_val = float(temp)
+                            if temp_val > 100:
+                                temp_val = temp_val / 100
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "temperature",
+                                "value": round(temp_val, 1),
+                                "unit": "C"
+                            })
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Humidity (normalize if > 100)
+                    humidity = params.get("humidity") or params.get("currentHumidity")
+                    if humidity is not None:
+                        try:
+                            humid_val = float(humidity)
+                            if humid_val > 100:
+                                humid_val = humid_val / 100
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "humidity",
+                                "value": round(humid_val, 1),
+                                "unit": "%"
+                            })
+                        except (ValueError, TypeError):
+                            pass
                     
                     # Power
-                    power = main.get("powerMeter", {}).get("power", {})
-                    if power.get("value") is not None:
-                        readings_to_store.append({
-                            "device_id": device_id,
-                            "device_name": device_name,
-                            "sensor_type": "power",
-                            "value": float(power.get("value")),
-                            "unit": "W"
-                        })
-                    
-                    # Energy
-                    energy = main.get("energyMeter", {}).get("energy", {})
-                    if energy.get("value") is not None:
-                        readings_to_store.append({
-                            "device_id": device_id,
-                            "device_name": device_name,
-                            "sensor_type": "energy",
-                            "value": float(energy.get("value")),
-                            "unit": "kWh"
-                        })
-                    
-                    # Battery
-                    battery = main.get("battery", {}).get("battery", {})
-                    if battery.get("value") is not None:
-                        readings_to_store.append({
-                            "device_id": device_id,
-                            "device_name": device_name,
-                            "sensor_type": "battery",
-                            "value": float(battery.get("value")),
-                            "unit": "%"
-                        })
-                        
-                except Exception as e:
-                    logger.debug(f"Error getting status for {device_id}: {e}")
-                    continue
-            
-            # Store all readings
-            if readings_to_store:
-                docs = []
-                for r in readings_to_store:
-                    doc = SensorReading(**r).model_dump()
-                    doc["timestamp"] = doc["timestamp"].isoformat()
-                    docs.append(doc)
-                await db.sensor_readings.insert_many(docs)
-                stored_count = len(docs)
+                    power = params.get("power")
+                    if power is not None:
+                        try:
+                            readings_to_store.append({
+                                "device_id": device_id,
+                                "device_name": device_name,
+                                "sensor_type": "power",
+                                "value": float(power),
+                                "unit": "W"
+                            })
+                        except (ValueError, TypeError):
+                            pass
                 
-    except Exception as e:
-        logger.error(f"Error collecting sensor data: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+                # Store all readings
+                if readings_to_store:
+                    docs = []
+                    for r in readings_to_store:
+                        doc = SensorReading(**r).model_dump()
+                        doc["timestamp"] = doc["timestamp"].isoformat()
+                        docs.append(doc)
+                    await db.sensor_readings.insert_many(docs)
+                    stored_count = len(docs)
+                    
+                return {"status": "collected", "readings_stored": stored_count, "source": "ewelink"}
+                
+        except Exception as e:
+            logger.error(f"eWeLink sensor collection error: {e}")
+            raise HTTPException(status_code=500, detail=f"Both SmartThings and eWeLink failed: {str(e)}")
     
-    return {"status": "collected", "readings_stored": stored_count}
+    return {"status": "collected", "readings_stored": stored_count, "source": source}
 
 
 @api_router.get("/sensors/history")
