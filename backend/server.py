@@ -6927,6 +6927,30 @@ async def get_energy_summary(hours: int = 24):
             "count": r["count"]
         }
         
+        # Normalize old data that wasn't divided by 100
+        # Power > 10000W, Voltage > 1000V, Current > 50A are likely not normalized
+        if sensor_type == "power":
+            if stat_data["min"] and stat_data["min"] > 10000:
+                stat_data["min"] = round(stat_data["min"] / 100, 2)
+            if stat_data["max"] and stat_data["max"] > 10000:
+                stat_data["max"] = round(stat_data["max"] / 100, 2)
+            if stat_data["avg"] and stat_data["avg"] > 10000:
+                stat_data["avg"] = round(stat_data["avg"] / 100, 2)
+        elif sensor_type == "voltage":
+            if stat_data["min"] and stat_data["min"] > 1000:
+                stat_data["min"] = round(stat_data["min"] / 100, 2)
+            if stat_data["max"] and stat_data["max"] > 1000:
+                stat_data["max"] = round(stat_data["max"] / 100, 2)
+            if stat_data["avg"] and stat_data["avg"] > 1000:
+                stat_data["avg"] = round(stat_data["avg"] / 100, 2)
+        elif sensor_type == "current":
+            if stat_data["min"] and stat_data["min"] > 50:
+                stat_data["min"] = round(stat_data["min"] / 100, 2)
+            if stat_data["max"] and stat_data["max"] > 50:
+                stat_data["max"] = round(stat_data["max"] / 100, 2)
+            if stat_data["avg"] and stat_data["avg"] > 50:
+                stat_data["avg"] = round(stat_data["avg"] / 100, 2)
+        
         devices[device_id][sensor_type] = stat_data
         devices[device_id]["readings_count"] += r["count"]
         
