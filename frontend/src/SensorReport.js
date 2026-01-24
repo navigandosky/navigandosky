@@ -380,9 +380,10 @@ export default function SensorReport() {
   const collectData = async () => {
     setCollecting(true);
     try {
-      const response = await axios.post(`${API}/sensors/collect`);
-      toast.success(`Raccolte ${response.data.readings_stored} letture!`);
+      const response = await axios.post(`${API}/sensors/force-collect`);
+      toast.success(`Raccolte ${response.data.readings_saved} letture da ${response.data.sensors_count} sensori!`);
       await loadReport();
+      await loadCollectionStatus();
     } catch (error) {
       console.error("Error collecting data:", error);
       toast.error("Errore nella raccolta dati");
