@@ -2697,6 +2697,99 @@ export default function MatterportManager({ authToken, currentUser }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Apparato Details Dialog */}
+      <Dialog open={showApparatoDialog} onOpenChange={setShowApparatoDialog}>
+        <DialogContent className="bg-slate-800 border-slate-600 text-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white text-lg flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-400" />
+              {linkedApparato?.nome || "Dettagli Apparato"}
+            </DialogTitle>
+            <DialogDescription className="text-slate-300">
+              Apparato collegato al POI: {selectedPoi?.translations?.[0]?.title}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {linkedApparato && (
+            <div className="space-y-4">
+              {/* Basic Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400">Marca</label>
+                  <p className="text-white font-medium">{linkedApparato.marca || "-"}</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400">Modello</label>
+                  <p className="text-white font-medium">{linkedApparato.modello || "-"}</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400">Numero Serie</label>
+                  <p className="text-white font-medium">{linkedApparato.numero_serie || "-"}</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400">Posizione</label>
+                  <p className="text-white font-medium">{linkedApparato.posizione || "-"}</p>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-700">
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400">Data Acquisto</label>
+                  <p className="text-white font-medium">
+                    {linkedApparato.data_acquisto ? new Date(linkedApparato.data_acquisto).toLocaleDateString('it-IT') : "-"}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-slate-400">Scadenza Garanzia</label>
+                  <p className={`font-medium ${linkedApparato.data_scadenza_garanzia && new Date(linkedApparato.data_scadenza_garanzia) > new Date() ? 'text-green-400' : 'text-red-400'}`}>
+                    {linkedApparato.data_scadenza_garanzia ? new Date(linkedApparato.data_scadenza_garanzia).toLocaleDateString('it-IT') : "-"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Energy */}
+              {linkedApparato.consumo_orario_kw > 0 && (
+                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-700">
+                  <div className="space-y-2">
+                    <label className="text-xs text-slate-400">Potenza</label>
+                    <p className="text-green-400 font-medium">{Math.round(linkedApparato.consumo_orario_kw * 1000)}W</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-slate-400">Uso Giornaliero</label>
+                    <p className="text-white font-medium">{linkedApparato.ore_uso_giornaliero_stimate || 0}h</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-slate-400">Consumo Mensile</label>
+                    <p className="text-amber-400 font-medium">
+                      {((linkedApparato.consumo_orario_kw || 0) * (linkedApparato.ore_uso_giornaliero_stimate || 0) * 30).toFixed(1)} kWh
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {linkedApparato.note && (
+                <div className="pt-4 border-t border-slate-700">
+                  <label className="text-xs text-slate-400">Note</label>
+                  <p className="text-white mt-1">{linkedApparato.note}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="mt-4">
+            <Button 
+              variant="outline" 
+              className="border-slate-600 text-slate-300"
+              onClick={() => setShowApparatoDialog(false)}
+            >
+              Chiudi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
