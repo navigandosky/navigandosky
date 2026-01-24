@@ -1557,7 +1557,8 @@ async def create_elettrodomestico(data: dict = Body(...), token: Optional[str] =
         logger.error(f"Validation error: {e}")
         raise HTTPException(status_code=422, detail=str(e))
     
-    elettrodomestico = Elettrodomestico(**validated_data.model_dump())
+    # Create Elettrodomestico with user_id from session
+    elettrodomestico = Elettrodomestico(**validated_data.model_dump(), user_id=user["id"])
     doc = serialize_doc(elettrodomestico.model_dump())
     await db.elettrodomestici.insert_one(doc)
     return elettrodomestico
