@@ -496,6 +496,14 @@ export default function MatterportManager({ authToken, currentUser }) {
     }
   };
 
+  // Select space
+  const handleSelectSpace = (space) => {
+    setActiveSpace(space);
+    loadPois(space.id);
+    setSelectedPoi(null);
+    setLinkedApparato(null);
+  };
+
   // Import tags from Matterport
   const handleImportTags = async () => {
     if (selectedTagsForImport.length === 0) {
