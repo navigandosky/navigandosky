@@ -30,6 +30,18 @@
 
 ### ✅ Bug Fix e Feature Recenti
 
+#### Raccolta Automatica Dati Sensori ✅ (24/01/2026)
+- **Feature**: Background job che raccoglie automaticamente i dati dai sensori eWeLink ogni 5 minuti
+- **Dati raccolti**: Temperatura, umidità, potenza, voltaggio, corrente
+- **Endpoint**:
+  - `GET /api/sensors/collection-status` - Stato della raccolta automatica
+  - `POST /api/sensors/force-collect` - Forza raccolta manuale
+- **Frontend**: Banner verde in Report Sensori mostra stato raccolta, letture ultima ora e oggi
+- **File modificati**: 
+  - `backend/server.py` (background_sensor_collector, startup/shutdown events)
+  - `frontend/src/SensorReport.js` (collection status banner)
+- **Testato**: ✅ Background collector attivo, 31 letture nell'ultima ora
+
 #### Associazione Apparati-POI Matterport ✅ (24/01/2026)
 - **Feature**: Collegare un apparato a un POI nella vista 3D per creare un vero digital twin
 - **Form Apparato**: Aggiunto dropdown POI nella tab "Smart" per selezionare il punto di interesse
