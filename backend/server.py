@@ -130,7 +130,7 @@ SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
 SMTP_FROM = os.environ.get('SMTP_FROM', '')
 
 # Frontend URL for QR codes
-FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://mpskin-integrator.preview.emergentagent.com')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://smartdomo-2.preview.emergentagent.com')
 
 
 # ============== ENUMS ==============
