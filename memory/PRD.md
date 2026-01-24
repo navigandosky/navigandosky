@@ -208,13 +208,13 @@ Tutte le API principali ora accettano `?token=...` per filtrare i dati per utent
 
 ### P0 (Alta Priorità)
 - [x] ~~Associazione Apparati con POI Matterport~~ ✅ COMPLETATO 24/01/2026
-- [ ] Segregazione SmartThings/eWeLink: Usare eWeLink per sensori non-Samsung
-- [ ] Rigenerare SmartThings token (solo per dispositivi Samsung)
+- [x] ~~Raccolta automatica dati sensori (background job eWeLink)~~ ✅ COMPLETATO 24/01/2026
+- [ ] Indicatori di stato sui POI 3D (temperatura/consumo live sui tag)
 
 ### P1 (Media Priorità)
-- [ ] Raccolta automatica dati sensori (background job eWeLink)
-- [ ] Notifiche push per eventi critici
+- [ ] Notifiche push per eventi critici (temperatura troppo alta/bassa)
 - [ ] Dashboard statistiche per utente
+- [ ] Alert manutenzione scaduta
 
 ### P2 (Bassa Priorità)
 - [ ] QR Code scanning
