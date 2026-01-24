@@ -6862,6 +6862,90 @@ async def get_sensors_report(hours: int = 24):
     return report
 
 
+
+@api_router.get("/sensors/energy-summary")
+async def get_energy_summary(hours: int = 24):
+    """
+    Get energy consumption summary with power, voltage, current stats.
+    Returns real-time and historical data for energy monitoring.
+    """
+    start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+    
+    # Get power/voltage/current readings
+    pipeline = [
+        {
+            "$match": {
+                "user_id": DEFAULT_USER_ID,
+                "sensor_type": {"$in": ["power", "voltage", "current"]},
+                "timestamp": {"$gte": start_time}
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "device_id": "$device_id",
+                    "sensor_type": "$sensor_type"
+                },
+                "device_name": {"$first": "$device_name"},
+                "unit": {"$first": "$unit"},
+                "min_value": {"$min": "$value"},
+                "max_value": {"$max": "$value"},
+                "avg_value": {"$avg": "$value"},
+                "last_value": {"$last": "$value"},
+                "count": {"$sum": 1},
+                "last_timestamp": {"$max": "$timestamp"}
+            }
+        },
+        {"$sort": {"_id.device_id": 1, "_id.sensor_type": 1}}
+    ]
+    
+    results = await db.sensor_readings.aggregate(pipeline).to_list(100)
+    
+    # Organize by device
+    devices = {}
+    for r in results:
+        device_id = r["_id"]["device_id"]
+        sensor_type = r["_id"]["sensor_type"]
+        
+        if device_id not in devices:
+            devices[device_id] = {
+                "device_id": device_id,
+                "device_name": r.get("device_name", "Dispositivo"),
+                "power": None,
+                "voltage": None,
+                "current": None,
+                "readings_count": 0,
+                "last_update": None
+            }
+        
+        stat_data = {
+            "current": round(r["last_value"], 2) if r["last_value"] else None,
+            "min": round(r["min_value"], 2),
+            "max": round(r["max_value"], 2),
+            "avg": round(r["avg_value"], 2),
+            "unit": r.get("unit", ""),
+            "count": r["count"]
+        }
+        
+        devices[device_id][sensor_type] = stat_data
+        devices[device_id]["readings_count"] += r["count"]
+        
+        if r["last_timestamp"]:
+            if not devices[device_id]["last_update"] or r["last_timestamp"] > devices[device_id]["last_update"]:
+                devices[device_id]["last_update"] = r["last_timestamp"]
+    
+    # Calculate totals
+    total_power = sum(d["power"]["current"] for d in devices.values() if d.get("power") and d["power"].get("current"))
+    
+    return {
+        "period_hours": hours,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "total_power_w": round(total_power, 2),
+        "devices": list(devices.values()),
+        "device_count": len(devices)
+    }
+
+
 @api_router.get("/sensors/chart-data/{device_id}")
 async def get_sensor_chart_data(
     device_id: str,
