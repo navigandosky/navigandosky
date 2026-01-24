@@ -429,18 +429,28 @@ export default function MatterportManager({ authToken, currentUser }) {
   const loadLinkedApparato = useCallback(async (poiId) => {
     if (!poiId) {
       setLinkedApparato(null);
+      setLiveSensorData(null);
       return;
     }
     setLoadingApparato(true);
+    setLoadingLiveSensor(true);
     try {
       const params = authToken ? { token: authToken } : {};
+      
+      // Load appliance data
       const res = await axios.get(`${API_URL}/api/elettrodomestici/by-poi/${poiId}`, { params });
       setLinkedApparato(res.data);
+      
+      // Load live sensor data
+      const sensorRes = await axios.get(`${API_URL}/api/elettrodomestici/by-poi/${poiId}/live-sensor`, { params });
+      setLiveSensorData(sensorRes.data);
     } catch (error) {
       console.log("No linked apparato for POI:", poiId);
       setLinkedApparato(null);
+      setLiveSensorData(null);
     } finally {
       setLoadingApparato(false);
+      setLoadingLiveSensor(false);
     }
   }, [authToken]);
 
@@ -450,8 +460,26 @@ export default function MatterportManager({ authToken, currentUser }) {
       loadLinkedApparato(selectedPoi.id);
     } else {
       setLinkedApparato(null);
+      setLiveSensorData(null);
     }
   }, [selectedPoi?.id, loadLinkedApparato]);
+
+  // Refresh live sensor data periodically when POI is selected
+  useEffect(() => {
+    if (!selectedPoi?.id || !liveSensorData?.has_sensor) return;
+    
+    const refreshInterval = setInterval(async () => {
+      try {
+        const params = authToken ? { token: authToken } : {};
+        const sensorRes = await axios.get(`${API_URL}/api/elettrodomestici/by-poi/${selectedPoi.id}/live-sensor`, { params });
+        setLiveSensorData(sensorRes.data);
+      } catch (error) {
+        console.error("Error refreshing live sensor:", error);
+      }
+    }, 15000); // Refresh every 15 seconds
+    
+    return () => clearInterval(refreshInterval);
+  }, [selectedPoi?.id, liveSensorData?.has_sensor, authToken]);
 
   // Create/Update space
   const handleSaveSpace = async () => {
