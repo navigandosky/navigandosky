@@ -481,6 +481,33 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     return () => clearInterval(refreshInterval);
   }, [selectedPoi?.id, liveSensorData?.has_sensor, authToken]);
 
+  // Handle external navigation to POI (from apparato card)
+  useEffect(() => {
+    if (!navigateToPoiId || pois.length === 0) return;
+    
+    // Find the POI to navigate to
+    const targetPoi = pois.find(p => p.id === navigateToPoiId);
+    if (targetPoi) {
+      console.log("Navigating to POI from apparato:", targetPoi.translations?.[0]?.title);
+      setSelectedPoi(targetPoi);
+      setActiveTab("pois");
+      
+      // Navigate in the 3D viewer
+      handleNavigateToPoi(targetPoi);
+      
+      // Clear the navigation request
+      if (onNavigationComplete) {
+        onNavigationComplete();
+      }
+    } else {
+      console.warn("POI not found:", navigateToPoiId);
+      toast.error("POI non trovato nel modello 3D");
+      if (onNavigationComplete) {
+        onNavigationComplete();
+      }
+    }
+  }, [navigateToPoiId, pois, onNavigationComplete]);
+
   // Create/Update space
   const handleSaveSpace = async () => {
     setLoading(true);
