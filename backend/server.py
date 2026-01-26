@@ -7808,7 +7808,7 @@ async def background_sensor_collector():
                     })
                     readings_saved += 1
             
-            logger.info(f"✅ Background sensor collection: saved {readings_saved} readings from {len(sensors)} sensors")
+            logger.info(f"✅ Background sensor collection: saved {readings_saved} readings from {len(devices)} devices")
             
         except Exception as e:
             logger.error(f"❌ Background sensor collection error: {e}")
