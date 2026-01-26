@@ -7153,16 +7153,19 @@ async def get_energy_summary(hours: int = 24):
             "count": r["count"]
         }
         
-        # Normalize old data that wasn't divided by 100
+        # Normalize old data that wasn't divided by 10
+        # eWeLink power values are x10, normalize to actual watts
         # Typical values: Power ~50-500W, Voltage ~220-240V, Current ~0.1-5A
         if sensor_type == "power":
-            # Power avg > 1000W for a single device is likely not normalized
-            if stat_data["min"] and stat_data["min"] > 1000:
-                stat_data["min"] = round(stat_data["min"] / 100, 2)
-            if stat_data["max"] and stat_data["max"] > 1000:
-                stat_data["max"] = round(stat_data["max"] / 100, 2)
-            if stat_data["avg"] and stat_data["avg"] > 1000:
-                stat_data["avg"] = round(stat_data["avg"] / 100, 2)
+            # Power > 100W for single readings is likely not normalized (divide by 10)
+            if stat_data["current"] and stat_data["current"] > 100:
+                stat_data["current"] = round(stat_data["current"] / 10, 2)
+            if stat_data["min"] and stat_data["min"] > 100:
+                stat_data["min"] = round(stat_data["min"] / 10, 2)
+            if stat_data["max"] and stat_data["max"] > 100:
+                stat_data["max"] = round(stat_data["max"] / 10, 2)
+            if stat_data["avg"] and stat_data["avg"] > 100:
+                stat_data["avg"] = round(stat_data["avg"] / 10, 2)
         elif sensor_type == "voltage":
             # Voltage > 500V is likely not normalized
             if stat_data["min"] and stat_data["min"] > 500:
