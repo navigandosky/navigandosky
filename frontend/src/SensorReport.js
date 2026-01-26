@@ -691,18 +691,181 @@ export default function SensorReport() {
             )}
           </TabsContent>
 
-          {/* Power Tab */}
-          <TabsContent value="power" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groupedSensors.power?.map((sensor, idx) => (
-                <SensorCard
-                  key={`pow-${sensor.device_id}-${idx}`}
-                  sensor={sensor}
-                  onClick={handleSensorSelect}
-                  isSelected={selectedSensor?.device_id === sensor.device_id}
-                />
-              ))}
-            </div>
+          {/* Energy Tab */}
+          <TabsContent value="energy" className="space-y-4">
+            {/* Energy Summary Cards */}
+            {energySummary && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {/* Current Power */}
+                <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-amber-600 font-medium">Potenza Attuale</p>
+                        <p className="text-3xl font-bold text-amber-700">
+                          {energySummary.total_power_w?.toFixed(0) || 0}
+                          <span className="text-lg ml-1">W</span>
+                        </p>
+                      </div>
+                      <div className="p-3 bg-amber-100 rounded-full">
+                        <Zap className="h-6 w-6 text-amber-600" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-amber-500 mt-2">
+                      Media: {energySummary.avg_power_w?.toFixed(0) || 0}W
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Daily Consumption */}
+                <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Consumo Giornaliero</p>
+                        <p className="text-3xl font-bold text-blue-700">
+                          {energySummary.consumption?.daily_kwh?.toFixed(2) || 0}
+                          <span className="text-lg ml-1">kWh</span>
+                        </p>
+                      </div>
+                      <div className="p-3 bg-blue-100 rounded-full">
+                        <Activity className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-blue-500 mt-2">
+                      Costo: €{energySummary.consumption?.daily_cost_eur?.toFixed(2) || 0}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Monthly Consumption */}
+                <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-purple-600 font-medium">Stima Mensile</p>
+                        <p className="text-3xl font-bold text-purple-700">
+                          {energySummary.consumption?.monthly_kwh?.toFixed(1) || 0}
+                          <span className="text-lg ml-1">kWh</span>
+                        </p>
+                      </div>
+                      <div className="p-3 bg-purple-100 rounded-full">
+                        <TrendingUp className="h-6 w-6 text-purple-600" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-purple-500 mt-2">
+                      Costo: €{energySummary.consumption?.monthly_cost_eur?.toFixed(2) || 0}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Cost per kWh */}
+                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-green-600 font-medium">Costo Energia</p>
+                        <p className="text-3xl font-bold text-green-700">
+                          €{energySummary.consumption?.cost_per_kwh?.toFixed(2) || 0.25}
+                          <span className="text-lg ml-1">/kWh</span>
+                        </p>
+                      </div>
+                      <div className="p-3 bg-green-100 rounded-full">
+                        <Settings className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-green-500 mt-2">
+                      {energySummary.device_count || 0} dispositivi monitorati
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Power Sensors List */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-amber-500" />
+                  Sensori di Consumo
+                </CardTitle>
+                <CardDescription>
+                  Dispositivi che misurano il consumo energetico in tempo reale
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {groupedSensors.power?.length > 0 ? (
+                    groupedSensors.power.map((sensor, idx) => (
+                      <SensorCard
+                        key={`energy-${sensor.device_id}-${idx}`}
+                        sensor={sensor}
+                        onClick={handleSensorSelect}
+                        isSelected={selectedSensor?.device_id === sensor.device_id}
+                      />
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center py-8 text-gray-500">
+                      <Zap className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                      <p>Nessun sensore di consumo rilevato</p>
+                      <p className="text-sm mt-1">Collega dispositivi eWeLink con misurazione potenza</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Chart for selected power sensor */}
+            {selectedSensor?.sensor_type === "power" && chartData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <LineChartIcon className="h-5 w-5 text-amber-500" />
+                    Storico Consumi - {selectedSensor.device_name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData}>
+                        <defs>
+                          <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis 
+                          dataKey="timestamp" 
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(value) => {
+                            const date = new Date(value);
+                            return date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                          }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(value) => `${value}W`}
+                        />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
+                          labelStyle={{ color: '#9ca3af' }}
+                          formatter={(value) => [`${value?.toFixed(0)}W`, 'Potenza']}
+                          labelFormatter={(label) => new Date(label).toLocaleString('it-IT')}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="#f59e0b" 
+                          strokeWidth={2}
+                          fill="url(#colorPower)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       )}
