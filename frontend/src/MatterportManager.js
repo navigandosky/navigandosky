@@ -668,9 +668,10 @@ export default function MatterportManager({ authToken, currentUser }) {
       toast.info("Ricerca punto di navigazione più vicino...");
       const nearestSweepId = await findNearestSweepId(poiForm.position);
       
-      // Create POI in database
+      // Create POI in database - use space_id (Matterport ID) not id (local DB ID)
+      const matterportSpaceId = activeSpace?.space_id || activeSpace?.id;
       const response = await axios.post(`${API_URL}/api/matterport/pois?token=${authToken}`, {
-        space_id: activeSpace?.id || activeSpace?.space_id,
+        space_id: matterportSpaceId,
         position: poiForm.position,
         nearest_sweep_id: nearestSweepId, // Save sweep ID for navigation
         translations: [{
@@ -681,7 +682,8 @@ export default function MatterportManager({ authToken, currentUser }) {
         icon: poiForm.icon,
         color: hexColor,
         is_imported: false,
-        is_visible: true
+        is_visible: true,
+        category: poiForm.category || "general"
       });
       
       // Add tag to Matterport 3D view
