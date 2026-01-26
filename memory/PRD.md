@@ -30,6 +30,21 @@
 
 ### ✅ Bug Fix e Feature Recenti
 
+#### Normalizzazione Dati Sensori ✅ (26/01/2026)
+- **Problema 1**: Potenza mostrava valori x10 (es. 1912W invece di 191W)
+  - Fix: Aggiunta normalizzazione /10 per power > 100W in tutti gli endpoint
+- **Problema 2**: Card Energia mostrava valori non normalizzati
+  - Fix: Normalizzazione /10 in energy-summary per current, min, max, avg
+- **Problema 3**: Grafico temperatura non visibile
+  - Fix: Il grafico c'era ma era sotto la fold - ora verificato funzionante
+- **Risultati dopo fix**:
+  - Potenza Attuale: 181W ✅
+  - Consumo Giornaliero: 2.37 kWh ✅
+  - Stima Mensile: 72.3 kWh (€18.07) ✅
+  - Grafico temperatura funzionante ✅
+- **File modificati**: 
+  - `backend/server.py` (normalizzazione power in devices, report, energy-summary)
+
 #### Fix Sensore Enervia VP Studio + Tab Energia ✅ (26/01/2026)
 - **Problema 1**: Sensore "Energia V Pc studio" non rilevato - stato mostrato come SPENTO invece di ACCESO
   - **Fix**: Usato `switchState` invece di `switch` per lo stato
