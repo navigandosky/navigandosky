@@ -7716,18 +7716,22 @@ async def background_sensor_collector():
         try:
             logger.info("🔄 Background sensor collection starting...")
             
-            # Get eWeLink sensors
-            sensors_response = await get_ewelink_sensors()
-            sensors = sensors_response.get("sensors", [])
+            # Get ALL eWeLink devices with sensor values (including power meters)
+            devices_response = await get_devices_with_sensor_values()
+            devices = devices_response.get("devices", [])
+            sensors_data = devices_response.get("sensors", {})
             
             readings_saved = 0
-            for sensor in sensors:
-                if not sensor.get("online"):
+            for device in devices:
+                if not device.get("online"):
                     continue
                 
                 timestamp = datetime.now(timezone.utc).isoformat()
-                device_id = sensor.get("id", "")
-                device_name = sensor.get("name", "Unknown")
+                device_id = device.get("id", "")
+                device_name = device.get("name", "Unknown")
+                
+                # Get sensor values for this device
+                sensor = sensors_data.get(device_id, {})
                 
                 # Save temperature
                 if sensor.get("temperature") is not None:
