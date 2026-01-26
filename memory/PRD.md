@@ -30,19 +30,22 @@
 
 ### ✅ Bug Fix e Feature Recenti
 
-#### Fix Sensore Enervia VP Studio (Power Meter) ✅ (26/01/2026)
-- **Problema**: Il sensore "Energia V Pc studio" non veniva rilevato correttamente nella domotica
-- **Causa**: 
-  1. Provider "ewelink" mancante nell'enum SmartPlugProvider
-  2. Endpoint live-sensor usava solo `get_ewelink_sensors()` che filtra solo sensori temperatura/umidità
-- **Fix**:
-  1. Aggiunto "EWELINK" all'enum SmartPlugProvider backend
-  2. Aggiunto "eWeLink/Sonoff" nel dropdown provider frontend
-  3. Modificato endpoint live-sensor per usare `get_devices_with_sensor_values()` che include power meters
-- **Risultato**: Sensore ora mostra **2785W** in tempo reale, stato Online, controllabile
+#### Fix Sensore Enervia VP Studio + Tab Energia ✅ (26/01/2026)
+- **Problema 1**: Sensore "Energia V Pc studio" non rilevato - stato mostrato come SPENTO invece di ACCESO
+  - **Fix**: Usato `switchState` invece di `switch` per lo stato
+- **Problema 2**: Dati potenza non salvati dal background collector
+  - **Fix**: Background collector ora usa `get_devices_with_sensor_values()` che include power meters
+- **Problema 3**: Tab Energia mancante in Report Sensori
+  - **Fix**: Creata nuova tab "Energia" con:
+    - 4 Card riepilogo: Potenza Attuale, Consumo Giornaliero, Stima Mensile, Costo kWh
+    - Lista sensori di consumo con grafico storico
+- **Risultato**: 
+  - Sensore mostra **2785W** in tempo reale
+  - Stato **"⚡ ACCESO"** corretto
+  - Tab Energia mostra consumi e costi stimati
 - **File modificati**: 
-  - `backend/server.py` (enum, endpoint live-sensor)
-  - `frontend/src/ElettrodomesticoForm.js` (dropdown provider, selettore dispositivi)
+  - `backend/server.py` (switchState fix, background collector)
+  - `frontend/src/SensorReport.js` (tab Energia, energySummary state)
 
 #### Pulsante "Vai al POI" su Apparati ✅ (26/01/2026)
 - **Feature**: Pulsante navigazione (icona freccia cyan) nella card apparato quando ha un POI collegato
