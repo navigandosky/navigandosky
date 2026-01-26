@@ -64,6 +64,7 @@ const MARCHE_BASE = [
 // Smart Plug Providers
 const SMART_PLUG_PROVIDERS = [
   { value: "nessuno", label: "Nessuno" },
+  { value: "ewelink", label: "eWeLink/Sonoff" },
   { value: "smartthings", label: "SmartThings" },
   { value: "shelly", label: "Shelly" },
   { value: "tapo", label: "TP-Link Tapo" },
