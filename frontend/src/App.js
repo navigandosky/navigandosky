@@ -1873,7 +1873,12 @@ function App() {
 
         {/* Matterport Tab */}
         {activeTab === "matterport" && (
-          <MatterportManager authToken={authToken} currentUser={currentUser} />
+          <MatterportManager 
+            authToken={authToken} 
+            currentUser={currentUser}
+            navigateToPoiId={navigateToPoiId}
+            onNavigationComplete={() => setNavigateToPoiId(null)}
+          />
         )}
 
         {/* Elettrodomestici Tab */}
