@@ -30,6 +30,14 @@
 
 ### ✅ Bug Fix e Feature Recenti
 
+#### Pulsante "Vai al POI" su Apparati ✅ (26/01/2026)
+- **Feature**: Pulsante navigazione (icona freccia cyan) nella card apparato quando ha un POI collegato
+- **Comportamento**: Clicca → Naviga automaticamente a Vista 3D → Seleziona POI → Mostra dettagli apparato
+- **File modificati**: 
+  - `frontend/src/App.js` (handleNavigateToPoi, navigateToPoiId state, pulsante in card)
+  - `frontend/src/MatterportManager.js` (props navigateToPoiId, useEffect per navigazione automatica)
+- **Testato**: ✅ Funzionante - testato con "Lavatrice Samsung" collegata a "Test POI Import"
+
 #### Bug Fix Creazione POI ✅ (26/01/2026)
 - **Problema**: I nuovi POI creati non apparivano nella lista perché usavano `space_id` locale invece di `matterport_space_id`
 - **Causa**: Il frontend passava `activeSpace.id` (ID locale DB) invece di `activeSpace.space_id` (ID Matterport)
