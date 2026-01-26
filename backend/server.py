@@ -1718,19 +1718,24 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
             "message": "Apparato non collegato a un sensore smart"
         }
     
-    # Get live sensor data from eWeLink
+    # Get live sensor data from eWeLink - use devices-with-sensors to get all devices including power meters
     try:
-        sensors_response = await get_ewelink_sensors()
-        sensors = sensors_response.get("sensors", [])
+        # First try to get from devices-with-sensors which includes all devices
+        devices_response = await get_devices_with_sensor_values()
+        devices = devices_response.get("devices", [])
+        sensors = devices_response.get("sensors", {})
         
-        # Find the matching sensor
-        sensor_data = None
-        for sensor in sensors:
-            if sensor.get("id") == device_id:
-                sensor_data = sensor
+        # Find the matching device
+        device_data = None
+        for device in devices:
+            if device.get("id") == device_id:
+                device_data = device
                 break
         
-        if sensor_data:
+        if device_data:
+            # Get sensor values for this device
+            sensor_values = sensors.get(device_id, {})
+            
             return {
                 "has_sensor": True,
                 "apparato": {
@@ -1743,15 +1748,16 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
                 },
                 "sensor": {
                     "device_id": device_id,
-                    "device_name": sensor_data.get("name"),
-                    "online": sensor_data.get("online", False),
-                    "temperature": sensor_data.get("temperature"),
-                    "humidity": sensor_data.get("humidity"),
-                    "power": sensor_data.get("power"),
-                    "voltage": sensor_data.get("voltage"),
-                    "current": sensor_data.get("current"),
-                    "switch_state": sensor_data.get("switch"),
-                    "source": "ewelink"
+                    "device_name": device_data.get("name"),
+                    "online": device_data.get("online", False),
+                    "temperature": sensor_values.get("temperature"),
+                    "humidity": sensor_values.get("humidity"),
+                    "power": sensor_values.get("power"),
+                    "voltage": sensor_values.get("voltage"),
+                    "current": sensor_values.get("current"),
+                    "switch_state": device_data.get("switch"),
+                    "can_switch": device_data.get("canSwitch", False),
+                    "source": devices_response.get("source", "ewelink")
                 },
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
