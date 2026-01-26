@@ -1755,7 +1755,7 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
                     "power": sensor_values.get("power"),
                     "voltage": sensor_values.get("voltage"),
                     "current": sensor_values.get("current"),
-                    "switch_state": device_data.get("switch"),
+                    "switch_state": device_data.get("switchState") or device_data.get("switch"),
                     "can_switch": device_data.get("canSwitch", False),
                     "source": devices_response.get("source", "ewelink")
                 },
