@@ -5896,16 +5896,21 @@ async def create_poi(poi: POICreate, token: Optional[str] = Query(None)):
     poi_dict["created_at"] = datetime.now(timezone.utc)
     poi_dict["updated_at"] = datetime.now(timezone.utc)
     
-    # Handle virtual space IDs (user_xxx) - use user's matterport_space_id
-    if poi_dict.get("space_id", "").startswith("user_"):
-        if user.get("matterport_space_id"):
-            poi_dict["space_id"] = user["matterport_space_id"]
-        else:
-            # Try to get space_id from the virtual ID
-            user_id_from_space = poi_dict["space_id"].replace("user_", "")
-            user_doc = await db.users.find_one({"id": user_id_from_space}, {"_id": 0})
-            if user_doc and user_doc.get("matterport_space_id"):
-                poi_dict["space_id"] = user_doc["matterport_space_id"]
+    # IMPORTANT: Always use user's matterport_space_id if available
+    # This ensures POIs are created with the correct space_id for filtering
+    if user.get("matterport_space_id"):
+        poi_dict["space_id"] = user["matterport_space_id"]
+    elif poi_dict.get("space_id", "").startswith("user_"):
+        # Handle virtual space IDs (user_xxx) - use user's matterport_space_id
+        user_id_from_space = poi_dict["space_id"].replace("user_", "")
+        user_doc = await db.users.find_one({"id": user_id_from_space}, {"_id": 0})
+        if user_doc and user_doc.get("matterport_space_id"):
+            poi_dict["space_id"] = user_doc["matterport_space_id"]
+    else:
+        # Try to find the matterport space_id from local space
+        local_space = await db.matterport_spaces.find_one({"id": poi_dict.get("space_id")}, {"_id": 0})
+        if local_space and local_space.get("space_id"):
+            poi_dict["space_id"] = local_space["space_id"]
     
     await db.pois.insert_one(poi_dict)
     poi_dict.pop("_id", None)
