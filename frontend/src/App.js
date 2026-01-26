@@ -2005,6 +2005,17 @@ function App() {
                         >
                           <Eye className="h-3 w-3 mr-1" /> Apri Scheda
                         </Button>
+                        {e.matterport_tag_id && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50"
+                            onClick={() => handleNavigateToPoi(e.matterport_tag_id)}
+                            title="Vai al POI nella Vista 3D"
+                          >
+                            <Navigation className="h-3 w-3" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
