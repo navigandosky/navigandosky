@@ -321,6 +321,7 @@ export default function SensorReport() {
   const [loading, setLoading] = useState(true);
   const [collecting, setCollecting] = useState(false);
   const [collectionStatus, setCollectionStatus] = useState(null);
+  const [energySummary, setEnergySummary] = useState(null);
   const [selectedSensor, setSelectedSensor] = useState(null);
   const [chartData, setChartData] = useState(null);
   const [chartLoading, setChartLoading] = useState(false);
@@ -337,6 +338,16 @@ export default function SensorReport() {
       console.error("Error loading collection status:", error);
     }
   }, []);
+
+  // Load energy summary
+  const loadEnergySummary = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/sensors/energy-summary?hours=${timePeriod}`);
+      setEnergySummary(response.data);
+    } catch (error) {
+      console.error("Error loading energy summary:", error);
+    }
+  }, [timePeriod]);
 
   // Load report
   const loadReport = useCallback(async () => {
