@@ -272,16 +272,19 @@ export default function ElettrodomesticoDialog({
     }
   };
 
-  // Select SmartThings device
+  // Select SmartThings/eWeLink device
   const handleSelectSmartThingsDevice = (deviceId) => {
     const device = smartThingsDevices.find(d => d.id === deviceId);
     if (device) {
+      // Keep the current provider or default based on source
+      const provider = formData.smart_plug_provider === "ewelink" ? "ewelink" : 
+                       (device.source === "ewelink" ? "ewelink" : "smartthings");
       setFormData(prev => ({
         ...prev,
         nome: prev.nome || device.name,
         smartthings_device_id: device.id,
         smartthings_device_name: device.name,
-        smart_plug_provider: "smartthings",
+        smart_plug_provider: provider,
         smart_plug_id: device.id
       }));
     }
