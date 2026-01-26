@@ -30,6 +30,16 @@
 
 ### ✅ Bug Fix e Feature Recenti
 
+#### Bug Fix Creazione POI ✅ (26/01/2026)
+- **Problema**: I nuovi POI creati non apparivano nella lista perché usavano `space_id` locale invece di `matterport_space_id`
+- **Causa**: Il frontend passava `activeSpace.id` (ID locale DB) invece di `activeSpace.space_id` (ID Matterport)
+- **Fix Backend**: Ora usa sempre `user.matterport_space_id` quando disponibile
+- **Fix Frontend**: Modificato per usare `activeSpace.space_id` come priorità
+- **File modificati**: 
+  - `backend/server.py` (endpoint create_poi)
+  - `frontend/src/MatterportManager.js` (handleCreatePoiAtPosition)
+- **Testato**: ✅ POI creati correttamente e visibili nella lista
+
 #### Indicatori Live sui POI 3D ✅ (24/01/2026)
 - **Feature**: Dati sensore in tempo reale visibili quando si seleziona un POI collegato
 - **Dati mostrati**: Temperatura, Umidità, Potenza, Voltaggio, Stato ON/OFF
