@@ -1552,6 +1552,17 @@ function App() {
   };
 
   // CRUD handlers for Elettrodomestici
+  // Navigate to POI in 3D view
+  const handleNavigateToPoi = (poiId) => {
+    if (!poiId) {
+      toast.error("Questo apparato non ha un POI associato");
+      return;
+    }
+    setNavigateToPoiId(poiId);
+    setActiveTab("matterport");
+    toast.info("Navigazione verso il punto 3D...");
+  };
+
   // Open scheda apparato with manutenzioni
   const handleOpenSchedaApparato = async (apparato) => {
     setViewingApparato(apparato);
