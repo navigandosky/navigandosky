@@ -724,11 +724,11 @@ export default function ElettrodomesticoDialog({
                 </Select>
               </div>
 
-              {formData.smart_plug_provider === "smartthings" && smartThingsDevices.length > 0 && (
+              {(formData.smart_plug_provider === "smartthings" || formData.smart_plug_provider === "ewelink") && smartThingsDevices.length > 0 && (
                 <div className="space-y-2">
-                  <Label>Dispositivo SmartThings</Label>
+                  <Label>Dispositivo {formData.smart_plug_provider === "ewelink" ? "eWeLink" : "SmartThings"}</Label>
                   <Select
-                    value={formData.smartthings_device_id}
+                    value={formData.smartthings_device_id || formData.smart_plug_id}
                     onValueChange={handleSelectSmartThingsDevice}
                   >
                     <SelectTrigger>
@@ -737,7 +737,8 @@ export default function ElettrodomesticoDialog({
                     <SelectContent>
                       {smartThingsDevices.map((device) => (
                         <SelectItem key={device.id} value={device.id}>
-                          {device.name}
+                          {device.online ? "🟢" : "🔴"} {device.name}
+                          {device.canSwitch && " ⚡"}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -745,7 +746,7 @@ export default function ElettrodomesticoDialog({
                 </div>
               )}
 
-              {formData.smart_plug_provider !== "nessuno" && formData.smart_plug_provider !== "smartthings" && (
+              {formData.smart_plug_provider !== "nessuno" && formData.smart_plug_provider !== "smartthings" && formData.smart_plug_provider !== "ewelink" && (
                 <div className="space-y-2">
                   <Label htmlFor="smart_plug_id">ID Dispositivo Smart</Label>
                   <Input
