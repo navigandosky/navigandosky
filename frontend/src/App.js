@@ -54,7 +54,8 @@ import {
   Thermometer,
   Activity,
   LogOut,
-  Shield
+  Shield,
+  Navigation
 } from "lucide-react";
 import { LoginPage, UserManagement } from "./AuthPage";
 import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "./TicketCalendarQR";
