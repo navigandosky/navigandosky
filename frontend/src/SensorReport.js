@@ -570,12 +570,10 @@ export default function SensorReport() {
               <Droplets className="h-4 w-4" />
               Umidità
             </TabsTrigger>
-            {groupedSensors.power && (
-              <TabsTrigger value="power" className="flex items-center gap-2">
-                <Zap className="h-4 w-4" />
-                Potenza
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="energy" className="flex items-center gap-2">
+              <Zap className="h-4 w-4" />
+              Energia
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
