@@ -1292,6 +1292,7 @@ function App() {
   const [schedaApparatoOpen, setSchedaApparatoOpen] = useState(false);
   const [viewingApparato, setViewingApparato] = useState(null);
   const [apparatoManutenzioni, setApparatoManutenzioni] = useState([]);
+  const [navigateToPoiId, setNavigateToPoiId] = useState(null); // POI to navigate to in 3D view
   
   // SmartThings devices for form
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
