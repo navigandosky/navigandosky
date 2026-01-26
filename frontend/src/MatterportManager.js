@@ -706,7 +706,8 @@ export default function MatterportManager({ authToken, currentUser }) {
       toast.success(`POI creato! ${nearestSweepId ? '✓ Navigazione configurata' : '⚠ Navigazione limitata'}`);
       setShowPoiDialog(false);
       setPoiForm({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF", category: "general" });
-      loadPois(activeSpace.id);
+      // Reload POIs using the Matterport space_id
+      loadPois(activeSpace?.space_id || activeSpace?.id);
     } catch (error) {
       console.error("Error creating POI:", error);
       toast.error("Errore nella creazione del POI");
