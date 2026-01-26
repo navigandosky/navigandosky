@@ -149,6 +149,7 @@ class CategoriaElettrodomestico(str, Enum):
 
 class SmartPlugProvider(str, Enum):
     SMARTTHINGS = "smartthings"
+    EWELINK = "ewelink"
     TUYA = "tuya"
     SHELLY = "shelly"
     TAPO = "tapo"
