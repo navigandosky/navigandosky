@@ -7341,6 +7341,58 @@ async def cleanup_old_sensor_data(days: int = 30):
     }
 
 
+@api_router.post("/sensors/history/normalize")
+async def normalize_sensor_history():
+    """Normalize all old sensor readings that weren't divided correctly"""
+    normalized_count = 0
+    
+    # Fix temperature readings > 100 (should be divided by 100)
+    temp_result = await db.sensor_readings.update_many(
+        {"sensor_type": "temperature", "value": {"$gt": 100}},
+        [{"$set": {"value": {"$divide": ["$value", 100]}}}]
+    )
+    normalized_count += temp_result.modified_count
+    
+    # Fix humidity readings > 100 (should be divided by 100)
+    humid_result = await db.sensor_readings.update_many(
+        {"sensor_type": "humidity", "value": {"$gt": 100}},
+        [{"$set": {"value": {"$divide": ["$value", 100]}}}]
+    )
+    normalized_count += humid_result.modified_count
+    
+    # Fix power readings > 1000 (should be divided by 10)
+    power_result = await db.sensor_readings.update_many(
+        {"sensor_type": "power", "value": {"$gt": 1000}},
+        [{"$set": {"value": {"$divide": ["$value", 10]}}}]
+    )
+    normalized_count += power_result.modified_count
+    
+    # Fix voltage readings > 10000 (should be divided by 100)
+    volt_result = await db.sensor_readings.update_many(
+        {"sensor_type": "voltage", "value": {"$gt": 1000}},
+        [{"$set": {"value": {"$divide": ["$value", 10]}}}]
+    )
+    normalized_count += volt_result.modified_count
+    
+    # Fix current readings > 100 (should be divided by 100)
+    curr_result = await db.sensor_readings.update_many(
+        {"sensor_type": "current", "value": {"$gt": 100}},
+        [{"$set": {"value": {"$divide": ["$value", 100]}}}]
+    )
+    normalized_count += curr_result.modified_count
+    
+    return {
+        "normalized_count": normalized_count,
+        "details": {
+            "temperature": temp_result.modified_count,
+            "humidity": humid_result.modified_count,
+            "power": power_result.modified_count,
+            "voltage": volt_result.modified_count,
+            "current": curr_result.modified_count
+        }
+    }
+
+
 # ============== MATTERPORT CLOUD API ==============
 # For creating persistent Mattertags that appear on my.matterport.com
 
