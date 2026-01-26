@@ -4245,7 +4245,11 @@ async def get_devices_with_sensor_values():
                     
                     if params.get("power"):
                         try:
-                            sensors["power"] = float(params.get("power"))
+                            power_val = float(params.get("power"))
+                            # eWeLink power values are typically x10, normalize to actual watts
+                            if power_val > 100:  # Only normalize if value seems too high
+                                power_val = power_val / 10
+                            sensors["power"] = round(power_val, 1)
                         except (ValueError, TypeError):
                             pass
                     
