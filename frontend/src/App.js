@@ -1586,10 +1586,10 @@ function App() {
     try {
       console.log("Saving elettrodomestico:", data);
       if (editingElettro) {
-        await axios.put(`${API}/elettrodomestici/${editingElettro.id}`, data);
+        await axios.put(`${API}/elettrodomestici/${editingElettro.id}?token=${authToken}`, data);
         toast.success("Elettrodomestico aggiornato");
       } else {
-        await axios.post(`${API}/elettrodomestici`, data);
+        await axios.post(`${API}/elettrodomestici?token=${authToken}`, data);
         toast.success("Elettrodomestico creato");
       }
       setElettroDialogOpen(false);
