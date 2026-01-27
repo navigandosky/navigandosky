@@ -4979,16 +4979,21 @@ async def get_ewelink_devices():
                 # Determine if device supports switch control
                 # Sensor-only UIIDs that don't support switch
                 sensor_only_uiids = [1770, 7014, 7017, 102, 1000, 1009, 1256, 1257, 1258, 1259, 3026]
-                # Power monitoring UIIDs that don't support switch
-                power_monitor_uiids = [5, 32, 182, 190]
+                # Power monitoring UIIDs that DON'T support switch (pure monitors only)
+                # Note: UIID 190 (S60TPF) is a smart plug WITH switch capability, so it's not included here
+                power_monitor_only_uiids = [5, 32, 182]
                 # Camera UIIDs
-                camera_uiids = [87, 260, 260]
+                camera_uiids = [87, 260]
                 
+                # Device can switch if:
+                # 1. It has "switch" or "switches" in params (actual capability indicator)
+                # 2. AND it's not a sensor-only or camera device
+                has_switch_params = ("switch" in params or "switches" in params)
                 can_switch = (
+                    has_switch_params and
                     uiid not in sensor_only_uiids and 
-                    uiid not in power_monitor_uiids and
-                    uiid not in camera_uiids and
-                    ("switch" in params or "switches" in params or uiid < 1000)  # Most basic switches have low UIID
+                    uiid not in power_monitor_only_uiids and
+                    uiid not in camera_uiids
                 )
                 
                 device = {
