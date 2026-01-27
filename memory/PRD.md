@@ -76,6 +76,13 @@
 - **Stile**: Badge cyan con bordo, visibile accanto al badge "Smart"
 - **File modificati**: `frontend/src/App.js`
 
+#### Fix Creazione Elettrodomestici senza Token ✅ (27/01/2026)
+- **Problema**: Gli elettrodomestici creati non apparivano nella lista perché salvati con `user_id=default-user`
+- **Causa**: Le chiamate POST/PUT in `handleSaveElettro` non passavano il token di autenticazione
+- **Soluzione**: Aggiunto `?token=${authToken}` alle chiamate axios.post e axios.put
+- **Cleanup**: Corretti manualmente gli elettrodomestici già creati (Termosifone Studio, Autoclave, Energia V Pc studio) assegnandoli all'utente corretto
+- **File modificati**: `frontend/src/App.js`
+
 #### Normalizzazione Dati Sensori ✅ (26/01/2026)
 - **Problema 1**: Potenza mostrava valori x10 (es. 1912W invece di 191W)
   - Fix: Aggiunta normalizzazione /10 per power > 100W in tutti gli endpoint
