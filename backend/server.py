@@ -6801,14 +6801,14 @@ async def collect_and_store_sensor_data():
                         except (ValueError, TypeError):
                             pass
                     
-                    # Current (normalize - eWeLink sends values x100, typical current is < 50A)
+                    # Current (normalize - eWeLink S60TPF sends values x100, e.g., 22 = 0.22A)
                     current = params.get("current")
                     if current is not None:
                         try:
                             current_val = float(current)
-                            # eWeLink POW devices send current x100 (e.g., 91 = 0.91A)
-                            if current_val > 50:
-                                current_val = current_val / 100
+                            # eWeLink POW devices ALWAYS send current x100 (e.g., 22 = 0.22A)
+                            # Typical home current is < 20A, so divide all values by 100
+                            current_val = current_val / 100
                             readings_to_store.append({
                                 "device_id": device_id,
                                 "device_name": device_name,
