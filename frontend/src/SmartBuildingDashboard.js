@@ -52,7 +52,9 @@ import {
   Lamp,
   Armchair,
   ExternalLink,
-  BarChart3
+  BarChart3,
+  Navigation,
+  Edit2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
