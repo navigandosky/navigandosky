@@ -4188,13 +4188,15 @@ async def get_devices_with_sensor_values():
                     
                     # Determine if device supports switch
                     sensor_only_uiids = [1770, 7014, 7017, 102, 1000, 1009, 1256, 1257, 1258, 1259, 3026]
-                    power_monitor_uiids = [5, 32, 182, 190]
+                    # Note: UIID 190 (S60TPF) is a smart plug WITH switch capability
+                    power_monitor_only_uiids = [5, 32, 182]
                     camera_uiids = [87, 260]
+                    has_switch_params = ("switch" in params or "switches" in params)
                     can_switch = (
+                        has_switch_params and
                         uiid not in sensor_only_uiids and 
-                        uiid not in power_monitor_uiids and
-                        uiid not in camera_uiids and
-                        ("switch" in params or "switches" in params or uiid < 1000)
+                        uiid not in power_monitor_only_uiids and
+                        uiid not in camera_uiids
                     )
                     
                     # Get switch state
