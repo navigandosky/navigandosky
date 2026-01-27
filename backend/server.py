@@ -1786,6 +1786,77 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
         }
 
 
+@api_router.get("/elettrodomestici/poi-sensors")
+async def get_all_poi_sensors(token: Optional[str] = None):
+    """
+    Get live sensor data for ALL appliances that have a POI (matterport_tag_id).
+    Returns a map of matterport_tag_id -> sensor data for displaying on 3D tags.
+    """
+    user = await get_user_from_token(token)
+    
+    # Find all appliances with POI and smart plug
+    query = {
+        "matterport_tag_id": {"$ne": None, "$exists": True},
+        "$or": [
+            {"smart_plug_id": {"$ne": None, "$exists": True}},
+            {"smartthings_device_id": {"$ne": None, "$exists": True}}
+        ]
+    }
+    if user["id"] != DEFAULT_USER_ID:
+        query["user_id"] = user["id"]
+    
+    elettros = await db.elettrodomestici.find(query, {"_id": 0}).to_list(100)
+    
+    if not elettros:
+        return {"poi_sensors": {}, "count": 0}
+    
+    # Get all device data at once
+    try:
+        devices_response = await get_devices_with_sensor_values()
+        devices = devices_response.get("devices", [])
+        sensors = devices_response.get("sensors", {})
+        states = devices_response.get("states", {})
+        
+        # Build device lookup
+        device_lookup = {d.get("id"): d for d in devices}
+        
+        # Build POI -> sensor data map
+        poi_sensors = {}
+        for elettro in elettros:
+            tag_id = elettro.get("matterport_tag_id")
+            device_id = elettro.get("smart_plug_id") or elettro.get("smartthings_device_id")
+            
+            if not tag_id or not device_id:
+                continue
+            
+            device = device_lookup.get(device_id)
+            sensor_values = sensors.get(device_id, {})
+            
+            poi_sensors[tag_id] = {
+                "apparato_id": elettro.get("id"),
+                "apparato_nome": elettro.get("nome"),
+                "device_id": device_id,
+                "device_name": device.get("name") if device else None,
+                "online": device.get("online", False) if device else False,
+                "switch_state": states.get(device_id) or (device.get("switchState") if device else None),
+                "can_switch": device.get("canSwitch", False) if device else False,
+                "temperature": sensor_values.get("temperature"),
+                "humidity": sensor_values.get("humidity"),
+                "power": sensor_values.get("power"),
+                "voltage": sensor_values.get("voltage"),
+                "provider": elettro.get("smart_plug_provider", "ewelink")
+            }
+        
+        return {
+            "poi_sensors": poi_sensors,
+            "count": len(poi_sensors),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error fetching POI sensors: {e}")
+        return {"poi_sensors": {}, "count": 0, "error": str(e)}
+
+
 # ------------ FILE UPLOAD ------------
 
 UPLOAD_DIR = Path("/app/uploads")
