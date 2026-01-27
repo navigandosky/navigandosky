@@ -198,6 +198,10 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
   const [liveSensorData, setLiveSensorData] = useState(null);
   const [loadingLiveSensor, setLoadingLiveSensor] = useState(false);
   
+  // POI sensor overlays data
+  const [poiSensorData, setPoiSensorData] = useState({});
+  const [poiOverlayIds, setPoiOverlayIds] = useState([]);
+  
   // Forms
   const [spaceForm, setSpaceForm] = useState({ name: "", space_id: "", description: "", sdk_key: "" });
   const [poiForm, setPoiForm] = useState({ title: "", description: "", position: null, icon: "mappin", color: "#00BFFF", category: "general" });
