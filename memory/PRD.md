@@ -59,6 +59,23 @@
   - Consumo Mensile: 21.6 kWh ✅
 - **File modificati**: `backend/server.py`
 
+#### Dati Live sui POI 3D (P1) ✅ (27/01/2026)
+- **Feature**: Visualizzazione dati sensore in tempo reale sui tag 3D Matterport
+- **Implementazione**:
+  - Nuovo endpoint `GET /api/elettrodomestici/poi-sensors` per ottenere tutti i dati sensore dei POI con apparati collegati
+  - Modificato `MatterportManager.js` per caricare periodicamente (ogni 30s) i dati sensore
+  - Funzione `updatePoiSensorOverlays()` crea tag overlay con temperatura/potenza/stato
+  - Colori dinamici: verde (temperatura normale), arancione (caldo), blu (freddo), giallo (potenza attiva)
+- **File modificati**:
+  - `backend/server.py` (nuovo endpoint poi-sensors)
+  - `frontend/src/MatterportManager.js` (loadPoiSensorData, updatePoiSensorOverlays)
+
+#### Indicatore Visivo Apparati con POI (P2) ✅ (27/01/2026)
+- **Feature**: Badge "📦 POI 3D" visibile sulle card degli apparati nella lista principale
+- **Implementazione**: Aggiunto Badge con icona Box quando `e.matterport_tag_id` è presente
+- **Stile**: Badge cyan con bordo, visibile accanto al badge "Smart"
+- **File modificati**: `frontend/src/App.js`
+
 #### Normalizzazione Dati Sensori ✅ (26/01/2026)
 - **Problema 1**: Potenza mostrava valori x10 (es. 1912W invece di 191W)
   - Fix: Aggiunta normalizzazione /10 per power > 100W in tutti gli endpoint
