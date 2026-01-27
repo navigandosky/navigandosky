@@ -31,6 +31,18 @@
 
 ### ✅ Bug Fix e Feature Recenti
 
+#### Fix Toggle ON/OFF eWeLink Power Meter ✅ (27/01/2026)
+- **Problema**: Il toggle per dispositivi come "Energia V Pc studio" (UIID 190) non funzionava
+- **Causa 1**: UIID 190 era nella lista `power_monitor_uiids` che disabilitava erroneamente `canSwitch`
+- **Causa 2**: Il dispositivo usava formato `switches` array invece di `switch` singolo per i comandi
+- **Soluzione**:
+  - Rimosso UIID 190 dalla lista dei "power monitor only"
+  - Migliorata logica: ora controlla se `"switches"` è presente nei params per determinare il formato comando
+  - Aggiunto UIID 190 alla lista `multi_channel_uiids`
+- **File modificati**: 
+  - `backend/server.py` (2 occorrenze: endpoint `/ewelink/devices` e fallback SmartThings)
+- **Testato**: ✅ Backend curl + Frontend toggle funzionante
+
 #### Normalizzazione Dati Sensori ✅ (26/01/2026)
 - **Problema 1**: Potenza mostrava valori x10 (es. 1912W invece di 191W)
   - Fix: Aggiunta normalizzazione /10 per power > 100W in tutti gli endpoint
