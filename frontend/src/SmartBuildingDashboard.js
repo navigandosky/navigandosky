@@ -857,6 +857,33 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
     setHistoryDialogOpen(true);
   };
 
+  // Trova l'apparato collegato a un dispositivo smart
+  const getLinkedApparato = useCallback((deviceId) => {
+    return elettrodomestici.find(e => 
+      e.smart_plug_id === deviceId || 
+      e.smartthings_device_id === deviceId
+    );
+  }, [elettrodomestici]);
+
+  // Naviga al POI nella Vista 3D
+  const handleNavigateToPoi = useCallback((poiId) => {
+    if (onNavigate) {
+      // Store POI ID in sessionStorage for MatterportManager to pick up
+      sessionStorage.setItem('navigateToPoiId', poiId);
+      onNavigate('matterport');
+      toast.info("Navigazione verso il punto 3D...");
+    }
+  }, [onNavigate]);
+
+  // Apri modifica apparato
+  const handleEditApparato = useCallback((apparato) => {
+    if (onNavigate) {
+      // Store apparato ID in sessionStorage
+      sessionStorage.setItem('editApparatoId', apparato.id);
+      onNavigate('elettrodomestici');
+    }
+  }, [onNavigate]);
+
   // Toggle room expansion - default collapsed
   const toggleRoom = (roomName) => {
     setExpandedRooms(prev => ({
