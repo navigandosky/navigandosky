@@ -43,6 +43,20 @@
   - `backend/server.py` (2 occorrenze: endpoint `/ewelink/devices` e fallback SmartThings)
 - **Testato**: ✅ Backend curl + Frontend toggle funzionante
 
+#### Fix Normalizzazione Dati Energia ✅ (27/01/2026)
+- **Problema**: I valori potenza/consumo erano sbagliati (951W invece di 27W, 1.49kWh invece di 0.38kWh)
+- **Causa**: I dati eWeLink S60TPF sono x100 ma la normalizzazione usava soglie errate
+- **Soluzione**:
+  1. Corretta normalizzazione power: divide per 100 se > 100W
+  2. Corretta normalizzazione current: sempre divide per 100
+  3. Script pulizia DB per normalizzare dati storici errati
+  4. Modificato `energy-summary` per usare dati REALI `dayKwh`/`monthKwh` da eWeLink (non stime)
+- **Risultato**:
+  - Potenza: 27.9W ✅ (era 951W)
+  - Consumo Giornaliero: 0.38 kWh ✅ (era 1.49kWh)
+  - Consumo Mensile: 21.6 kWh ✅
+- **File modificati**: `backend/server.py`
+
 #### Normalizzazione Dati Sensori ✅ (26/01/2026)
 - **Problema 1**: Potenza mostrava valori x10 (es. 1912W invece di 191W)
   - Fix: Aggiunta normalizzazione /10 per power > 100W in tutti gli endpoint
