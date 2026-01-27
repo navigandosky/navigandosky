@@ -1,6 +1,6 @@
 # SmartDomo - PRD
 
-## Stato Attuale (24/01/2026)
+## Stato Attuale (27/01/2026)
 
 ### 🎯 Test Suite - 100% PASSED ✅
 
@@ -13,7 +13,8 @@
 | SmartThings/eWeLink Integration | ✅ |
 | Manutenzioni CRUD | ✅ |
 | Config Endpoints | ✅ |
-| **Apparato-POI Integration** | ✅ NEW |
+| **Apparato-POI Integration** | ✅ |
+| **eWeLink Device Control** | ✅ NEW |
 
 ### 📊 Multi-Tenant Isolation Verified
 
