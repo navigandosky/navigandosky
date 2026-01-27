@@ -526,6 +526,44 @@ const DeviceCard = ({ device, onToggle, onShowHistory, linkedApparato, onNavigat
           </Button>
         )}
       </div>
+      
+      {/* Pulsanti Apparato collegato */}
+      {linkedApparato && (
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-700/50">
+          <span className="text-xs text-amber-400 flex items-center gap-1 flex-1">
+            <Zap size={12} />
+            {linkedApparato.nome}
+          </span>
+          {linkedApparato.matterport_tag_id && onNavigateToPoi && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs text-cyan-400 hover:bg-cyan-500/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNavigateToPoi(linkedApparato.matterport_tag_id);
+              }}
+              title="Vai al POI nella Vista 3D"
+            >
+              <Navigation size={12} />
+            </Button>
+          )}
+          {onEditApparato && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-xs text-slate-400 hover:bg-slate-700/50"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditApparato(linkedApparato);
+              }}
+              title="Modifica apparato"
+            >
+              <Edit2 size={12} />
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
