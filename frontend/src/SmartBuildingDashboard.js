@@ -1563,6 +1563,9 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                           key={device.id} 
                           device={device} 
                           onShowHistory={handleShowHistory}
+                          linkedApparato={getLinkedApparato(device.id)}
+                          onNavigateToPoi={handleNavigateToPoi}
+                          onEditApparato={handleEditApparato}
                         />
                       ))}
                     </div>
