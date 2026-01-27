@@ -14,7 +14,9 @@
 | Manutenzioni CRUD | ✅ |
 | Config Endpoints | ✅ |
 | **Apparato-POI Integration** | ✅ |
-| **eWeLink Device Control** | ✅ NEW |
+| **eWeLink Device Control** | ✅ |
+| **POI Sensor Overlays 3D** | ✅ NEW |
+| **Apparati POI Badge** | ✅ NEW |
 
 ### 📊 Multi-Tenant Isolation Verified
 
