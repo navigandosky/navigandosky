@@ -1943,28 +1943,37 @@ function App() {
                             <CardDescription>{e.marca} {e.modello}</CardDescription>
                           </div>
                         </div>
-                        {hasSmartPlug && (
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge variant="outline" className="gap-1">
-                              <Plug className="h-3 w-3" />
-                              Smart
+                        <div className="flex flex-col items-end gap-1">
+                          {/* Badge POI 3D - mostra se l'apparato ha un tag Matterport collegato */}
+                          {e.matterport_tag_id && (
+                            <Badge variant="outline" className="gap-1 bg-cyan-50 text-cyan-700 border-cyan-300">
+                              <Box className="h-3 w-3" />
+                              POI 3D
                             </Badge>
-                            {smartState && (
-                              <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                smartState === 'on' 
-                                  ? 'bg-red-100 text-red-700' 
-                                  : 'bg-gray-100 text-gray-600'
-                              }`}>
-                                <div className={`w-2 h-2 rounded-full ${
+                          )}
+                          {hasSmartPlug && (
+                            <>
+                              <Badge variant="outline" className="gap-1">
+                                <Plug className="h-3 w-3" />
+                                Smart
+                              </Badge>
+                              {smartState && (
+                                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
                                   smartState === 'on' 
-                                    ? 'bg-red-500 animate-pulse' 
-                                    : 'bg-gray-400'
-                                }`} />
-                                {smartState === 'on' ? 'ACCESO' : 'SPENTO'}
-                              </div>
-                            )}
-                          </div>
-                        )}
+                                    ? 'bg-red-100 text-red-700' 
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}>
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    smartState === 'on' 
+                                      ? 'bg-red-500 animate-pulse' 
+                                      : 'bg-gray-400'
+                                  }`} />
+                                  {smartState === 'on' ? 'ACCESO' : 'SPENTO'}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
