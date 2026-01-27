@@ -601,7 +601,9 @@ const MatterportViewer = forwardRef(({
         // Schedule marker removal
         if (markerIds.length > 0) {
           setTimeout(() => {
-            ref.current.removePathMarkers(markerIds);
+            if (ref.current) {
+              ref.current.removePathMarkers(markerIds);
+            }
           }, pathDuration);
         }
 
