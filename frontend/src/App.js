@@ -55,7 +55,8 @@ import {
   Activity,
   LogOut,
   Shield,
-  Navigation
+  Navigation,
+  Box
 } from "lucide-react";
 import { LoginPage, UserManagement } from "./AuthPage";
 import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "./TicketCalendarQR";
