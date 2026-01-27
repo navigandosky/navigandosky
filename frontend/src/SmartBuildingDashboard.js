@@ -372,7 +372,7 @@ const SensorHistoryDialog = ({ device, open, onClose }) => {
 };
 
 // SmartThings Device Card
-const DeviceCard = ({ device, onToggle, onShowHistory }) => {
+const DeviceCard = ({ device, onToggle, onShowHistory, linkedApparato, onNavigateToPoi, onEditApparato }) => {
   // Check if device is from eWeLink
   const isEwelink = device.source === 'ewelink' || device.type === 'ewelink';
   
