@@ -1,1208 +1,168 @@
 <analysis>**original_problem_statement:**
-The user's primary goal is to continue developing the SmartDomo application, focusing on stability, bug fixes, and new features.
+The user's primary goal is to continue developing the SmartDomo application. In this session, the user guided the agent to implement several features and fix multiple bugs.
 
-Over the course of the session, the user guided the agent through the following:
-1.  **Bug Fixes:**
-    *   Resolved a critical bug preventing the creation of maintenance records.
-    *   Fixed a multi-tenancy issue where an Admin user was seeing another user's (Geasar's) property data.
-    *   Addressed multiple regressions, including non-functional POI import and a missing list of appliances (Apparati).
-2.  **Integration Stability:**
-    *   The SmartThings integration was unreliable due to an expired token. The user requested a solution where eWeLink acts as a fallback.
-    *   The agent successfully implemented this fallback for device lists, sensor data, data collection, and device control.
-    *   Numerous data normalization issues were fixed, ensuring that temperature, humidity, power, voltage, and current values from eWeLink and older database records are displayed correctly.
-3.  **New Features:**
-    *   Implemented ON/OFF toggle switches for controllable eWeLink devices, including online/offline status indicators.
-    *   Added a sensor history report with charts, fully functional with eWeLink data.
-    *   Created a comprehensive energy consumption monitoring dashboard, showing real-time stats and estimated daily/monthly usage and costs.
-    *   **Current Request:** The user wants to link appliances (apparati) to Matterport POIs (Tags). This involves adding a POI selector to the appliance creation/edit form and then allowing users to click a POI in the 3D view to see the associated appliance's data.
+1.  **Feature: Associate Appliances with Matterport POIs.** The user wanted to link appliances (apparati) to Matterport POIs (Tags). This involved adding a POI selector to the appliance form and allowing users to click a POI in the 3D view to see the associated appliance's data. This was completed.
+2.  **Feature: Automatic Sensor Data Collection.** The user requested a background job to automatically fetch sensor data from eWeLink to keep historical charts populated. This was implemented using an  background task.
+3.  **Feature: Live Sensor Data on POIs.** The user asked for live sensor data (power/temperature) to be displayed on the 3D POI tags and in the POI details panel. This was implemented.
+4.  **Feature: Go to POI Button.** The user requested a button on appliance cards that navigates the user directly to the associated POI in the 3D view. This was implemented.
+5.  **Feature: Sidebar Device Controls.** The user asked to restore a previously existing feature: a sidebar list of all domotic devices with status indicators and buttons to navigate to the POI or edit the associated appliance. This was re-implemented.
+6.  **Bug Fixes & Regressions:** The user reported and the agent fixed several issues:
+    *   A critical bug preventing the creation of new POIs in the 3D view.
+    *   A bug where a specific eWeLink power meter (Enervia VP Studio) was not being detected or showing its consumption data.
+    *   Incorrect display of the ON/OFF state for the same power meter.
+    *   Incorrect power consumption values (requiring division by 10).
+    *   Erratic and incorrect Min/Max/Average values for temperature and power sensors due to un-normalized historical data in the database. The agent created and ran a script to clean this data.
+    *   **Current Bug:** A regression where the ON/OFF toggle for the eWeLink power meter fails with an error, which the user reported in the last message.
 
 **User's preferred language**: Italian
 
 **what currently exists?**
-The SmartDomo application is a stable, multi-tenant full-stack platform. It features a robust integration with Matterport and a resilient device/sensor system that automatically falls back to eWeLink when the SmartThings integration is unavailable. The frontend provides a comprehensive dashboard for viewing and controlling the smart home, including a 3D view, climate sensors with historical charts, device controls, and a detailed energy consumption monitor. The backend has been reinforced with fixes for multi-tenancy and data normalization. A Pytest suite exists to ensure data isolation between users and prevent regressions.
+The SmartDomo application is a full-stack platform with a React frontend and FastAPI backend. It integrates with Matterport for 3D visualization and eWeLink for device control and sensor data (as a fallback for the unreliable SmartThings integration). The app now features automatic background data collection for sensors, comprehensive dashboards for energy and climate with historical charts, and a robust system for linking physical appliances to their digital twin representations in the 3D model. Most critical data normalization and multi-tenancy issues have been resolved, and a one-time database cleanup has corrected most historical data inconsistencies.
 
 **Last working item**:
-- Last item agent was working: Implementing the association of an appliance (apparato) with a Matterport POI (Tag). The agent began by identifying the necessary backend model fields () and started modifying the frontend form  to include a dropdown menu for POI selection.
-- Status: IN PROGRESS
+- Last item agent was working: The user reported a regression where trying to toggle an eWeLink device (the Energia V Pc studio power meter) from the UI results in an error toast message. This was working previously.
+- Status: NOT STARTED
 - Agent Testing Done: N
-- Which testing method agent to use? both
+- Which testing method agent to use? backend testing agent
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-There are no pending bugs. The focus is on completing the in-progress feature request.
+-   **Issue 1: eWeLink device control toggle fails (P0)**
+-   **Issue 2: Inconsistent average temperature calculation (P2)**
+
+**Issues Detail:**
+-   **Issue 1: eWeLink device control toggle fails**
+    -   **Attempted fixes:** None yet. The agent acknowledged the issue right before the session ended. The error appears in a user-provided screenshot.
+    -   **Next debug checklist:**
+        1.  Examine the browser's developer console network tab when the toggle is clicked to see the exact API request and response.
+        2.  Check  in the  function to ensure the correct endpoint and payload are being sent. The endpoint is likely .
+        3.  Inspect  for that endpoint. The logic was working before, so a recent change may have introduced a regression. Check the git history for related changes.
+        4.  Verify that the device ID and action ('on'/'off') are being passed correctly.
+    -   **Why fix this issue and what will be achieved with the fix?** This is a critical regression of a core feature. Fixing it will restore the user's ability to control their smart devices from the application. The user is very frustrated by this.
+    -   **Status:** NOT STARTED
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Backend
+    -   **Blocked on other issue:** None
+
+-   **Issue 2: Inconsistent average temperature calculation**
+    -   **Attempted fixes:** The agent created and ran a one-time script () to fix historical data that was stored with incorrect magnitudes (e.g., 2170 instead of 21.7). This fixed most Min/Max/Avg values. However, some averages still appear incorrect (e.g., Termosifone Studio shows a Media of 1.2°C with a Min/Max of 2.5°C), suggesting the aggregation query might still be flawed or some bad data remains.
+    -   **Next debug checklist:**
+        1.  In , review the MongoDB aggregation pipeline in the  function ().
+        2.  The average calculation might be including zero or null values improperly. The  operator in MongoDB should ignore non-numeric values, but it's worth double-checking the data types.
+        3.  Run a query directly on the  collection for a problematic device to manually inspect the values and calculate the average.
+    -   **Why fix this issue and what will be achieved with the fix?** It will ensure the sensor dashboard is 100% accurate and trustworthy for the user.
+    -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Backend
+    -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   **Task 1: Associate Appliances with Matterport POIs (P0)**
-
-**Task Detail:**
--   **Task 1: Associate Appliances with Matterport POIs**
-    -   **Where to resume:** The agent has started modifying . The next steps are:
-        1.  In , fetch the list of POIs and pass it as a prop to the  component.
-        2.  Ensure the form's save handler in  correctly sends the selected  to the backend when creating/updating an appliance.
-        3.  Modify the Vista 3D page () to handle clicks on linked POIs, opening a dialog with the associated appliance's details or sensor data.
-    -   **What will be achieved with this?** This will create a true digital twin experience, allowing users to interact with physical appliances directly from the 3D model.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Both
-    -   **Blocked on something:** None
+None.
 
 **Upcoming and Future Tasks**
 *   **Upcoming Tasks:**
-    *   **Automatic Sensor Data Collection (P1):** Implement a recurring background job to automatically fetch and save sensor data from eWeLink to MongoDB, ensuring the historical charts are always populated.
+    *   **Live Data on POI Tags (P1):** Display live sensor data (temperature/power) as small indicators directly on the POI tags within the 3D Matterport viewer.
+    *   **UI Indicator for Linked Appliances (P2):** Add a visual indicator (e.g., an icon) to the main appliance list to show which ones have a POI associated.
 *   **Future Tasks:**
-    *   **Mobile App Development:** The user has expressed interest in an iPhone/Android app. A plan needs to be formulated (e.g., PWA vs. React Native).
-    *   **Intelligent Notifications:** Implement a system to send alerts for maintenance reminders or abnormal sensor readings.
-    *   **QR Code Functionality:** Add the ability to scan QR codes on appliances to quickly access their details.
-    *   **Data Export:** Allow users to export sensor data to CSV/Excel.
+    *   Mobile App Development (PWA or React Native)
+    *   Intelligent Notifications for maintenance or abnormal sensor readings
+    *   QR Code scanning to access appliance details
+    *   Data Export to CSV/Excel
 
 **Completed work in this session**
--   **Bug Fix - Maintenance Creation:** Fixed the logic that caused creation to fail by attempting a PUT instead of a POST.
--   **Bug Fix - Multi-Tenant Property Data:** Resolved bug where the Admin saw another user's data by making property endpoints token-aware.
--   **Feature - SmartThings to eWeLink Fallback:** Implemented a robust fallback system for devices, sensors, and controls, making the app resilient to SmartThings token expiration.
--   **Feature - eWeLink Device Control:** Added ON/OFF toggle switches and online/offline status indicators for eWeLink devices in the UI.
--   **Bug Fix - Data Normalization:** Corrected the display of temperature, humidity, power, voltage, and current from eWeLink by applying the correct scaling factors (e.g., dividing by 100) in the backend.
--   **Feature - Sensor History & Energy Monitoring:** Created backend endpoints and frontend components to display historical sensor data charts and a detailed energy consumption summary.
--   **Regression Fixes:** Fixed regressions related to POI import and appliance list visibility, strengthening the multi-tenancy implementation.
--   **Feature - Regression Test Suite:** Created a Pytest suite () to automate testing of data isolation between users.
+-   **Feature: Appliance-POI Association:** Fully implemented linking of appliances to Matterport POIs, including frontend forms and backend logic.
+-   **Feature: Automatic Sensor Collection:** Implemented a background  task in  to periodically collect and store eWeLink sensor data. Added a UI card to display the collector's status.
+-   **Feature: Go to POI Navigation:** Added a button to appliance cards that navigates to the associated POI in the 3D view.
+-   **Feature: Domotics Device Sidebar:** Re-implemented a sidebar in the main dashboard showing all controllable devices with their status and quick-action buttons (Go to POI, Edit).
+-   **Bug Fix: POI Creation:** Resolved a critical bug where creating new POIs failed due to a mismatch between local database IDs and Matterport space IDs.
+-   **Bug Fix: Data Normalization & DB Cleanup:**
+    -   Corrected multiple backend functions to normalize power, temperature, and humidity data from eWeLink upon retrieval.
+    -   Created and executed a one-time API endpoint () to clean and fix all incorrect historical data in the  collection, resolving most data visualization issues.
+-   **Bug Fix: Sensor Detection:** Fixed an issue where a power-only eWeLink device was not being correctly identified as a sensor.
+-   **Documentation:** Created a user manual () explaining how to create a POI and associate it with an appliance and sensor.
+-   **Testing:** Used the testing agent to find and fix a  bug during appliance creation.
 
 **Earlier issues found/mentioned but not fixed**
--   **SmartThings Token Instability:** The root cause of the token expiring frequently is not addressed. The current workaround (fallback to eWeLink) has been deemed sufficient by the user for now.
+-   The inconsistent average temperature calculation remains, as detailed in the All Pending/In progress Issue list.
 
 **Known issue recurrence from previous fork**
 -   **Issue recurrence in previous fork:** SmartThings  error.
 -   **Recurrence count:** High.
--   **Status:** MITIGATED. The issue's impact is now handled gracefully by the eWeLink fallback system, making the application fully functional even without a valid SmartThings token.
+-   **Status:** MITIGATED. The eWeLink fallback system handles this reliably.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **API Fallback Strategy:** The system is now resilient, automatically switching from the (unreliable) SmartThings API to the eWeLink API upon detecting a  error.
--   **On-the-Fly Data Normalization:** Backend endpoints dynamically inspect and normalize historical and real-time sensor data from various sources to ensure consistent and accurate display in the frontend.
--   **Dynamic UI Components:** The React  component conditionally renders controls (toggle switches) and status indicators (online/offline badges) based on properties (, ) received from the backend.
--   **Automated Regression Testing:** A Pytest suite () was established to verify data isolation and prevent future regressions.
+-   **Asyncio Background Tasks:** A background task was implemented in FastAPI using  to run a periodic job (sensor data collection) without blocking the main application.
+-   **One-Time Data Migration/Cleanup:** An API endpoint was created to perform a data migration task (normalizing all historical values in the  collection) to fix systemic data errors without requiring manual database intervention.
 
 **key DB schema**
--   **elettrodomestici**:  - Field to link an appliance to a Matterport POI.
--   **sensor_readings**:  - Central collection for all historical sensor data.
--   **pois**, **properties**: All data collections are now correctly filtered by the authenticated user's ID.
+-   **elettrodomestici**: The  field (a Pydantic ) was updated to include  as a valid option.
+-   **sensor_readings**: This collection was cleaned of incorrectly scaled data. New data is now stored in a normalized format.
 
 **All files of reference**
--   : Contains all business logic, including the new fallback and normalization systems.
--   : The primary UI component for displaying sensor data and device controls.
--   : The form currently being modified for the POI association feature.
--   : The root component for state management and prop drilling.
--   : The new regression test suite.
+-   
+-   
+-   
+-   
+-   
+-   
+-   
+-   
 
 **Areas that need refactoring**:
--   ****: This monolithic file is now over 7,000 lines and is becoming difficult to maintain. It should be broken down into smaller, domain-specific  files (e.g., , ).
--   ****: This component handles fetching and displaying data for multiple tabs (Clima, Domotica, Energia). This logic should be extracted into custom React hooks to simplify the component.
+-   ****: The file continues to grow and is now over 7800 lines. Breaking it down into routers (, , etc.) is becoming critical for maintainability.
+-   ****: This component now contains significant logic for rendering different device types and handling state. Extracting  and its helpers into separate files would improve readability.
 
 **key api endpoints**
--   : The primary endpoint for fetching devices, now with a transparent eWeLink fallback.
--   : Controls eWeLink devices.
--   : Collects and stores normalized sensor data, with an eWeLink fallback.
--   : **NEW** endpoint that provides a detailed summary of energy consumption.
--   : Will be used to save the  link.
+-   : Retrieves an appliance linked to a POI.
+-   : Gets live sensor data for the appliance linked to a POI.
+-   , : Endpoints to manage the new background data collector.
+-   : **NEW (one-time use)** endpoint to clean up historical sensor data.
+-   : **NEEDS DEBUGGING.** This is the endpoint that is likely failing for the user.
 
 **Critical Info for New Agent**
--   **Current Task:** The immediate priority is to complete the feature of linking appliances to Matterport POIs. This involves finishing the frontend form, updating the save logic, and implementing the click handler in the 3D view.
--   **eWeLink is the Go-To Source:** Due to the expired SmartThings token, all device and sensor functionality relies on the eWeLink integration and its associated backend fallback logic.
--   **Data Normalization is Crucial:** Always be mindful that data from eWeLink or older database entries may require normalization (e.g., division by 100) in the backend before being sent to the frontend.
--   **Use the Test Suite:** After making backend changes related to data access, run the regression tests with ============================= test session starts ==============================
-platform linux -- Python 3.11.14, pytest-9.0.2, pluggy-1.6.0
-rootdir: /app
-plugins: anyio-4.12.0
-collected 16 items
-
-tests/test_smartdomo_multitenancy.py FFFFEEFEEEEEF.EF                    [100%]
-
-==================================== ERRORS ====================================
-_ ERROR at setup of TestTokenVerification.test_admin_verify_returns_correct_space_id _
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
->           return complexjson.loads(self.text, **kwargs)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:976: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/usr/local/lib/python3.11/json/__init__.py:346: in loads
-    return _default_decoder.decode(s)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/json/decoder.py:337: in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <json.decoder.JSONDecoder object at 0xfa626e15a8d0>
-s = 'Web server returned an unknown error\n', idx = 0
-
-    def raw_decode(self, s, idx=0):
-        """Decode a JSON document from ``s`` (a ``str`` beginning with
-        a JSON document) and return a 2-tuple of the Python
-        representation and the index in ``s`` where the document ended.
-    
-        This can be used to decode a JSON document from a string that may
-        have extraneous data at the end.
-    
-        """
-        try:
-            obj, end = self.scan_once(s, idx)
-        except StopIteration as err:
->           raise JSONDecodeError("Expecting value", s, err.value) from None
-E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/usr/local/lib/python3.11/json/decoder.py:355: JSONDecodeError
-
-During handling of the above exception, another exception occurred:
-
-self = <tests.test_smartdomo_multitenancy.TestTokenVerification object at 0xfa626cf24b10>
-
-    @pytest.fixture
-    def admin_token(self):
-        response = requests.post(f"{API}/auth/login", json=ADMIN_CREDENTIALS)
->       return response.json()["token"]
-               ^^^^^^^^^^^^^^^
-
-tests/test_smartdomo_multitenancy.py:86: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
-            return complexjson.loads(self.text, **kwargs)
-        except JSONDecodeError as e:
-            # Catch JSON-related errors and raise as requests.JSONDecodeError
-            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
->           raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-E           requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:980: JSONDecodeError
-_ ERROR at setup of TestTokenVerification.test_user_verify_returns_different_space _
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
->           return complexjson.loads(self.text, **kwargs)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:976: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/usr/local/lib/python3.11/json/__init__.py:346: in loads
-    return _default_decoder.decode(s)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/json/decoder.py:337: in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <json.decoder.JSONDecoder object at 0xfa626e15a8d0>
-s = 'Web server returned an unknown error\n', idx = 0
-
-    def raw_decode(self, s, idx=0):
-        """Decode a JSON document from ``s`` (a ``str`` beginning with
-        a JSON document) and return a 2-tuple of the Python
-        representation and the index in ``s`` where the document ended.
-    
-        This can be used to decode a JSON document from a string that may
-        have extraneous data at the end.
-    
-        """
-        try:
-            obj, end = self.scan_once(s, idx)
-        except StopIteration as err:
->           raise JSONDecodeError("Expecting value", s, err.value) from None
-E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/usr/local/lib/python3.11/json/decoder.py:355: JSONDecodeError
-
-During handling of the above exception, another exception occurred:
-
-self = <tests.test_smartdomo_multitenancy.TestTokenVerification object at 0xfa626cf25190>
-
-    @pytest.fixture
-    def user_token(self):
-        response = requests.post(f"{API}/auth/login", json=USER_CREDENTIALS)
->       return response.json()["token"]
-               ^^^^^^^^^^^^^^^
-
-tests/test_smartdomo_multitenancy.py:91: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
-            return complexjson.loads(self.text, **kwargs)
-        except JSONDecodeError as e:
-            # Catch JSON-related errors and raise as requests.JSONDecodeError
-            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
->           raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-E           requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:980: JSONDecodeError
-_ ERROR at setup of TestMultiTenantDataIsolation.test_elettrodomestici_isolation _
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
->           return complexjson.loads(self.text, **kwargs)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:976: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/usr/local/lib/python3.11/json/__init__.py:346: in loads
-    return _default_decoder.decode(s)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/json/decoder.py:337: in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <json.decoder.JSONDecoder object at 0xfa626e15a8d0>
-s = 'Web server returned an unknown error\n', idx = 0
-
-    def raw_decode(self, s, idx=0):
-        """Decode a JSON document from ``s`` (a ``str`` beginning with
-        a JSON document) and return a 2-tuple of the Python
-        representation and the index in ``s`` where the document ended.
-    
-        This can be used to decode a JSON document from a string that may
-        have extraneous data at the end.
-    
-        """
-        try:
-            obj, end = self.scan_once(s, idx)
-        except StopIteration as err:
->           raise JSONDecodeError("Expecting value", s, err.value) from None
-E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/usr/local/lib/python3.11/json/decoder.py:355: JSONDecodeError
-
-During handling of the above exception, another exception occurred:
-
-self = <tests.test_smartdomo_multitenancy.TestMultiTenantDataIsolation object at 0xfa626cf25a50>
-
-    @pytest.fixture
-    def admin_token(self):
-        response = requests.post(f"{API}/auth/login", json=ADMIN_CREDENTIALS)
->       return response.json()["token"]
-               ^^^^^^^^^^^^^^^
-
-tests/test_smartdomo_multitenancy.py:144: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
-            return complexjson.loads(self.text, **kwargs)
-        except JSONDecodeError as e:
-            # Catch JSON-related errors and raise as requests.JSONDecodeError
-            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
->           raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-E           requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:980: JSONDecodeError
-__ ERROR at setup of TestMultiTenantDataIsolation.test_manutenzioni_isolation __
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
->           return complexjson.loads(self.text, **kwargs)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:976: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/usr/local/lib/python3.11/json/__init__.py:346: in loads
-    return _default_decoder.decode(s)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/json/decoder.py:337: in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <json.decoder.JSONDecoder object at 0xfa626e15a8d0>
-s = 'Web server returned an unknown error\n', idx = 0
-
-    def raw_decode(self, s, idx=0):
-        """Decode a JSON document from ``s`` (a ``str`` beginning with
-        a JSON document) and return a 2-tuple of the Python
-        representation and the index in ``s`` where the document ended.
-    
-        This can be used to decode a JSON document from a string that may
-        have extraneous data at the end.
-    
-        """
-        try:
-            obj, end = self.scan_once(s, idx)
-        except StopIteration as err:
->           raise JSONDecodeError("Expecting value", s, err.value) from None
-E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/usr/local/lib/python3.11/json/decoder.py:355: JSONDecodeError
-
-During handling of the above exception, another exception occurred:
-
-self = <tests.test_smartdomo_multitenancy.TestMultiTenantDataIsolation object at 0xfa626cf25f50>
-
-    @pytest.fixture
-    def admin_token(self):
-        response = requests.post(f"{API}/auth/login", json=ADMIN_CREDENTIALS)
->       return response.json()["token"]
-               ^^^^^^^^^^^^^^^
-
-tests/test_smartdomo_multitenancy.py:144: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
-            return complexjson.loads(self.text, **kwargs)
-        except JSONDecodeError as e:
-            # Catch JSON-related errors and raise as requests.JSONDecodeError
-            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
->           raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-E           requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:980: JSONDecodeError
-____ ERROR at setup of TestMultiTenantDataIsolation.test_property_isolation ____
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
->           return complexjson.loads(self.text, **kwargs)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:976: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/usr/local/lib/python3.11/json/__init__.py:346: in loads
-    return _default_decoder.decode(s)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/json/decoder.py:337: in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <json.decoder.JSONDecoder object at 0xfa626e15a8d0>
-s = 'Web server returned an unknown error\n', idx = 0
-
-    def raw_decode(self, s, idx=0):
-        """Decode a JSON document from ``s`` (a ``str`` beginning with
-        a JSON document) and return a 2-tuple of the Python
-        representation and the index in ``s`` where the document ended.
-    
-        This can be used to decode a JSON document from a string that may
-        have extraneous data at the end.
-    
-        """
-        try:
-            obj, end = self.scan_once(s, idx)
-        except StopIteration as err:
->           raise JSONDecodeError("Expecting value", s, err.value) from None
-E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/usr/local/lib/python3.11/json/decoder.py:355: JSONDecodeError
-
-During handling of the above exception, another exception occurred:
-
-self = <tests.test_smartdomo_multitenancy.TestMultiTenantDataIsolation object at 0xfa626cf262d0>
-
-    @pytest.fixture
-    def admin_token(self):
-        response = requests.post(f"{API}/auth/login", json=ADMIN_CREDENTIALS)
->       return response.json()["token"]
-               ^^^^^^^^^^^^^^^
-
-tests/test_smartdomo_multitenancy.py:144: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
-            return complexjson.loads(self.text, **kwargs)
-        except JSONDecodeError as e:
-            # Catch JSON-related errors and raise as requests.JSONDecodeError
-            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
->           raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-E           requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:980: JSONDecodeError
-__ ERROR at setup of TestMatterportPOIs.test_pois_filtered_by_user_and_space ___
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
->           return complexjson.loads(self.text, **kwargs)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:976: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/usr/local/lib/python3.11/json/__init__.py:346: in loads
-    return _default_decoder.decode(s)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/json/decoder.py:337: in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <json.decoder.JSONDecoder object at 0xfa626e15a8d0>
-s = 'Web server returned an unknown error\n', idx = 0
-
-    def raw_decode(self, s, idx=0):
-        """Decode a JSON document from ``s`` (a ``str`` beginning with
-        a JSON document) and return a 2-tuple of the Python
-        representation and the index in ``s`` where the document ended.
-    
-        This can be used to decode a JSON document from a string that may
-        have extraneous data at the end.
-    
-        """
-        try:
-            obj, end = self.scan_once(s, idx)
-        except StopIteration as err:
->           raise JSONDecodeError("Expecting value", s, err.value) from None
-E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/usr/local/lib/python3.11/json/decoder.py:355: JSONDecodeError
-
-During handling of the above exception, another exception occurred:
-
-self = <tests.test_smartdomo_multitenancy.TestMatterportPOIs object at 0xfa626cf26990>
-
-    @pytest.fixture
-    def admin_token(self):
-        response = requests.post(f"{API}/auth/login", json=ADMIN_CREDENTIALS)
->       return response.json()["token"]
-               ^^^^^^^^^^^^^^^
-
-tests/test_smartdomo_multitenancy.py:229: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
-            return complexjson.loads(self.text, **kwargs)
-        except JSONDecodeError as e:
-            # Catch JSON-related errors and raise as requests.JSONDecodeError
-            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
->           raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-E           requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:980: JSONDecodeError
-___ ERROR at setup of TestMatterportPOIs.test_poi_import_uses_correct_space ____
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
->           return complexjson.loads(self.text, **kwargs)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:976: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/usr/local/lib/python3.11/json/__init__.py:346: in loads
-    return _default_decoder.decode(s)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/json/decoder.py:337: in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <json.decoder.JSONDecoder object at 0xfa626e15a8d0>
-s = 'Web server returned an unknown error\n', idx = 0
-
-    def raw_decode(self, s, idx=0):
-        """Decode a JSON document from ``s`` (a ``str`` beginning with
-        a JSON document) and return a 2-tuple of the Python
-        representation and the index in ``s`` where the document ended.
-    
-        This can be used to decode a JSON document from a string that may
-        have extraneous data at the end.
-    
-        """
-        try:
-            obj, end = self.scan_once(s, idx)
-        except StopIteration as err:
->           raise JSONDecodeError("Expecting value", s, err.value) from None
-E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/usr/local/lib/python3.11/json/decoder.py:355: JSONDecodeError
-
-During handling of the above exception, another exception occurred:
-
-self = <tests.test_smartdomo_multitenancy.TestMatterportPOIs object at 0xfa626cf27010>
-
-    @pytest.fixture
-    def admin_token(self):
-        response = requests.post(f"{API}/auth/login", json=ADMIN_CREDENTIALS)
->       return response.json()["token"]
-               ^^^^^^^^^^^^^^^
-
-tests/test_smartdomo_multitenancy.py:229: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
-            return complexjson.loads(self.text, **kwargs)
-        except JSONDecodeError as e:
-            # Catch JSON-related errors and raise as requests.JSONDecodeError
-            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
->           raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-E           requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:980: JSONDecodeError
-_______ ERROR at setup of TestManutenzioniCRUD.test_create_manutenzione ________
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
->           return complexjson.loads(self.text, **kwargs)
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:976: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-/usr/local/lib/python3.11/json/__init__.py:346: in loads
-    return _default_decoder.decode(s)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-/usr/local/lib/python3.11/json/decoder.py:337: in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <json.decoder.JSONDecoder object at 0xfa626e15a8d0>
-s = 'Web server returned an unknown error\n', idx = 0
-
-    def raw_decode(self, s, idx=0):
-        """Decode a JSON document from ``s`` (a ``str`` beginning with
-        a JSON document) and return a 2-tuple of the Python
-        representation and the index in ``s`` where the document ended.
-    
-        This can be used to decode a JSON document from a string that may
-        have extraneous data at the end.
-    
-        """
-        try:
-            obj, end = self.scan_once(s, idx)
-        except StopIteration as err:
->           raise JSONDecodeError("Expecting value", s, err.value) from None
-E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/usr/local/lib/python3.11/json/decoder.py:355: JSONDecodeError
-
-During handling of the above exception, another exception occurred:
-
-self = <tests.test_smartdomo_multitenancy.TestManutenzioniCRUD object at 0xfa626cf2c850>
-
-    @pytest.fixture
-    def admin_token(self):
-        response = requests.post(f"{API}/auth/login", json=ADMIN_CREDENTIALS)
->       return response.json()["token"]
-               ^^^^^^^^^^^^^^^
-
-tests/test_smartdomo_multitenancy.py:324: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-
-self = <Response [520]>, kwargs = {}
-
-    def json(self, **kwargs):
-        r"""Decodes the JSON response body (if any) as a Python object.
-    
-        This may return a dictionary, list, etc. depending on what is in the response.
-    
-        :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
-        """
-    
-        if not self.encoding and self.content and len(self.content) > 3:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding = guess_json_utf(self.content)
-            if encoding is not None:
-                try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-    
-        try:
-            return complexjson.loads(self.text, **kwargs)
-        except JSONDecodeError as e:
-            # Catch JSON-related errors and raise as requests.JSONDecodeError
-            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
->           raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-E           requests.exceptions.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-
-/root/.venv/lib/python3.11/site-packages/requests/models.py:980: JSONDecodeError
-=================================== FAILURES ===================================
-_______________________ TestAuthentication.test_api_root _______________________
-
-self = <tests.test_smartdomo_multitenancy.TestAuthentication object at 0xfa626d589850>
-
-    def test_api_root(self):
-        """Test API is accessible"""
-        response = requests.get(f"{API}/")
->       assert response.status_code == 200
-E       assert 520 == 200
-E        +  where 520 = <Response [520]>.status_code
-
-tests/test_smartdomo_multitenancy.py:26: AssertionError
-_____________________ TestAuthentication.test_admin_login ______________________
-
-self = <tests.test_smartdomo_multitenancy.TestAuthentication object at 0xfa626cf133d0>
-
-    def test_admin_login(self):
-        """Test Admin login returns correct token and user data"""
-        response = requests.post(f"{API}/auth/login", json=ADMIN_CREDENTIALS)
->       assert response.status_code == 200
-E       assert 520 == 200
-E        +  where 520 = <Response [520]>.status_code
-
-tests/test_smartdomo_multitenancy.py:34: AssertionError
-______________________ TestAuthentication.test_user_login ______________________
-
-self = <tests.test_smartdomo_multitenancy.TestAuthentication object at 0xfa626cf13b10>
-
-    def test_user_login(self):
-        """Test Geasar user login returns correct token and user data"""
-        response = requests.post(f"{API}/auth/login", json=USER_CREDENTIALS)
->       assert response.status_code == 200
-E       assert 520 == 200
-E        +  where 520 = <Response [520]>.status_code
-
-tests/test_smartdomo_multitenancy.py:54: AssertionError
-____________________ TestAuthentication.test_invalid_login _____________________
-
-self = <tests.test_smartdomo_multitenancy.TestAuthentication object at 0xfa626cf241d0>
-
-    def test_invalid_login(self):
-        """Test invalid credentials return error"""
-        response = requests.post(f"{API}/auth/login", json={
-            "username": "invalid",
-            "password": "invalid"
-        })
->       assert response.status_code == 200  # API returns 200 with success=false
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       assert 520 == 200
-E        +  where 520 = <Response [520]>.status_code
-
-tests/test_smartdomo_multitenancy.py:74: AssertionError
-______________ TestTokenVerification.test_invalid_token_rejected _______________
-
-self = <tests.test_smartdomo_multitenancy.TestTokenVerification object at 0xfa626cf257d0>
-
-    def test_invalid_token_rejected(self):
-        """Test invalid token is rejected"""
-        response = requests.get(f"{API}/auth/verify", params={"token": "invalid-token-123"})
->       assert response.status_code == 200
-E       assert 520 == 200
-E        +  where 520 = <Response [520]>.status_code
-
-tests/test_smartdomo_multitenancy.py:132: AssertionError
-________ TestSmartThingsIntegration.test_devices_with_sensors_endpoint _________
-
-self = <tests.test_smartdomo_multitenancy.TestSmartThingsIntegration object at 0xfa626cf27890>
-
-    def test_devices_with_sensors_endpoint(self):
-        """Test devices-with-sensors endpoint returns data or falls back to eWeLink"""
-        response = requests.get(f"{API}/smartthings/devices-with-sensors")
->       assert response.status_code == 200
-E       assert 520 == 200
-E        +  where 520 = <Response [520]>.status_code
-
-tests/test_smartdomo_multitenancy.py:275: AssertionError
-___________________ TestConfigEndpoints.test_config_endpoint ___________________
-
-self = <tests.test_smartdomo_multitenancy.TestConfigEndpoints object at 0xfa626cf2cf90>
-
-    def test_config_endpoint(self):
-        """Test /api/config returns app configuration"""
-        response = requests.get(f"{API}/config")
->       assert response.status_code == 200
-E       assert 520 == 200
-E        +  where 520 = <Response [520]>.status_code
-
-tests/test_smartdomo_multitenancy.py:367: AssertionError
-=========================== short test summary info ============================
-FAILED tests/test_smartdomo_multitenancy.py::TestAuthentication::test_api_root
-FAILED tests/test_smartdomo_multitenancy.py::TestAuthentication::test_admin_login
-FAILED tests/test_smartdomo_multitenancy.py::TestAuthentication::test_user_login
-FAILED tests/test_smartdomo_multitenancy.py::TestAuthentication::test_invalid_login
-FAILED tests/test_smartdomo_multitenancy.py::TestTokenVerification::test_invalid_token_rejected
-FAILED tests/test_smartdomo_multitenancy.py::TestSmartThingsIntegration::test_devices_with_sensors_endpoint
-FAILED tests/test_smartdomo_multitenancy.py::TestConfigEndpoints::test_config_endpoint
-ERROR tests/test_smartdomo_multitenancy.py::TestTokenVerification::test_admin_verify_returns_correct_space_id
-ERROR tests/test_smartdomo_multitenancy.py::TestTokenVerification::test_user_verify_returns_different_space
-ERROR tests/test_smartdomo_multitenancy.py::TestMultiTenantDataIsolation::test_elettrodomestici_isolation
-ERROR tests/test_smartdomo_multitenancy.py::TestMultiTenantDataIsolation::test_manutenzioni_isolation
-ERROR tests/test_smartdomo_multitenancy.py::TestMultiTenantDataIsolation::test_property_isolation
-ERROR tests/test_smartdomo_multitenancy.py::TestMatterportPOIs::test_pois_filtered_by_user_and_space
-ERROR tests/test_smartdomo_multitenancy.py::TestMatterportPOIs::test_poi_import_uses_correct_space
-ERROR tests/test_smartdomo_multitenancy.py::TestManutenzioniCRUD::test_create_manutenzione
-==================== 7 failed, 1 passed, 8 errors in 1.60s ===================== to ensure you haven't broken data isolation.
+-   **User Frustration is High:** The user is annoyed with regressions and re-implementing features that were previously working. Prioritize stability and thorough testing. Double-check that any fix doesn't break something else.
+-   **Fix The Toggle First:** The absolute top priority (P0) is to fix the eWeLink device toggle switch. This is a critical functionality regression.
+-   **Database is Clean (Mostly):** The agent ran a script to normalize historical data. New data should be saved correctly. However, be aware of the lingering issue with incorrect *average* calculations on the sensor report page, which might indicate a flaw in the aggregation query or remaining bad data.
+-   **eWeLink is Primary:** Continue to treat the eWeLink integration as the primary source of truth for all device and sensor data.
 
 **documents and test reports created in this job**
 -   
 -   
--    (updated)
+-    (updated multiple times)
 
 **Last 10 User Messages and any pending HUMAN messages**
-10. **User:** Asks to see energy consumption statistics. (Status: **RESOLVED**)
-9.  **User:** Reports historical energy values are wrong. (Status: **RESOLVED**)
-8.  **User:** Reports historical *temperature* values are also wrong. (Status: **RESOLVED**)
-7.  **User:** Reports estimated daily/monthly consumption values are wrong and asks to add them. (Status: **RESOLVED**)
-6.  **User:** Asks to link appliances to Matterport POIs to view sensor data from the 3D model. (Status: **IN PROGRESS**)
-5.  **Agent:** Starts implementing the POI-appliance linking feature.
-4.  **User:** continua (continue). (Status: **ACKNOWLEDGED**)
-3.  **Agent:** Continues implementation.
-2.  **User:** Reports an issue with energy consumption visualization again. (Status: **RESOLVED**)
-1.  **User:** Reports an issue with temperature visualization again. (Status: **RESOLVED**)
+10. **User:** Reports that the average, min, and max temperature values are completely wrong. (Status: **PARTIALLY RESOLVED** - agent cleaned DB, but some averages are still odd).
+9.  **User:** Asks to re-implement the sidebar showing all domotic devices with status and action buttons (Go to POI, Edit). (Status: **RESOLVED**)
+8.  **Agent:** Implements the sidebar. User expresses frustration about re-doing work.
+7.  **User:** Reports the ON/OFF toggle for the power meter is failing with an error. (Status: **PENDING - CURRENT BUG**)
+6.  **Agent:** Acknowledges the toggle bug and is about to investigate.
+5.  **User:** Reports the power meter state is incorrect (shows OFF when ON) and that the energy consumption card needs to be restored to the sensor report. (Status: **RESOLVED**)
+4.  **User:** Reports power values are wrong (e.g., 2785W instead of 278.5W). (Status: **RESOLVED**)
+3.  **User:** Reports that temperature values in the sensor report are displayed incorrectly (e.g., 720°C). (Status: **RESOLVED**)
+2.  **User:** Provides screenshots showing multiple data visualization bugs: wrong temperatures, inconsistent power stats, and non-rendering charts. (Status: **RESOLVED**)
+1.  **User:** Asks for the ON/OFF toggle switch to be implemented for the power meter from the 3D view. This was a follow-up which led to the discovery of the toggle bug. (Status: **BLOCKED** by the toggle bug).
 
 **Project Health Check:**
--   **Broken**: None. The SmartThings token is expired, but this is handled by the eWeLink fallback, making the application fully functional.
+-   **Broken**: The eWeLink device control (toggle ON/OFF) is currently broken. This is a critical regression.
 -   **Mocked**: None.
 
 **3rd Party Integrations**
--   **eWeLink**: **WORKING** and serving as the primary integration for devices and sensors.
--   **SmartThings**: **UNRELIABLE** (token expired), but its API structure serves as a basis for the fallback system.
+-   **eWeLink**: **WORKING** and primary for device/sensor data. Control endpoint is currently bugged.
+-   **SmartThings**: **UNRELIABLE** (token expired), used as a structural basis for the eWeLink fallback.
 -   **Matterport SDK & Cloud API**: **WORKING**.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES
+-   **Testing agent used after significant changes**: YES, to fix an early bug in the session.
 -   **Troubleshoot agent used after agent stuck in loop**: NO
--   **Test files created**: 
--   **Known regressions**: All regressions identified during the session (POI import, apparati list) have been fixed.
+-   **Test files created**:  (None in this session, but one exists from a previous session).
+-   **Known regressions**: The eWeLink toggle switch functionality has regressed and is not working.
 
 **Credentials to test flow:**
 -   **Admin**:  / 
 -   **User**:  / 
 
 **What agent forgot to execute**
--   The agent has successfully addressed all user requests and issues raised during this session. The long-term task of implementing a background job for sensor data collection remains, but was not prioritized by the user in this fork.</analysis>
+-   The agent did not fully resolve the root cause of incorrect average temperature calculations. While cleaning the database fixed the most egregious errors (like 720°C), some averages still appear mathematically impossible (e.g., an average of 1.2°C when the min and max are both 2.5°C), indicating a flaw in the backend aggregation query that needs to be addressed.</analysis>
