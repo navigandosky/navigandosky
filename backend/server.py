@@ -6765,13 +6765,14 @@ async def collect_and_store_sensor_data():
                         except (ValueError, TypeError):
                             pass
                     
-                    # Power (normalize - eWeLink sends values x100)
+                    # Power (normalize - eWeLink S60TPF sends values x100, e.g., 2789 = 27.89W)
                     power = params.get("power")
                     if power is not None and power != "on" and power != "off":
                         try:
                             power_val = float(power)
-                            # eWeLink POW devices send power x100
-                            if power_val > 10000:
+                            # eWeLink POW devices send power x100 (e.g., 2789 = 27.89W)
+                            # Normal home power is < 3000W, raw values > 100 need normalization
+                            if power_val > 100:
                                 power_val = power_val / 100
                             readings_to_store.append({
                                 "device_id": device_id,
