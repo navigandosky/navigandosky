@@ -531,11 +531,22 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
   useEffect(() => {
     loadSpaces();
     loadSmartThingsDevices();
+    loadPoiSensorData();
     
-    // Refresh device states every 30 seconds
-    const interval = setInterval(loadSmartThingsDevices, 30000);
+    // Refresh device states and POI sensors every 30 seconds
+    const interval = setInterval(() => {
+      loadSmartThingsDevices();
+      loadPoiSensorData();
+    }, 30000);
     return () => clearInterval(interval);
-  }, [loadSpaces, loadSmartThingsDevices]);
+  }, [loadSpaces, loadSmartThingsDevices, loadPoiSensorData]);
+
+  // Update POI sensor overlays when data changes
+  useEffect(() => {
+    if (Object.keys(poiSensorData).length > 0 && pois.length > 0) {
+      updatePoiSensorOverlays();
+    }
+  }, [poiSensorData, pois, showStatusOverlays]);
 
   // Load linked appliance when a POI is selected
   const loadLinkedApparato = useCallback(async (poiId) => {
