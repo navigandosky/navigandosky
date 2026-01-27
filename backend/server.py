@@ -1686,8 +1686,7 @@ async def get_all_poi_sensors(token: Optional[str] = None):
         return {"poi_sensors": {}, "count": 0, "error": str(e)}
 
 
-@api_router.get("/elettrodomestici/by-poi/{poi_id}")
-async def get_elettrodomestico_by_poi(poi_id: str, token: Optional[str] = None):
+@api_router.get("/elettrodomestici/{elettrodomestico_id}", response_model=ElettrodomesticoConDettagli)
 async def get_elettrodomestico(elettrodomestico_id: str):
     e = await db.elettrodomestici.find_one({"id": elettrodomestico_id}, {"_id": 0})
     if not e:
