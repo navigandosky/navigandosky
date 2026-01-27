@@ -307,6 +307,114 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     }
   }, []);
 
+  // Load POI sensor data for all linked appliances
+  const loadPoiSensorData = useCallback(async () => {
+    try {
+      const params = authToken ? { token: authToken } : {};
+      const res = await axios.get(`${API_URL}/api/elettrodomestici/poi-sensors`, { params });
+      const { poi_sensors } = res.data;
+      setPoiSensorData(poi_sensors || {});
+      console.log(`POI Sensors: ${Object.keys(poi_sensors || {}).length} POIs with sensors`);
+    } catch (error) {
+      console.error("Error loading POI sensor data:", error);
+    }
+  }, [authToken]);
+
+  // Update POI sensor overlays in 3D view
+  const updatePoiSensorOverlays = useCallback(async () => {
+    if (!matterportRef.current || !showStatusOverlays) return;
+    
+    // Remove old POI overlays
+    if (poiOverlayIds.length > 0) {
+      for (const id of poiOverlayIds) {
+        try {
+          await matterportRef.current.removeTag?.(id);
+        } catch (e) {
+          // Ignore removal errors
+        }
+      }
+    }
+    
+    // Get POIs with sensor data
+    const poisWithSensors = pois.filter(p => poiSensorData[p.id]);
+    if (poisWithSensors.length === 0) return;
+    
+    const newOverlayIds = [];
+    
+    for (const poi of poisWithSensors) {
+      const sensorInfo = poiSensorData[poi.id];
+      if (!sensorInfo || !poi.position) continue;
+      
+      // Build status label
+      let statusLabel = "";
+      let statusColor = { r: 0.3, g: 0.3, b: 0.3 };
+      
+      // Temperature
+      if (sensorInfo.temperature !== undefined && sensorInfo.temperature !== null) {
+        const temp = Number(sensorInfo.temperature);
+        statusLabel = `🌡️${temp.toFixed(1)}°C`;
+        if (temp > 26) {
+          statusColor = { r: 1, g: 0.4, b: 0 };
+        } else if (temp < 18) {
+          statusColor = { r: 0.2, g: 0.6, b: 1 };
+        } else {
+          statusColor = { r: 0.2, g: 0.8, b: 0.2 };
+        }
+      }
+      
+      // Humidity
+      if (sensorInfo.humidity !== undefined && sensorInfo.humidity !== null) {
+        statusLabel += ` 💧${Number(sensorInfo.humidity).toFixed(0)}%`;
+      }
+      
+      // Power
+      if (sensorInfo.power !== undefined && sensorInfo.power !== null) {
+        const power = Number(sensorInfo.power);
+        if (power > 0) {
+          statusLabel = `⚡${power.toFixed(0)}W`;
+          statusColor = { r: 1, g: 0.8, b: 0 }; // Yellow for active power
+        } else {
+          statusLabel = "⚫ OFF";
+          statusColor = { r: 0.4, g: 0.4, b: 0.4 };
+        }
+      }
+      
+      // Switch state fallback
+      if (!statusLabel && sensorInfo.switch_state) {
+        if (sensorInfo.switch_state === 'on') {
+          statusLabel = "🔴 ON";
+          statusColor = { r: 1, g: 0.2, b: 0.2 };
+        } else {
+          statusLabel = "⚫ OFF";
+          statusColor = { r: 0.4, g: 0.4, b: 0.4 };
+        }
+      }
+      
+      if (!statusLabel) continue;
+      
+      // Create overlay tag slightly above the POI
+      try {
+        const tagId = await matterportRef.current.addTag?.({
+          label: statusLabel,
+          description: sensorInfo.apparato_nome || "",
+          position: {
+            x: poi.position.x,
+            y: poi.position.y + 0.25,
+            z: poi.position.z
+          },
+          color: statusColor
+        });
+        if (tagId) {
+          newOverlayIds.push(tagId);
+        }
+      } catch (e) {
+        console.log("Could not create sensor overlay for POI:", poi.id);
+      }
+    }
+    
+    setPoiOverlayIds(newOverlayIds);
+  }, [pois, poiSensorData, showStatusOverlays, poiOverlayIds]);
+
   // Update status overlays in 3D view
   const updateStatusOverlays = useCallback(async () => {
     if (!matterportRef.current || !showStatusOverlays) return;
