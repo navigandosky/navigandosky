@@ -5127,11 +5127,15 @@ async def control_ewelink_device(device_id: str, action: str):
             
             # Determine params based on UIID
             uiid = device_info.get("extra", {}).get("uiid", 0) if device_info else 0
+            params_data = device_info.get("params", {}) if device_info else {}
             
             # UIIDs that use "switches" array format (multi-channel devices)
-            multi_channel_uiids = [2, 3, 4, 7, 8, 77, 78, 112, 113, 114, 138, 139, 140, 141]
+            multi_channel_uiids = [2, 3, 4, 7, 8, 77, 78, 112, 113, 114, 138, 139, 140, 141, 190]
             
-            if uiid in multi_channel_uiids:
+            # Also check if device actually has "switches" in params (more reliable)
+            uses_switches_format = uiid in multi_channel_uiids or "switches" in params_data
+            
+            if uses_switches_format:
                 # Multi-channel format
                 params = {
                     "switches": [{"switch": action, "outlet": 0}]
