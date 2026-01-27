@@ -1621,7 +1621,7 @@ function App() {
   const handleDeleteElettro = async (id) => {
     if (window.confirm("Sei sicuro di voler eliminare questo elettrodomestico?")) {
       try {
-        await axios.delete(`${API}/elettrodomestici/${id}`);
+        await axios.delete(`${API}/elettrodomestici/${id}?token=${authToken}`);
         toast.success("Elettrodomestico eliminato");
         loadElettrodomestici();
         loadStats();
