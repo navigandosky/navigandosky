@@ -262,16 +262,35 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
   // Load POIs for a space
   const loadPois = useCallback(async (spaceId) => {
     try {
-      // For virtual spaces (user_xxx), use the Matterport space_id from currentUser
+      // Determine the actual space_id to filter by
       let actualSpaceId = spaceId;
-      if (spaceId?.startsWith("user_") && currentUser?.matterport_space_id) {
-        actualSpaceId = currentUser.matterport_space_id;
+      
+      // For virtual spaces (user_xxx), try to use Matterport space_id from currentUser or active space
+      if (spaceId?.startsWith("user_")) {
+        if (currentUser?.matterport_space_id) {
+          actualSpaceId = currentUser.matterport_space_id;
+        } else {
+          // Fall back to loading all POIs for this user
+          actualSpaceId = spaceId;
+        }
       }
       
       const params = { space_id: actualSpaceId };
       if (authToken) params.token = authToken;
+      
+      console.log("Loading POIs for space:", actualSpaceId);
       const res = await axios.get(`${API_URL}/api/matterport/pois`, { params });
-      setPois(res.data);
+      
+      // If no POIs found with specific space_id, try without filter
+      if (res.data.length === 0) {
+        console.log("No POIs found for space, loading all user POIs...");
+        const allRes = await axios.get(`${API_URL}/api/matterport/pois`, { 
+          params: authToken ? { token: authToken } : {} 
+        });
+        setPois(allRes.data);
+      } else {
+        setPois(res.data);
+      }
     } catch (error) {
       console.error("Error loading POIs:", error);
     }
