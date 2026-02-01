@@ -1458,6 +1458,16 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
           transition: sdk.Sweep.Transition.FLY,
           transitionTime: 1500
         });
+        
+        // After moving, orient camera towards the POI
+        if (poi.position) {
+          try {
+            await orientCameraToPosition(sdk, poi.position);
+          } catch (e) {
+            console.log("Could not orient camera:", e);
+          }
+        }
+        
         toast.success("✅ Destinazione raggiunta!");
         return;
       } catch (error) {
