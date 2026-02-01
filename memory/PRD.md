@@ -1,6 +1,25 @@
 # SmartDomo - PRD
 
-## Stato Attuale (27/01/2026)
+## Stato Attuale (01/02/2026)
+
+### ✅ Completati Oggi (01/02/2026)
+
+#### Logo Trivor sulla Pagina Login ✅
+- **Richiesta**: Sostituire/coprire il logo "Made with Emergent" con logo Trivor
+- **Implementazione**: Aggiunto overlay fisso in basso a destra con sfondo gradiente che copre il watermark
+- **File modificato**: `frontend/src/AuthPage.js`
+- **Risultato**: Logo Trivor visibile sia nella pagina login che nell'app autenticata
+
+#### Verifica Dialogo "Modifica POI" ✅
+- **Stato**: Già completamente implementato nella sessione precedente
+- **Funzionalità confermate**:
+  - ✅ Pulsante "Acquisisci posizione dalla vista" - acquisisce coordinate 3D dalla vista corrente
+  - ✅ Dropdown "Seleziona un tag Matterport" - acquisisce posizione da tag esistenti  
+  - ✅ Pulsante "Elimina" (rosso) - elimina il POI con conferma
+  - ✅ Modifica titolo, descrizione, categoria, icona
+- **File**: `frontend/src/MatterportManager.js` (linee 2739-2950)
+
+---
 
 ### 🎯 Test Suite - 100% PASSED ✅
 
