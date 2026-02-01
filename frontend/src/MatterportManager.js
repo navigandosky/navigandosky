@@ -1361,22 +1361,25 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       const dy = targetPosition.y - cameraPos.y;
       const dz = targetPosition.z - cameraPos.z;
       
-      // Calculate yaw (horizontal rotation) - angle in XZ plane
-      const yaw = Math.atan2(dx, -dz) * (180 / Math.PI);
+      // Matterport coordinate system: +X is right, +Y is up, +Z is forward (into screen)
+      // Yaw: rotation around Y axis. 0° = looking at -Z, 90° = looking at +X
+      const yaw = Math.atan2(dx, dz) * (180 / Math.PI);
       
-      // Calculate pitch (vertical rotation) - angle from horizontal
+      // Calculate pitch (vertical rotation)
       const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-      const pitch = Math.atan2(dy - 1.5, horizontalDist) * (180 / Math.PI); // Offset by ~1.5m for eye level
+      const pitch = Math.atan2(dy - 1.2, horizontalDist) * (180 / Math.PI); // 1.2m eye level offset
       
       // Clamp pitch to reasonable values
-      const clampedPitch = Math.max(-60, Math.min(60, pitch));
+      const clampedPitch = Math.max(-45, Math.min(45, pitch));
       
-      console.log(`Orienting camera: yaw=${yaw.toFixed(1)}°, pitch=${clampedPitch.toFixed(1)}°`);
+      console.log(`Orienting camera to POI: yaw=${yaw.toFixed(1)}°, pitch=${clampedPitch.toFixed(1)}°`);
+      console.log(`  Camera: (${cameraPos.x.toFixed(2)}, ${cameraPos.y.toFixed(2)}, ${cameraPos.z.toFixed(2)})`);
+      console.log(`  Target: (${targetPosition.x.toFixed(2)}, ${targetPosition.y.toFixed(2)}, ${targetPosition.z.toFixed(2)})`);
       
       // Set camera rotation with smooth transition
       await sdk.Camera.setRotation(
         { x: clampedPitch, y: yaw },
-        { transitionTime: 800 }
+        { transitionTime: 1000 }
       );
       
       return true;
