@@ -807,7 +807,7 @@ export default function SensorReport() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Zap className="h-5 w-5 text-amber-500" />
-                  Sensori di Consumo
+                  Sensori di Potenza
                 </CardTitle>
                 <CardDescription>
                   Dispositivi che misurano il consumo energetico in tempo reale
@@ -818,22 +818,74 @@ export default function SensorReport() {
                   {groupedSensors.power?.length > 0 ? (
                     groupedSensors.power.map((sensor, idx) => (
                       <SensorCard
-                        key={`energy-${sensor.device_id}-${idx}`}
+                        key={`power-${sensor.device_id}-${idx}`}
                         sensor={sensor}
                         onClick={handleSensorSelect}
-                        isSelected={selectedSensor?.device_id === sensor.device_id}
+                        isSelected={selectedSensor?.device_id === sensor.device_id && selectedSensor?.sensor_type === 'power'}
                       />
                     ))
                   ) : (
-                    <div className="col-span-full text-center py-8 text-gray-500">
-                      <Zap className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                      <p>Nessun sensore di consumo rilevato</p>
-                      <p className="text-sm mt-1">Collega dispositivi eWeLink con misurazione potenza</p>
+                    <div className="col-span-full text-center py-4 text-gray-500 text-sm">
+                      Nessun sensore di potenza rilevato
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
+
+            {/* Voltage Sensors List */}
+            {groupedSensors.voltage?.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-blue-500" />
+                    Sensori di Tensione
+                  </CardTitle>
+                  <CardDescription>
+                    Misurazione tensione di rete (V)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {groupedSensors.voltage.map((sensor, idx) => (
+                      <SensorCard
+                        key={`voltage-${sensor.device_id}-${idx}`}
+                        sensor={sensor}
+                        onClick={handleSensorSelect}
+                        isSelected={selectedSensor?.device_id === sensor.device_id && selectedSensor?.sensor_type === 'voltage'}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Current Sensors List */}
+            {groupedSensors.current?.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-green-500" />
+                    Sensori di Corrente
+                  </CardTitle>
+                  <CardDescription>
+                    Misurazione corrente assorbita (A)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {groupedSensors.current.map((sensor, idx) => (
+                      <SensorCard
+                        key={`current-${sensor.device_id}-${idx}`}
+                        sensor={sensor}
+                        onClick={handleSensorSelect}
+                        isSelected={selectedSensor?.device_id === sensor.device_id && selectedSensor?.sensor_type === 'current'}
+                      />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Chart for selected power sensor */}
             {selectedSensor?.sensor_type === "power" && chartData && (
