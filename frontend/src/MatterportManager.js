@@ -1798,7 +1798,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
 
   return (
     <div className="h-[calc(100vh-120px)] bg-[#09090B] text-white flex flex-col">
-      {/* Animation styles for navigation path */}
+      {/* Animation styles for navigation path + scrollbar styles */}
       <style>{`
         @keyframes slideRight {
           0% { transform: translateX(-100%); }
@@ -1806,6 +1806,22 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
         }
         @keyframes dash {
           to { stroke-dashoffset: -30; }
+        }
+        /* Custom scrollbar for POI list */
+        .scrollbar-poi::-webkit-scrollbar {
+          width: 10px;
+        }
+        .scrollbar-poi::-webkit-scrollbar-track {
+          background: #1e293b;
+          border-radius: 5px;
+        }
+        .scrollbar-poi::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #06b6d4, #0891b2);
+          border-radius: 5px;
+          border: 2px solid #1e293b;
+        }
+        .scrollbar-poi::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #22d3ee, #06b6d4);
         }
       `}</style>
       
