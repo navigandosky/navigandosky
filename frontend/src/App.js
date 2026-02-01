@@ -2571,8 +2571,8 @@ function App() {
           bottom: '0px',
           right: '0px',
           background: '#09090B',
-          padding: '6px 12px',
-          minWidth: '180px',
+          padding: '8px 16px',
+          minWidth: '210px',
           borderTopLeftRadius: '6px',
           zIndex: 99999999
         }}
@@ -2580,7 +2580,7 @@ function App() {
         <img 
           src="https://customer-assets.emergentagent.com/job_3837386c-e4f5-4acc-83b7-9dabadeaf885/artifacts/3sr9x015_logo%20trivor%20per%20copertura%20emergent.png"
           alt="Trivor"
-          style={{ height: '24px', width: 'auto' }}
+          style={{ height: '26px', width: 'auto' }}
         />
       </div>
     </div>
