@@ -1834,8 +1834,160 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
         </div>
       </div>
 
-      {/* Main area: Viewer + Sidebar */}
+      {/* Main area: Detail Panel + Viewer + Sidebar */}
       <div className="flex-1 flex overflow-hidden">
+        {/* Left Panel - POI Details (appears when POI selected) */}
+        {selectedPoi && (
+          <div className="w-72 border-r border-slate-800 bg-slate-900/95 flex flex-col shrink-0 overflow-hidden">
+            <div className="p-3 border-b border-slate-700 flex items-center justify-between">
+              <h3 className="font-bold text-sm truncate">{selectedPoi.translations?.[0]?.title || "POI"}</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedPoi(null)}
+                className="h-6 w-6 p-0 text-slate-400 hover:text-white"
+              >
+                <X size={14} />
+              </Button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {/* Sync Status */}
+              <div className="flex items-center gap-2">
+                {selectedPoi.synced_to_cloud ? (
+                  <Badge className="bg-green-600/20 text-green-400 text-xs">
+                    <Cloud size={10} className="mr-1" />Sincronizzato
+                  </Badge>
+                ) : (
+                  <Badge className="bg-slate-600/50 text-slate-300 text-xs">Non sync</Badge>
+                )}
+                {linkedApparato && (
+                  <Badge className="bg-amber-600/20 text-amber-400 text-xs">
+                    <Zap size={10} className="mr-1" />Collegato
+                  </Badge>
+                )}
+              </div>
+              
+              {/* Description */}
+              {selectedPoi.translations?.[0]?.description && (
+                <p className="text-xs text-slate-400">{selectedPoi.translations?.[0]?.description}</p>
+              )}
+              
+              {/* Linked Apparato Info */}
+              {loadingApparato && (
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <Loader2 size={12} className="animate-spin" />
+                  Caricamento...
+                </div>
+              )}
+              
+              {linkedApparato && !loadingApparato && (
+                <div className="p-2 bg-slate-800/50 rounded-lg border border-amber-500/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-4 w-4 text-amber-400" />
+                    <span className="font-medium text-sm text-amber-300">{linkedApparato.nome}</span>
+                  </div>
+                  
+                  {/* Live Sensor Data */}
+                  {liveSensorData?.has_sensor && liveSensorData?.sensor && (
+                    <div className="p-2 bg-gradient-to-r from-cyan-900/30 to-emerald-900/30 rounded border border-cyan-500/30 mb-2">
+                      <p className="text-xs text-cyan-300 mb-2 font-medium">📡 Dati Live</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {liveSensorData.sensor.power !== null && liveSensorData.sensor.power !== undefined && (
+                          <div className="text-center p-2 bg-slate-800/50 rounded">
+                            <p className="text-xl font-bold text-yellow-400">{liveSensorData.sensor.power.toFixed(0)}W</p>
+                            <p className="text-yellow-600 text-[10px]">Potenza</p>
+                          </div>
+                        )}
+                        {liveSensorData.sensor.temperature !== null && liveSensorData.sensor.temperature !== undefined && (
+                          <div className="text-center p-2 bg-slate-800/50 rounded">
+                            <p className="text-xl font-bold text-cyan-400">{liveSensorData.sensor.temperature.toFixed(1)}°</p>
+                            <p className="text-cyan-600 text-[10px]">Temp</p>
+                          </div>
+                        )}
+                        {liveSensorData.sensor.voltage !== null && liveSensorData.sensor.voltage !== undefined && (
+                          <div className="text-center p-2 bg-slate-800/50 rounded">
+                            <p className="text-xl font-bold text-blue-400">{liveSensorData.sensor.voltage.toFixed(0)}V</p>
+                            <p className="text-blue-600 text-[10px]">Tensione</p>
+                          </div>
+                        )}
+                        {liveSensorData.sensor.current !== null && liveSensorData.sensor.current !== undefined && (
+                          <div className="text-center p-2 bg-slate-800/50 rounded">
+                            <p className="text-xl font-bold text-green-400">{liveSensorData.sensor.current.toFixed(1)}A</p>
+                            <p className="text-green-600 text-[10px]">Corrente</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Switch State */}
+                      {liveSensorData.sensor.switch_state && (
+                        <div className={`mt-2 text-center py-1 rounded text-xs font-bold ${
+                          liveSensorData.sensor.switch_state === 'on' 
+                            ? 'bg-red-600/30 text-red-400' 
+                            : 'bg-slate-700 text-slate-400'
+                        }`}>
+                          {liveSensorData.sensor.switch_state === 'on' ? '⚡ ACCESO' : '⚫ SPENTO'}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Apparato Details */}
+                  <div className="text-xs text-slate-400 space-y-1">
+                    {linkedApparato.marca && <p>Marca: <span className="text-slate-300">{linkedApparato.marca}</span></p>}
+                    {linkedApparato.modello && <p>Modello: <span className="text-slate-300">{linkedApparato.modello}</span></p>}
+                    {linkedApparato.posizione && <p>Posizione: <span className="text-slate-300">{linkedApparato.posizione}</span></p>}
+                  </div>
+                </div>
+              )}
+              
+              {/* Category */}
+              {selectedPoi.category && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-slate-500">Categoria:</span>
+                  <Badge variant="outline" className="text-xs">
+                    {getAllCategories().find(c => c.id === selectedPoi.category)?.name || selectedPoi.category}
+                  </Badge>
+                </div>
+              )}
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="p-3 border-t border-slate-700 space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleNavigateToPoi(selectedPoi)}
+                  className="flex-1 h-8 text-xs bg-orange-600 hover:bg-orange-700"
+                >
+                  <Navigation size={12} className="mr-1" />
+                  Vai al POI
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleEditPoi(selectedPoi)}
+                  className="h-8 text-xs"
+                >
+                  <Edit3 size={12} />
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => handleSyncToCloud(selectedPoi)}
+                disabled={syncingToCloud === selectedPoi.id}
+                className={`w-full h-8 text-xs ${selectedPoi.synced_to_cloud ? 'bg-green-600' : 'bg-blue-600'}`}
+              >
+                {syncingToCloud === selectedPoi.id ? (
+                  <><Loader2 size={12} className="mr-1 animate-spin" />Sync...</>
+                ) : (
+                  <><Cloud size={12} className="mr-1" />{selectedPoi.synced_to_cloud ? 'Risync' : 'Sync Cloud'}</>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+        
         {/* Viewer 3D - Main area */}
         <div className="flex-1 relative bg-slate-900">
           {activeSpace ? (
