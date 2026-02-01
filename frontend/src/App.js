@@ -1797,7 +1797,7 @@ function App() {
         />
       )}
 
-      <main className={`max-w-7xl mx-auto px-4 py-6 ${activeTab === 'smartdomo' ? 'hidden' : ''}`}>
+      <main className={`${activeTab === 'smartdomo' || activeTab === 'matterport' ? 'hidden' : 'max-w-7xl mx-auto px-4 py-6'}`}>
         {/* Dashboard Tab */}
         {activeTab === "dashboard" && (
           <Dashboard stats={stats} consumiPerCategoria={consumiPerCategoria} />
