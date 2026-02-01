@@ -2568,19 +2568,19 @@ function App() {
       <div 
         className="fixed pointer-events-none flex items-center justify-end"
         style={{ 
-          bottom: '4px',
-          right: '4px',
+          bottom: '0px',
+          right: '0px',
           background: '#09090B',
-          padding: '4px 10px',
-          minWidth: '140px',
-          borderRadius: '4px',
+          padding: '6px 12px',
+          minWidth: '180px',
+          borderTopLeftRadius: '6px',
           zIndex: 99999999
         }}
       >
         <img 
           src="https://customer-assets.emergentagent.com/job_3837386c-e4f5-4acc-83b7-9dabadeaf885/artifacts/3sr9x015_logo%20trivor%20per%20copertura%20emergent.png"
           alt="Trivor"
-          style={{ height: '22px', width: 'auto' }}
+          style={{ height: '24px', width: 'auto' }}
         />
       </div>
     </div>
