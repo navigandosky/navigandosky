@@ -166,7 +166,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
   const [selectedPoi, setSelectedPoi] = useState(null);
   const [matterportTags, setMatterportTags] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("spaces");
+  const [activeTab, setActiveTab] = useState("pois");
   const [syncingToCloud, setSyncingToCloud] = useState(null);
   const [navigationPath, setNavigationPath] = useState([]); // Path points for navigation
   const [pathMarkerIds, setPathMarkerIds] = useState([]); // IDs of floor markers in 3D view
