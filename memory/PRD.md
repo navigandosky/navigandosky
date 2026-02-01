@@ -76,6 +76,15 @@
 - **Stile**: Badge cyan con bordo, visibile accanto al badge "Smart"
 - **File modificati**: `frontend/src/App.js`
 
+#### Fix Calcolo Media Temperature ✅ (01/02/2026)
+- **Problema**: Media temperature impossibile (es: Media 1.2°C con Min/Max 2.5°C)
+- **Causa**: Dati non normalizzati nel database (244°C invece di 24.4°C) inquinavano la media
+- **Soluzione**: 
+  1. Script pulizia DB per dividere per 100 valori temperatura > 100
+  2. Verificato che la normalizzazione nel collector funziona correttamente
+- **Risultato**: Termosifone Studio ora mostra Min=2.4, Media=2.4, Max=2.4 ✅
+- **File modificati**: Nessuno (solo cleanup database)
+
 #### Fix Creazione Elettrodomestici senza Token ✅ (27/01/2026)
 - **Problema**: Gli elettrodomestici creati non apparivano nella lista perché salvati con `user_id=default-user`
 - **Causa**: Le chiamate POST/PUT in `handleSaveElettro` non passavano il token di autenticazione
