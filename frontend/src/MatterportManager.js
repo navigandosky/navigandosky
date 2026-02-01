@@ -1519,6 +1519,13 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
               }
             }
             
+            // Orient camera towards the POI position
+            try {
+              await orientCameraToPosition(sdk, poi.position);
+            } catch (e) {
+              console.log("Could not orient camera:", e);
+            }
+            
             toast.success("✅ Destinazione raggiunta!");
             return;
           }
