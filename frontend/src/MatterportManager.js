@@ -1969,7 +1969,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                   onClick={() => handleEditPoi(selectedPoi)}
                   className="h-8 text-xs"
                 >
-                  <Edit3 size={12} />
+                  <Edit size={12} />
                 </Button>
               </div>
               <Button
