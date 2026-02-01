@@ -1349,6 +1349,43 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     toast.info("Percorso pulito");
   }, [pathMarkerIds]);
 
+  // Helper function to orient camera towards a target position
+  const orientCameraToPosition = async (sdk, targetPosition) => {
+    try {
+      // Get current camera pose
+      const pose = await sdk.Camera.getPose();
+      const cameraPos = pose.position;
+      
+      // Calculate direction from camera to target
+      const dx = targetPosition.x - cameraPos.x;
+      const dy = targetPosition.y - cameraPos.y;
+      const dz = targetPosition.z - cameraPos.z;
+      
+      // Calculate yaw (horizontal rotation) - angle in XZ plane
+      const yaw = Math.atan2(dx, -dz) * (180 / Math.PI);
+      
+      // Calculate pitch (vertical rotation) - angle from horizontal
+      const horizontalDist = Math.sqrt(dx * dx + dz * dz);
+      const pitch = Math.atan2(dy - 1.5, horizontalDist) * (180 / Math.PI); // Offset by ~1.5m for eye level
+      
+      // Clamp pitch to reasonable values
+      const clampedPitch = Math.max(-60, Math.min(60, pitch));
+      
+      console.log(`Orienting camera: yaw=${yaw.toFixed(1)}°, pitch=${clampedPitch.toFixed(1)}°`);
+      
+      // Set camera rotation with smooth transition
+      await sdk.Camera.setRotation(
+        { x: clampedPitch, y: yaw },
+        { transitionTime: 800 }
+      );
+      
+      return true;
+    } catch (error) {
+      console.log("orientCameraToPosition error:", error);
+      return false;
+    }
+  };
+
   const handleNavigateToPoi = async (poi) => {
     console.log("handleNavigateToPoi called for:", poi.translations?.[0]?.title);
     
