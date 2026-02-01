@@ -79,6 +79,22 @@ const SENSOR_TYPES = {
     gradient: ["#fef08a", "#eab308"],
     thresholds: { low: 0, high: 1000 }
   },
+  voltage: {
+    name: "Tensione",
+    icon: Zap,
+    unit: "V",
+    color: "#3b82f6",
+    gradient: ["#93c5fd", "#3b82f6"],
+    thresholds: { low: 200, high: 250 }
+  },
+  current: {
+    name: "Corrente",
+    icon: Activity,
+    unit: "A",
+    color: "#10b981",
+    gradient: ["#6ee7b7", "#10b981"],
+    thresholds: { low: 0, high: 10 }
+  },
   energy: {
     name: "Energia",
     icon: Activity,
