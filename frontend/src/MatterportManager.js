@@ -1376,10 +1376,19 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       console.log(`  Camera: (${cameraPos.x.toFixed(2)}, ${cameraPos.y.toFixed(2)}, ${cameraPos.z.toFixed(2)})`);
       console.log(`  Target: (${targetPosition.x.toFixed(2)}, ${targetPosition.y.toFixed(2)}, ${targetPosition.z.toFixed(2)})`);
       
+      // Try Camera.lookAtScreenCoords first (more reliable)
+      try {
+        // Move to look at the target position
+        await sdk.Camera.lookAtScreenCoords(0.5, 0.5); // Center of screen
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (e) {
+        // Fallback to setRotation
+      }
+      
       // Set camera rotation with smooth transition
       await sdk.Camera.setRotation(
         { x: clampedPitch, y: yaw },
-        { transitionTime: 1000 }
+        { transitionTime: 1200 }
       );
       
       return true;
