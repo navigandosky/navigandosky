@@ -845,44 +845,37 @@ export default function SensorReport() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData}>
-                        <defs>
-                          <linearGradient id="colorPower" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis 
-                          dataKey="timestamp" 
-                          tick={{ fontSize: 11 }}
-                          tickFormatter={(value) => {
-                            const date = new Date(value);
-                            return date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-                          }}
-                        />
-                        <YAxis 
-                          tick={{ fontSize: 11 }}
-                          tickFormatter={(value) => `${value}W`}
-                        />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
-                          labelStyle={{ color: '#9ca3af' }}
-                          formatter={(value) => [`${value?.toFixed(0)}W`, 'Potenza']}
-                          labelFormatter={(label) => new Date(label).toLocaleString('it-IT')}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="#f59e0b" 
-                          strokeWidth={2}
-                          fill="url(#colorPower)" 
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <SensorChart data={chartData} sensorType="power" />
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Chart for voltage sensor */}
+            {selectedSensor?.sensor_type === "voltage" && chartData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <LineChartIcon className="h-5 w-5 text-blue-500" />
+                    Storico Tensione - {selectedSensor.device_name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SensorChart data={chartData} sensorType="voltage" />
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Chart for current sensor */}
+            {selectedSensor?.sensor_type === "current" && chartData && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <LineChartIcon className="h-5 w-5 text-green-500" />
+                    Storico Corrente - {selectedSensor.device_name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SensorChart data={chartData} sensorType="current" />
                 </CardContent>
               </Card>
             )}
