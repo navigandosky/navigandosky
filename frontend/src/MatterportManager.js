@@ -2104,7 +2104,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
         </div>
 
         {/* Sidebar - POI & Spaces */}
-        <div className={`${sidebarCollapsed ? 'w-12' : 'w-72'} border-l border-slate-800 bg-slate-900/80 flex flex-col transition-all duration-300`}>
+        <div className={`${sidebarCollapsed ? 'w-10' : 'w-64'} border-l border-slate-800 bg-slate-900/80 flex flex-col transition-all duration-300`}>
           {/* Collapse toggle */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
