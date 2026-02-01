@@ -1266,7 +1266,7 @@ function App() {
   const [authToken, setAuthToken] = useState(localStorage.getItem("smartdomo_token"));
   const [authLoading, setAuthLoading] = useState(true);
   
-  const [activeTab, setActiveTab] = useState("smartdomo");
+  const [activeTab, setActiveTab] = useState("matterport");
   const [config, setConfig] = useState(null);
   const [stats, setStats] = useState(null);
   const [consumiPerCategoria, setConsumiPerCategoria] = useState([]);
