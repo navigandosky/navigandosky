@@ -175,6 +175,24 @@ export const LoginPage = ({ onLogin }) => {
           SmartDomo © 2025 - Gestione Edifici Intelligenti
         </p>
       </div>
+      
+      {/* Logo Trivor overlay - covers platform watermark */}
+      <div 
+        className="fixed bottom-0 right-0 pointer-events-none flex items-center justify-end"
+        style={{ 
+          background: 'linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%)',
+          padding: '8px 16px',
+          minWidth: '220px',
+          borderTopLeftRadius: '8px',
+          zIndex: 99999999
+        }}
+      >
+        <img 
+          src="https://customer-assets.emergentagent.com/job_3837386c-e4f5-4acc-83b7-9dabadeaf885/artifacts/3sr9x015_logo%20trivor%20per%20copertura%20emergent.png"
+          alt="Trivor"
+          style={{ height: '36px', width: 'auto' }}
+        />
+      </div>
     </div>
   );
 };
