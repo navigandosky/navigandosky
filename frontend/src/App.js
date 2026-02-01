@@ -1695,8 +1695,9 @@ function App() {
       
       {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="w-full px-6 py-3">
           <div className="flex items-center justify-between">
+            {/* Logo e titolo */}
             <div className="flex items-center gap-3">
               <Building2 className="h-8 w-8 text-blue-600" />
               <div>
@@ -1704,9 +1705,11 @@ function App() {
                 <p className="text-xs text-gray-500">Gestione Intelligente Edifici</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            
+            {/* User info e logout - affiancati */}
+            <div className="flex items-center gap-3">
               <NotificationBadge onClick={() => setActiveTab("suggerimenti")} />
-              <div className="flex items-center gap-2 pl-4 border-l">
+              <div className="flex items-center gap-3 pl-3 border-l">
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-700">{currentUser.full_name || currentUser.username}</p>
                   <p className="text-xs text-gray-500 flex items-center gap-1 justify-end">
@@ -1731,12 +1734,12 @@ function App() {
 
       {/* Navigation */}
       <nav className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="w-full px-6">
           <div className="flex gap-1 overflow-x-auto">
             {[
+              { id: "matterport", label: "Vista 3D", icon: Eye },
               { id: "smartdomo", label: "SmartDomo", icon: Thermometer },
               { id: "sensori", label: "Report Sensori", icon: Activity },
-              { id: "matterport", label: "Vista 3D", icon: Eye },
               { id: "elettrodomestici", label: "Apparati", icon: Zap },
               { id: "calendario", label: "Calendario", icon: Calendar },
               { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
