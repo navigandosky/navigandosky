@@ -1988,6 +1988,9 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                       const itTrans = poi.translations?.find(t => t.language === "it") || {};
                       const isSelected = selectedPoi?.id === poi.id;
                       const category = getAllCategories().find(c => c.id === poi.category);
+                      // Get sensor data for this POI
+                      const sensorInfo = poiSensorData[poi.id];
+                      const hasSmartThingsSensor = poi.smartthings_device_id && sensorValues[poi.smartthings_device_id];
                       
                       return (
                         <div
@@ -2011,18 +2014,43 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium truncate">{itTrans.title || "POI"}</p>
-                              {/* Sensor values */}
-                              {poi.smartthings_device_id && sensorValues[poi.smartthings_device_id] && (
+                              {/* Sensor status from poiSensorData (linked appliances) */}
+                              {sensorInfo && (
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {sensorInfo.temperature !== null && sensorInfo.temperature !== undefined && (
+                                    <span className="text-[10px] text-cyan-400 flex items-center gap-0.5">
+                                      🌡️{Number(sensorInfo.temperature).toFixed(1)}°
+                                    </span>
+                                  )}
+                                  {sensorInfo.power !== null && sensorInfo.power !== undefined && (
+                                    <span className={`text-[10px] flex items-center gap-0.5 ${Number(sensorInfo.power) > 0 ? 'text-yellow-400' : 'text-slate-500'}`}>
+                                      ⚡{Number(sensorInfo.power).toFixed(0)}W
+                                    </span>
+                                  )}
+                                  {sensorInfo.switch_state && !sensorInfo.power && (
+                                    <span className={`text-[10px] ${sensorInfo.switch_state === 'on' ? 'text-red-400' : 'text-slate-500'}`}>
+                                      {sensorInfo.switch_state === 'on' ? '🔴 ON' : '⚫ OFF'}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {/* Legacy SmartThings sensor values */}
+                              {!sensorInfo && hasSmartThingsSensor && (
                                 <p className="text-[10px] text-emerald-400">
                                   {sensorValues[poi.smartthings_device_id].temperature?.toFixed(1)}° 
                                   {sensorValues[poi.smartthings_device_id].humidity && ` ${sensorValues[poi.smartthings_device_id].humidity}%`}
                                 </p>
                               )}
                             </div>
-                            {/* Sync badge */}
-                            {poi.synced_to_cloud && (
-                              <Cloud size={12} className="text-green-400 shrink-0" />
-                            )}
+                            {/* Status indicators */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {sensorInfo?.online && (
+                                <div className="w-2 h-2 rounded-full bg-green-500" title="Online" />
+                              )}
+                              {poi.synced_to_cloud && (
+                                <Cloud size={10} className="text-green-400" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
