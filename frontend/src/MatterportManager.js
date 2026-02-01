@@ -1838,7 +1838,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - POI Details (appears when POI selected) */}
         {selectedPoi && (
-          <div className="w-72 border-r border-slate-800 bg-slate-900/95 flex flex-col shrink-0 overflow-hidden">
+          <div className="w-64 border-r border-slate-800 bg-slate-900/95 flex flex-col shrink-0 overflow-hidden">
             <div className="p-3 border-b border-slate-700 flex items-center justify-between">
               <h3 className="font-bold text-sm truncate">{selectedPoi.translations?.[0]?.title || "POI"}</h3>
               <Button
