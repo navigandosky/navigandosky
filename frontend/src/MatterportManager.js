@@ -2272,8 +2272,6 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
         </div>
       </div>
 
- 
-
 
       {/* Space Dialog */}
       <Dialog open={showSpaceDialog} onOpenChange={setShowSpaceDialog}>
