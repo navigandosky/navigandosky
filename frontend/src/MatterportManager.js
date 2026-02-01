@@ -2205,7 +2205,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                 </div>
               </TabsContent>
 
-              <TabsContent value="pois" className="flex-1 m-0 p-2 pb-20 overflow-y-auto scrollbar-poi">
+              <TabsContent value="pois" className="flex-1 m-0 p-2 overflow-y-auto scrollbar-poi" style={{paddingBottom: '80px'}}>
                 {/* POI Actions */}
                 <div className="flex gap-1 mb-2">
                   <Button
