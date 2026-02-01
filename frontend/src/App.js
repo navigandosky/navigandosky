@@ -2328,6 +2328,16 @@ function App() {
         )}
       </main>
 
+      {/* Matterport Tab - Full width outside main */}
+      {activeTab === "matterport" && (
+        <MatterportManager 
+          authToken={authToken} 
+          currentUser={currentUser}
+          navigateToPoiId={navigateToPoiId}
+          onNavigationComplete={() => setNavigateToPoiId(null)}
+        />
+      )}
+
       {/* Dialogs */}
       <CentroAssistenzaDialog
         open={centroDialogOpen}
