@@ -2807,6 +2807,8 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                       Nessuna posizione definita
                     </div>
                   )}
+                  
+                  {/* Acquire from current view */}
                   <Button
                     type="button"
                     variant="outline"
@@ -2835,8 +2837,50 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     }}
                   >
                     <Crosshair size={14} className="mr-2" />
-                    Acquisisci nuova posizione dalla vista
+                    Acquisisci posizione dalla vista
                   </Button>
+                  
+                  {/* Acquire from existing Matterport tag */}
+                  {matterportTags.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-xs text-slate-400">Oppure seleziona da un tag Matterport esistente:</Label>
+                      <Select
+                        onValueChange={(tagId) => {
+                          const tag = matterportTags.find(t => t.id === tagId);
+                          if (tag && tag.position) {
+                            setEditPoiForm(p => ({
+                              ...p,
+                              position: {
+                                x: tag.position.x,
+                                y: tag.position.y,
+                                z: tag.position.z
+                              },
+                              matterport_tag_id: tag.id
+                            }));
+                            toast.success(`Posizione acquisita da "${tag.label || tag.id}"`);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                          <SelectValue placeholder="Seleziona un tag Matterport..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          {matterportTags.map(tag => (
+                            <SelectItem 
+                              key={tag.id} 
+                              value={tag.id}
+                              className="text-white hover:bg-slate-700"
+                            >
+                              <div className="flex items-center gap-2">
+                                <MapPin size={12} className="text-cyan-400" />
+                                {tag.label || `Tag ${tag.id.substring(0, 8)}...`}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -2865,14 +2909,42 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
             </div>
           )}
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowEditPoiDialog(false)} className="border-slate-500 text-slate-300">
-              Annulla
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button 
+              variant="destructive" 
+              onClick={async () => {
+                if (!editPoiForm?.id) return;
+                if (window.confirm("Sei sicuro di voler eliminare questo POI?")) {
+                  try {
+                    setLoading(true);
+                    await axios.delete(`${API_URL}/api/matterport/pois/${editPoiForm.id}?token=${authToken}`);
+                    toast.success("POI eliminato");
+                    setShowEditPoiDialog(false);
+                    setEditPoiForm(null);
+                    if (activeSpace) loadPois(activeSpace.id);
+                    if (selectedPoi?.id === editPoiForm.id) setSelectedPoi(null);
+                  } catch (error) {
+                    toast.error("Errore eliminazione POI");
+                  } finally {
+                    setLoading(false);
+                  }
+                }
+              }}
+              disabled={loading}
+              className="mr-auto"
+            >
+              <Trash2 size={14} className="mr-1" />
+              Elimina
             </Button>
-            <Button className="bg-cyan-600 hover:bg-cyan-700 text-white" onClick={handleSaveEditPoi} disabled={loading}>
-              {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
-              Salva
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowEditPoiDialog(false)} className="border-slate-500 text-slate-300">
+                Annulla
+              </Button>
+              <Button className="bg-cyan-600 hover:bg-cyan-700 text-white" onClick={handleSaveEditPoi} disabled={loading}>
+                {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : null}
+                Salva
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
