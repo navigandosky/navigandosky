@@ -105,7 +105,11 @@ const TIME_PERIODS = [
   { value: "24", label: "Ultime 24 ore" },
   { value: "48", label: "Ultimi 2 giorni" },
   { value: "168", label: "Ultima settimana" },
-  { value: "720", label: "Ultimo mese" }
+  { value: "720", label: "Ultimo mese" },
+  { value: "1440", label: "Ultimi 2 mesi" },
+  { value: "2160", label: "Ultimi 3 mesi" },
+  { value: "4320", label: "Ultimi 6 mesi" },
+  { value: "8760", label: "Ultimo anno" }
 ];
 
 // Interval options
