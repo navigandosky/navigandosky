@@ -4502,13 +4502,14 @@ async def get_ewelink_devices_internal():
                         elif "switches" in params and len(params["switches"]) > 0:
                             base_device["switch"] = params["switches"][0].get("switch")
                         
-                        # Handle door/window contact sensors (UIID 7003 - SNZB-04)
-                        if "lock" in params:
+                        # Handle door/window contact sensors (UIID 7003, 7014 - SNZB-04, DW2)
+                        contact_sensor_uiids = [7003, 7014]
+                        if uiid in contact_sensor_uiids and "lock" in params:
                             base_device["contact"] = "open" if params["lock"] == 1 else "closed"
                             base_device["is_contact_sensor"] = True
                         if "battery" in params:
                             base_device["battery"] = params["battery"]
-                        if "trigTime" in params:
+                        if uiid in contact_sensor_uiids and "trigTime" in params:
                             try:
                                 trig_ts = int(params["trigTime"]) / 1000
                                 base_device["last_trigger"] = datetime.fromtimestamp(trig_ts, tz=timezone.utc).isoformat()
