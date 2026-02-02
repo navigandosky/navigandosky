@@ -1501,14 +1501,23 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     
     // Fallback: Try multiple navigation methods in order of preference
     
-    // Method 1: Try navigateToTag for imported Matterport tags
+    // Method 1: Try navigateToTag for imported Matterport tags (try new Tag API first, then legacy Mattertag)
     if (poi.matterport_tag_id) {
       try {
-        console.log("Trying navigateToTag with:", poi.matterport_tag_id);
-        await sdk.Mattertag.navigateToTag(
-          poi.matterport_tag_id,
-          sdk.Mattertag.Transition.FLY
-        );
+        console.log("Trying Tag.navigateToTag with:", poi.matterport_tag_id);
+        // Try new Tag API first (SDK 3.x)
+        if (sdk.Tag && sdk.Tag.navigateToTag) {
+          await sdk.Tag.navigateToTag(
+            poi.matterport_tag_id,
+            sdk.Tag.Transition?.FLY || 1
+          );
+        } else {
+          // Fallback to legacy Mattertag API
+          await sdk.Mattertag.navigateToTag(
+            poi.matterport_tag_id,
+            sdk.Mattertag.Transition.FLY
+          );
+        }
         toast.success("✅ Destinazione raggiunta!");
         console.log("navigateToTag successful");
         return;
