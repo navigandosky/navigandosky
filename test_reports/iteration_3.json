@@ -1,0 +1,56 @@
+{
+  "summary": "SmartDomo multi-channel device support testing completed successfully. Fixed backend bug where get_ewelink_devices_internal() was not expanding multi-channel devices. All features working: multi-channel expansion, CH badges display, toggle ON/OFF per channel.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/smartthings/devices", "issue": "Returns 520 error when SmartThings token expired - known issue, eWeLink fallback works on devices-with-sensors"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_multichannel_devices.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "FIXED: get_ewelink_devices_internal() was not expanding multi-channel devices. Added same expansion logic as /api/ewelink/devices endpoint",
+    "FIXED: devices-with-sensors fallback now properly includes is_channel, channel, has_channels, channel_count, and switch fields for multi-channel devices",
+    "Multi-channel UIIDs supported: 2, 3, 4, 7, 8, 77, 78, 112, 113, 114, 138, 139, 140, 141, 190",
+    "Channel IDs use format: {parent_id}_ch{n} (e.g., 1000bab658_ch0 for Irrigazione prato CH1)"
+  ],
+  "updated_files": [
+    "/app/backend/server.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (Login, SmartDomo tab, Domotica section, CH badges, toggle all working)"
+  },
+  "test_credentials": {
+    "Admin": {"username": "Admin", "password": "SmartMaster2026"}
+  },
+  "seed_data_creation": "None - used existing eWeLink devices",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Multi-channel device support fully implemented and tested. Backend now expands 4-channel SonOff/eWeLink devices (IRRIGAZIONE and SERVIZI CANCELLO) into separate virtual channels. Frontend displays CH1-CH4 badges and allows individual toggle control. SmartThings token is expired (401) but eWeLink fallback works correctly.",
+  "features_tested": {
+    "login_admin": "PASS - Admin/SmartMaster2026 works",
+    "smartdomo_tab": "PASS - SmartDomo dashboard loads",
+    "domotica_section": "PASS - Shows 34 devices (expanded from 26)",
+    "multi_channel_expansion": "PASS - Irrigazione prato and Serv cancello show 4 channels each",
+    "ch_badges": "PASS - CH1, CH2, CH3, CH4 badges displayed on channel cards",
+    "toggle_channel": "PASS - Toggle ON/OFF works on individual channels",
+    "api_ewelink_devices": "PASS - Returns 42 devices with expanded channels",
+    "api_devices_with_sensors": "PASS - Returns 42 devices via eWeLink fallback",
+    "api_toggle_channel": "PASS - POST /api/ewelink/device/{id}_ch{n}/switch/{action} works"
+  },
+  "bug_fixed": {
+    "description": "get_ewelink_devices_internal() was not expanding multi-channel devices",
+    "root_cause": "The internal function used by devices-with-sensors fallback was returning raw devices without the multi-channel expansion logic that exists in /api/ewelink/devices",
+    "fix_applied": "Added multi-channel expansion logic to get_ewelink_devices_internal() and updated the fallback code to include is_channel, channel, has_channels, channel_count, and switch fields",
+    "impact": "Without this fix, the frontend was only showing 18-26 devices instead of 34-42 with expanded channels"
+  }
+}
