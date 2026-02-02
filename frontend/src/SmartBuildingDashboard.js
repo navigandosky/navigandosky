@@ -996,24 +996,10 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
     d.sensorData?.temperature != null  // Include devices with temperature data from eWeLink
   );
 
-  // Domotica devices - ONLY those linked to a POI/elettrodomestico (so user can navigate to them in 3D)
-  // This includes devices that might be in clima but have a POI link
-  const domoticaDevices = smartThingsDevices.filter(d => {
-    // Include only if linked to an elettrodomestico with a matterport_tag_id or poi_id
-    const linkedApparato = elettrodomestici.find(e => 
-      e.smart_plug_id === d.id || 
-      e.smartthings_device_id === d.id
-    );
-    
-    // Must have a valid POI link (matterport_tag_id or poi_id)
-    if (!linkedApparato || (!linkedApparato.matterport_tag_id && !linkedApparato.poi_id)) {
-      return false;
-    }
-    
-    // If it's a clima device, still include it if it has a POI link
-    // This way thermostat devices can be navigated to in 3D
-    return true;
-  });
+  // Domotica devices - ALL devices except clima (shows all in dashboard)
+  const domoticaDevices = smartThingsDevices.filter(d => 
+    !climaDevices.includes(d)
+  );
 
   // Manutenzioni prossime
   const prossimeManutenzioni = manutenzioni
