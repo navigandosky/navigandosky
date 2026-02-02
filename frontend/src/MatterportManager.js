@@ -740,7 +740,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
   // Select space
   const handleSelectSpace = (space) => {
     setActiveSpace(space);
-    loadPois(space.id);
+    loadPois(space.space_id || space.id);
     setSelectedPoi(null);
     setLinkedApparato(null);
   };
