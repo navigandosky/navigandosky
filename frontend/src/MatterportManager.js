@@ -2037,7 +2037,44 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                             <p className="text-green-600 text-[10px]">Corrente</p>
                           </div>
                         )}
+                        
+                        {/* Door/Window Contact Sensor */}
+                        {liveSensorData.sensor.contact && (
+                          <div className="text-center p-2 bg-slate-800/50 rounded">
+                            <p className={`text-xl font-bold ${
+                              liveSensorData.sensor.contact === 'open' 
+                                ? 'text-orange-400' 
+                                : 'text-emerald-400'
+                            }`}>
+                              {liveSensorData.sensor.contact === 'open' ? '🚪 APERTA' : '🔒 CHIUSA'}
+                            </p>
+                            <p className="text-slate-500 text-[10px]">Stato Porta</p>
+                          </div>
+                        )}
+                        
+                        {/* Battery Level */}
+                        {liveSensorData.sensor.battery !== null && liveSensorData.sensor.battery !== undefined && (
+                          <div className="text-center p-2 bg-slate-800/50 rounded">
+                            <p className={`text-xl font-bold ${
+                              liveSensorData.sensor.battery > 50 
+                                ? 'text-green-400' 
+                                : liveSensorData.sensor.battery > 20 
+                                  ? 'text-yellow-400' 
+                                  : 'text-red-400'
+                            }`}>
+                              🔋 {liveSensorData.sensor.battery}%
+                            </p>
+                            <p className="text-slate-500 text-[10px]">Batteria</p>
+                          </div>
+                        )}
                       </div>
+                      
+                      {/* Last trigger time for contact sensors */}
+                      {liveSensorData.sensor.last_trigger && (
+                        <div className="mt-2 text-[10px] text-slate-500 text-center">
+                          Ultimo movimento: {new Date(liveSensorData.sensor.last_trigger).toLocaleString('it-IT')}
+                        </div>
+                      )}
                       
                       {/* Switch State - Clickable Toggle */}
                       {liveSensorData.sensor.switch_state && (
