@@ -4324,6 +4324,18 @@ async def get_devices_with_sensor_values():
                         "has_channels": has_channels,
                         "channel_count": channel_count
                     }
+                    
+                    # Add door/window contact sensor data
+                    # The data comes from get_ewelink_devices_internal which already processed these
+                    if device.get("contact"):
+                        device_info["contact"] = device.get("contact")
+                    if device.get("is_contact_sensor"):
+                        device_info["is_contact_sensor"] = True
+                    if device.get("battery") is not None:
+                        device_info["battery"] = device.get("battery")
+                    if device.get("last_trigger"):
+                        device_info["last_trigger"] = device.get("last_trigger")
+                    
                     result["devices"].append(device_info)
                     
                     # Extract sensor values from eWeLink device
