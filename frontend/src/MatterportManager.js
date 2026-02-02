@@ -2419,6 +2419,28 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                                 🌡️ {Number(sensorData.temperature).toFixed(1)}°C
                               </span>
                             )}
+                            {/* Door/Window Contact Status */}
+                            {sensorData.contact && (
+                              <span className={`px-2 py-1 rounded ${
+                                sensorData.contact === 'open' 
+                                  ? 'bg-orange-500/20 text-orange-400' 
+                                  : 'bg-emerald-500/20 text-emerald-400'
+                              }`}>
+                                {sensorData.contact === 'open' ? '🚪 APERTA' : '🔒 CHIUSA'}
+                              </span>
+                            )}
+                            {/* Battery Level */}
+                            {sensorData.battery !== null && sensorData.battery !== undefined && (
+                              <span className={`px-2 py-1 rounded ${
+                                sensorData.battery > 50 
+                                  ? 'bg-green-500/20 text-green-400' 
+                                  : sensorData.battery > 20 
+                                    ? 'bg-yellow-500/20 text-yellow-400' 
+                                    : 'bg-red-500/20 text-red-400'
+                              }`}>
+                                🔋 {sensorData.battery}%
+                              </span>
+                            )}
                             {sensorData.switch_state && (
                               <span className={`px-2 py-1 rounded ${
                                 sensorData.switch_state === 'on' 
