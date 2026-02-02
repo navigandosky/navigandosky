@@ -499,7 +499,19 @@ const DeviceCard = ({ device, onToggle, onShowHistory, linkedApparato, onNavigat
           <span className="text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded">Offline</span>
         )}
       </div>
-      <h3 className="text-sm font-medium text-white mb-1 truncate" title={device.name}>{device.name}</h3>
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="text-sm font-medium text-white truncate flex-1" title={device.name}>{device.name}</h3>
+        {isChannel && (
+          <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">
+            CH{(channelNumber !== undefined ? Number(channelNumber) + 1 : '')}
+          </span>
+        )}
+        {device.has_channels && !isChannel && (
+          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+            {device.channel_count}CH
+          </span>
+        )}
+      </div>
       
       {/* Valori sensori */}
       {(hasTemp || hasHumidity) && sensorData && (
