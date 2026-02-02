@@ -996,9 +996,19 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
     d.sensorData?.temperature != null  // Include devices with temperature data from eWeLink
   );
 
-  const domoticaDevices = smartThingsDevices.filter(d => 
-    !climaDevices.includes(d)
-  );
+  // Domotica devices - ONLY those linked to a POI/elettrodomestico (so user can navigate to them in 3D)
+  const domoticaDevices = smartThingsDevices.filter(d => {
+    // Exclude clima devices
+    if (climaDevices.includes(d)) return false;
+    
+    // Include only if linked to an elettrodomestico with a matterport_tag_id or poi_id
+    const linkedApparato = elettrodomestici.find(e => 
+      e.smart_plug_id === d.id || 
+      e.smartthings_device_id === d.id
+    );
+    
+    return linkedApparato && (linkedApparato.matterport_tag_id || linkedApparato.poi_id);
+  });
 
   // Manutenzioni prossime
   const prossimeManutenzioni = manutenzioni
