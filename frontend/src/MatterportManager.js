@@ -2371,6 +2371,11 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                                 ⚡ {Number(sensorData.power).toFixed(0)}W
                               </span>
                             )}
+                            {sensorData.voltage !== null && sensorData.voltage !== undefined && (
+                              <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded">
+                                🔌 {Number(sensorData.voltage).toFixed(0)}V
+                              </span>
+                            )}
                             {sensorData.temperature !== null && sensorData.temperature !== undefined && (
                               <span className="px-2 py-1 bg-cyan-500/20 text-cyan-400 rounded">
                                 🌡️ {Number(sensorData.temperature).toFixed(1)}°C
