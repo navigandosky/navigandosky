@@ -1751,7 +1751,11 @@ async def delete_elettrodomestico(elettrodomestico_id: str):
 @api_router.get("/elettrodomestici/by-poi/{poi_id}")
 async def get_elettrodomestico_by_poi(poi_id: str, token: Optional[str] = None):
     """Get elettrodomestico associated with a Matterport POI"""
-    query = {"matterport_tag_id": poi_id}
+    # First try to find by poi_id (frontend POI database ID)
+    query = {"$or": [
+        {"matterport_tag_id": poi_id},  # Try tag ID
+        {"poi_id": poi_id}  # Try POI database ID
+    ]}
     if token:
         session = await db.sessions.find_one({"token": token})
         if session:
