@@ -3178,7 +3178,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     toast.success("POI eliminato");
                     setShowEditPoiDialog(false);
                     setEditPoiForm(null);
-                    if (activeSpace) loadPois(activeSpace.id);
+                    if (activeSpace) loadPois(activeSpace.space_id || activeSpace.id);
                     if (selectedPoi?.id === editPoiForm.id) setSelectedPoi(null);
                   } catch (error) {
                     toast.error("Errore eliminazione POI");
