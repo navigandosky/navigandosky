@@ -1366,11 +1366,12 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {airQualityDevices.map((device) => {
-                        const pm25 = device.sensorData?.pm2_5;
-                        const pm10 = device.sensorData?.pm10;
-                        const co2 = device.sensorData?.co2;
-                        const temp = device.sensorData?.temperature;
-                        const humidity = device.sensorData?.humidity;
+                        // Use data directly from device (eWeLink API) or from sensorData
+                        const pm25 = device.pm2_5 ?? device.sensorData?.pm2_5;
+                        const pm10 = device.pm10 ?? device.sensorData?.pm10;
+                        const co2 = device.co2 ?? device.sensorData?.co2;
+                        const temp = device.temperature ?? device.sensorData?.temperature;
+                        const humidity = device.humidity ?? device.sensorData?.humidity;
                         
                         // Air quality level based on PM2.5
                         const getAirQualityLevel = (pm25Value) => {
