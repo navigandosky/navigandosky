@@ -2319,8 +2319,85 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
               <TabsList className="w-full bg-slate-800/50 rounded-none shrink-0">
                 <TabsTrigger value="pois" className="flex-1 text-xs">POI ({pois.length})</TabsTrigger>
+                <TabsTrigger value="sensori" className="flex-1 text-xs">Sensori ({Object.keys(poiSensorData).length})</TabsTrigger>
                 <TabsTrigger value="spaces" className="flex-1 text-xs">Spazi ({spaces.length})</TabsTrigger>
               </TabsList>
+
+              {/* SENSORI TAB - Only devices with POI link */}
+              <TabsContent value="sensori" className="flex-1 m-0 p-2 overflow-y-auto scrollbar-poi" style={{paddingBottom: '80px'}}>
+                <div className="space-y-2">
+                  {Object.keys(poiSensorData).length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 text-sm">
+                      <Zap size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>Nessun sensore collegato a POI</p>
+                    </div>
+                  ) : (
+                    Object.entries(poiSensorData).map(([poiId, sensorData]) => {
+                      // Find the POI for this sensor
+                      const poi = pois.find(p => p.id === poiId || p.matterport_tag_id === poiId);
+                      if (!poi) return null;
+                      
+                      const poiTitle = poi.translations?.[0]?.title || 'POI';
+                      
+                      return (
+                        <div
+                          key={poiId}
+                          className={`p-3 rounded-lg cursor-pointer transition-all ${
+                            selectedPoi?.id === poi.id
+                              ? 'bg-cyan-600/30 border border-cyan-500/50'
+                              : 'bg-slate-800/50 border border-slate-700 hover:border-slate-600'
+                          }`}
+                          onClick={() => {
+                            setSelectedPoi(poi);
+                            handleNavigateToPoi(poi);
+                          }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Zap className="h-4 w-4 text-cyan-400" />
+                              <span className="font-medium text-sm text-white truncate">
+                                {sensorData.apparato_nome || sensorData.device_name || poiTitle}
+                              </span>
+                            </div>
+                            {sensorData.online && (
+                              <div className="w-2 h-2 rounded-full bg-green-500" title="Online" />
+                            )}
+                          </div>
+                          
+                          {/* Sensor values */}
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            {sensorData.power !== null && sensorData.power !== undefined && (
+                              <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded">
+                                ⚡ {Number(sensorData.power).toFixed(0)}W
+                              </span>
+                            )}
+                            {sensorData.temperature !== null && sensorData.temperature !== undefined && (
+                              <span className="px-2 py-1 bg-cyan-500/20 text-cyan-400 rounded">
+                                🌡️ {Number(sensorData.temperature).toFixed(1)}°C
+                              </span>
+                            )}
+                            {sensorData.switch_state && (
+                              <span className={`px-2 py-1 rounded ${
+                                sensorData.switch_state === 'on' 
+                                  ? 'bg-red-500/20 text-red-400' 
+                                  : 'bg-slate-600/50 text-slate-400'
+                              }`}>
+                                {sensorData.switch_state === 'on' ? '🔴 ON' : '⚫ OFF'}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* POI link */}
+                          <div className="mt-2 text-xs text-slate-500 flex items-center gap-1">
+                            <MapPin size={10} />
+                            {poiTitle}
+                          </div>
+                        </div>
+                      );
+                    }).filter(Boolean)
+                  )}
+                </div>
+              </TabsContent>
 
               <TabsContent value="spaces" className="flex-1 overflow-auto m-0 p-2">
                 <div className="space-y-2">
