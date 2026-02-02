@@ -1267,7 +1267,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       // Refresh POI
       const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${selectedPoi.id}`);
       setSelectedPoi(poiRes.data);
-      loadPois(activeSpace.id);
+      loadPois(activeSpace.space_id || activeSpace.id);
     } catch (error) {
       toast.error("Errore nella generazione audio");
     } finally {
@@ -1289,7 +1289,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       // Refresh POI
       const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${poiId}`);
       setSelectedPoi(poiRes.data);
-      loadPois(activeSpace.id);
+      loadPois(activeSpace.space_id || activeSpace.id);
     } catch (error) {
       toast.error("Errore nel caricamento");
     }
@@ -1304,7 +1304,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       // Refresh POI
       const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${poiId}`);
       setSelectedPoi(poiRes.data);
-      loadPois(activeSpace.id);
+      loadPois(activeSpace.space_id || activeSpace.id);
     } catch (error) {
       toast.error("Errore nell'eliminazione");
     }
