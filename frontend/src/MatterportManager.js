@@ -2472,7 +2472,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     size="sm"
                     variant="ghost"
                     className="h-8 w-8 p-0 text-slate-400 hover:text-white"
-                    onClick={() => activeSpace && loadPois(activeSpace.id)}
+                    onClick={() => activeSpace && loadPois(activeSpace.space_id || activeSpace.id)}
                     title="Aggiorna lista POI"
                   >
                     <RefreshCw size={12} />
