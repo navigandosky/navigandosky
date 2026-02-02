@@ -5267,7 +5267,7 @@ async def get_ewelink_device_status(device_id: str):
 
 @api_router.post("/ewelink/device/{device_id}/switch/{action}")
 async def control_ewelink_device(device_id: str, action: str):
-    """Control eWeLink device (on/off)"""
+    """Control eWeLink device (on/off) - supports multi-channel devices"""
     if action not in ["on", "off"]:
         raise HTTPException(status_code=400, detail="Action must be 'on' or 'off'")
     
@@ -5277,6 +5277,17 @@ async def control_ewelink_device(device_id: str, action: str):
         raise HTTPException(status_code=401, detail="eWeLink non autenticato")
     
     base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
+    
+    # Check if this is a channel-specific device (e.g., "10017b82bf_ch0")
+    actual_device_id = device_id
+    channel = None
+    if "_ch" in device_id:
+        parts = device_id.rsplit("_ch", 1)
+        actual_device_id = parts[0]
+        try:
+            channel = int(parts[1])
+        except ValueError:
+            pass
     
     try:
         # First, get device info to check online status and UIID
@@ -5296,7 +5307,7 @@ async def control_ewelink_device(device_id: str, action: str):
                 things = devices_response.json().get("data", {}).get("thingList", [])
                 for thing in things:
                     item_data = thing.get("itemData", {})
-                    if item_data.get("deviceid") == device_id:
+                    if item_data.get("deviceid") == actual_device_id:
                         device_info = item_data
                         break
             
@@ -5314,9 +5325,10 @@ async def control_ewelink_device(device_id: str, action: str):
             uses_switches_format = uiid in multi_channel_uiids or "switches" in params_data
             
             if uses_switches_format:
-                # Multi-channel format
+                # Multi-channel format - use specified channel or default to 0
+                outlet = channel if channel is not None else 0
                 params = {
-                    "switches": [{"switch": action, "outlet": 0}]
+                    "switches": [{"switch": action, "outlet": outlet}]
                 }
             else:
                 # Single channel format
@@ -5329,7 +5341,7 @@ async def control_ewelink_device(device_id: str, action: str):
                 f"{base_url}/v2/device/thing/status",
                 json={
                     "type": 1,
-                    "id": device_id,
+                    "id": actual_device_id,
                     "params": params
                 },
                 headers={
