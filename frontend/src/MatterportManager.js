@@ -940,7 +940,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       
       toast.success("POI eliminato");
       setSelectedPoi(null);
-      loadPois(activeSpace.id);
+      loadPois(activeSpace.space_id || activeSpace.id);
     } catch (error) {
       console.error("Error deleting POI:", error);
       toast.error("Errore nell'eliminazione del POI");
