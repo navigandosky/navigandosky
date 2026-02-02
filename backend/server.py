@@ -1674,6 +1674,7 @@ async def get_all_poi_sensors(token: Optional[str] = None):
                 "humidity": sensor_values.get("humidity"),
                 "power": sensor_values.get("power"),
                 "voltage": sensor_values.get("voltage"),
+                "current": sensor_values.get("current"),
                 "provider": elettro.get("smart_plug_provider", "ewelink")
             }
             
