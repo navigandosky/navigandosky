@@ -2074,57 +2074,59 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
               )}
               
               {/* Fallback: Show sensor controls from poiSensorData when no linkedApparato but sensor data exists */}
-              {!linkedApparato && !loadingApparato && poiSensorData[selectedPoi.id] && (
+              {!linkedApparato && !loadingApparato && (poiSensorData[selectedPoi.id] || poiSensorData[selectedPoi.matterport_tag_id]) && (() => {
+                const sensorData = poiSensorData[selectedPoi.id] || poiSensorData[selectedPoi.matterport_tag_id];
+                return (
                 <div className="p-2 bg-slate-800/50 rounded-lg border border-cyan-500/30">
                   <div className="flex items-center gap-2 mb-2">
                     <Zap className="h-4 w-4 text-cyan-400" />
                     <span className="font-medium text-sm text-cyan-300">
-                      {poiSensorData[selectedPoi.id].apparato_nome || poiSensorData[selectedPoi.id].device_name || 'Dispositivo Smart'}
+                      {sensorData.apparato_nome || sensorData.device_name || 'Dispositivo Smart'}
                     </span>
-                    {poiSensorData[selectedPoi.id].online && (
+                    {sensorData.online && (
                       <div className="w-2 h-2 rounded-full bg-green-500" title="Online" />
                     )}
                   </div>
                   
                   {/* Sensor values grid */}
                   <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                    {poiSensorData[selectedPoi.id].power !== null && poiSensorData[selectedPoi.id].power !== undefined && (
+                    {sensorData.power !== null && sensorData.power !== undefined && (
                       <div className="text-center p-2 bg-slate-800/50 rounded">
-                        <p className="text-xl font-bold text-yellow-400">{Number(poiSensorData[selectedPoi.id].power).toFixed(0)}W</p>
+                        <p className="text-xl font-bold text-yellow-400">{Number(sensorData.power).toFixed(0)}W</p>
                         <p className="text-yellow-600 text-[10px]">Potenza</p>
                       </div>
                     )}
-                    {poiSensorData[selectedPoi.id].temperature !== null && poiSensorData[selectedPoi.id].temperature !== undefined && (
+                    {sensorData.temperature !== null && sensorData.temperature !== undefined && (
                       <div className="text-center p-2 bg-slate-800/50 rounded">
-                        <p className="text-xl font-bold text-cyan-400">{Number(poiSensorData[selectedPoi.id].temperature).toFixed(1)}°</p>
+                        <p className="text-xl font-bold text-cyan-400">{Number(sensorData.temperature).toFixed(1)}°</p>
                         <p className="text-cyan-600 text-[10px]">Temperatura</p>
                       </div>
                     )}
                   </div>
                   
                   {/* Switch Toggle Button */}
-                  {poiSensorData[selectedPoi.id].switch_state && (
+                  {sensorData.switch_state && (
                     <button
                       onClick={() => toggleEwelinkDevice(
-                        poiSensorData[selectedPoi.id].device_id, 
-                        poiSensorData[selectedPoi.id].switch_state
+                        sensorData.device_id, 
+                        sensorData.switch_state
                       )}
-                      disabled={togglingDevice || !poiSensorData[selectedPoi.id].can_switch}
+                      disabled={togglingDevice || !sensorData.can_switch}
                       className={`mt-2 w-full text-center py-2 rounded text-sm font-bold transition-all ${
-                        poiSensorData[selectedPoi.id].switch_state === 'on' 
+                        sensorData.switch_state === 'on' 
                           ? 'bg-red-600/40 text-red-300 hover:bg-red-600/60 border border-red-500/50' 
                           : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600'
-                      } ${togglingDevice ? 'opacity-50 cursor-wait' : poiSensorData[selectedPoi.id].can_switch ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
-                      title={poiSensorData[selectedPoi.id].can_switch ? 'Clicca per accendere/spegnere' : 'Dispositivo non controllabile'}
+                      } ${togglingDevice ? 'opacity-50 cursor-wait' : sensorData.can_switch ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
+                      title={sensorData.can_switch ? 'Clicca per accendere/spegnere' : 'Dispositivo non controllabile'}
                     >
                       {togglingDevice ? (
                         <>🔄 Cambio stato...</>
                       ) : (
                         <>
-                          {poiSensorData[selectedPoi.id].switch_state === 'on' ? '⚡ ACCESO' : '⚫ SPENTO'}
-                          {poiSensorData[selectedPoi.id].can_switch && (
+                          {sensorData.switch_state === 'on' ? '⚡ ACCESO' : '⚫ SPENTO'}
+                          {sensorData.can_switch && (
                             <span className="ml-2 text-[10px] opacity-70">
-                              (clicca per {poiSensorData[selectedPoi.id].switch_state === 'on' ? 'spegnere' : 'accendere'})
+                              (clicca per {sensorData.switch_state === 'on' ? 'spegnere' : 'accendere'})
                             </span>
                           )}
                         </>
@@ -2132,7 +2134,8 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     </button>
                   )}
                 </div>
-              )}
+                );
+              })()}
               
               {/* Category */}
               {selectedPoi.category && (
