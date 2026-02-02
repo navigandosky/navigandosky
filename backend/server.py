@@ -5217,6 +5217,20 @@ async def get_ewelink_devices():
                 if "switch" in params:
                     device["switch"] = params["switch"]
                 
+                # Handle door/window contact sensors (UIID 7003 - SNZB-04)
+                # lock: 0 = closed, lock: 1 = open
+                if "lock" in params:
+                    device["contact"] = "open" if params["lock"] == 1 else "closed"
+                    device["is_contact_sensor"] = True
+                if "trigTime" in params:
+                    # Convert timestamp (milliseconds) to ISO format
+                    try:
+                        trig_ts = int(params["trigTime"]) / 1000
+                        from datetime import datetime, timezone
+                        device["last_trigger"] = datetime.fromtimestamp(trig_ts, tz=timezone.utc).isoformat()
+                    except:
+                        pass
+                
                 # Extract air quality values (PM10, PM2.5, CO2)
                 if "pm10" in params:
                     device["pm10"] = params["pm10"]
