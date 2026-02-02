@@ -991,14 +991,22 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
     d.name.toLowerCase().includes('condizionatore') || 
     d.name.toLowerCase().includes('temperatura') ||
     d.name.toLowerCase().includes('temp ') ||
-    d.name.toLowerCase().includes('aria') ||
     d.capabilities?.includes('temperatureMeasurement') ||
-    d.sensorData?.temperature != null  // Include devices with temperature data from eWeLink
+    (d.sensorData?.temperature != null && !d.sensorData?.pm10 && !d.sensorData?.pm2_5)  // Include temp sensors without air quality data
   );
 
-  // Domotica devices - ALL devices except clima (shows all in dashboard)
+  // Air Quality sensors - devices with PM10, PM2.5 or CO2 data
+  const airQualityDevices = smartThingsDevices.filter(d => 
+    d.name.toLowerCase().includes('air quality') ||
+    d.name.toLowerCase().includes('qualità aria') ||
+    d.sensorData?.pm10 != null ||
+    d.sensorData?.pm2_5 != null ||
+    d.sensorData?.co2 != null
+  );
+
+  // Domotica devices - ALL devices except clima and air quality (shows all in dashboard)
   const domoticaDevices = smartThingsDevices.filter(d => 
-    !climaDevices.includes(d)
+    !climaDevices.includes(d) && !airQualityDevices.includes(d)
   );
 
   // Manutenzioni prossime
