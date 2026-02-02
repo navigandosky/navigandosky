@@ -24,6 +24,26 @@
   - "Serv cancello" (ID: 10017b82bf) → 4 canali CH1-CH4 ✅
 - **Testato**: ✅ Backend 100%, Frontend 100% (testing agent iteration_3)
 
+#### Visualizzazione Dati Sensori Porta (Contact Sensors) ✅
+- **Richiesta**: Mostrare stato (aperto/chiuso), batteria e ultimo movimento per sensori porta eWeLink
+- **Implementazione Backend**:
+  - Identificati UIID 7003 e 7014 come sensori porta reali (non più confusi con dispositivi multi-canale)
+  - Aggiunto estrazione `contact` (aperto/chiuso), `battery`, `last_trigger` in `/api/ewelink/devices`
+  - Aggiunto questi dati in `get_ewelink_devices_internal()` e `get_devices_with_sensor_values()`
+  - Aggiunto campi nell'endpoint `/api/elettrodomestici/by-poi/{poi_id}/live-sensor`
+  - Aggiunto campi nell'endpoint `/api/elettrodomestici/poi-sensors`
+- **Implementazione Frontend**:
+  - Pannello POI: mostra 🚪 APERTA / 🔒 CHIUSA con colore (arancione/verde)
+  - Pannello POI: mostra 🔋 livello batteria con colore (verde/giallo/rosso)
+  - Pannello POI: mostra ultimo movimento in formato italiano
+  - Tab Sensori: stesso display per sensori porta nella lista laterale
+- **File modificati**:
+  - `backend/server.py` (4+ endpoint aggiornati)
+  - `frontend/src/MatterportManager.js` (pannello POI + tab Sensori)
+- **Sensori testati**:
+  - "Porta Studio" (UIID 7003) - 🔒 CHIUSA, 🔋 100%
+  - "Ingresso cucina veranda" (UIID 7003) - 🔒 CHIUSA, 🔋 100%
+
 #### Fix Duplicazione Sensori nella Tab "Sensori" Vista 3D ✅
 - **Problema**: Nella tab "Sensori" alcuni dispositivi apparivano duplicati (es. "Termosifone Studio" 2 volte)
 - **Causa**: L'endpoint `/api/elettrodomestici/poi-sensors` aggiungeva lo stesso sensore con sia `poi_id` che `matterport_tag_id` come chiavi
