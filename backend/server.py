@@ -5161,8 +5161,6 @@ async def get_ewelink_devices():
                     device["battery"] = params["battery"]
                 if "switch" in params:
                     device["switch"] = params["switch"]
-                if "switches" in params and len(params["switches"]) > 0:
-                    device["switch"] = params["switches"][0].get("switch")
                 
                 # Extract air quality values (PM10, PM2.5, CO2)
                 if "pm10" in params:
@@ -5172,7 +5170,41 @@ async def get_ewelink_devices():
                 if "co2" in params:
                     device["co2"] = params["co2"]
                 
-                devices.append(device)
+                # Handle multi-channel devices (UIID 4, 7, 77, 78, etc.)
+                # Expand into separate virtual devices for each channel
+                switches = params.get("switches", [])
+                if len(switches) > 1:
+                    # Multi-channel device - create a device for each channel
+                    base_name = item_data.get("name", "Dispositivo")
+                    base_id = item_data.get("deviceid")
+                    
+                    for i, sw in enumerate(switches):
+                        channel_device = {
+                            "id": f"{base_id}_ch{i}",
+                            "parent_id": base_id,
+                            "channel": i,
+                            "name": f"{base_name} - CH{i+1}",
+                            "model": item_data.get("productModel", ""),
+                            "brand": item_data.get("brandName", "Sonoff"),
+                            "online": item_data.get("online", False),
+                            "type": thing.get("itemType", 1),
+                            "uiid": uiid,
+                            "canSwitch": True,
+                            "switch": sw.get("switch"),
+                            "is_channel": True
+                        }
+                        devices.append(channel_device)
+                    
+                    # Also add the parent device with first channel state
+                    device["switch"] = switches[0].get("switch") if switches else None
+                    device["has_channels"] = True
+                    device["channel_count"] = len(switches)
+                    devices.append(device)
+                else:
+                    # Single channel device or device without switches array
+                    if "switches" in params and len(params["switches"]) > 0:
+                        device["switch"] = params["switches"][0].get("switch")
+                    devices.append(device)
             
             return {
                 "devices": devices,
