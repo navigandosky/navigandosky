@@ -4408,7 +4408,7 @@ async def get_devices_with_sensor_values():
 
 
 async def get_ewelink_devices_internal():
-    """Internal function to get eWeLink devices for fallback"""
+    """Internal function to get eWeLink devices for fallback - includes multi-channel expansion"""
     try:
         token = await get_ewelink_token()
         if not token:
@@ -4431,14 +4431,57 @@ async def get_ewelink_devices_internal():
                 devices = []
                 for thing in things:
                     item_data = thing.get("itemData", {})
-                    devices.append({
+                    params = item_data.get("params", {})
+                    uiid = item_data.get("extra", {}).get("uiid", 0)
+                    
+                    base_device = {
                         "deviceid": item_data.get("deviceid"),
+                        "id": item_data.get("deviceid"),
                         "name": item_data.get("name"),
                         "brandName": item_data.get("brandName", "eWeLink"),
                         "productModel": item_data.get("productModel"),
-                        "params": item_data.get("params", {}),
-                        "online": item_data.get("online", False)
-                    })
+                        "params": params,
+                        "online": item_data.get("online", False),
+                        "uiid": uiid
+                    }
+                    
+                    # Handle multi-channel devices - expand into separate virtual devices
+                    switches = params.get("switches", [])
+                    if len(switches) > 1:
+                        # Multi-channel device - create a device for each channel
+                        base_name = item_data.get("name", "Dispositivo")
+                        base_id = item_data.get("deviceid")
+                        
+                        for i, sw in enumerate(switches):
+                            channel_device = {
+                                "deviceid": f"{base_id}_ch{i}",
+                                "id": f"{base_id}_ch{i}",
+                                "parent_id": base_id,
+                                "channel": i,
+                                "name": f"{base_name} - CH{i+1}",
+                                "brandName": item_data.get("brandName", "Sonoff"),
+                                "productModel": item_data.get("productModel", ""),
+                                "params": {"switch": sw.get("switch")},
+                                "online": item_data.get("online", False),
+                                "uiid": uiid,
+                                "is_channel": True,
+                                "switch": sw.get("switch")
+                            }
+                            devices.append(channel_device)
+                        
+                        # Also add the parent device with first channel state
+                        base_device["switch"] = switches[0].get("switch") if switches else None
+                        base_device["has_channels"] = True
+                        base_device["channel_count"] = len(switches)
+                        devices.append(base_device)
+                    else:
+                        # Single channel device
+                        if "switch" in params:
+                            base_device["switch"] = params["switch"]
+                        elif "switches" in params and len(params["switches"]) > 0:
+                            base_device["switch"] = params["switches"][0].get("switch")
+                        devices.append(base_device)
+                
                 return {"devices": devices, "count": len(devices)}
     except Exception as e:
         logger.error(f"eWeLink internal devices error: {e}")
