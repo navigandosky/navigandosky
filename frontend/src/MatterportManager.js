@@ -1070,7 +1070,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       // Refresh
       const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${editPoiForm.id}?token=${authToken}`);
       setSelectedPoi(poiRes.data);
-      loadPois(activeSpace.id);
+      loadPois(activeSpace.space_id || activeSpace.id);
     } catch (error) {
       console.error("Error updating POI:", error);
       toast.error("Errore nell'aggiornamento del POI");
