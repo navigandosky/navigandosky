@@ -1649,19 +1649,20 @@ async def get_all_poi_sensors(token: Optional[str] = None):
         # Build device lookup
         device_lookup = {d.get("id"): d for d in devices}
         
-        # Build POI -> sensor data map
+        # Build POI -> sensor data map (keyed by both matterport_tag_id AND poi_id for frontend compatibility)
         poi_sensors = {}
         for elettro in elettros:
             tag_id = elettro.get("matterport_tag_id")
+            poi_id = elettro.get("poi_id")  # Also support poi_id
             device_id = elettro.get("smart_plug_id") or elettro.get("smartthings_device_id")
             
-            if not tag_id or not device_id:
+            if not device_id:
                 continue
             
             device = device_lookup.get(device_id)
             sensor_values = sensors.get(device_id, {})
             
-            poi_sensors[tag_id] = {
+            sensor_data = {
                 "apparato_id": elettro.get("id"),
                 "apparato_nome": elettro.get("nome"),
                 "device_id": device_id,
@@ -1675,6 +1676,12 @@ async def get_all_poi_sensors(token: Optional[str] = None):
                 "voltage": sensor_values.get("voltage"),
                 "provider": elettro.get("smart_plug_provider", "ewelink")
             }
+            
+            # Add to map with both tag_id and poi_id as keys
+            if tag_id:
+                poi_sensors[tag_id] = sensor_data
+            if poi_id:
+                poi_sensors[poi_id] = sensor_data
         
         return {
             "poi_sensors": poi_sensors,
