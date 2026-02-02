@@ -4344,6 +4344,32 @@ async def get_devices_with_sensor_values():
                         except (ValueError, TypeError):
                             pass
                     
+                    # Air quality sensors (PM10, PM2.5, CO2)
+                    if params.get("pm10") is not None:
+                        try:
+                            sensors["pm10"] = int(params.get("pm10"))
+                            device_info["pm10"] = sensors["pm10"]
+                        except (ValueError, TypeError):
+                            pass
+                    if params.get("pm2_5") is not None:
+                        try:
+                            sensors["pm2_5"] = int(params.get("pm2_5"))
+                            device_info["pm2_5"] = sensors["pm2_5"]
+                        except (ValueError, TypeError):
+                            pass
+                    if params.get("co2") is not None:
+                        try:
+                            sensors["co2"] = int(params.get("co2"))
+                            device_info["co2"] = sensors["co2"]
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Also add temperature/humidity directly to device_info for easier access
+                    if sensors.get("temperature") is not None:
+                        device_info["temperature"] = sensors["temperature"]
+                    if sensors.get("humidity") is not None:
+                        device_info["humidity"] = sensors["humidity"]
+                    
                     # Switch state
                     if params.get("switch"):
                         result["states"][device_id] = params.get("switch")
