@@ -1678,11 +1678,11 @@ async def get_all_poi_sensors(token: Optional[str] = None):
                 "provider": elettro.get("smart_plug_provider", "ewelink")
             }
             
-            # Add to map with both tag_id and poi_id as keys
-            if tag_id:
-                poi_sensors[tag_id] = sensor_data
-            if poi_id:
-                poi_sensors[poi_id] = sensor_data
+            # Add to map - prefer poi_id as key, fallback to tag_id
+            # Use only one key per sensor to avoid duplicates
+            key = poi_id if poi_id else tag_id
+            if key:
+                poi_sensors[key] = sensor_data
         
         return {
             "poi_sensors": poi_sensors,
