@@ -5143,7 +5143,8 @@ async def get_ewelink_devices():
                     "brand": item_data.get("brandName", "Sonoff"),
                     "online": item_data.get("online", False),
                     "params": params,
-                    "type": thing.get("itemType", 1),  # 1=device, 2=group
+                    "type": "ewelink",
+                    "source": "ewelink",
                     "uiid": uiid,
                     "canSwitch": can_switch
                 }
