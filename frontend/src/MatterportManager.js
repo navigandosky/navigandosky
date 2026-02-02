@@ -252,7 +252,8 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       const active = availableSpaces.find(s => s.is_active);
       if (active) {
         setActiveSpace(active);
-        loadPois(active.id);
+        // Use space_id (Matterport ID) for POI filtering, fallback to id
+        loadPois(active.space_id || active.id);
       }
     } catch (error) {
       console.error("Error loading spaces:", error);
