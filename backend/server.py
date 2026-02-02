@@ -4355,12 +4355,14 @@ async def get_devices_with_sensor_values():
                         except (ValueError, TypeError):
                             pass
                     
-                    # Current (usually x100, e.g., 150 = 1.50A)
+                    # Current - eWeLink S60TPF sends current in cA (centi-amperes)
+                    # e.g., 81 raw = 0.81A actual
+                    # Always divide by 100 for power monitoring devices
                     if params.get("current") is not None:
                         try:
                             current_val = float(params.get("current"))
-                            if current_val > 100:
-                                current_val = current_val / 100
+                            # Always normalize current (eWeLink sends in cA = 0.01A units)
+                            current_val = current_val / 100
                             sensors["current"] = round(current_val, 2)
                         except (ValueError, TypeError):
                             pass
