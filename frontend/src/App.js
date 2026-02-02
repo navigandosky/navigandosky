@@ -1474,13 +1474,21 @@ function App() {
   // Load Matterport POIs for appliance linking
   const loadMatterportPois = useCallback(async () => {
     try {
-      const params = { token: authToken };
+      const params = authToken ? { token: authToken } : {};
       const response = await axios.get(`${API}/matterport/pois`, { params });
+      console.log(`Loaded ${response.data.length} Matterport POIs`);
       setMatterportPois(response.data);
     } catch (error) {
       console.error("Error loading Matterport POIs:", error);
     }
   }, [authToken]);
+
+  // Reload POIs when auth token changes (after login)
+  useEffect(() => {
+    if (authToken) {
+      loadMatterportPois();
+    }
+  }, [authToken, loadMatterportPois]);
 
   // Initial load
   useEffect(() => {
