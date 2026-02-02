@@ -999,6 +999,9 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
   const airQualityDevices = smartThingsDevices.filter(d => 
     d.name.toLowerCase().includes('air quality') ||
     d.name.toLowerCase().includes('qualità aria') ||
+    d.pm10 != null ||
+    d.pm2_5 != null ||
+    d.co2 != null ||
     d.sensorData?.pm10 != null ||
     d.sensorData?.pm2_5 != null ||
     d.sensorData?.co2 != null
