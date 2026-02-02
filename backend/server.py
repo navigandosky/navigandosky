@@ -1770,8 +1770,11 @@ async def get_elettrodomestico_by_poi(poi_id: str, token: Optional[str] = None):
 @api_router.get("/elettrodomestici/by-poi/{poi_id}/live-sensor")
 async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
     """Get live sensor data for the appliance associated with a POI"""
-    # Find the appliance linked to this POI
-    query = {"matterport_tag_id": poi_id}
+    # Find the appliance linked to this POI - try both poi_id and matterport_tag_id
+    query = {"$or": [
+        {"matterport_tag_id": poi_id},  # Try tag ID
+        {"poi_id": poi_id}  # Try POI database ID
+    ]}
     if token:
         session = await db.sessions.find_one({"token": token})
         if session:
