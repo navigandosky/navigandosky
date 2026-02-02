@@ -5115,6 +5115,14 @@ async def get_ewelink_devices():
                 if "switches" in params and len(params["switches"]) > 0:
                     device["switch"] = params["switches"][0].get("switch")
                 
+                # Extract air quality values (PM10, PM2.5, CO2)
+                if "pm10" in params:
+                    device["pm10"] = params["pm10"]
+                if "pm2_5" in params:
+                    device["pm2_5"] = params["pm2_5"]
+                if "co2" in params:
+                    device["co2"] = params["co2"]
+                
                 devices.append(device)
             
             return {
