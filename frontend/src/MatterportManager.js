@@ -471,6 +471,39 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     }
   };
 
+  // Toggle eWeLink device on/off
+  const [togglingDevice, setTogglingDevice] = useState(false);
+  
+  const toggleEwelinkDevice = async (deviceId, currentState) => {
+    if (!deviceId || togglingDevice) return;
+    
+    const newState = currentState === 'on' ? 'off' : 'on';
+    setTogglingDevice(true);
+    
+    try {
+      await axios.post(`${API_URL}/api/ewelink/device/${deviceId}/switch/${newState}`);
+      toast.success(`🔌 Dispositivo ${newState === 'on' ? 'ACCESO' : 'SPENTO'}!`);
+      
+      // Refresh live sensor data after toggle
+      if (selectedPoi?.id) {
+        setTimeout(async () => {
+          try {
+            const params = authToken ? { token: authToken } : {};
+            const sensorRes = await axios.get(`${API_URL}/api/elettrodomestici/by-poi/${selectedPoi.id}/live-sensor`, { params });
+            setLiveSensorData(sensorRes.data);
+          } catch (e) {
+            console.log("Error refreshing sensor data:", e);
+          }
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("Error toggling eWeLink device:", error);
+      toast.error("Errore nel controllo del dispositivo");
+    } finally {
+      setTogglingDevice(false);
+    }
+  };
+
   // Link POI to SmartThings device
   const linkPoiToDevice = async (poiId, deviceId) => {
     try {
