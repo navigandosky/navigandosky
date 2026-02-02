@@ -1,62 +1,64 @@
 <analysis>**original_problem_statement:**
-The user's primary goal is to continue developing the SmartDomo application. Throughout this session, the user directed the agent to fix a series of critical bugs and regressions, and to implement several UI/UX enhancements.
+The user's primary goal is to continue developing the SmartDomo application. In this session, the user guided the agent through a series of UI enhancements and critical bug fixes.
 
-**Key objectives addressed in this session:**
-1.  **Bug Fix (P0):** Resolve a regression where the ON/OFF toggle for eWeLink devices was failing.
-2.  **Bug Fix (P0):** Fix a critical regression causing incorrect energy consumption data (power, kWh) to be displayed. This involved correcting data normalization logic and cleaning the database.
-3.  **Bug Fix:** Fix an issue where newly created appliances were not visible to the user due to a missing authentication token ( was being saved incorrectly).
-4.  **Bug Fix:** Resolve a JavaScript error that occurred when deleting an appliance from the UI.
-5.  **Bug Fix:** Address another regression where the average temperature calculation was incorrect due to un-normalized historical data.
-6.  **Feature:** Extend the time range options in sensor history charts to include periods up to one year.
-7.  **UI/UX Enhancement:** A major rework of the Matterport Vista 3D interface to be full-width, with a reorganized layout (POI details on the left, POI list on the right), and making it the default view after login.
-8.  **Feature:** Improve the Go to POI navigation to correctly orient the camera towards the selected tag.
-9.  **Bug Fix:** Ensure the POI list updates correctly and displays all relevant POIs.
-10. **Feature:** Add correct unit symbols (W, V, A, °C, %) to all sensor charts and data displays.
-11. **Feature (In Progress):** Add new functionality to the Edit POI dialog, including acquiring position from a Matterport tag and a Delete POI button.
-12. **Feature (Requested):** Replace the default platform logo on the login page with a Trivor logo.
+**Key objectives from this session:**
+1.  **UI/UX:** Add the Trivor company logo to the login page and the main application view, ensuring it doesn't obstruct other UI elements.
+2.  **UI/UX:** Make the Point of Interest (POI) list in the 3D view scrollable and prevent it from overlapping with the new logo.
+3.  **Bug Fix:** Resolve a critical navigation issue where using Go to POI for an imported Matterport tag would move the camera to the wrong location.
+4.  **Feature:** Implement an ON/OFF toggle switch for eWeLink devices directly within the POI details panel in the 3D view.
+5.  **Bug Fix:** Fix an issue where the POI list was only showing a subset of items (2 instead of 27) due to data inconsistencies ( and  mismatches) in the database.
+6.  **Feature:** Add a new Sensori tab in the 3D view to display a filtered list of only those devices that are linked to a POI.
+7.  **Feature:** Create a new Air Quality card on the main dashboard to display data (PM2.5, PM10) from specialized sensors.
+8.  **Bug Fix:** Resolve a bug where the dropdown menu for linking an appliance to a POI was not showing all available POIs due to data being loaded before user authentication.
+9.  **Bug Fix:** Correct the display of energy data (Power in Watts, Current in Amperes) for eWeLink devices, which were showing incorrect or null values due to normalization errors.
+10. **Feature (In Progress):** Implement support for multi-channel SonOff devices (e.g., 4-channel switches), to display and control each channel as an individual switch in the UI.
 
 **User's preferred language**: Italian
 
 **what currently exists?**
-The SmartDomo application is a full-stack platform with a React frontend and FastAPI backend, integrating Matterport for 3D visualization and eWeLink for IoT device control. The application has undergone significant debugging and enhancement in this session. Key issues related to data normalization, multi-tenancy, and UI regressions have been resolved. The Matterport interface has been significantly improved for a better user experience, providing a full-width view with POI details and controls readily accessible. The data visualization for sensors is now accurate and displays correct units.
+The SmartDomo application is a full-stack platform with a React frontend and a FastAPI backend. It integrates Matterport for 3D visualization and eWeLink for IoT device control. During this session, several UI/UX issues and critical data-related bugs were resolved. Key fixes addressed incorrect navigation, inconsistent data filtering, and inaccurate sensor readings. New features include direct device control from the 3D view, a dedicated air quality dashboard card, and a filtered list of POI-linked sensors. The backend has been prepared to support multi-channel devices, but the frontend work is pending.
 
 **Last working item**:
-- Last item agent was working: The agent was implementing a multi-part user request to enhance the Edit POI dialog and customize the login page. The agent successfully added a dropdown to select a Matterport Tag and a Delete POI button to the dialog. The next steps are to implement the Acquire Position button and then replace the login page logo.
+- Last item agent was working: The agent was implementing support for multi-channel eWeLink devices (e.g., 4-channel SonOff switches). The user wants to see and control each channel as a separate device. The agent modified the backend to explode these devices into individual virtual channels (e.g., , ) and updated the toggle endpoint to handle these new IDs.
 - Status: IN PROGRESS
 - Agent Testing Done: N
 - Which testing method agent to use? Frontend testing agent
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: Data Normalization Fragility (P1)**
+-   **Issue 1: Data Normalization and Consistency (P1)**
 
 **Issues Detail:**
--   **Issue 1: Data Normalization Fragility**
-    -   **Attempted fixes:** The agent fixed multiple instances of incorrect data normalization in this session. This included fixing the background collector to save clean data and removing re-normalization logic from reporting endpoints (, ). A one-time database cleanup was also performed.
-    -   **Next debug checklist:** This is not a bug to fix but a high-priority architectural concern.
-        1.  Review all code paths where sensor data is read from eWeLink to ensure normalization () happens **only once** before being saved to the database.
-        2.  Review all endpoints that read from the  collection to ensure they **do not** perform any further normalization.
-        3.  Consider creating a centralized Pydantic model or data access layer function that handles data validation and ensures consistency.
-    -   **Why fix this issue and what will be achieved with the fix?** The user is extremely frustrated with data visualization regressions. This is the root cause. Solidifying the data normalization strategy will prevent future bugs and improve application stability and user trust.
+-   **Issue 1: Data Normalization and Consistency**
+    -   **Attempted fixes:** The agent fixed a specific normalization issue with the 'current' (Ampere) value from eWeLink devices. However, this is part of a larger, recurring pattern of data-related bugs caused by inconsistencies (e.g.,  being an internal UUID vs. a Matterport ID,  in one collection being a  from another). The agent has performed multiple data cleanup operations in this session to align IDs.
+    -   **Next debug checklist:** This is an architectural risk.
+        1.  Propose a task to the user to perform a comprehensive audit and migration to unify ID schemes across the  and  collections.
+        2.  When creating new entities, ensure the backend validates and stores the correct type of ID (e.g., always use the Matterport  from the  collection, not the internal UUID).
+        3.  Consolidate data access logic to prevent future inconsistencies.
+    -   **Why fix this issue and what will be achieved with the fix?** This is the root cause of many bugs the user has reported (e.g., missing POIs, incorrect links). Solving it permanently will significantly improve application stability and reduce future development time.
     -   **Status:** IN PROGRESS
     -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** Backend
+    -   **Should Test frontend/backend/both after fix?** Both
     -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   **Task 1: Complete UI changes for Edit POI dialog and Login page (P0)**
+-   **Task 1: Complete Frontend for Multi-Channel Device Support (P0)**
 
 **Task Detail:**
--   **Task 1: Complete UI changes for Edit POI dialog and Login page**
-    -   **Where to resume:**
-        1.  In , implement the logic for the Acquisisci Posizione (Acquire Position) button inside the Edit POI dialog. This should get the current camera position from the Matterport SDK.
-        2.  In , locate the login page component and add the Trivor logo, likely as an overlay on the bottom right to cover the existing platform branding, as requested by the user.
-    -   **What will be achieved with this?** This will complete the user's latest set of UI enhancement requests, improving usability for POI management and customizing the application's branding.
+-   **Task 1: Complete Frontend for Multi-Channel Device Support**
+    -   **Where to resume:** The backend () now returns an expanded list of devices, where a 4-channel switch appears as 4 separate items.
+        1.  In , ensure the Domotica tab correctly renders a card for each of these new virtual channels.
+        2.  Verify that the toggle button on each virtual channel card works correctly.
+        3.  In , update the Sensori tab to also list these individual channels if they are linked to POIs.
+    -   **What will be achieved with this?** The user will be able to see and control each of the 4 switches on their SonOff devices as individual items in the dashboard and 3D view.
     -   **Status:** IN PROGRESS
     -   **Should Test frontend/backend/both after fix?** Frontend
     -   **Blocked on something:** None
 
 **Upcoming and Future Tasks**
+*   **Upcoming Tasks:**
+    *   **Refactor  (P1):** Break down the monolithic file into separate FastAPI routers for maintainability (e.g., , ).
+    *   **Refactor  (P1):** Decompose the large component into smaller, more manageable child components (, , , etc.).
 *   **Future Tasks:**
     *   Mobile App Development (PWA or React Native)
     *   Intelligent Notifications for maintenance or abnormal sensor readings
@@ -64,42 +66,35 @@ The SmartDomo application is a full-stack platform with a React frontend and Fas
     *   Data Export to CSV/Excel
 
 **Completed work in this session**
-- **Bug Fix: eWeLink Device Toggle:** Resolved the P0 bug preventing ON/OFF control of eWeLink devices by correcting the  logic for power meters () in .
-- **Bug Fix: Incorrect Energy/Power Data:** Fixed a major regression where power and energy values were displayed incorrectly. This involved correcting normalization logic (dividing by 100) in the background collector and reporting endpoints (, ) and cleaning historical database records.
-- **Bug Fix: Multi-Tenancy on Appliance Creation:** Fixed a bug where new appliances were not appearing by ensuring the auth token (and thus correct ) was passed on creation in .
-- **Bug Fix: Appliance Deletion Error:** Resolved a Javascript error on appliance deletion by adding a null-check in  and passing the auth token in .
-- **Bug Fix: Inconsistent Average Temperature:** Corrected the mathematically impossible average values by running a script to clean remaining un-normalized temperature data from the database.
-- **UI/UX Rework: Matterport Vista 3D:**
-    - Expanded the view to be full-width.
-    - Set Vista 3D as the default tab after login.
-    - Reorganized the layout to show POI details on the left and the POI list on the right, providing more space for the 3D viewer.
-- **Feature: Improved Navigation & POI Display:**
-    - The Go to POI function now correctly orients the camera toward the tag.
-    - POI lists now show live sensor status (🌡️, ⚡, ⚫ ON/OFF).
-- **Feature: Correct Sensor Units:** Ensured all sensor charts and displays show the correct units (W, V, A, °C, %) by adding  and  configurations in .
-- **Feature: Extended Sensor History:** Added options to view sensor data for the last 2, 3, 6, and 12 months.
-- **Bug Fix: POI List Not Updating:** Fixed the logic to correctly load all POIs for the active Matterport space and added a manual refresh button.
+- **Feature: Trivor Logo Integration:** Added the Trivor logo to the login page and main app view, adjusting its CSS to avoid obscuring other UI elements.
+- **Bug Fix: Matterport Navigation:** Corrected the Go to POI logic for imported Matterport tags by prioritizing  over less reliable methods.
+- **Feature: Direct eWeLink Toggle:** Implemented a clickable ON/OFF switch in the 3D view's POI details panel, allowing direct control of linked devices.
+- **Bug Fix: POI List Filtering:** Resolved a major bug where only 2 of 27 POIs were showing. The issue was traced to inconsistent  and  values in the database, which were corrected via a script.
+- **Feature: Sensori Tab in 3D View:** Added a new tab to the sidebar that displays a filtered list of only the IoT devices/sensors that are linked to a POI.
+- **Feature: Air Quality Dashboard Card:** Created a new UI card on the  to specifically display PM2.5, PM10, temperature, and humidity from air quality sensors.
+- **Bug Fix: Incomplete POI Dropdown:** Fixed an issue where the dropdown for linking appliances to POIs was missing items. The fix ensures the POI list is re-fetched after user login.
+- **Bug Fix: Incorrect Energy Readings:** Corrected the backend logic to properly handle and normalize  (W) and  (A) values from eWeLink energy monitors, ensuring  is treated as a valid value and calculations are correct.
+- **UI Enhancement: POI List Scroll:** Made the POI list in the 3D view scrollable and added padding to ensure all items are accessible and not hidden by the logo.
 
 **Earlier issues found/mentioned but not fixed**
-None. All issues raised by the user during this session were addressed.
+- The architectural issue of **Data Normalization Fragility**, mentioned in the previous handoff, persists. While specific instances were fixed (e.g., current calculation), the lack of a centralized, single point of normalization remains a risk for future regressions.
 
 **Known issue recurrence from previous fork**
-- **Issue recurrence in previous fork:** Data Normalization regressions.
-- **Recurrence count:** High (fixed at least 3 separate times this session).
-- **Status:** RESOLVED (for now). The core logic in the background collector and reporting endpoints has been corrected. However, this remains a fragile part of the application that requires careful attention during future development.
+- **Issue recurrence in previous fork:** Data Normalization and Data Consistency.
+- **Recurrence count:** High. This session fixed incorrect  normalization and multiple bugs related to mismatched IDs (, ) between database collections.
+- **Status:** RESOLVED (for now). Specific bugs are fixed, but the underlying architectural weakness remains.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Data Normalization:** A critical and recurring theme. Raw sensor data from eWeLink is scaled (e.g., x100) and must be normalized **once** in the background collector () before being saved to MongoDB. Reporting endpoints should not re-normalize this data.
--   **FastAPI Route Order:** A bug was fixed by reordering a static API route () before a dynamic one () in  to prevent shadowing.
--   **Matterport SDK API:** Used  and  to implement the Go to POI feature. The agent also added logic to use  for more precise orientation.
+-   **eWeLink Multi-channel Devices:** Devices with specific UIIDs (4, 77, etc.) contain a  array in their API response. The backend was modified to expand these into multiple virtual devices, each representing a single channel, with a unique ID like .
+-   **Data ID Mismatches:** A recurring source of bugs. The agent had to repeatedly debug and run cleanup scripts to fix inconsistencies between internal database UUIDs and external IDs from Matterport, and mismatches between how different collections referenced each other (e.g.,  sometimes contained a ).
+-   **React  for Auth-dependent Data:** A bug where a dropdown list was incomplete was solved by adding a  hook that re-fetches data when the  becomes available after login, ensuring API calls are made with proper authentication.
 
 **key DB schema**
--   **elettrodomestici**: The  field was the cause of a major bug and is critical for multi-tenancy.
--   **sensor_readings**: This collection was repeatedly cleaned of un-normalized data. It should now contain correctly scaled values for power, temperature, etc.
--   **pois**: This collection's  field was causing filtering issues, which have been resolved.
+-   **elettrodomestici**: Contains  (linking to an eWeLink device) and  or  (linking to a POI). Several records were manually updated to fix incorrect links.
+-   **pois**: The  field was unified to use the Matterport space ID () for all relevant records to fix a major filtering bug. The  was also corrected on many records.
 
 **All files of reference**
 -   
@@ -110,55 +105,55 @@ None. All issues raised by the user during this session were addressed.
 -   
 
 **Areas that need refactoring**:
--   ****: This file is critically oversized and complex. It must be broken down into multiple routers (e.g., , , ) for maintainability.
--   ****: This component is now over 2800 lines and handles too many responsibilities (state management, API calls, layout, multiple sub-components). It should be broken down into smaller, reusable components (, , , etc.).
+-   ****: Remains a critical bottleneck. It's oversized and handles routing, business logic, and data transformation for all features. It urgently needs to be broken into smaller, domain-specific routers.
+-   ****: This component continues to grow and handles too many distinct pieces of functionality (3D view, side panels, multiple data tabs, dialogs). It should be decomposed into smaller components.
+-   ****: With custom logic for different card types (climate, energy, air quality), this component is also becoming large and could benefit from being broken down.
 
 **key api endpoints**
--   : **FIXED**.
--   : **FIXED** (erroneous re-normalization removed).
--   : **FIXED** (erroneous re-normalization removed).
--   : **FIXED** (auth token added).
--   : **FIXED** (auth token added).
--   : **NEW**. Gets sensor data for all POIs.
+-   : **MODIFIED**. Now expands multi-channel devices into individual virtual devices.
+-   : **MODIFIED**. Now supports channel-specific IDs (e.g., ) to control individual outlets on a multi-channel device.
+-   : **FIXED**. The backend logic was corrected, and underlying data was cleaned up to ensure it returns all POIs for the authenticated user's space.
+-   : The underlying eWeLink data processing was **FIXED** to correctly extract and normalize , , , , and  values.
+-   : Data returned by this endpoint is now correct as it relies on the fixed sensor data extraction.
 
 **Critical Info for New Agent**
--   **User Frustration is High:** The user is very sensitive to regressions, especially regarding data accuracy. Double- and triple-check any changes related to sensor data. Prioritize stability.
--   **Data Normalization is the #1 Risk:** Assume all data in the  collection is clean and normalized. DO NOT re-normalize it in reporting endpoints. When adding new sensor data sources, ensure normalization happens **only** in the background collector before it's written to the database.
--   **Component Refactoring is Needed:** The frontend, especially , and the backend  are becoming unmaintainable. Propose a refactoring task to the user to improve the codebase's health.
+-   **User Language:** The user is Italian. All communication should be in Italian.
+-   **Data Consistency is Key:** Be extremely cautious with database operations. There is a history of mismatched IDs between the , , and  collections. Before adding new linking features, verify that the IDs being stored and queried are consistent. You may need to perform data cleanup.
+-   **Multi-Channel Devices:** The immediate task is to complete the frontend implementation for multi-channel devices. The backend is ready, but the UI needs to display and control the new virtual channels.
 
 **documents and test reports created in this job**
--  (updated multiple times)
+-    (updated)
 
 **Last 10 User Messages and any pending HUMAN messages**
-10. **User:** Reports that the 3D view needs to be larger and the POI list should be open by default. (Status: **RESOLVED**)
-9.  **User:** Asks to orient the camera towards the Matterport tag when using the go to function. (Status: **RESOLVED**)
-8.  **User:** Requests to re-order the main tabs and clean up the header layout. (Status: **RESOLVED**)
-7.  **User:** Reports three issues: 1) Navigation goes to the wrong wall, 2) Vista 3D should be the default tab, 3) POI details should appear on the side, not the bottom. (Status: **RESOLVED**)
-6.  **User:** Requests to expand the 3D view to full width and fix an incorrect POI count display. (Status: **RESOLVED**)
-5.  **User:** Reports that the POI list is not updating after adding a new POI (luci vialetto). (Status: **RESOLVED**)
-4.  **User:** Requests adding acquire position from Matterport tag and delete POI functions to the edit POI dialog. (Status: **IN PROGRESS**)
-3.  **User:** Asks to replace the login page logo with a Trivor logo. (Status: **NOT STARTED**)
-2.  **User:** Asks agent to test the latest changes. (Status: **DONE**)
-1.  **User:** Provides final UI enhancement requests for the Edit POI dialog and asks to continue with the logo change. (Status: **PENDING - CURRENT TASK**)
+10. **User:** Asks to create a new dashboard card for Air Quality sensors to show PM10, PM2.5, and CO2. (Status: **RESOLVED**)
+9.  **User:** Reports that when adding/editing an appliance, the dropdown list of POIs to link to is missing items (e.g., Lavatrice). (Status: **RESOLVED**)
+8.  **User:** In the Sensori tab of the 3D view, asks to display energy consumption (Watts) for relevant devices, not just the ON/OFF status. (Status: **RESOLVED**)
+7.  **User:** Points out that the Current (Amperes) value shown is incorrect (e.g., 84A instead of ~0.8A). (Status: **RESOLVED**)
+6.  **User:** Asks to handle multi-channel SonOff devices (4 switches) by showing each channel as a separate, individually controllable item. (Status: **IN PROGRESS**)
+5.  **User:** Clarifies that in the main dashboard's Domotica tab, they want to see ALL devices, while in the Vista 3D sidebar, they want to see ONLY devices linked to a POI. (Status: **RESOLVED**)
+4.  **User:** Clarifies that in the eWeLink device list (on the dashboard), they want to see ONLY devices that are linked to a Matterport POI. (Status: **RESOLVED**, then reverted based on message #5)
+3.  **User:** Reports that the POI list in the 3D view is only showing 2 items instead of all of them. (Status: **RESOLVED**)
+2.  **User:** Asks to add a clickable ON/OFF toggle switch for devices in the POI details panel of the 3D view. (Status: **RESOLVED**)
+1.  **User:** Reports that the Go to POI function for an imported Matterport tag (Stampante Brother Laser) is navigating to the wrong room. (Status: **RESOLVED**)
 
 **Project Health Check:**
--   **Broken**: None. All reported bugs have been fixed.
+-   **Broken**: The multi-channel device feature is incomplete (backend is done, frontend is not).
 -   **Mocked**: None.
 
 **3rd Party Integrations**
--   **eWeLink**: **WORKING**. Control and data endpoints are now stable and correct.
--   **SmartThings**: **UNRELIABLE** (token expired), used as a structural basis for the eWeLink fallback.
--   **Matterport SDK & Cloud API**: **WORKING**.
+-   **eWeLink**: **WORKING**. Used for IoT device control and sensor reading. Logic was significantly improved to handle energy monitors, air quality sensors, and multi-channel switches.
+-   **Matterport SDK & Cloud API**: **WORKING**. Used for 3D visualization and navigation. Navigation logic was fixed.
+-   **SmartThings**: Present but seems to be used as a fallback or is less reliable.
 
 **Testing status**
 -   **Testing agent used after significant changes**: NO
 -   **Troubleshoot agent used after agent stuck in loop**: NO
--   **Test files created**: 
--   **Known regressions**: Multiple regressions related to data normalization were identified and fixed during this session. This is a high-risk area.
+-   **Test files created**: []
+-   **Known regressions**: None in this session, but the risk of data-related regressions remains high due to architectural issues.
 
 **Credentials to test flow:**
 -   **Admin**:  / 
 -   **User**:  / 
 
 **What agent forgot to execute**
-The agent was actively working on the user's latest request when the session ended. The immediate next steps are to complete the implementation of the Acquire Position button in the Edit POI dialog and then replace the logo on the login page as requested. These tasks are not forgotten, but are in progress.</analysis>
+The agent did not forget any tasks but was in the middle of implementing the multi-channel device support when the session concluded. The next agent must pick up this task and complete the frontend implementation.</analysis>
