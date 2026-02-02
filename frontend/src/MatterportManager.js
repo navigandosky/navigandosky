@@ -1478,7 +1478,34 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     
     toast.info("🗺️ Calcolo percorso...");
     
-    // Try navigation with visual path if we have position
+    // For IMPORTED tags, try navigateToTag FIRST (uses original tag position from Matterport)
+    // This is more reliable than using saved position which may be outdated
+    if (poi.is_imported && poi.matterport_tag_id) {
+      try {
+        console.log("Imported tag - trying Tag.navigateToTag first with:", poi.matterport_tag_id);
+        // Try new Tag API first (SDK 3.x)
+        if (sdk.Tag && sdk.Tag.navigateToTag) {
+          await sdk.Tag.navigateToTag(
+            poi.matterport_tag_id,
+            sdk.Tag.Transition?.FLY || 1
+          );
+        } else {
+          // Fallback to legacy Mattertag API
+          await sdk.Mattertag.navigateToTag(
+            poi.matterport_tag_id,
+            sdk.Mattertag.Transition.FLY
+          );
+        }
+        toast.success("✅ Destinazione raggiunta!");
+        console.log("Imported tag navigateToTag successful");
+        return;
+      } catch (error) {
+        console.log("Imported tag navigateToTag failed:", error.message, "- trying position-based navigation");
+        // Continue to position-based navigation as fallback
+      }
+    }
+    
+    // For non-imported POIs or as fallback: Try navigation with visual path if we have position
     if (poi.position && matterportRef.current.navigateWithPath) {
       try {
         const result = await matterportRef.current.navigateWithPath(
@@ -1501,8 +1528,8 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     
     // Fallback: Try multiple navigation methods in order of preference
     
-    // Method 1: Try navigateToTag for imported Matterport tags (try new Tag API first, then legacy Mattertag)
-    if (poi.matterport_tag_id) {
+    // Method 1: Try navigateToTag for non-imported tags with matterport_tag_id
+    if (poi.matterport_tag_id && !poi.is_imported) {
       try {
         console.log("Trying Tag.navigateToTag with:", poi.matterport_tag_id);
         // Try new Tag API first (SDK 3.x)
