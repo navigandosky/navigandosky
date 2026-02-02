@@ -4344,6 +4344,26 @@ async def get_devices_with_sensor_values():
                         except (ValueError, TypeError):
                             pass
                     
+                    # Voltage (usually x100, e.g., 23008 = 230.08V)
+                    if params.get("voltage") is not None:
+                        try:
+                            voltage_val = float(params.get("voltage"))
+                            if voltage_val > 1000:
+                                voltage_val = voltage_val / 100
+                            sensors["voltage"] = round(voltage_val, 1)
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Current (usually x100, e.g., 150 = 1.50A)
+                    if params.get("current") is not None:
+                        try:
+                            current_val = float(params.get("current"))
+                            if current_val > 100:
+                                current_val = current_val / 100
+                            sensors["current"] = round(current_val, 2)
+                        except (ValueError, TypeError):
+                            pass
+                    
                     # Air quality sensors (PM10, PM2.5, CO2)
                     if params.get("pm10") is not None:
                         try:
