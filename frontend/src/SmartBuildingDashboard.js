@@ -378,8 +378,20 @@ const DeviceCard = ({ device, onToggle, onShowHistory, linkedApparato, onNavigat
   // Check if device is from eWeLink
   const isEwelink = device.source === 'ewelink' || device.type === 'ewelink';
   
-  // Leggi lo stato iniziale dal dispositivo (se disponibile)
-  const initialState = device.status?.switch === 'on' || device.switchState === 'on' || false;
+  // Check if this is a multi-channel device channel
+  const isChannel = device.is_channel || device.id?.includes('_ch');
+  const channelNumber = device.channel ?? (device.id?.match(/_ch(\d+)$/)?.[1]);
+  
+  // Leggi lo stato iniziale dal dispositivo (supporto per multi-channel)
+  // Per canali eWeLink, lo stato è in device.switch direttamente
+  const getDeviceState = () => {
+    if (device.switch === 'on') return true;
+    if (device.status?.switch === 'on') return true;
+    if (device.switchState === 'on') return true;
+    return false;
+  };
+  
+  const initialState = getDeviceState();
   const [isOn, setIsOn] = useState(initialState);
   const [loading, setLoading] = useState(false);
   const [sensorData, setSensorData] = useState(device.sensorData || null);
@@ -387,7 +399,7 @@ const DeviceCard = ({ device, onToggle, onShowHistory, linkedApparato, onNavigat
   
   // Aggiorna stato quando cambia il dispositivo
   useEffect(() => {
-    const newState = device.status?.switch === 'on' || device.switchState === 'on' || false;
+    const newState = device.switch === 'on' || device.status?.switch === 'on' || device.switchState === 'on' || false;
     setIsOn(newState);
     if (device.sensorData) {
       setSensorData(device.sensorData);
