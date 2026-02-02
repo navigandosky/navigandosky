@@ -24,6 +24,20 @@
   - "Serv cancello" (ID: 10017b82bf) → 4 canali CH1-CH4 ✅
 - **Testato**: ✅ Backend 100%, Frontend 100% (testing agent iteration_3)
 
+#### Fix Duplicazione Sensori nella Tab "Sensori" Vista 3D ✅
+- **Problema**: Nella tab "Sensori" alcuni dispositivi apparivano duplicati (es. "Termosifone Studio" 2 volte)
+- **Causa**: L'endpoint `/api/elettrodomestici/poi-sensors` aggiungeva lo stesso sensore con sia `poi_id` che `matterport_tag_id` come chiavi
+- **Soluzione**: Modificato backend per usare solo una chiave per sensore (`poi_id || tag_id`)
+- **File modificato**: `backend/server.py` (endpoint poi-sensors)
+- **Risultato**: 5 sensori unici invece di 8 con duplicati
+
+#### Fix Lista POI Non Aggiornata (Tag Importati Mancanti) ✅
+- **Problema**: Tag Matterport importati come "Porta Veranda" e "Porta Studio" non apparivano nella lista POI
+- **Causa**: Il frontend usava `activeSpace.id` (UUID interno) per filtrare i POI, ma i POI nel DB avevano `space_id` = ID Matterport
+- **Soluzione**: Modificato tutti i `loadPois(activeSpace.id)` in `loadPois(activeSpace.space_id || activeSpace.id)`
+- **File modificato**: `frontend/src/MatterportManager.js` (13+ occorrenze)
+- **Risultato**: 30 POI caricati correttamente inclusi "Porta Veranda" e "Porta Studio Sensore"
+
 ---
 
 ### ✅ Completati Sessione Precedente (01/02/2026)
