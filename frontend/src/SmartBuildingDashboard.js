@@ -1356,6 +1356,107 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                   </Card>
                 </div>
 
+                {/* Air Quality Section */}
+                {airQualityDevices.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                      <Wind size={20} className="text-purple-400" />
+                      Qualità Aria
+                      <span className="text-xs text-slate-500 ml-2">{airQualityDevices.length} sensori</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {airQualityDevices.map((device) => {
+                        const pm25 = device.sensorData?.pm2_5;
+                        const pm10 = device.sensorData?.pm10;
+                        const co2 = device.sensorData?.co2;
+                        const temp = device.sensorData?.temperature;
+                        const humidity = device.sensorData?.humidity;
+                        
+                        // Air quality level based on PM2.5
+                        const getAirQualityLevel = (pm25Value) => {
+                          if (pm25Value == null) return { label: 'N/D', color: 'slate', bg: 'slate' };
+                          if (pm25Value <= 12) return { label: 'Ottima', color: 'green', bg: 'green' };
+                          if (pm25Value <= 35) return { label: 'Buona', color: 'lime', bg: 'lime' };
+                          if (pm25Value <= 55) return { label: 'Moderata', color: 'yellow', bg: 'yellow' };
+                          if (pm25Value <= 150) return { label: 'Scarsa', color: 'orange', bg: 'orange' };
+                          return { label: 'Pessima', color: 'red', bg: 'red' };
+                        };
+                        
+                        const airQuality = getAirQualityLevel(pm25);
+                        
+                        return (
+                          <Card 
+                            key={device.id} 
+                            className="bg-slate-900/50 border-slate-800 hover:border-purple-500/30 transition-all cursor-pointer"
+                            onClick={() => handleShowHistory(device)}
+                          >
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-3 h-3 rounded-full bg-${airQuality.bg}-500`} 
+                                       style={{ backgroundColor: airQuality.color === 'slate' ? '#64748b' : undefined }} />
+                                  <h4 className="text-sm font-medium text-white truncate max-w-[150px]" title={device.name}>
+                                    {device.name}
+                                  </h4>
+                                </div>
+                                <Badge className={`bg-${airQuality.bg}-500/20 text-${airQuality.color}-400 border-${airQuality.color}-500/30`}
+                                       style={{ 
+                                         backgroundColor: `rgb(var(--${airQuality.color === 'lime' ? 'green' : airQuality.color}-500) / 0.2)`,
+                                         color: airQuality.color === 'slate' ? '#94a3b8' : undefined
+                                       }}>
+                                  {airQuality.label}
+                                </Badge>
+                              </div>
+                              
+                              {/* PM Values */}
+                              <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div className="text-center p-3 bg-slate-800/50 rounded-lg">
+                                  <div className="text-2xl font-bold text-purple-400">
+                                    {pm25 != null ? pm25 : '--'}
+                                  </div>
+                                  <div className="text-xs text-purple-400/70">PM2.5 µg/m³</div>
+                                </div>
+                                <div className="text-center p-3 bg-slate-800/50 rounded-lg">
+                                  <div className="text-2xl font-bold text-indigo-400">
+                                    {pm10 != null ? pm10 : '--'}
+                                  </div>
+                                  <div className="text-xs text-indigo-400/70">PM10 µg/m³</div>
+                                </div>
+                              </div>
+                              
+                              {/* CO2 if available */}
+                              {co2 != null && (
+                                <div className="text-center p-3 bg-slate-800/50 rounded-lg mb-3">
+                                  <div className="text-2xl font-bold text-amber-400">
+                                    {co2}
+                                  </div>
+                                  <div className="text-xs text-amber-400/70">CO₂ ppm</div>
+                                </div>
+                              )}
+                              
+                              {/* Temp & Humidity */}
+                              <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-700/50">
+                                {temp != null && (
+                                  <div className="flex items-center gap-1">
+                                    <Thermometer size={12} className="text-green-400" />
+                                    <span className="text-green-400">{Number(temp).toFixed(1)}°C</span>
+                                  </div>
+                                )}
+                                {humidity != null && (
+                                  <div className="flex items-center gap-1">
+                                    <Droplets size={12} className="text-cyan-400" />
+                                    <span className="text-cyan-400">{Number(humidity).toFixed(0)}%</span>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Energy Consumption Section */}
                 {energyData && energyData.devices && energyData.devices.length > 0 && (
                   <div className="mt-6">
