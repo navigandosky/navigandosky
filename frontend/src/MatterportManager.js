@@ -2032,15 +2032,34 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                         )}
                       </div>
                       
-                      {/* Switch State */}
+                      {/* Switch State - Clickable Toggle */}
                       {liveSensorData.sensor.switch_state && (
-                        <div className={`mt-2 text-center py-1 rounded text-xs font-bold ${
-                          liveSensorData.sensor.switch_state === 'on' 
-                            ? 'bg-red-600/30 text-red-400' 
-                            : 'bg-slate-700 text-slate-400'
-                        }`}>
-                          {liveSensorData.sensor.switch_state === 'on' ? '⚡ ACCESO' : '⚫ SPENTO'}
-                        </div>
+                        <button
+                          onClick={() => toggleEwelinkDevice(
+                            liveSensorData.sensor.device_id, 
+                            liveSensorData.sensor.switch_state
+                          )}
+                          disabled={togglingDevice || !liveSensorData.sensor.can_switch}
+                          className={`mt-2 w-full text-center py-2 rounded text-sm font-bold transition-all ${
+                            liveSensorData.sensor.switch_state === 'on' 
+                              ? 'bg-red-600/40 text-red-300 hover:bg-red-600/60 border border-red-500/50' 
+                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600'
+                          } ${togglingDevice ? 'opacity-50 cursor-wait' : liveSensorData.sensor.can_switch ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
+                          title={liveSensorData.sensor.can_switch ? 'Clicca per accendere/spegnere' : 'Dispositivo non controllabile'}
+                        >
+                          {togglingDevice ? (
+                            <>🔄 Cambio stato...</>
+                          ) : (
+                            <>
+                              {liveSensorData.sensor.switch_state === 'on' ? '⚡ ACCESO' : '⚫ SPENTO'}
+                              {liveSensorData.sensor.can_switch && (
+                                <span className="ml-2 text-[10px] opacity-70">
+                                  (clicca per {liveSensorData.sensor.switch_state === 'on' ? 'spegnere' : 'accendere'})
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </button>
                       )}
                     </div>
                   )}
