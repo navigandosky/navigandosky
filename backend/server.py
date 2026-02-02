@@ -4275,6 +4275,12 @@ async def get_devices_with_sensor_values():
                     uiid = device.get("uiid", 0)
                     params = device.get("params", {})
                     
+                    # Check if this is a multi-channel device channel
+                    is_channel = device.get("is_channel", False)
+                    channel = device.get("channel")
+                    has_channels = device.get("has_channels", False)
+                    channel_count = device.get("channel_count", 0)
+                    
                     # Determine if device supports switch
                     sensor_only_uiids = [1770, 7014, 7017, 102, 1000, 1009, 1256, 1257, 1258, 1259, 3026]
                     # Note: UIID 190 (S60TPF) is a smart plug WITH switch capability
@@ -4286,10 +4292,10 @@ async def get_devices_with_sensor_values():
                         uiid not in sensor_only_uiids and 
                         uiid not in power_monitor_only_uiids and
                         uiid not in camera_uiids
-                    )
+                    ) or is_channel  # Multi-channel devices always support switch
                     
-                    # Get switch state
-                    switch_state = params.get("switch")
+                    # Get switch state - for channels, use the device's switch directly
+                    switch_state = device.get("switch") or params.get("switch")
                     if not switch_state and "switches" in params and len(params.get("switches", [])) > 0:
                         switch_state = params["switches"][0].get("switch")
                     
@@ -4301,7 +4307,12 @@ async def get_devices_with_sensor_values():
                         "source": "ewelink",
                         "online": device.get("online", False),
                         "canSwitch": can_switch,
-                        "switchState": switch_state
+                        "switchState": switch_state,
+                        "switch": switch_state,
+                        "is_channel": is_channel,
+                        "channel": channel,
+                        "has_channels": has_channels,
+                        "channel_count": channel_count
                     }
                     result["devices"].append(device_info)
                     
