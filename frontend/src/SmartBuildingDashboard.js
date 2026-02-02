@@ -1468,7 +1468,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-white">
-                      Dispositivi con POI ({domoticaDevices.length}) {devicesByRoom.length > 0 ? `- ${devicesByRoom.length} Stanze` : ''}
+                      Dispositivi ({domoticaDevices.length}) {devicesByRoom.length > 0 ? `- ${devicesByRoom.length} Stanze` : ''}
                     </h3>
                     <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
                       <Wifi size={12} className="mr-1" /> {domoticaDevices.length > 0 ? 'Connesso' : 'eWeLink'}
