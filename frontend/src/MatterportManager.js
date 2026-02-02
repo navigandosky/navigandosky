@@ -519,7 +519,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       });
       toast.success("POI collegato al dispositivo!");
       if (activeSpace) {
-        loadPois(activeSpace.id);
+        loadPois(activeSpace.space_id || activeSpace.id);
       }
     } catch (error) {
       console.error("Error linking POI to device:", error);
@@ -535,7 +535,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       });
       toast.success("Collegamento rimosso!");
       if (activeSpace) {
-        loadPois(activeSpace.id);
+        loadPois(activeSpace.space_id || activeSpace.id);
       }
     } catch (error) {
       console.error("Error unlinking POI:", error);
@@ -958,7 +958,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       if (response.data.success) {
         toast.success("POI sincronizzato su Matterport Cloud!");
         // Reload POI to get updated synced status
-        loadPois(activeSpace.id);
+        loadPois(activeSpace.space_id || activeSpace.id);
         // Update selected POI if it's the same
         if (selectedPoi?.id === poi.id) {
           const updatedPoi = await axios.get(`${API_URL}/api/matterport/pois/${poi.id}`);
@@ -1768,7 +1768,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
         // Aggiorna il POI selezionato
         const poiRes = await axios.get(`${API_URL}/api/matterport/pois/${poi.id}?token=${authToken}`);
         setSelectedPoi(poiRes.data);
-        loadPois(activeSpace.id);
+        loadPois(activeSpace.space_id || activeSpace.id);
         
         toast.success("POI aggiunto alla vista 3D!");
       }
