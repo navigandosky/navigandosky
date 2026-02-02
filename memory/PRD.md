@@ -1,8 +1,32 @@
 # SmartDomo - PRD
 
-## Stato Attuale (01/02/2026)
+## Stato Attuale (02/02/2026)
 
-### ✅ Completati Oggi (01/02/2026)
+### ✅ Completati Oggi (02/02/2026)
+
+#### Supporto Dispositivi Multi-Canale SonOff/eWeLink ✅
+- **Richiesta**: Visualizzare e controllare individualmente ogni canale dei dispositivi SonOff a 4 canali (IRRIGAZIONE e SERVIZI CANCELLO)
+- **Implementazione Backend**:
+  - Modificato `/api/ewelink/devices` per "esplodere" dispositivi multi-canale in canali virtuali separati
+  - Modificato `get_ewelink_devices_internal()` per includere la stessa logica di espansione
+  - Ogni canale ha ID formato `{parent_id}_ch{n}` (es: `1000bab658_ch0`)
+  - UIIDs multi-canale supportati: 2, 3, 4, 7, 8, 77, 78, 112, 113, 114, 138, 139, 140, 141, 190
+  - Toggle endpoint supporta IDs canale (es: `POST /api/ewelink/device/1000bab658_ch0/switch/on`)
+- **Implementazione Frontend**:
+  - `DeviceCard` aggiornata per leggere stato `switch` correttamente per canali
+  - Badge "CH1", "CH2", "CH3", "CH4" visibili su ogni card canale
+  - Toggle ON/OFF funzionante per ogni singolo canale
+- **File modificati**:
+  - `backend/server.py` (espansione multi-canale in 2 endpoint + toggle)
+  - `frontend/src/SmartBuildingDashboard.js` (DeviceCard con supporto canali)
+- **Dispositivi testati**:
+  - "Irrigazione prato" (ID: 1000bab658) → 4 canali CH1-CH4 ✅
+  - "Serv cancello" (ID: 10017b82bf) → 4 canali CH1-CH4 ✅
+- **Testato**: ✅ Backend 100%, Frontend 100% (testing agent iteration_3)
+
+---
+
+### ✅ Completati Sessione Precedente (01/02/2026)
 
 #### Logo Trivor sulla Pagina Login ✅
 - **Richiesta**: Sostituire/coprire il logo "Made with Emergent" con logo Trivor
