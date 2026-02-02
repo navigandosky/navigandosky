@@ -1844,7 +1844,12 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
                     "current": sensor_values.get("current"),
                     "switch_state": device_data.get("switchState") or device_data.get("switch"),
                     "can_switch": device_data.get("canSwitch", False),
-                    "source": devices_response.get("source", "ewelink")
+                    "source": devices_response.get("source", "ewelink"),
+                    # Door/window contact sensor data
+                    "contact": device_data.get("contact"),  # "open" or "closed"
+                    "is_contact_sensor": device_data.get("is_contact_sensor", False),
+                    "battery": device_data.get("battery"),
+                    "last_trigger": device_data.get("last_trigger")
                 },
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
