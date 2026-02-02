@@ -1675,7 +1675,12 @@ async def get_all_poi_sensors(token: Optional[str] = None):
                 "power": sensor_values.get("power"),
                 "voltage": sensor_values.get("voltage"),
                 "current": sensor_values.get("current"),
-                "provider": elettro.get("smart_plug_provider", "ewelink")
+                "provider": elettro.get("smart_plug_provider", "ewelink"),
+                # Door/window contact sensor data
+                "contact": device.get("contact") if device else None,  # "open" or "closed"
+                "is_contact_sensor": device.get("is_contact_sensor", False) if device else False,
+                "battery": device.get("battery") if device else None,
+                "last_trigger": device.get("last_trigger") if device else None
             }
             
             # Add to map - prefer poi_id as key, fallback to tag_id
