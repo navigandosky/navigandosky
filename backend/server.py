@@ -4333,7 +4333,7 @@ async def get_devices_with_sensor_values():
                         except (ValueError, TypeError):
                             pass
                     
-                    if params.get("power"):
+                    if params.get("power") is not None:
                         try:
                             power_val = float(params.get("power"))
                             # eWeLink S60TPF power values are x100, normalize to actual watts
