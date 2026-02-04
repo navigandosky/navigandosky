@@ -1332,6 +1332,30 @@ function App() {
     toast.success("Logout effettuato");
   };
 
+  // Health check - verify backend is reachable
+  useEffect(() => {
+    const checkBackendHealth = async () => {
+      try {
+        // Simple health check - try to reach the backend
+        await axios.get(`${API}/auth/verify?token=health_check`, { timeout: 5000 });
+        setBackendReady(true);
+      } catch (error) {
+        // If we get any response (even 4xx), backend is up
+        if (error.response) {
+          setBackendReady(true);
+        } else {
+          // Network error - backend not reachable
+          setBackendReady(false);
+          setBackendCheckCount(prev => prev + 1);
+          // Retry after 2 seconds
+          setTimeout(checkBackendHealth, 2000);
+        }
+      }
+    };
+
+    checkBackendHealth();
+  }, []);
+
   // Verify session on mount
   useEffect(() => {
     const verifySession = async () => {
