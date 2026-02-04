@@ -1261,6 +1261,10 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, preselectedElett
 
 // Main App Component
 function App() {
+  // Backend health state
+  const [backendReady, setBackendReady] = useState(true);
+  const [backendCheckCount, setBackendCheckCount] = useState(0);
+  
   // Auth state
   const [currentUser, setCurrentUser] = useState(null);
   const [authToken, setAuthToken] = useState(localStorage.getItem("smartdomo_token"));
