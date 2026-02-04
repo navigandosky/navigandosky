@@ -1720,6 +1720,30 @@ function App() {
     );
   }
 
+  // Show loading screen while backend is starting up
+  if (!backendReady) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="mb-6">
+            <Building2 className="h-16 w-16 text-blue-400 mx-auto animate-pulse" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">SmartDomo</h1>
+          <p className="text-blue-300 mb-6">Avvio servizi in corso...</p>
+          <div className="flex items-center justify-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+            <span className="text-slate-400 text-sm">
+              Connessione al server ({backendCheckCount})
+            </span>
+          </div>
+          <p className="text-slate-500 text-xs mt-4">
+            Attendere qualche secondo...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Show login page if not authenticated
   if (!currentUser) {
     return <LoginPage onLogin={handleLogin} />;
