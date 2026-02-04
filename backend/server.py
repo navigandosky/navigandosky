@@ -1544,6 +1544,9 @@ async def create_elettrodomestico(data: dict = Body(...), token: Optional[str] =
     # Get user from token for multi-tenant
     user = await get_user_from_token(token)
     
+    # Log for debugging
+    logger.info(f"Creating elettrodomestico for user: {user['username']} (ID: {user['id'][:8]}...), token provided: {bool(token)}")
+    
     # Handle custom categoria - any value starting with "custom" should map to "altro"
     categoria = data.get('categoria', '')
     if categoria and (categoria == 'custom' or categoria.startswith('custom_')):
