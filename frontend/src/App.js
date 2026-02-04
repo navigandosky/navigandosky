@@ -1763,9 +1763,17 @@ function App() {
               Connessione al server ({backendCheckCount})
             </span>
           </div>
-          <p className="text-slate-500 text-xs mt-4">
+          <p className="text-slate-500 text-xs mt-4 mb-4">
             Attendere qualche secondo...
           </p>
+          {backendCheckCount >= 3 && (
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm transition-colors"
+            >
+              🔄 Ricarica Pagina
+            </button>
+          )}
         </div>
       </div>
     );
