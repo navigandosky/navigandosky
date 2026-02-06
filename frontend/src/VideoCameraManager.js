@@ -290,7 +290,6 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                     onClick={(e) => {
                       e.stopPropagation();
                       if (camera.status === "online") {
-                        console.log("Thumbnail clicked - opening live for:", camera.name, camera.serial);
                         openLiveDialog(camera);
                       }
                     }}
