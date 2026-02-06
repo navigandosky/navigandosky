@@ -2699,7 +2699,25 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent className="bg-slate-800 border-slate-600 text-white max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-white text-lg">Importa Tag da Matterport</DialogTitle>
+            <DialogTitle className="text-white text-lg flex items-center justify-between">
+              <span>Importa Tag da Matterport</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-400 hover:text-white"
+                onClick={async () => {
+                  if (matterportRef.current?.refreshTags) {
+                    toast.info("Aggiornamento tag in corso...");
+                    const tags = await matterportRef.current.refreshTags();
+                    setMatterportTags(tags || []);
+                    toast.success(`${tags?.length || 0} tag trovati`);
+                  }
+                }}
+              >
+                <RefreshCw size={16} className="mr-1" />
+                Aggiorna
+              </Button>
+            </DialogTitle>
             <DialogDescription className="text-slate-300">
               Seleziona i tag da importare come POI ({matterportTags.length} tag disponibili)
             </DialogDescription>
@@ -2707,7 +2725,14 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
           
           <ScrollArea className="h-[400px]">
             <div className="space-y-2">
-              {matterportTags.map(tag => {
+              {matterportTags.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  <Import className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>Nessun tag trovato nello Space Matterport</p>
+                  <p className="text-sm mt-1">Clicca "Aggiorna" per ricaricare i tag</p>
+                </div>
+              ) : (
+                matterportTags.map(tag => {
                 const tagId = tag.sid || tag.id;
                 const isSelected = selectedTagsForImport.includes(tagId);
                 
