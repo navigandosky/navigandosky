@@ -1300,6 +1300,8 @@ function App() {
   const [schedaApparatoOpen, setSchedaApparatoOpen] = useState(false);
   const [viewingApparato, setViewingApparato] = useState(null);
   const [apparatoManutenzioni, setApparatoManutenzioni] = useState([]);
+  const [apparatoConsumi, setApparatoConsumi] = useState(null); // Consumption data from smart plug
+  const [loadingConsumi, setLoadingConsumi] = useState(false);
   const [navigateToPoiId, setNavigateToPoiId] = useState(null); // POI to navigate to in 3D view
   
   // SmartThings devices for form
