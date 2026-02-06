@@ -283,6 +283,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                 }`}
                 onClick={() => {
                   console.log("Selected camera:", camera.name, camera.serial);
+                  selectedCameraRef.current = camera; // Update ref immediately
                   setSelectedCamera(camera);
                 }}
               >
