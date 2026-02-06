@@ -286,8 +286,18 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                 }}
               >
                 <div className="flex items-start gap-3">
-                  {/* Camera Thumbnail */}
-                  <div className="w-16 h-12 bg-slate-600 rounded overflow-hidden flex-shrink-0">
+                  {/* Camera Thumbnail - clickable for live */}
+                  <div 
+                    className="w-16 h-12 bg-slate-600 rounded overflow-hidden flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-red-500"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (camera.status === "online") {
+                        console.log("Thumbnail clicked - opening live for:", camera.name, camera.serial);
+                        openLiveDialog(camera);
+                      }
+                    }}
+                    title={camera.status === "online" ? "Clicca per Live" : "Camera offline"}
+                  >
                     {camera.image_url ? (
                       <img 
                         src={camera.image_url} 
