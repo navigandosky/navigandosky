@@ -216,7 +216,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
       };
       captureNewSnapshot();
     }
-  }, [showLiveDialog, liveCamera?.serial, authToken]);
+  }, [showLiveDialog, liveCamera?.serial, liveCamera?.status, authToken]);
 
   // Open link dialog
   const openLinkDialog = (camera) => {
