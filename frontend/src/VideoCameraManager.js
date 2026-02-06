@@ -487,8 +487,10 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                   className="border-red-600 text-red-400 hover:bg-red-600/20"
                   disabled={selectedCamera.status !== "online"}
                   onClick={() => {
-                    console.log("Live button clicked, selectedCamera:", selectedCamera?.name, selectedCamera?.serial);
-                    openLiveDialog(selectedCamera);
+                    // Use ref to get the LATEST camera value (avoids stale closure)
+                    const cameraToUse = selectedCameraRef.current || selectedCamera;
+                    console.log("Live button clicked, using camera:", cameraToUse?.name, cameraToUse?.serial);
+                    openLiveDialog(cameraToUse);
                   }}
                 >
                   <Play className="h-4 w-4 mr-1" />
