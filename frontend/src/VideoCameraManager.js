@@ -323,6 +323,22 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                       <span className="text-sm font-medium text-white truncate">
                         {camera.name}
                       </span>
+                      {/* Quick Live Button inline */}
+                      {camera.status === "online" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-5 w-5 p-0 ml-auto text-red-400 hover:text-red-300 hover:bg-red-600/20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log("Quick Live button clicked for:", camera.name, camera.serial);
+                            openLiveDialog(camera);
+                          }}
+                          title="Visualizza Live"
+                        >
+                          <Video className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5">{camera.model}</p>
                     
