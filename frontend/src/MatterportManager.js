@@ -2730,7 +2730,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                 <div className="text-center py-8 text-slate-400">
                   <Import className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p>Nessun tag trovato nello Space Matterport</p>
-                  <p className="text-sm mt-1">Clicca "Aggiorna" per ricaricare i tag</p>
+                  <p className="text-sm mt-1">Clicca Aggiorna per ricaricare i tag</p>
                 </div>
               ) : (
                 matterportTags.map(tag => {
