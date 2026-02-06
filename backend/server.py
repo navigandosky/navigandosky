@@ -1286,13 +1286,21 @@ async def get_properties(user_id: str = DEFAULT_USER_ID):
 
 @api_router.get("/property/active", response_model=Optional[PropertyConfig])
 async def get_active_property(token: Optional[str] = Query(None)):
-    """Ottiene la proprietà attiva dell'utente corrente"""
+    """Ottiene la proprietà attiva dell'utente corrente o la property globale attiva"""
     user = await get_user_from_token(token)
     user_id = user.get("id", DEFAULT_USER_ID)
     
+    # First, try to find property for this specific user
     prop = await db.property_config.find_one(
         {"user_id": user_id, "is_active": True}, {"_id": 0}
     )
+    
+    # If not found, fallback to any active property (shared/global property)
+    if not prop:
+        prop = await db.property_config.find_one(
+            {"is_active": True}, {"_id": 0}
+        )
+    
     if prop:
         return deserialize_datetime(prop)
     return None
