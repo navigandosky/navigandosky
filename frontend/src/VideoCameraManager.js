@@ -26,6 +26,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
   const [cameras, setCameras] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCamera, setSelectedCamera] = useState(null);
+  const selectedCameraRef = useRef(null); // Ref to track latest selected camera
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkingCamera, setLinkingCamera] = useState(null);
   const [selectedPoiId, setSelectedPoiId] = useState("");
