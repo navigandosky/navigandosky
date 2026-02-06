@@ -122,12 +122,12 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
 
   // Capture snapshot from camera
   const captureSnapshot = async () => {
-    if (!selectedCamera) return;
+    if (!liveCamera) return;
     
     try {
       setLoadingLive(true);
       const response = await axios.get(
-        `${API_URL}/api/ezviz/camera/${selectedCamera.serial}/snapshot`,
+        `${API_URL}/api/ezviz/camera/${liveCamera.serial}/snapshot`,
         { params: { token: authToken } }
       );
       
