@@ -331,12 +331,13 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                   </Button>
                 )}
 
-                {/* View Stream (placeholder) */}
+                {/* View Stream Button */}
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                  className="border-red-600 text-red-400 hover:bg-red-600/20"
                   disabled={selectedCamera.status !== "online"}
+                  onClick={() => setShowLiveDialog(true)}
                 >
                   <Play className="h-4 w-4 mr-1" />
                   Live
@@ -356,6 +357,87 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
           </div>
         )}
       </div>
+
+      {/* Live Video Dialog */}
+      <Dialog open={showLiveDialog} onOpenChange={setShowLiveDialog}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Video className="h-5 w-5 text-red-500" />
+              {selectedCamera?.name} - Live
+              <span className={`ml-2 px-2 py-0.5 text-xs rounded ${
+                selectedCamera?.status === "online" 
+                  ? "bg-green-500/20 text-green-400" 
+                  : "bg-red-500/20 text-red-400"
+              }`}>
+                {selectedCamera?.status === "online" ? "● LIVE" : "● OFFLINE"}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Video/Image Container */}
+            <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
+              {liveStreamUrl ? (
+                <iframe 
+                  src={liveStreamUrl}
+                  className="w-full h-full"
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                />
+              ) : liveSnapshot ? (
+                <img 
+                  src={liveSnapshot} 
+                  alt="Live snapshot"
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  {loadingLive ? (
+                    <div className="text-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-red-500 mx-auto mb-2" />
+                      <p className="text-slate-400">Caricamento video...</p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <Camera className="h-16 w-16 text-slate-600 mx-auto mb-2" />
+                      <p className="text-slate-400">Clicca per catturare immagine</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={captureSnapshot}
+                  disabled={loadingLive || selectedCamera?.status !== "online"}
+                  className="bg-blue-600 hover:bg-blue-500"
+                >
+                  <Camera className="h-4 w-4 mr-1" />
+                  Cattura Immagine
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={loadLiveStream}
+                  disabled={loadingLive || selectedCamera?.status !== "online"}
+                  className="bg-red-600 hover:bg-red-500"
+                >
+                  <Play className="h-4 w-4 mr-1" />
+                  Stream Live
+                </Button>
+              </div>
+
+              <div className="text-xs text-slate-500">
+                {liveSnapshot && "Ultimo aggiornamento: " + new Date().toLocaleTimeString('it-IT')}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Link POI Dialog */}
       <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
