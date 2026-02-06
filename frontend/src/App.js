@@ -64,6 +64,7 @@ import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "
 import { PlanimetriaEditor, SuggerimentiProattivi, NotificationBadge } from "./PlanimetriaSuggerimenti";
 import SmartBuildingDashboard from "./SmartBuildingDashboard";
 import MatterportManager from "./MatterportManager";
+import VideoCameraManager from "./VideoCameraManager";
 import ElettrodomesticoDialog from "./ElettrodomesticoForm";
 import RicercaCentriAssistenza from "./RicercaCentriAssistenza";
 import PropertyConfig from "./PropertyConfig";
