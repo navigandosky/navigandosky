@@ -240,11 +240,15 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
 
         {/* Selected Camera Panel */}
         {selectedCamera && (
-          <div className="bg-slate-800 border-t border-slate-700 p-4">
+          <div className="bg-slate-800 border-t border-slate-700 p-4 pr-32">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                {/* Camera Thumbnail */}
-                <div className="w-24 h-16 bg-slate-700 rounded overflow-hidden">
+                {/* Camera Thumbnail - clickable for live view */}
+                <div 
+                  className="w-24 h-16 bg-slate-700 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-red-500 transition-all"
+                  onClick={() => selectedCamera.status === "online" && setShowLiveDialog(true)}
+                  title={selectedCamera.status === "online" ? "Clicca per video live" : "Camera offline"}
+                >
                   {selectedCamera.image_url ? (
                     <img 
                       src={selectedCamera.image_url} 
@@ -254,6 +258,11 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Camera className="h-8 w-8 text-slate-500" />
+                    </div>
+                  )}
+                  {selectedCamera.status === "online" && (
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                      <Play className="h-6 w-6 text-white" />
                     </div>
                   )}
                 </div>
@@ -284,8 +293,8 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-2">
+              {/* Actions - moved left with mr-8 to avoid logo */}
+              <div className="flex items-center gap-2 mr-8">
                 {/* Link to POI Button */}
                 <Button
                   size="sm"
