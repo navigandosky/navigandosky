@@ -89,6 +89,40 @@ const MatterportViewer = forwardRef(({
     getTags: () => mattertags,
 
     /**
+     * Reload/refresh tags from Matterport SDK
+     * @returns {Array} - Updated list of tags
+     */
+    refreshTags: async () => {
+      if (!sdkRef.current) return [];
+      try {
+        let tags = [];
+        // Try the new Tag.data API first
+        if (sdkRef.current.Tag && sdkRef.current.Tag.data) {
+          tags = await sdkRef.current.Tag.data.collect();
+          console.log(`Refreshed ${tags.length} Tags (new API)`);
+        } else {
+          // Fallback to deprecated Mattertag API
+          tags = await sdkRef.current.Mattertag.getData();
+          console.log(`Refreshed ${tags.length} Mattertags (legacy API)`);
+        }
+        setMattertags(tags);
+        return tags;
+      } catch (error) {
+        console.error("Error refreshing tags:", error);
+        // Try legacy API as fallback
+        try {
+          const tags = await sdkRef.current.Mattertag.getData();
+          setMattertags(tags);
+          console.log(`Refreshed ${tags.length} Mattertags (fallback)`);
+          return tags;
+        } catch (e2) {
+          console.error("Could not refresh tags:", e2);
+          return [];
+        }
+      }
+    },
+
+    /**
      * Get current camera position
      */
     getCurrentPosition: async () => {
