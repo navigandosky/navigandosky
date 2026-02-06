@@ -177,7 +177,6 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
 
   // Open live dialog with current camera
   const openLiveDialog = (camera) => {
-    console.log("openLiveDialog called with camera:", camera?.name, camera?.serial);
     // Always set the new camera first
     setLiveCamera(camera);
     setLiveSnapshot(null);
