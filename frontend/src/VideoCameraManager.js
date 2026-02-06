@@ -446,7 +446,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                   <SelectValue placeholder="Seleziona un POI..." />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-700 border-slate-600">
-                  <SelectItem value="">
+                  <SelectItem value="none">
                     <span className="text-slate-400">Nessun collegamento</span>
                   </SelectItem>
                   {matterportPois.map((poi) => (
