@@ -31,6 +31,12 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
   const [selectedPoiId, setSelectedPoiId] = useState("");
   const [sdkReady, setSdkReady] = useState(false);
   
+  // Live video state
+  const [showLiveDialog, setShowLiveDialog] = useState(false);
+  const [liveSnapshot, setLiveSnapshot] = useState(null);
+  const [liveStreamUrl, setLiveStreamUrl] = useState(null);
+  const [loadingLive, setLoadingLive] = useState(false);
+  
   // Refs
   const matterportRef = useRef(null);
 
