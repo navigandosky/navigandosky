@@ -147,12 +147,12 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
 
   // Load live stream URL
   const loadLiveStream = async () => {
-    if (!selectedCamera) return;
+    if (!liveCamera) return;
     
     try {
       setLoadingLive(true);
       const response = await axios.get(
-        `${API_URL}/api/ezviz/camera/${selectedCamera.serial}/stream`,
+        `${API_URL}/api/ezviz/camera/${liveCamera.serial}/stream`,
         { params: { token: authToken, protocol: 2, quality: 1 } }
       );
       
