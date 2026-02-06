@@ -2718,9 +2718,27 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                 <RefreshCw size={16} className="mr-1" />
                 Aggiorna
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-orange-400 hover:text-orange-300"
+                onClick={() => {
+                  if (matterportRef.current?.reloadSpace) {
+                    matterportRef.current.reloadSpace();
+                    setShowImportDialog(false);
+                  }
+                }}
+                title="Ricarica completamente lo Space per vedere i nuovi tag"
+              >
+                <Globe size={16} className="mr-1" />
+                Ricarica Space
+              </Button>
             </DialogTitle>
             <DialogDescription className="text-slate-300">
               Seleziona i tag da importare come POI ({matterportTags.length} tag disponibili)
+              {matterportTags.length === 0 && (
+                <span className="text-yellow-400 ml-2">- Prova a ricaricare lo Space se non vedi i nuovi tag</span>
+              )}
             </DialogDescription>
           </DialogHeader>
           
