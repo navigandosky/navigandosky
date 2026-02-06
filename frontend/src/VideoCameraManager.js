@@ -315,7 +315,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                     size="sm"
                     onClick={() => navigateToPoi(selectedCamera.poi_id)}
                     className="bg-red-600 hover:bg-red-500"
-                    disabled={!sdkConnected}
+                    disabled={!sdkReady}
                   >
                     <Navigation className="h-4 w-4 mr-1" />
                     Vai al POI
