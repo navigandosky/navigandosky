@@ -395,7 +395,12 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                 {/* Camera Thumbnail - clickable for live view */}
                 <div 
                   className="w-24 h-16 bg-slate-700 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-red-500 transition-all"
-                  onClick={() => selectedCamera.status === "online" && openLiveDialog(selectedCamera)}
+                  onClick={() => {
+                    const cameraToUse = selectedCameraRef.current || selectedCamera;
+                    if (cameraToUse.status === "online") {
+                      openLiveDialog(cameraToUse);
+                    }
+                  }}
                   title={selectedCamera.status === "online" ? "Clicca per video live" : "Camera offline"}
                 >
                   {selectedCamera.image_url ? (
