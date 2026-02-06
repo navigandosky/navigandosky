@@ -174,30 +174,33 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
     }
   };
 
-  // Reset live state when dialog closes or camera changes
   // Open live dialog with current camera
   const openLiveDialog = (camera) => {
+    console.log("openLiveDialog called with camera:", camera?.name, camera?.serial);
+    // Always set the new camera first
     setLiveCamera(camera);
     setLiveSnapshot(null);
     setLiveStreamUrl(null);
     setShowLiveDialog(true);
   };
 
-  // Reset live state when dialog closes
+  // Reset live snapshot/stream when dialog closes (but NOT liveCamera)
   useEffect(() => {
     if (!showLiveDialog) {
       setLiveSnapshot(null);
       setLiveStreamUrl(null);
-      setLiveCamera(null);
+      // Don't reset liveCamera here - it will be set by openLiveDialog
     }
   }, [showLiveDialog]);
 
-  // Auto-capture snapshot when dialog opens with a camera
+  // Auto-capture snapshot when liveCamera changes and dialog is open
   useEffect(() => {
+    console.log("Snapshot effect - showLiveDialog:", showLiveDialog, "liveCamera:", liveCamera?.name, liveCamera?.serial);
     if (showLiveDialog && liveCamera?.status === "online" && liveCamera?.serial) {
       const captureNewSnapshot = async () => {
         try {
           setLoadingLive(true);
+          console.log("Capturing snapshot for:", liveCamera.name, liveCamera.serial);
           const response = await axios.get(
             `${API_URL}/api/ezviz/camera/${liveCamera.serial}/snapshot`,
             { params: { token: authToken } }
