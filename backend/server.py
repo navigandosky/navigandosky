@@ -5874,7 +5874,8 @@ async def get_ezviz_cameras(token: Optional[str] = Query(None)):
                     "name": cam_info.get("name", "Camera"),
                     "model": cam_info.get("device_type", "Unknown"),
                     "status": status,
-                    "image_url": cam_info.get("cover", "")
+                    "image_url": cam_info.get("cover", ""),
+                    "poi_id": associations.get(serial)
                 }
                 cameras.append(camera)
             
@@ -5889,6 +5890,55 @@ async def get_ezviz_cameras(token: Optional[str] = Query(None)):
     except Exception as e:
         logger.error(f"Ezviz cameras error: {e}")
         raise HTTPException(status_code=500, detail=f"Ezviz API error: {str(e)}")
+
+
+@api_router.post("/ezviz/camera/{serial}/link-poi")
+async def link_camera_to_poi(serial: str, data: dict = Body(...), token: Optional[str] = Query(None)):
+    """Link a camera to a POI for navigation"""
+    user = await get_user_from_token(token)
+    poi_id = data.get("poi_id")
+    
+    if not poi_id:
+        # Remove association
+        await db.camera_poi_associations.delete_one({
+            "camera_serial": serial,
+            "user_id": user["id"]
+        })
+        return {"success": True, "message": "Association removed"}
+    
+    # Create or update association
+    await db.camera_poi_associations.update_one(
+        {"camera_serial": serial, "user_id": user["id"]},
+        {"$set": {
+            "camera_serial": serial,
+            "poi_id": poi_id,
+            "user_id": user["id"],
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    return {"success": True, "message": "Camera linked to POI", "poi_id": poi_id}
+
+
+@api_router.get("/ezviz/camera/{serial}/poi")
+async def get_camera_poi(serial: str, token: Optional[str] = Query(None)):
+    """Get POI associated with a camera"""
+    user = await get_user_from_token(token)
+    
+    assoc = await db.camera_poi_associations.find_one({
+        "camera_serial": serial,
+        "user_id": user["id"]
+    }, {"_id": 0})
+    
+    if not assoc or not assoc.get("poi_id"):
+        return {"poi": None}
+    
+    poi = await db.pois.find_one({"id": assoc["poi_id"]}, {"_id": 0})
+    if poi:
+        poi = deserialize_datetime(poi)
+    
+    return {"poi": poi}
 
 
 @api_router.get("/ezviz/camera/{serial}/snapshot")
