@@ -477,7 +477,11 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
       </div>
 
       {/* Live Video Dialog */}
-      <Dialog open={showLiveDialog} onOpenChange={setShowLiveDialog}>
+      <Dialog 
+        key={liveCamera?.serial || 'no-camera'} 
+        open={showLiveDialog} 
+        onOpenChange={setShowLiveDialog}
+      >
         <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-4xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
