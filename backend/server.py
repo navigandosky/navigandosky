@@ -4211,13 +4211,16 @@ async def get_device_consumption(device_id: str):
                         consumption["voltage_v"] = round(voltage_val, 1)
                         consumption["has_consumption_data"] = True
                     
-                    # Daily and Monthly kWh
+                    # Daily and Monthly kWh - eWeLink S60TPF sends values x10
+                    # e.g., 24 raw = 2.4 kWh actual, 224 raw = 22.4 kWh
                     if params.get("dayKwh") is not None:
-                        consumption["daily_kwh"] = params.get("dayKwh", 0)
+                        daily_kwh = float(params.get("dayKwh", 0)) / 10
+                        consumption["daily_kwh"] = round(daily_kwh, 2)
                         consumption["has_consumption_data"] = True
                     
                     if params.get("monthKwh") is not None:
-                        consumption["monthly_kwh"] = params.get("monthKwh", 0)
+                        monthly_kwh = float(params.get("monthKwh", 0)) / 10
+                        consumption["monthly_kwh"] = round(monthly_kwh, 2)
                         consumption["has_consumption_data"] = True
                     
                     # Calculated cost (assuming 0.25 €/kWh average in Italy)
