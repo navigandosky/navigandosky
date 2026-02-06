@@ -2599,6 +2599,133 @@ function App() {
                 </Button>
               </TabsContent>
               
+              {/* Tab Consumi - shown only if smart plug is connected */}
+              {(viewingApparato.smart_plug_id || viewingApparato.smartthings_device_id) && (
+                <TabsContent value="consumi" className="mt-4">
+                  {loadingConsumi ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+                      <span className="ml-2 text-gray-500">Caricamento dati...</span>
+                    </div>
+                  ) : apparatoConsumi?.has_consumption_data ? (
+                    <div className="space-y-4">
+                      {/* Device Info */}
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border">
+                        <div className="flex items-center gap-2">
+                          <Plug className="h-5 w-5 text-amber-500" />
+                          <div>
+                            <p className="font-medium">{apparatoConsumi.device_name}</p>
+                            <p className="text-xs text-gray-500">Smart Plug collegato</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${apparatoConsumi.online ? 'bg-green-500' : 'bg-red-500'}`} />
+                          <span className={`text-sm font-medium ${apparatoConsumi.online ? 'text-green-600' : 'text-red-600'}`}>
+                            {apparatoConsumi.online ? 'Online' : 'Offline'}
+                          </span>
+                          {apparatoConsumi.switch && (
+                            <Badge variant={apparatoConsumi.switch === 'on' ? 'default' : 'secondary'}>
+                              {apparatoConsumi.switch === 'on' ? 'Acceso' : 'Spento'}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Real-time Power Data */}
+                      <div className="grid grid-cols-3 gap-4">
+                        <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200">
+                          <CardContent className="p-4 text-center">
+                            <Zap className="h-6 w-6 text-amber-500 mx-auto mb-1" />
+                            <p className="text-2xl font-bold text-amber-600">
+                              {apparatoConsumi.power_w?.toFixed(1) || '0'} W
+                            </p>
+                            <p className="text-sm text-amber-700">Potenza attuale</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+                          <CardContent className="p-4 text-center">
+                            <Activity className="h-6 w-6 text-blue-500 mx-auto mb-1" />
+                            <p className="text-2xl font-bold text-blue-600">
+                              {apparatoConsumi.voltage_v?.toFixed(0) || '0'} V
+                            </p>
+                            <p className="text-sm text-blue-700">Tensione</p>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
+                          <CardContent className="p-4 text-center">
+                            <TrendingUp className="h-6 w-6 text-purple-500 mx-auto mb-1" />
+                            <p className="text-2xl font-bold text-purple-600">
+                              {apparatoConsumi.current_a?.toFixed(2) || '0'} A
+                            </p>
+                            <p className="text-sm text-purple-700">Corrente</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                      
+                      {/* Consumption Summary */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-green-700 font-medium">Consumo Oggi</p>
+                                <p className="text-3xl font-bold text-green-600">
+                                  {apparatoConsumi.daily_kwh || 0} kWh
+                                </p>
+                                {apparatoConsumi.daily_cost_eur && (
+                                  <p className="text-sm text-green-600 mt-1">
+                                    ≈ €{apparatoConsumi.daily_cost_eur.toFixed(2)}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                                <Calendar className="h-6 w-6 text-green-500" />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-cyan-50 to-teal-50 border-cyan-200">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-cyan-700 font-medium">Consumo Mese</p>
+                                <p className="text-3xl font-bold text-cyan-600">
+                                  {apparatoConsumi.monthly_kwh || 0} kWh
+                                </p>
+                                {apparatoConsumi.monthly_cost_eur && (
+                                  <p className="text-sm text-cyan-600 mt-1">
+                                    ≈ €{apparatoConsumi.monthly_cost_eur.toFixed(2)}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="h-12 w-12 rounded-full bg-cyan-100 flex items-center justify-center">
+                                <BarChart3 className="h-6 w-6 text-cyan-500" />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                      
+                      {/* Refresh Button */}
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={() => loadApparatoConsumi(viewingApparato.smart_plug_id || viewingApparato.smartthings_device_id)}
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Aggiorna Dati
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Plug className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                      <p>Nessun dato di consumo disponibile</p>
+                      <p className="text-sm mt-1">Il dispositivo smart collegato potrebbe non supportare la misurazione dei consumi</p>
+                    </div>
+                  )}
+                </TabsContent>
+              )}
+              
               <TabsContent value="dettagli" className="mt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
