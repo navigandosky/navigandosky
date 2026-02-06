@@ -403,11 +403,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                 {selectedCamera.poi_id && (
                   <Button
                     size="sm"
-                    onClick={() => {
-                      console.log("Button clicked, selectedCamera.poi_id:", selectedCamera.poi_id);
-                      console.log("Full selectedCamera:", JSON.stringify(selectedCamera, null, 2));
-                      navigateToPoi(selectedCamera.poi_id);
-                    }}
+                    onClick={() => navigateToPoi(selectedCamera.poi_id)}
                     className="bg-red-600 hover:bg-red-500"
                     disabled={!sdkReady}
                   >
