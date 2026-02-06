@@ -328,7 +328,6 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                           className="h-5 w-5 p-0 ml-auto text-red-400 hover:text-red-300 hover:bg-red-600/20"
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log("Quick Live button clicked for:", camera.name, camera.serial);
                             openLiveDialog(camera);
                           }}
                           title="Visualizza Live"
