@@ -195,12 +195,10 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
 
   // Auto-capture snapshot when liveCamera changes and dialog is open
   useEffect(() => {
-    console.log("Snapshot effect - showLiveDialog:", showLiveDialog, "liveCamera:", liveCamera?.name, liveCamera?.serial);
     if (showLiveDialog && liveCamera?.status === "online" && liveCamera?.serial) {
       const captureNewSnapshot = async () => {
         try {
           setLoadingLive(true);
-          console.log("Capturing snapshot for:", liveCamera.name, liveCamera.serial);
           const response = await axios.get(
             `${API_URL}/api/ezviz/camera/${liveCamera.serial}/snapshot`,
             { params: { token: authToken } }
