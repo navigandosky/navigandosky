@@ -175,25 +175,31 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
   };
 
   // Reset live state when dialog closes or camera changes
+  // Open live dialog with current camera
+  const openLiveDialog = (camera) => {
+    setLiveCamera(camera);
+    setLiveSnapshot(null);
+    setLiveStreamUrl(null);
+    setShowLiveDialog(true);
+  };
+
+  // Reset live state when dialog closes
   useEffect(() => {
     if (!showLiveDialog) {
       setLiveSnapshot(null);
       setLiveStreamUrl(null);
+      setLiveCamera(null);
     }
   }, [showLiveDialog]);
 
-  // Auto-capture snapshot when opening dialog or when camera changes while dialog is open
+  // Auto-capture snapshot when dialog opens with a camera
   useEffect(() => {
-    if (showLiveDialog && selectedCamera?.status === "online") {
-      // Reset previous data first
-      setLiveSnapshot(null);
-      setLiveStreamUrl(null);
-      // Then capture new snapshot
+    if (showLiveDialog && liveCamera?.status === "online" && liveCamera?.serial) {
       const captureNewSnapshot = async () => {
         try {
           setLoadingLive(true);
           const response = await axios.get(
-            `${API_URL}/api/ezviz/camera/${selectedCamera.serial}/snapshot`,
+            `${API_URL}/api/ezviz/camera/${liveCamera.serial}/snapshot`,
             { params: { token: authToken } }
           );
           
@@ -210,7 +216,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
       };
       captureNewSnapshot();
     }
-  }, [showLiveDialog, selectedCamera?.serial, authToken]);
+  }, [showLiveDialog, liveCamera?.serial, authToken]);
 
   // Open link dialog
   const openLinkDialog = (camera) => {
