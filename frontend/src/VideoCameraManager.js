@@ -221,27 +221,12 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
         {/* Matterport Viewer */}
         <div className="flex-1 relative bg-black">
           {currentUser?.matterport_space_id ? (
-            <>
-              <iframe
-                ref={iframeRef}
-                className="w-full h-full"
-                allow="xr-spatial-tracking; gyroscope; accelerometer"
-                allowFullScreen
-              />
-              {!sdkConnected && !sdkError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                  <div className="text-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-blue-400 mx-auto mb-2" />
-                    <p className="text-white">Connessione allo Space Matterport...</p>
-                  </div>
-                </div>
-              )}
-              {sdkError && (
-                <div className="absolute top-4 right-4 bg-red-500/20 border border-red-500/50 rounded-lg px-3 py-2 text-red-400 text-sm">
-                  {sdkError}
-                </div>
-              )}
-            </>
+            <MatterportViewer
+              ref={matterportRef}
+              spaceId={currentUser.matterport_space_id}
+              onSdkReady={() => setSdkReady(true)}
+              className="w-full h-full"
+            />
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center text-slate-400">
