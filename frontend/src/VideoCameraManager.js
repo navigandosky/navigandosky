@@ -490,7 +490,6 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                   onClick={() => {
                     // Use ref to get the LATEST camera value (avoids stale closure)
                     const cameraToUse = selectedCameraRef.current || selectedCamera;
-                    console.log("Live button clicked, using camera:", cameraToUse?.name, cameraToUse?.serial);
                     openLiveDialog(cameraToUse);
                   }}
                 >
