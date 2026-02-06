@@ -529,7 +529,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                 <Button
                   size="sm"
                   onClick={captureSnapshot}
-                  disabled={loadingLive || selectedCamera?.status !== "online"}
+                  disabled={loadingLive || liveCamera?.status !== "online"}
                   className="bg-blue-600 hover:bg-blue-500"
                 >
                   <Camera className="h-4 w-4 mr-1" />
@@ -538,7 +538,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                 <Button
                   size="sm"
                   onClick={loadLiveStream}
-                  disabled={loadingLive || selectedCamera?.status !== "online"}
+                  disabled={loadingLive || liveCamera?.status !== "online"}
                   className="bg-red-600 hover:bg-red-500"
                 >
                   <Play className="h-4 w-4 mr-1" />
