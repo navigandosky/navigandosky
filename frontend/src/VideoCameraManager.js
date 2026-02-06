@@ -109,6 +109,71 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
     }
   };
 
+  // Capture snapshot from camera
+  const captureSnapshot = async () => {
+    if (!selectedCamera) return;
+    
+    try {
+      setLoadingLive(true);
+      const response = await axios.get(
+        `${API_URL}/api/ezviz/camera/${selectedCamera.serial}/snapshot`,
+        { params: { token: authToken } }
+      );
+      
+      if (response.data.url) {
+        setLiveSnapshot(response.data.url);
+        toast.success("Immagine catturata");
+      } else {
+        toast.error("Impossibile catturare immagine");
+      }
+    } catch (error) {
+      console.error("Error capturing snapshot:", error);
+      toast.error("Errore nella cattura immagine");
+    } finally {
+      setLoadingLive(false);
+    }
+  };
+
+  // Load live stream URL
+  const loadLiveStream = async () => {
+    if (!selectedCamera) return;
+    
+    try {
+      setLoadingLive(true);
+      const response = await axios.get(
+        `${API_URL}/api/ezviz/camera/${selectedCamera.serial}/stream`,
+        { params: { token: authToken, protocol: 2, quality: 1 } }
+      );
+      
+      if (response.data.url) {
+        setLiveStreamUrl(response.data.url);
+        toast.success("Stream avviato");
+      } else {
+        toast.error("Impossibile avviare stream");
+        // Fallback to snapshot
+        captureSnapshot();
+      }
+    } catch (error) {
+      console.error("Error loading stream:", error);
+      toast.error("Stream non disponibile, caricamento snapshot...");
+      // Fallback to snapshot
+      captureSnapshot();
+    } finally {
+      setLoadingLive(false);
+    }
+  };
+
+  // Reset live state when dialog closes
+  useEffect(() => {
+    if (!showLiveDialog) {
+      setLiveSnapshot(null);
+      setLiveStreamUrl(null);
+    } else if (selectedCamera?.status === "online") {
+      // Auto-capture snapshot when opening dialog
+      captureSnapshot();
+    }
+  }, [showLiveDialog, selectedCamera]);
+
   // Open link dialog
   const openLinkDialog = (camera) => {
     setLinkingCamera(camera);
