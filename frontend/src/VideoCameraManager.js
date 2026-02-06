@@ -33,6 +33,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
   
   // Live video state
   const [showLiveDialog, setShowLiveDialog] = useState(false);
+  const [liveCamera, setLiveCamera] = useState(null); // Camera captured when dialog opens
   const [liveSnapshot, setLiveSnapshot] = useState(null);
   const [liveStreamUrl, setLiveStreamUrl] = useState(null);
   const [loadingLive, setLoadingLive] = useState(false);
