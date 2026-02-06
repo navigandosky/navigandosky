@@ -4166,6 +4166,86 @@ async def clear_smartthings_cache():
     return {"status": "cache cleared"}
 
 
+@api_router.get("/device/{device_id}/consumption")
+async def get_device_consumption(device_id: str):
+    """
+    Get consumption data for a specific smart plug/power meter device.
+    Returns power (W), current (A), voltage (V), daily kWh, monthly kWh.
+    """
+    try:
+        # Try to get from eWeLink first
+        ewelink_devices = await get_ewelink_devices_internal()
+        if ewelink_devices and ewelink_devices.get("devices"):
+            for device in ewelink_devices.get("devices", []):
+                if device.get("id") == device_id:
+                    params = device.get("params", {})
+                    
+                    # Extract consumption data
+                    consumption = {
+                        "device_id": device_id,
+                        "device_name": device.get("name", "Unknown"),
+                        "online": device.get("online", False),
+                        "switch": params.get("switches", [{}])[0].get("switch") if params.get("switches") else device.get("switch"),
+                        "has_consumption_data": False
+                    }
+                    
+                    # Power (x100 for S60TPF)
+                    if params.get("power") is not None:
+                        power_val = float(params.get("power", 0))
+                        if power_val > 100:
+                            power_val = power_val / 100
+                        consumption["power_w"] = round(power_val, 2)
+                        consumption["has_consumption_data"] = True
+                    
+                    # Current (in cA, divide by 100)
+                    if params.get("current") is not None:
+                        current_val = float(params.get("current", 0)) / 100
+                        consumption["current_a"] = round(current_val, 2)
+                        consumption["has_consumption_data"] = True
+                    
+                    # Voltage (x100)
+                    if params.get("voltage") is not None:
+                        voltage_val = float(params.get("voltage", 0))
+                        if voltage_val > 1000:
+                            voltage_val = voltage_val / 100
+                        consumption["voltage_v"] = round(voltage_val, 1)
+                        consumption["has_consumption_data"] = True
+                    
+                    # Daily and Monthly kWh
+                    if params.get("dayKwh") is not None:
+                        consumption["daily_kwh"] = params.get("dayKwh", 0)
+                        consumption["has_consumption_data"] = True
+                    
+                    if params.get("monthKwh") is not None:
+                        consumption["monthly_kwh"] = params.get("monthKwh", 0)
+                        consumption["has_consumption_data"] = True
+                    
+                    # Calculated cost (assuming 0.25 €/kWh average in Italy)
+                    if consumption.get("daily_kwh"):
+                        consumption["daily_cost_eur"] = round(consumption["daily_kwh"] * 0.25, 2)
+                    if consumption.get("monthly_kwh"):
+                        consumption["monthly_cost_eur"] = round(consumption["monthly_kwh"] * 0.25, 2)
+                    
+                    return consumption
+        
+        # Device not found
+        return {
+            "device_id": device_id,
+            "online": False,
+            "has_consumption_data": False,
+            "error": "Device not found or offline"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting consumption for device {device_id}: {e}")
+        return {
+            "device_id": device_id,
+            "online": False,
+            "has_consumption_data": False,
+            "error": str(e)
+        }
+
+
 @api_router.get("/smartthings/devices-with-sensors")
 async def get_devices_with_sensor_values():
     """
