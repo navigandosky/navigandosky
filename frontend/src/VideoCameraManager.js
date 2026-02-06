@@ -281,7 +281,6 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                     : "bg-slate-700/50 hover:bg-slate-700 border border-transparent"
                 }`}
                 onClick={() => {
-                  console.log("Selected camera:", camera.name, camera.serial);
                   selectedCameraRef.current = camera; // Update ref immediately
                   setSelectedCamera(camera);
                 }}
