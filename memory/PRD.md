@@ -1,5 +1,38 @@
 # SmartDomo - PRD
 
+## Stato Attuale (06/02/2026)
+
+### ✅ Completati Oggi (06/02/2026)
+
+#### Nuova Sezione "Video Cam" Dedicata ✅
+- **Richiesta**: Creare interfaccia dedicata per le videocamere EZVIZ con Matterport viewer
+- **Implementazione**:
+  - Nuova tab "Video Cam" nel menu principale (tra Vista 3D e SmartDomo)
+  - Icona rossa video per identificazione immediata
+  - Sidebar con lista delle 9 camere EZVIZ (8 online, 1 offline)
+  - Card camera con: thumbnail, nome, modello, stato (verde/rosso), POI collegato
+  - Matterport viewer integrato per navigazione 3D
+  - Pannello dettagli camera con azioni
+- **File creato**: `frontend/src/VideoCameraManager.js`
+- **File modificato**: `frontend/src/App.js` (aggiunta tab e import)
+
+#### Associazione Camera-POI per Navigazione ✅
+- **Richiesta**: Permettere di collegare ogni camera EZVIZ a un POI Matterport per navigazione
+- **Implementazione Backend**:
+  - Nuova collection `camera_poi_associations` nel database
+  - Endpoint `GET /api/ezviz/cameras` ora include `poi_id` per ogni camera
+  - Endpoint `POST /api/ezviz/camera/{serial}/link-poi` per creare/rimuovere associazione
+  - Endpoint `GET /api/ezviz/camera/{serial}/poi` per recuperare POI associato
+- **Implementazione Frontend**:
+  - Dialog "Collega Camera a POI" con dropdown POI disponibili
+  - Visualizzazione del POI collegato in verde nella card camera (📍 Nome POI)
+  - Pulsante "Vai al POI" per navigazione nel Matterport viewer
+  - Pulsante "Modifica POI" per cambiare associazione
+- **File modificato**: `backend/server.py` (3 nuovi endpoint)
+- **Testato**: Camera "Veranda ingresso pedonale" → POI "Porta Veranda" ✅
+
+---
+
 ## Stato Attuale (02/02/2026)
 
 ### ✅ Completati Oggi (02/02/2026)
