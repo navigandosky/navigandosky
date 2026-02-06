@@ -62,6 +62,8 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
 
   // Navigate to POI using MatterportViewer ref
   const navigateToPoi = useCallback(async (poiId) => {
+    console.log("navigateToPoi called with poiId:", poiId);
+    
     if (!matterportRef.current) {
       toast.error("SDK non connesso");
       return;
@@ -69,15 +71,23 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
 
     try {
       // Find POI
+      console.log("Available POIs count:", matterportPois.length);
       const poi = matterportPois.find(p => p.id === poiId);
+      
       if (!poi) {
-        toast.error("POI non trovato");
+        console.error("POI not found for id:", poiId);
+        toast.error("POI non trovato nella lista");
         return;
       }
 
+      const poiTitle = poi.translations?.[0]?.title || poi.matterport_tag_id || poiId;
+      console.log("Found POI:", poiTitle, "with tag_id:", poi.matterport_tag_id);
+
       // Use matterport_tag_id to navigate
       if (poi.matterport_tag_id) {
+        toast.info(`Navigazione verso: ${poiTitle}`);
         await matterportRef.current.navigateToTag(poi.matterport_tag_id);
+        toast.success(`Arrivato a: ${poiTitle}`);
       } else {
         toast.error("POI senza tag Matterport");
       }
