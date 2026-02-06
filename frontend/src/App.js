@@ -57,7 +57,8 @@ import {
   Shield,
   Navigation,
   Box,
-  Video
+  Video,
+  RefreshCw
 } from "lucide-react";
 import { LoginPage, UserManagement } from "./AuthPage";
 import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "./TicketCalendarQR";
