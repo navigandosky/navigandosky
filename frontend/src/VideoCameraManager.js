@@ -474,7 +474,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                 onClick={handleLinkCamera}
                 className="bg-blue-600 hover:bg-blue-500"
               >
-                {selectedPoiId ? "Collega" : "Rimuovi collegamento"}
+                {selectedPoiId && selectedPoiId !== "none" ? "Collega" : "Rimuovi collegamento"}
               </Button>
             </div>
           </div>
