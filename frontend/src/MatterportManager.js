@@ -2766,7 +2766,8 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     </Badge>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           </ScrollArea>
 
