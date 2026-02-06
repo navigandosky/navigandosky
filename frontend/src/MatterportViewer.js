@@ -123,6 +123,22 @@ const MatterportViewer = forwardRef(({
     },
 
     /**
+     * Reload the entire Matterport space (force refresh)
+     */
+    reloadSpace: () => {
+      if (iframeRef.current) {
+        // Force reload the iframe to get fresh data from Matterport
+        const currentSrc = iframeRef.current.src;
+        iframeRef.current.src = '';
+        setTimeout(() => {
+          iframeRef.current.src = currentSrc;
+        }, 100);
+        setSdkReady(false);
+        toast.info("Ricaricamento Space Matterport...");
+      }
+    },
+
+    /**
      * Get current camera position
      */
     getCurrentPosition: async () => {
