@@ -479,13 +479,13 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Video className="h-5 w-5 text-red-500" />
-              {selectedCamera?.name} - Live
+              {liveCamera?.name} - Live
               <span className={`ml-2 px-2 py-0.5 text-xs rounded ${
-                selectedCamera?.status === "online" 
+                liveCamera?.status === "online" 
                   ? "bg-green-500/20 text-green-400" 
                   : "bg-red-500/20 text-red-400"
               }`}>
-                {selectedCamera?.status === "online" ? "● LIVE" : "● OFFLINE"}
+                {liveCamera?.status === "online" ? "● LIVE" : "● OFFLINE"}
               </span>
             </DialogTitle>
           </DialogHeader>
