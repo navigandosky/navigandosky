@@ -173,16 +173,43 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
     }
   };
 
-  // Reset live state when dialog closes
+  // Reset live state when dialog closes or camera changes
   useEffect(() => {
     if (!showLiveDialog) {
       setLiveSnapshot(null);
       setLiveStreamUrl(null);
-    } else if (selectedCamera?.status === "online") {
-      // Auto-capture snapshot when opening dialog
-      captureSnapshot();
     }
-  }, [showLiveDialog, selectedCamera]);
+  }, [showLiveDialog]);
+
+  // Auto-capture snapshot when opening dialog or when camera changes while dialog is open
+  useEffect(() => {
+    if (showLiveDialog && selectedCamera?.status === "online") {
+      // Reset previous data first
+      setLiveSnapshot(null);
+      setLiveStreamUrl(null);
+      // Then capture new snapshot
+      const captureNewSnapshot = async () => {
+        try {
+          setLoadingLive(true);
+          const response = await axios.get(
+            `${API_URL}/api/ezviz/camera/${selectedCamera.serial}/snapshot`,
+            { params: { token: authToken } }
+          );
+          
+          if (response.data.url) {
+            setLiveSnapshot(response.data.url);
+            toast.success("Immagine catturata");
+          }
+        } catch (error) {
+          console.error("Error capturing snapshot:", error);
+          toast.error("Errore nella cattura immagine");
+        } finally {
+          setLoadingLive(false);
+        }
+      };
+      captureNewSnapshot();
+    }
+  }, [showLiveDialog, selectedCamera?.serial, authToken]);
 
   // Open link dialog
   const openLinkDialog = (camera) => {
