@@ -280,7 +280,10 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                     ? "bg-red-600/20 border border-red-500/50"
                     : "bg-slate-700/50 hover:bg-slate-700 border border-transparent"
                 }`}
-                onClick={() => setSelectedCamera(camera)}
+                onClick={() => {
+                  console.log("Selected camera:", camera.name, camera.serial);
+                  setSelectedCamera(camera);
+                }}
               >
                 <div className="flex items-start gap-3">
                   {/* Camera Thumbnail */}
