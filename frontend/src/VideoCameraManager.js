@@ -29,12 +29,10 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [linkingCamera, setLinkingCamera] = useState(null);
   const [selectedPoiId, setSelectedPoiId] = useState("");
-  const [sdkConnected, setSdkConnected] = useState(false);
-  const [sdkError, setSdkError] = useState(null);
+  const [sdkReady, setSdkReady] = useState(false);
   
   // Refs
-  const iframeRef = useRef(null);
-  const sdkRef = useRef(null);
+  const matterportRef = useRef(null);
 
   // Load cameras
   const loadCameras = useCallback(async () => {
