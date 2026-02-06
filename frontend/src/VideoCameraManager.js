@@ -54,49 +54,9 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
     loadCameras();
   }, [loadCameras]);
 
-  // Initialize Matterport SDK
-  useEffect(() => {
-    const initMatterportSDK = async () => {
-      if (!currentUser?.matterport_space_id) return;
-
-      const spaceId = currentUser.matterport_space_id;
-      const sdkKey = process.env.REACT_APP_MATTERPORT_SDK_KEY || "";
-
-      try {
-        const iframe = iframeRef.current;
-        if (!iframe) return;
-
-        // Set iframe src
-        iframe.src = `https://my.matterport.com/show?m=${spaceId}&play=1&qs=1&log=0&applicationKey=${sdkKey}`;
-
-        // Wait for iframe to load
-        iframe.onload = async () => {
-          try {
-            // Connect to SDK
-            const MP_SDK = window.MP_SDK;
-            if (MP_SDK) {
-              const sdk = await MP_SDK.connect(iframe, sdkKey, "");
-              sdkRef.current = sdk;
-              setSdkConnected(true);
-              console.log("Matterport SDK connected for VideoCam");
-            }
-          } catch (e) {
-            console.error("SDK connect error:", e);
-            setSdkError("Errore connessione SDK");
-          }
-        };
-      } catch (error) {
-        console.error("Matterport init error:", error);
-        setSdkError("Errore inizializzazione Matterport");
-      }
-    };
-
-    initMatterportSDK();
-  }, [currentUser]);
-
-  // Navigate to POI
+  // Navigate to POI using MatterportViewer ref
   const navigateToPoi = useCallback(async (poiId) => {
-    if (!sdkRef.current) {
+    if (!matterportRef.current) {
       toast.error("SDK non connesso");
       return;
     }
@@ -109,27 +69,11 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
         return;
       }
 
-      // Try to navigate using tag
+      // Use matterport_tag_id to navigate
       if (poi.matterport_tag_id) {
-        try {
-          await sdkRef.current.Tag.navigateToTag(poi.matterport_tag_id, {
-            transition: sdkRef.current.Sweep.Transition.FLY,
-            transitionTime: 2000
-          });
-          toast.success(`Navigazione a ${poi.translations?.[0]?.title || poi.matterport_tag_id}`);
-          return;
-        } catch (e) {
-          console.log("Tag navigation failed, trying position...");
-        }
-      }
-
-      // Fallback to position
-      if (poi.position) {
-        await sdkRef.current.Camera.setPosition(poi.position, {
-          transition: sdkRef.current.Camera.Transition.FLY,
-          transitionTime: 2000
-        });
-        toast.success(`Navigazione a ${poi.translations?.[0]?.title || "POI"}`);
+        await matterportRef.current.navigateToTag(poi.matterport_tag_id);
+      } else {
+        toast.error("POI senza tag Matterport");
       }
     } catch (error) {
       console.error("Navigation error:", error);
