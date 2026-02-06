@@ -5833,13 +5833,15 @@ async def get_ezviz_cameras(token: Optional[str] = Query(None)):
                 else:
                     offline_count += 1
                 
+                serial = device.get("deviceSerial")
                 camera = {
-                    "id": device.get("deviceSerial"),
-                    "serial": device.get("deviceSerial"),
+                    "id": serial,
+                    "serial": serial,
                     "name": device.get("deviceName", "Camera"),
                     "model": device.get("deviceType", "Unknown"),
                     "status": status,
-                    "image_url": device.get("picUrl", "")
+                    "image_url": device.get("picUrl", ""),
+                    "poi_id": associations.get(serial)
                 }
                 cameras.append(camera)
             
@@ -5865,9 +5867,10 @@ async def get_ezviz_cameras(token: Optional[str] = Query(None)):
                 else:
                     offline_count += 1
                 
+                serial = cam_info.get("serial")
                 camera = {
-                    "id": cam_info.get("serial"),
-                    "serial": cam_info.get("serial"),
+                    "id": serial,
+                    "serial": serial,
                     "name": cam_info.get("name", "Camera"),
                     "model": cam_info.get("device_type", "Unknown"),
                     "status": status,
