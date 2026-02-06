@@ -1833,6 +1833,7 @@ function App() {
           <div className="flex gap-1 overflow-x-auto">
             {[
               { id: "matterport", label: "Vista 3D", icon: Eye },
+              { id: "videocam", label: "Video Cam", icon: Video },
               { id: "smartdomo", label: "SmartDomo", icon: Thermometer },
               { id: "sensori", label: "Report Sensori", icon: Activity },
               { id: "elettrodomestici", label: "Apparati", icon: Zap },
@@ -1844,6 +1845,7 @@ function App() {
             ].map((tab) => {
               // Colori specifici per ogni tab
               const tabColors = {
+                videocam: { active: "text-red-600 border-red-600", icon: "text-red-500" },
                 smartdomo: { active: "text-cyan-500 border-cyan-500", icon: "text-cyan-500" },
                 proprieta: { active: "text-emerald-600 border-emerald-600", icon: "text-emerald-500" },
                 sensori: { active: "text-rose-600 border-rose-600", icon: "text-rose-500" },
