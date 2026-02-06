@@ -1636,6 +1636,7 @@ function App() {
   const handleOpenSchedaApparato = async (apparato) => {
     setViewingApparato(apparato);
     setSchedaApparatoOpen(true);
+    setApparatoConsumi(null); // Reset consumption data
     
     // Load manutenzioni for this apparato
     try {
@@ -1646,6 +1647,26 @@ function App() {
     } catch (error) {
       console.error("Error loading manutenzioni:", error);
       setApparatoManutenzioni([]);
+    }
+    
+    // Load consumption data if smart plug is connected
+    const smartDeviceId = apparato.smart_plug_id || apparato.smartthings_device_id;
+    if (smartDeviceId) {
+      loadApparatoConsumi(smartDeviceId);
+    }
+  };
+  
+  // Load consumption data for an appliance's smart plug
+  const loadApparatoConsumi = async (deviceId) => {
+    setLoadingConsumi(true);
+    try {
+      const response = await axios.get(`${API}/device/${deviceId}/consumption`);
+      setApparatoConsumi(response.data);
+    } catch (error) {
+      console.error("Error loading consumption data:", error);
+      setApparatoConsumi(null);
+    } finally {
+      setLoadingConsumi(false);
     }
   };
 
