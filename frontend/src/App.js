@@ -2427,6 +2427,14 @@ function App() {
         />
       )}
 
+      {activeTab === "videocam" && (
+        <VideoCameraManager 
+          authToken={authToken} 
+          currentUser={currentUser}
+          matterportPois={matterportPois}
+        />
+      )}
+
       {/* Dialogs */}
       <CentroAssistenzaDialog
         open={centroDialogOpen}
