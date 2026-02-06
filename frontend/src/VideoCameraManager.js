@@ -452,7 +452,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                   variant="outline"
                   className="border-red-600 text-red-400 hover:bg-red-600/20"
                   disabled={selectedCamera.status !== "online"}
-                  onClick={() => setShowLiveDialog(true)}
+                  onClick={() => openLiveDialog(selectedCamera)}
                 >
                   <Play className="h-4 w-4 mr-1" />
                   Live
