@@ -8,19 +8,16 @@ import {
   Navigation,
   RefreshCw,
   Link2,
-  Unlink,
   Circle,
-  Eye,
-  Settings,
   Loader2,
   ChevronRight,
   Play,
-  Image as ImageIcon,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import MatterportViewer from "./MatterportViewer";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
