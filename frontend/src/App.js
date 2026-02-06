@@ -2493,6 +2493,13 @@ function App() {
                   <Wrench className="h-4 w-4 mr-2" />
                   Manutenzioni ({apparatoManutenzioni.length})
                 </TabsTrigger>
+                {/* Show Consumi tab only if smart plug is connected */}
+                {(viewingApparato.smart_plug_id || viewingApparato.smartthings_device_id) && (
+                  <TabsTrigger value="consumi" className="flex-1">
+                    <Activity className="h-4 w-4 mr-2" />
+                    Consumi
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="dettagli" className="flex-1">
                   <FileText className="h-4 w-4 mr-2" />
                   Dettagli
