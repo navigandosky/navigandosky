@@ -1364,6 +1364,11 @@ async def init_property_from_env(token: Optional[str] = Query(None)):
     if existing:
         return {"message": "Proprietà già esistente", "property": deserialize_datetime(existing)}
     
+    # Also check for global active property and return it (shared property scenario)
+    global_prop = await db.property_config.find_one({"is_active": True}, {"_id": 0})
+    if global_prop:
+        return {"message": "Proprietà globale disponibile", "property": deserialize_datetime(global_prop)}
+    
     # Create property from env values
     prop = PropertyConfig(
         name="La Mia Proprietà",
