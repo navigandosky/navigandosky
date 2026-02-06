@@ -64,12 +64,14 @@ const MatterportViewer = forwardRef(({
      * Navigate the camera to a specific Mattertag/Tag
      */
     navigateToTag: async (tagId) => {
+      console.log("MatterportViewer.navigateToTag called with tagId:", tagId);
       if (!sdkRef.current) {
         toast.error("SDK non connesso");
         return false;
       }
       try {
         // Use Mattertag.navigateToTag directly (most reliable method)
+        console.log("Calling sdk.Mattertag.navigateToTag with:", tagId);
         await sdkRef.current.Mattertag.navigateToTag(
           tagId,
           sdkRef.current.Mattertag.Transition.FLY
