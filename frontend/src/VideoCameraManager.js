@@ -147,12 +147,13 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
     if (!linkingCamera) return;
 
     try {
+      const poiToLink = selectedPoiId === "none" ? null : selectedPoiId;
       await axios.post(
         `${API_URL}/api/ezviz/camera/${linkingCamera.serial}/link-poi?token=${authToken}`,
-        { poi_id: selectedPoiId || null }
+        { poi_id: poiToLink }
       );
       
-      toast.success(selectedPoiId ? "Camera collegata al POI" : "Collegamento rimosso");
+      toast.success(poiToLink ? "Camera collegata al POI" : "Collegamento rimosso");
       setShowLinkDialog(false);
       setLinkingCamera(null);
       setSelectedPoiId("");
