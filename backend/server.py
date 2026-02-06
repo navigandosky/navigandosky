@@ -5789,11 +5789,21 @@ async def get_ezviz_access_token():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Camera-POI associations collection
+# Format: { "camera_serial": "xxx", "poi_id": "xxx", "user_id": "xxx" }
+
 @api_router.get("/ezviz/cameras")
-async def get_ezviz_cameras():
-    """Get all Ezviz cameras"""
+async def get_ezviz_cameras(token: Optional[str] = Query(None)):
+    """Get all Ezviz cameras with POI associations"""
+    user = await get_user_from_token(token)
+    
     try:
         auth = await get_ezviz_token()
+        
+        # Get camera-POI associations from database
+        associations = {}
+        async for assoc in db.camera_poi_associations.find({"user_id": user["id"]}, {"_id": 0}):
+            associations[assoc["camera_serial"]] = assoc.get("poi_id")
         
         if auth["type"] == "api":
             # Usa API ufficiale Open Platform
