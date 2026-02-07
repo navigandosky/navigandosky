@@ -381,14 +381,14 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
           )}
         </div>
 
-        {/* Selected Camera Panel */}
+        {/* Selected Camera Panel - Compact */}
         {selectedCamera && (
-          <div className="bg-slate-800 border-t border-slate-700 p-4 pr-32">
+          <div className="bg-slate-800 border-t border-slate-700 px-4 py-2 pr-32">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                {/* Camera Thumbnail - clickable for live view */}
+              <div className="flex items-center gap-3">
+                {/* Camera Thumbnail - smaller for compact view */}
                 <div 
-                  className="w-24 h-16 bg-slate-700 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-red-500 transition-all"
+                  className="w-16 h-12 bg-slate-700 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-red-500 transition-all relative flex-shrink-0"
                   onClick={() => {
                     const cameraToUse = selectedCameraRef.current || selectedCamera;
                     if (cameraToUse.status === "online") {
