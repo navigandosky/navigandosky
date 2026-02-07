@@ -405,44 +405,44 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Camera className="h-8 w-8 text-slate-500" />
+                      <Camera className="h-5 w-5 text-slate-500" />
                     </div>
                   )}
                   {selectedCamera.status === "online" && (
                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                      <Play className="h-6 w-6 text-white" />
+                      <Play className="h-4 w-4 text-white" />
                     </div>
                   )}
                 </div>
 
-                {/* Camera Details */}
-                <div>
+                {/* Camera Details - Compact */}
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <Circle 
-                      className={`h-2.5 w-2.5 ${
+                      className={`h-2 w-2 flex-shrink-0 ${
                         selectedCamera.status === "online" 
                           ? "fill-green-500 text-green-500" 
                           : "fill-red-500 text-red-500"
                       }`} 
                     />
-                    <h3 className="text-lg font-semibold text-white">{selectedCamera.name}</h3>
+                    <h3 className="text-sm font-semibold text-white truncate">{selectedCamera.name}</h3>
                   </div>
-                  <p className="text-sm text-slate-400">{selectedCamera.model} • {selectedCamera.serial}</p>
+                  <p className="text-xs text-slate-400 truncate">{selectedCamera.model} • {selectedCamera.serial}</p>
                   
-                  {/* POI Status */}
+                  {/* POI Status - Compact */}
                   {selectedCamera.poi_id ? (
-                    <div className="flex items-center gap-2 mt-1 text-sm text-emerald-400">
-                      <MapPin className="h-4 w-4" />
-                      <span>Collegata a: {getPoiName(selectedCamera.poi_id)}</span>
+                    <div className="flex items-center gap-1 text-xs text-emerald-400">
+                      <MapPin className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{getPoiName(selectedCamera.poi_id)}</span>
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-500 mt-1">Nessun POI collegato</p>
+                    <p className="text-xs text-slate-500">Nessun POI collegato</p>
                   )}
                 </div>
               </div>
 
-              {/* Actions - moved left with mr-8 to avoid logo */}
-              <div className="flex items-center gap-2 mr-8">
+              {/* Actions - Compact */}
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {/* Link to POI Button */}
                 <Button
                   size="sm"
