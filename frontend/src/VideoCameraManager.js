@@ -360,9 +360,9 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
       </div>
 
       {/* Main Content - Matterport Viewer */}
-      <div className="flex-1 flex flex-col">
-        {/* Matterport Viewer */}
-        <div className="flex-1 relative bg-black">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Matterport Viewer - shrinks when panel is visible */}
+        <div className={`relative bg-black ${selectedCamera ? 'flex-1' : 'flex-1'}`} style={{ minHeight: selectedCamera ? 'calc(100% - 60px)' : '100%' }}>
           {currentUser?.matterport_space_id ? (
             <MatterportViewer
               ref={matterportRef}
@@ -381,9 +381,9 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
           )}
         </div>
 
-        {/* Selected Camera Panel - Compact */}
+        {/* Selected Camera Panel - Fixed height, always at bottom */}
         {selectedCamera && (
-          <div className="bg-slate-800 border-t border-slate-700 px-4 py-2 pr-32 flex-shrink-0">
+          <div className="h-[60px] bg-slate-800 border-t border-slate-700 px-4 py-2 pr-32 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* Camera Thumbnail - smaller for compact view */}
