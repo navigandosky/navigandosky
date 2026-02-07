@@ -383,7 +383,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
 
         {/* Selected Camera Panel - Compact */}
         {selectedCamera && (
-          <div className="bg-slate-800 border-t border-slate-700 px-4 py-2 pr-32">
+          <div className="bg-slate-800 border-t border-slate-700 px-4 py-2 pr-32 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* Camera Thumbnail - smaller for compact view */}
