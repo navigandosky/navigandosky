@@ -226,10 +226,19 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
   // Load spaces
   const loadSpaces = useCallback(async () => {
     try {
+      // If user has mpskin_url but no matterport_space_id (and is not admin), 
+      // don't load Matterport spaces - show MPSKIN iframe instead
+      if (currentUser?.mpskin_url && !currentUser?.matterport_space_id && currentUser?.role !== "admin") {
+        console.log("User has MPSKIN URL, not loading Matterport spaces");
+        setSpaces([]);
+        setActiveSpace(null);
+        return;
+      }
+      
       const res = await axios.get(`${API_URL}/api/matterport/spaces`);
       let availableSpaces = res.data;
       
-      // If user has assigned space and is not admin, filter to only their space
+      // If user has assigned Matterport space and is not admin, filter to only their space
       if (currentUser?.matterport_space_id && currentUser?.role !== "admin") {
         // User has assigned space - create a virtual space entry for them
         const userSpace = {
@@ -247,17 +256,10 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
         return;
       }
       
+      // For admin or users without specific space, show all spaces
       setSpaces(availableSpaces);
       
-      // If user has mpskin_url but no matterport_space_id, don't set active space
-      // This will show the MPSKIN iframe instead
-      if (currentUser?.mpskin_url && !currentUser?.matterport_space_id) {
-        // Don't set active space - MPSKIN iframe will be shown
-        console.log("User has MPSKIN URL, showing iframe instead of Matterport");
-        return;
-      }
-      
-      // Set active space only if user doesn't have MPSKIN configured
+      // Set active space
       const active = availableSpaces.find(s => s.is_active);
       if (active) {
         setActiveSpace(active);
