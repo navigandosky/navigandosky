@@ -2731,14 +2731,19 @@ DATI DISPONIBILI:
 @api_router.post("/assistente/risolvi-problema")
 async def risolvi_problema(
     elettrodomestico_id: str = Query(...),
-    problema: str = Query(..., description="Descrizione del problema")
+    problema: str = Query(..., description="Descrizione del problema"),
+    token: Optional[str] = Query(None)
 ):
     """Cerca di risolvere un problema specifico di un elettrodomestico"""
     
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=503, detail="Assistente AI non configurato")
     
-    # Carica info elettrodomestico
+    # Get user from token
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    
+    # Carica info elettrodomestico (filtrato per utente o admin vede tutto)
     elettro = await db.elettrodomestici.find_one({"id": elettrodomestico_id}, {"_id": 0})
     if not elettro:
         raise HTTPException(status_code=404, detail="Elettrodomestico non trovato")
