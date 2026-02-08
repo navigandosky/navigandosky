@@ -2552,6 +2552,7 @@ class ChatRequest(BaseModel):
     message: str
     conversation_history: List[ChatMessage] = []
     elettrodomestico_id: Optional[str] = None  # Se la domanda è su un dispositivo specifico
+    token: Optional[str] = None  # Token per identificare l'utente
 
 
 class ChatResponse(BaseModel):
