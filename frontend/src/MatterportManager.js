@@ -2231,6 +2231,27 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
         
         {/* Viewer 3D - Main area */}
         <div className="flex-1 relative bg-slate-900">
+          {/* MPSKIN iframe viewer - when no Matterport space but mpskin_url exists */}
+          {!activeSpace && currentUser?.mpskin_url && (
+            <div className="w-full h-full">
+              <iframe
+                src={currentUser.mpskin_url}
+                className="w-full h-full border-0"
+                allow="fullscreen; accelerometer; gyroscope; magnetometer; vr; xr"
+                allowFullScreen
+                title="Virtual Tour MPSKIN"
+              />
+              {/* MPSKIN badge */}
+              <div className="absolute top-4 left-4 bg-gradient-to-r from-purple-600/90 to-pink-600/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-xl border border-purple-400/30">
+                <div className="flex items-center gap-2">
+                  <Globe className="text-white" size={16} />
+                  <span className="text-white text-sm font-medium">Tour Virtuale MPSKIN</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Matterport viewer - when space is active */}
           {activeSpace ? (
             <>
               <MatterportViewer
