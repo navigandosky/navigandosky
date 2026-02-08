@@ -165,7 +165,7 @@ const PRIORITA_TICKET = [
 
 // Matterport Viewer Component
 // AI Assistant Component
-const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico, onOpenTicket, onNavigateToTab }) => {
+const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico, onOpenTicket, onNavigateToTab, authToken }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
