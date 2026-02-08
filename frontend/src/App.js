@@ -231,7 +231,7 @@ const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico, onOpenTi
 
     try {
       const response = await axios.post(
-        `${API}/assistente/risolvi-problema?elettrodomestico_id=${selectedElettrodomestico}&problema=${encodeURIComponent(problema)}`
+        `${API}/assistente/risolvi-problema?elettrodomestico_id=${selectedElettrodomestico}&problema=${encodeURIComponent(problema)}&token=${authToken}`
       );
       setSoluzione(response.data);
       // Mostra i pulsanti azione dopo 2 secondi dalla soluzione
