@@ -2641,8 +2641,12 @@ async def chat_with_assistant(request: ChatRequest):
             detail="Assistente AI non configurato. Manca EMERGENT_LLM_KEY."
         )
     
-    # Raccogli contesto
-    context = await get_context_data(DEFAULT_USER_ID, request.elettrodomestico_id)
+    # Get user from token
+    user = await get_user_from_token(request.token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    
+    # Raccogli contesto con l'user_id corretto
+    context = await get_context_data(user_id, request.elettrodomestico_id)
     
     # System prompt
     system_prompt = """Sei l'Assistente SmartBuilding, un aiutante intelligente per la gestione della casa.
