@@ -1961,6 +1961,7 @@ function App() {
         {activeTab === "assistente" && (
           <AssistenteAI 
             elettrodomestici={elettrodomestici}
+            authToken={authToken}
             onNavigateToElettrodomestico={(id) => {
               setActiveTab("matterport");
               // Qui potremmo navigare al tag specifico quando avremo SDK Matterport
