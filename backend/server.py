@@ -2566,6 +2566,10 @@ async def get_context_data(user_id: str = DEFAULT_USER_ID, elettrodomestico_id: 
     
     context_parts = []
     
+    # Check if user is admin - admins see everything
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "role": 1})
+    is_admin = user and user.get("role") == "admin"
+    
     # Elettrodomestici
     if elettrodomestico_id:
         elettro = await db.elettrodomestici.find_one({"id": elettrodomestico_id}, {"_id": 0})
@@ -2587,9 +2591,10 @@ async def get_context_data(user_id: str = DEFAULT_USER_ID, elettrodomestico_id: 
                 if centro:
                     context_parts.append(f"CENTRO ASSISTENZA:\n{json.dumps(centro, indent=2, default=str)}")
     else:
-        # Tutti gli elettrodomestici
+        # Tutti gli elettrodomestici - admin vede tutto, altri vedono solo i propri
+        query_filter = {} if is_admin else {"user_id": user_id}
         elettrodomestici = await db.elettrodomestici.find(
-            {"user_id": user_id}, {"_id": 0}
+            query_filter, {"_id": 0}
         ).to_list(100)
         
         if elettrodomestici:
@@ -2601,10 +2606,13 @@ async def get_context_data(user_id: str = DEFAULT_USER_ID, elettrodomestico_id: 
                     f"posizione={e.get('posizione', 'N/A')}, categoria={e.get('categoria', 'N/A')}, "
                     f"consumo={consumo:.2f} kWh/giorno, id={e.get('id')}"
                 )
+        else:
+            context_parts.append("ELENCO ELETTRODOMESTICI: Nessun elettrodomestico trovato per questo utente.")
     
-    # Manutenzioni
+    # Manutenzioni - admin vede tutto
+    manutenzioni_filter = {} if is_admin else {"user_id": user_id}
     manutenzioni = await db.manutenzioni.find(
-        {"user_id": user_id}, {"_id": 0}
+        manutenzioni_filter, {"_id": 0}
     ).to_list(50)
     
     if manutenzioni:
@@ -2615,13 +2623,11 @@ async def get_context_data(user_id: str = DEFAULT_USER_ID, elettrodomestico_id: 
                 f"data={m.get('data_programmata', 'N/A')}, tipo={m.get('tipo')}"
             )
     
-    # Centri assistenza
-    centri = await db.centri_assistenza.find(
-        {"user_id": user_id}, {"_id": 0}
-    ).to_list(20)
+    # Centri assistenza - visibili a tutti
+    centri = await db.centri_assistenza.find({}, {"_id": 0}).to_list(20)
     
     if centri:
-        context_parts.append(f"\nCENTRI ASSISTENZA ({len(centri)} totali):")
+        context_parts.append(f"\nCENTRI ASSISTENZA ({len(centri)} disponibili):")
         for c in centri:
             context_parts.append(
                 f"- {c.get('nome_azienda')}: tel={c.get('telefono')}, "
