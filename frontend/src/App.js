@@ -1866,6 +1866,7 @@ function App() {
               { id: "calendario", label: "Calendario", icon: Calendar },
               { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
               { id: "tickets", label: "Ticket", icon: Ticket },
+              { id: "assistente", label: "Assistente", icon: Bot },
               { id: "proprieta", label: "Setup", icon: Settings },
               ...(currentUser?.role === "admin" ? [{ id: "utenti", label: "Utenti", icon: Users }] : []),
             ].map((tab) => {
