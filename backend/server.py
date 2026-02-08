@@ -5362,12 +5362,19 @@ async def get_ewelink_devices():
                 }
                 
                 # Extract common sensor values
+                # TRVZB (UIID 7017) sends temperature in tenths of degree (e.g., 249 = 24.9°C)
                 if "temperature" in params:
-                    device["temperature"] = params["temperature"]
+                    temp_val = params["temperature"]
+                    if uiid == 7017 and temp_val > 100:  # TRVZB thermostat valve
+                        temp_val = temp_val / 10
+                    device["temperature"] = round(temp_val, 1) if isinstance(temp_val, (int, float)) else temp_val
                 if "humidity" in params:
                     device["humidity"] = params["humidity"]
                 if "currentTemperature" in params:
-                    device["temperature"] = params["currentTemperature"]
+                    temp_val = params["currentTemperature"]
+                    if uiid == 7017 and temp_val > 100:  # TRVZB thermostat valve
+                        temp_val = temp_val / 10
+                    device["temperature"] = round(temp_val, 1) if isinstance(temp_val, (int, float)) else temp_val
                 if "currentHumidity" in params:
                     device["humidity"] = params["currentHumidity"]
                 if "battery" in params:
