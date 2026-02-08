@@ -249,7 +249,15 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       
       setSpaces(availableSpaces);
       
-      // Set active space
+      // If user has mpskin_url but no matterport_space_id, don't set active space
+      // This will show the MPSKIN iframe instead
+      if (currentUser?.mpskin_url && !currentUser?.matterport_space_id) {
+        // Don't set active space - MPSKIN iframe will be shown
+        console.log("User has MPSKIN URL, showing iframe instead of Matterport");
+        return;
+      }
+      
+      // Set active space only if user doesn't have MPSKIN configured
       const active = availableSpaces.find(s => s.is_active);
       if (active) {
         setActiveSpace(active);
