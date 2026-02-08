@@ -196,7 +196,8 @@ const AssistenteAI = ({ elettrodomestici, onNavigateToElettrodomestico, onOpenTi
       const response = await axios.post(`${API}/assistente/chat`, {
         message: inputMessage,
         conversation_history: messages.slice(-10),
-        elettrodomestico_id: selectedElettrodomestico || null
+        elettrodomestico_id: selectedElettrodomestico || null,
+        token: authToken
       });
 
       const assistantMessage = {
