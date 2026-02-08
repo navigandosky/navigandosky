@@ -2355,11 +2355,12 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                 </div>
               )}
             </>
-          ) : (
+          ) : !currentUser?.mpskin_url && (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <Box size={64} className="mx-auto text-slate-600 mb-4" />
                 <p className="text-slate-400">Seleziona uno spazio dalla sidebar</p>
+                <p className="text-slate-500 text-sm mt-2">oppure configura uno spazio Matterport o MPSKIN</p>
               </div>
             </div>
           )}
