@@ -1035,6 +1035,12 @@ async def root():
     return {"message": "SmartBuilding API v1.0.0"}
 
 
+@api_router.get("/health")
+async def health_check():
+    """Health check endpoint for frontend connectivity check"""
+    return {"status": "ok", "message": "Server is running"}
+
+
 @api_router.get("/config")
 async def get_config():
     """Get app configuration including Matterport space ID"""
