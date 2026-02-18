@@ -1439,24 +1439,24 @@ function App() {
   const loadStats = useCallback(async () => {
     try {
       const [statsRes, consumiRes] = await Promise.all([
-        axios.get(`${API}/dashboard/stats`),
-        axios.get(`${API}/dashboard/consumi-per-categoria`),
+        axios.get(`${API}/dashboard/stats`, { params: { token: authToken } }),
+        axios.get(`${API}/dashboard/consumi-per-categoria`, { params: { token: authToken } }),
       ]);
       setStats(statsRes.data);
       setConsumiPerCategoria(consumiRes.data);
     } catch (error) {
       console.error("Error loading stats:", error);
     }
-  }, []);
+  }, [authToken]);
 
   const loadCentriAssistenza = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/centri-assistenza`);
+      const response = await axios.get(`${API}/centri-assistenza`, { params: { token: authToken } });
       setCentriAssistenza(response.data);
     } catch (error) {
       console.error("Error loading centri assistenza:", error);
     }
-  }, []);
+  }, [authToken]);
 
   const loadCategorie = useCallback(async () => {
     try {
