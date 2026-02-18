@@ -437,7 +437,7 @@ Applicazione web per la gestione intelligente di immobili con:
 
 ## 🔗 COLLEGAMENTI
 
-- **Preview App:** https://smarthome3d.preview.emergentagent.com
+- **Preview App:** https://domo-vehicle.preview.emergentagent.com
 - **Matterport Space Test:** SxQL3iGyoDo
 - **Documentazione Matterport SDK:** https://matterport.github.io/showcase-sdk/
 
