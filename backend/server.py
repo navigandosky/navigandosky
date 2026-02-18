@@ -672,10 +672,18 @@ class WeatherConfig(BaseModel):
     lon: Optional[float] = None
 
 
+class BalinConfig(BaseModel):
+    """Configurazione Balin GPS Tracker"""
+    enabled: bool = False
+    email: Optional[str] = None
+    api_token: Optional[str] = None
+
+
 class IntegrationsConfig(BaseModel):
     """Tutte le integrazioni smart home"""
     smartthings: SmartThingsConfig = SmartThingsConfig()
     ewelink: EwelinkConfig = EwelinkConfig()
+    balin: BalinConfig = BalinConfig()
 
 
 class PropertyConfigBase(BaseModel):
