@@ -2346,7 +2346,7 @@ async def get_dashboard_stats(token: Optional[str] = Query(None)):
     # Conta manutenzioni
     manutenzioni_pianificate = await db.manutenzioni.count_documents({
         "user_id": user_id,
-        "stato": StatoManutenzione.PIANIFICATA.value
+        "stato": StatoManutenzione.APERTO.value
     })
     
     # Manutenzioni in scadenza (prossimi 7 giorni)
@@ -2356,7 +2356,7 @@ async def get_dashboard_stats(token: Optional[str] = Query(None)):
     
     manutenzioni_in_scadenza = await db.manutenzioni.count_documents({
         "user_id": user_id,
-        "stato": StatoManutenzione.PIANIFICATA.value,
+        "stato": StatoManutenzione.APERTO.value,
         "data_programmata": {"$gte": oggi_iso, "$lte": prossima_settimana}
     })
     
