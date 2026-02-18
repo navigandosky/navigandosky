@@ -336,7 +336,7 @@ const SensorChart = ({ data, sensorType, title }) => {
   );
 };
 
-export default function SensorReport() {
+export default function SensorReport({ authToken }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [collecting, setCollecting] = useState(false);
