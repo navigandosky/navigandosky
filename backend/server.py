@@ -1438,7 +1438,11 @@ async def create_centro_assistenza(data: CentroAssistenzaCreate):
 
 
 @api_router.get("/centri-assistenza", response_model=List[CentroAssistenza])
-async def get_centri_assistenza(user_id: str = DEFAULT_USER_ID):
+async def get_centri_assistenza(token: Optional[str] = Query(None)):
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     centri = await db.centri_assistenza.find(
         {"user_id": user_id}, {"_id": 0}
     ).to_list(1000)
@@ -2281,7 +2285,11 @@ async def delete_manutenzione(manutenzione_id: str, token: Optional[str] = Query
 # ------------ DASHBOARD / STATISTICS ------------
 
 @api_router.get("/dashboard/stats", response_model=DashboardStats)
-async def get_dashboard_stats(user_id: str = DEFAULT_USER_ID):
+async def get_dashboard_stats(token: Optional[str] = Query(None)):
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     # Calcola consumi totali
     elettrodomestici = await db.elettrodomestici.find(
         {"user_id": user_id}, {"_id": 0}
@@ -2350,8 +2358,12 @@ async def get_dashboard_stats(user_id: str = DEFAULT_USER_ID):
 
 
 @api_router.get("/dashboard/consumi-per-categoria")
-async def get_consumi_per_categoria(user_id: str = DEFAULT_USER_ID):
+async def get_consumi_per_categoria(token: Optional[str] = Query(None)):
     """Consumi raggruppati per categoria elettrodomestico"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     elettrodomestici = await db.elettrodomestici.find(
         {"user_id": user_id}, {"_id": 0}
     ).to_list(1000)
@@ -3460,8 +3472,12 @@ async def create_planimetria(
 
 
 @api_router.get("/planimetrie", response_model=List[Planimetria])
-async def get_planimetrie(user_id: str = DEFAULT_USER_ID):
+async def get_planimetrie(token: Optional[str] = Query(None)):
     """Ottieni tutte le planimetrie"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     planimetrie = await db.planimetrie.find(
         {"user_id": user_id}, {"_id": 0}
     ).to_list(50)
@@ -3579,8 +3595,12 @@ async def delete_planimetria(planimetria_id: str):
 # ------------ ASSISTENTE PROATTIVO ------------
 
 @api_router.get("/suggerimenti", response_model=List[Suggerimento])
-async def get_suggerimenti_proattivi(user_id: str = DEFAULT_USER_ID):
+async def get_suggerimenti_proattivi(token: Optional[str] = Query(None)):
     """Genera suggerimenti proattivi basati sui dati degli elettrodomestici"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     suggerimenti = []
     oggi = datetime.now(timezone.utc).date()
     
@@ -3767,9 +3787,9 @@ async def get_suggerimenti_proattivi(user_id: str = DEFAULT_USER_ID):
 
 
 @api_router.get("/suggerimenti/count")
-async def get_suggerimenti_count(user_id: str = DEFAULT_USER_ID):
+async def get_suggerimenti_count(token: Optional[str] = Query(None)):
     """Conta suggerimenti per priorità (per badge notifiche)"""
-    suggerimenti = await get_suggerimenti_proattivi(user_id)
+    suggerimenti = await get_suggerimenti_proattivi(token)
     
     return {
         "totale": len(suggerimenti),
