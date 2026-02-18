@@ -1942,6 +1942,11 @@ function App() {
           <SensorReport />
         )}
 
+        {/* Veicoli GPS Tab */}
+        {activeTab === "veicoli" && (
+          <VehicleTracker authToken={authToken} />
+        )}
+
         {/* User Management Tab - Admin only */}
         {activeTab === "utenti" && currentUser?.role === "admin" && (
           <UserManagement 
