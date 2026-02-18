@@ -2760,7 +2760,11 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     toast.info("Aggiornamento tag in corso...");
                     const tags = await matterportRef.current.refreshTags();
                     setMatterportTags(tags || []);
-                    toast.success(`${tags?.length || 0} tag trovati`);
+                    if (tags?.length > 0) {
+                      toast.success(`${tags.length} tag trovati`);
+                    } else {
+                      toast.warning("Nessun tag trovato. Se hai aggiunto nuovi tag, usa 'Ricarica Space'.");
+                    }
                   }
                 }}
               >
@@ -2773,11 +2777,13 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                 className="text-orange-400 hover:text-orange-300"
                 onClick={() => {
                   if (matterportRef.current?.reloadSpace) {
+                    toast.info("Ricaricamento Space in corso... Attendi qualche secondo.");
                     matterportRef.current.reloadSpace();
                     setShowImportDialog(false);
+                    // After reload completes, the onTagsLoaded callback will update matterportTags
                   }
                 }}
-                title="Ricarica completamente lo Space per vedere i nuovi tag"
+                title="Ricarica completamente lo Space per vedere i nuovi tag aggiunti su Matterport Cloud"
               >
                 <Globe size={16} className="mr-1" />
                 Ricarica Space
