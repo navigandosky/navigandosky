@@ -44,6 +44,14 @@
 - **Dipendenze aggiunte**: `react-leaflet`, `leaflet`
 - **Testato**: ✅ Backend 100% (9/9), Frontend 100% (14/14) - iteration_4.json
 
+#### Fix SmartThings Token ✅
+- **Problema**: Il token SmartThings non veniva letto correttamente perché esistevano più documenti `property_config` con token diversi
+- **Fix**: Modificata la funzione `get_smartthings_token()` per:
+  1. Cercare prima la configurazione dell'utente specifico
+  2. Poi cercare configurazioni attive escludendo `default-user`
+  3. Fallback a qualsiasi configurazione attiva
+- **Risultato**: SmartThings connesso con 35 dispositivi
+
 ---
 
 ## Stato Attuale (06/02/2026)
