@@ -233,7 +233,7 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
   };
 
   return (
-    <div className="flex h-[calc(100vh-140px)] bg-slate-900">
+    <div className="flex h-[calc(100vh-180px)] bg-slate-900">
       {/* Left Sidebar - Camera List */}
       <div className="w-80 bg-slate-800 border-r border-slate-700 flex flex-col">
         {/* Header */}
