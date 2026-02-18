@@ -2554,11 +2554,28 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     size="sm"
                     variant="outline"
                     className="flex-1 border-purple-500/50 text-purple-400 h-8 text-xs"
-                    onClick={() => setShowImportDialog(true)}
-                    disabled={!activeSpace || matterportTags.length === 0}
+                    onClick={async () => {
+                      setShowImportDialog(true);
+                      // Auto-refresh tags when opening import dialog
+                      if (matterportRef.current?.refreshTags) {
+                        toast.info("Caricamento tag Matterport...");
+                        try {
+                          const tags = await matterportRef.current.refreshTags();
+                          setMatterportTags(tags || []);
+                          if (tags?.length > 0) {
+                            toast.success(`${tags.length} tag disponibili`);
+                          } else {
+                            toast.warning("Nessun tag trovato. Prova a ricaricare lo Space.");
+                          }
+                        } catch (e) {
+                          console.error("Error refreshing tags:", e);
+                        }
+                      }
+                    }}
+                    disabled={!activeSpace}
                   >
                     <Download size={12} className="mr-1" />
-                    Importa ({matterportTags.length})
+                    Importa Tag
                   </Button>
                   <Button
                     size="sm"
