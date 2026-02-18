@@ -22,11 +22,20 @@ import {
   Route,
   List,
   Maximize2,
-  Minimize2
+  Minimize2,
+  History,
+  Calendar,
+  Play,
+  Square,
+  ChevronLeft,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -34,9 +43,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Leaflet imports
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline, CircleMarker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -80,20 +96,272 @@ const createVehicleIcon = (isMoving, isConnected) => {
 };
 
 // Map bounds fitter component
-const MapBoundsFitter = ({ vehicles }) => {
+const MapBoundsFitter = ({ vehicles, tripPositions }) => {
   const map = useMap();
   
   useEffect(() => {
-    if (vehicles.length > 0) {
-      const validVehicles = vehicles.filter(v => v.lat && v.lng);
-      if (validVehicles.length > 0) {
-        const bounds = L.latLngBounds(validVehicles.map(v => [v.lat, v.lng]));
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-      }
+    const points = [];
+    
+    // Add vehicle positions
+    if (vehicles && vehicles.length > 0) {
+      vehicles.filter(v => v.lat && v.lng).forEach(v => {
+        points.push([v.lat, v.lng]);
+      });
     }
-  }, [vehicles, map]);
+    
+    // Add trip positions
+    if (tripPositions && tripPositions.length > 0) {
+      tripPositions.forEach(p => {
+        if (p.lat && p.lng) {
+          points.push([p.lat, p.lng]);
+        }
+      });
+    }
+    
+    if (points.length > 0) {
+      const bounds = L.latLngBounds(points);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [vehicles, tripPositions, map]);
   
   return null;
+};
+
+// Trip History Panel Component
+const TripHistoryPanel = ({ vehicle, authToken, onShowOnMap }) => {
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [dateRange, setDateRange] = useState('today');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [expanded, setExpanded] = useState(true);
+
+  const getDateRange = useCallback(() => {
+    const now = new Date();
+    let start, stop;
+    
+    switch (dateRange) {
+      case 'today':
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        stop = now;
+        break;
+      case 'yesterday':
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        stop = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case 'week':
+        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        stop = now;
+        break;
+      case 'month':
+        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        stop = now;
+        break;
+      case 'custom':
+        if (customStart && customEnd) {
+          start = new Date(customStart);
+          stop = new Date(customEnd);
+          stop.setHours(23, 59, 59);
+        } else {
+          return null;
+        }
+        break;
+      default:
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        stop = now;
+    }
+    
+    return { start: start.getTime(), stop: stop.getTime() };
+  }, [dateRange, customStart, customEnd]);
+
+  const loadTrips = useCallback(async () => {
+    if (!vehicle?.imei) return;
+    
+    const range = getDateRange();
+    if (!range) {
+      toast.error("Seleziona un intervallo di date valido");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/balin/device/${vehicle.imei}/trips`, {
+        params: {
+          token: authToken,
+          start: range.start,
+          stop: range.stop
+        }
+      });
+      
+      const tripData = response.data.data || [];
+      setTrips(tripData);
+      
+      if (tripData.length === 0) {
+        toast.info("Nessun viaggio trovato nel periodo selezionato");
+      } else {
+        toast.success(`${tripData.length} punti viaggio trovati`);
+        // Auto-show on map
+        onShowOnMap(tripData);
+      }
+    } catch (err) {
+      console.error("Error loading trips:", err);
+      if (err.response?.status === 400) {
+        toast.error(err.response.data?.detail || "Errore nel caricamento viaggi");
+      } else {
+        toast.error("Errore nel caricamento dello storico viaggi");
+      }
+      setTrips([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [vehicle, authToken, getDateRange, onShowOnMap]);
+
+  // Format timestamp to readable date
+  const formatTimestamp = (ts) => {
+    if (!ts) return '-';
+    const date = new Date(ts);
+    return date.toLocaleString('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Get trip type label
+  const getTripTypeLabel = (type) => {
+    const types = {
+      4: { label: 'Partenza', color: 'bg-green-500' },
+      5: { label: 'Sosta', color: 'bg-red-500' }
+    };
+    return types[type] || { label: 'Punto', color: 'bg-gray-500' };
+  };
+
+  return (
+    <div className="bg-white rounded-lg border shadow-sm">
+      <div 
+        className="p-3 border-b bg-gray-50 flex items-center justify-between cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-2">
+          <History className="h-4 w-4 text-emerald-600" />
+          <h3 className="font-semibold text-sm text-gray-700">Storico Percorsi</h3>
+        </div>
+        {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </div>
+      
+      {expanded && (
+        <div className="p-3 space-y-3">
+          {/* Date Range Selector */}
+          <div className="space-y-2">
+            <Label className="text-xs">Periodo</Label>
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Oggi</SelectItem>
+                <SelectItem value="yesterday">Ieri</SelectItem>
+                <SelectItem value="week">Ultimi 7 giorni</SelectItem>
+                <SelectItem value="month">Ultimi 30 giorni</SelectItem>
+                <SelectItem value="custom">Personalizzato</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Custom Date Inputs */}
+          {dateRange === 'custom' && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Da</Label>
+                <Input 
+                  type="date" 
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">A</Label>
+                <Input 
+                  type="date" 
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Load Button */}
+          <Button 
+            onClick={loadTrips} 
+            disabled={loading}
+            className="w-full h-8 text-sm bg-emerald-600 hover:bg-emerald-700"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Route className="h-4 w-4 mr-2" />
+            )}
+            Carica Percorso
+          </Button>
+          
+          {/* Trip List */}
+          {trips.length > 0 && (
+            <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
+              <div className="text-xs text-gray-500 font-medium">
+                {trips.length} tappe trovate
+              </div>
+              {trips.map((trip, index) => {
+                const typeInfo = getTripTypeLabel(trip.type);
+                return (
+                  <div 
+                    key={index}
+                    className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs"
+                  >
+                    <div className={`w-2 h-2 rounded-full ${typeInfo.color}`} />
+                    <div className="flex-1">
+                      <span className="font-medium">{typeInfo.label}</span>
+                      <span className="text-gray-500 ml-2">
+                        {formatTimestamp(trip.timestamp)}
+                      </span>
+                    </div>
+                    {trip.speed > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        {trip.speed} km/h
+                      </Badge>
+                    )}
+                    {trip.odometer && (
+                      <Badge variant="outline" className="text-xs">
+                        {(trip.odometer / 1000).toFixed(1)} km
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          {/* Clear Button */}
+          {trips.length > 0 && (
+            <Button 
+              variant="outline"
+              onClick={() => {
+                setTrips([]);
+                onShowOnMap([]);
+              }}
+              className="w-full h-8 text-sm"
+            >
+              <Square className="h-3 w-3 mr-2" />
+              Nascondi Percorso
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 };
 
 // Vehicle Card Component (compact for sidebar)
@@ -380,6 +648,7 @@ export default function VehicleTracker({ authToken }) {
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [tripPositions, setTripPositions] = useState([]);
 
   const loadVehicles = useCallback(async () => {
     try {
@@ -423,10 +692,25 @@ export default function VehicleTracker({ authToken }) {
 
   const handleVehicleSelect = (vehicle) => {
     setSelectedVehicle(vehicle);
+    setTripPositions([]); // Clear previous trip when selecting new vehicle
   };
+
+  const handleShowTripsOnMap = useCallback((trips) => {
+    setTripPositions(trips);
+  }, []);
 
   // Calculate map center
   const mapCenter = useMemo(() => {
+    // If we have trip positions, center on them
+    if (tripPositions.length > 0) {
+      const validTrips = tripPositions.filter(p => p.lat && p.lng);
+      if (validTrips.length > 0) {
+        const avgLat = validTrips.reduce((sum, p) => sum + p.lat, 0) / validTrips.length;
+        const avgLng = validTrips.reduce((sum, p) => sum + p.lng, 0) / validTrips.length;
+        return [avgLat, avgLng];
+      }
+    }
+    
     const validVehicles = vehicles.filter(v => v.lat && v.lng);
     if (validVehicles.length === 0) return [41.9028, 12.4964]; // Rome default
     if (selectedVehicle?.lat && selectedVehicle?.lng) {
@@ -435,7 +719,14 @@ export default function VehicleTracker({ authToken }) {
     const avgLat = validVehicles.reduce((sum, v) => sum + v.lat, 0) / validVehicles.length;
     const avgLng = validVehicles.reduce((sum, v) => sum + v.lng, 0) / validVehicles.length;
     return [avgLat, avgLng];
-  }, [vehicles, selectedVehicle]);
+  }, [vehicles, selectedVehicle, tripPositions]);
+
+  // Create polyline positions from trip data
+  const tripPolylinePositions = useMemo(() => {
+    return tripPositions
+      .filter(p => p.lat && p.lng)
+      .map(p => [p.lat, p.lng]);
+  }, [tripPositions]);
 
   // Summary stats
   const totalVehicles = vehicles.length;
@@ -547,25 +838,37 @@ export default function VehicleTracker({ authToken }) {
 
       {/* Map View */}
       {viewMode === 'map' && (
-        <div className={`flex gap-4 ${mapExpanded ? 'h-[calc(100vh-180px)]' : 'h-[500px]'}`}>
-          {/* Sidebar with vehicle list */}
+        <div className={`flex gap-4 ${mapExpanded ? 'h-[calc(100vh-180px)]' : 'h-[550px]'}`}>
+          {/* Sidebar with vehicle list and trip history */}
           {!mapExpanded && (
-            <div className="w-80 bg-white rounded-lg border shadow-sm overflow-hidden flex flex-col">
-              <div className="p-3 border-b bg-gray-50">
-                <h3 className="font-semibold text-sm text-gray-700">Lista Veicoli</h3>
+            <div className="w-80 flex flex-col gap-3 overflow-hidden">
+              {/* Vehicle List */}
+              <div className="bg-white rounded-lg border shadow-sm overflow-hidden flex flex-col flex-1">
+                <div className="p-3 border-b bg-gray-50">
+                  <h3 className="font-semibold text-sm text-gray-700">Lista Veicoli</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                  {vehicles.map((vehicle) => (
+                    <VehicleCard
+                      key={vehicle.imei}
+                      vehicle={vehicle}
+                      isSelected={selectedVehicle?.imei === vehicle.imei}
+                      onClick={handleVehicleSelect}
+                      onShowDetails={handleShowDetails}
+                      compact
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                {vehicles.map((vehicle) => (
-                  <VehicleCard
-                    key={vehicle.imei}
-                    vehicle={vehicle}
-                    isSelected={selectedVehicle?.imei === vehicle.imei}
-                    onClick={handleVehicleSelect}
-                    onShowDetails={handleShowDetails}
-                    compact
-                  />
-                ))}
-              </div>
+              
+              {/* Trip History Panel - shows when vehicle is selected */}
+              {selectedVehicle && (
+                <TripHistoryPanel 
+                  vehicle={selectedVehicle}
+                  authToken={authToken}
+                  onShowOnMap={handleShowTripsOnMap}
+                />
+              )}
             </div>
           )}
 
@@ -581,8 +884,9 @@ export default function VehicleTracker({ authToken }) {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <MapBoundsFitter vehicles={vehicles} />
+              <MapBoundsFitter vehicles={vehicles} tripPositions={tripPositions} />
               
+              {/* Vehicle Markers */}
               {vehicles.filter(v => v.lat && v.lng).map((vehicle) => (
                 <Marker
                   key={vehicle.imei}
@@ -620,7 +924,71 @@ export default function VehicleTracker({ authToken }) {
                   </Popup>
                 </Marker>
               ))}
+              
+              {/* Trip Polyline */}
+              {tripPolylinePositions.length > 1 && (
+                <Polyline 
+                  positions={tripPolylinePositions}
+                  pathOptions={{ 
+                    color: '#3b82f6', 
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '10, 5'
+                  }}
+                />
+              )}
+              
+              {/* Trip Point Markers */}
+              {tripPositions.filter(p => p.lat && p.lng).map((point, index) => {
+                const isStart = point.type === 4;
+                const isStop = point.type === 5;
+                const color = isStart ? '#22c55e' : (isStop ? '#ef4444' : '#3b82f6');
+                
+                return (
+                  <CircleMarker
+                    key={`trip-${index}`}
+                    center={[point.lat, point.lng]}
+                    radius={isStart || isStop ? 8 : 4}
+                    pathOptions={{
+                      color: color,
+                      fillColor: color,
+                      fillOpacity: 0.8,
+                      weight: 2
+                    }}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <p className="font-bold">
+                          {isStart ? '🟢 Partenza' : (isStop ? '🔴 Sosta' : '📍 Punto')}
+                        </p>
+                        <p>{new Date(point.timestamp).toLocaleString('it-IT')}</p>
+                        {point.speed > 0 && <p>Velocità: {point.speed} km/h</p>}
+                        {point.odometer && <p>Km: {(point.odometer / 1000).toFixed(1)}</p>}
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
             </MapContainer>
+            
+            {/* Trip Legend */}
+            {tripPositions.length > 0 && (
+              <div className="absolute bottom-3 left-3 z-[1000] bg-white rounded-lg shadow-md p-2 text-xs">
+                <div className="font-semibold mb-1">Legenda Percorso</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <span>Partenza</span>
+                </div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-3 h-3 rounded-full bg-red-500" />
+                  <span>Sosta</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-1 bg-blue-500" style={{ borderStyle: 'dashed' }} />
+                  <span>Percorso</span>
+                </div>
+              </div>
+            )}
             
             {/* Expand/Collapse button */}
             <Button
