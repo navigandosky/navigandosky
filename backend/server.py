@@ -7989,13 +7989,30 @@ async def cleanup_old_sensor_data(days: int = 30):
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     
     result = await db.sensor_readings.delete_many({
-        "user_id": DEFAULT_USER_ID,
         "timestamp": {"$lt": cutoff_date}
     })
     
     return {
         "deleted_count": result.deleted_count,
         "cutoff_date": cutoff_date
+    }
+
+
+@api_router.post("/sensors/history/migrate-user")
+async def migrate_sensor_data_user(token: Optional[str] = Query(None)):
+    """Migrate sensor readings from default-user to the authenticated user"""
+    user = await get_user_from_token(token)
+    if user["id"] == DEFAULT_USER_ID:
+        return {"error": "Cannot migrate to default-user", "migrated": 0}
+    
+    result = await db.sensor_readings.update_many(
+        {"user_id": DEFAULT_USER_ID},
+        {"$set": {"user_id": user["id"]}}
+    )
+    
+    return {
+        "migrated": result.modified_count,
+        "new_user_id": user["id"]
     }
 
 
