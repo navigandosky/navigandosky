@@ -4,6 +4,32 @@
 
 ### ✅ Completato Oggi (18/02/2026)
 
+#### Fix Bug Multi-Tenancy P0 - Dati Non Visualizzati ✅
+- **Problema**: Le sezioni Apparati, Manutenzioni, Dashboard stats e altre mostravano dati vuoti
+- **Causa Root**: Gli endpoint backend usavano `user_id: str = DEFAULT_USER_ID` come parametro fisso invece di leggere l'utente dal token di sessione
+- **Fix Applicato**:
+  1. Modificati tutti gli endpoint per usare `token: Optional[str] = Query(None)`
+  2. Chiamata a `get_user_from_token(token)` per ottenere il corretto `user_id`
+  3. Corretto riferimento a `StatoManutenzione.PIANIFICATA` (inesistente) → `StatoManutenzione.APERTO`
+- **Endpoint Fixati**:
+  - `GET /api/dashboard/stats`
+  - `GET /api/dashboard/consumi-per-categoria`
+  - `GET /api/centri-assistenza`
+  - `GET /api/planimetrie`
+  - `GET /api/suggerimenti`
+  - `GET /api/suggerimenti/count`
+  - `GET /api/property`
+  - `GET /api/tickets`
+  - `GET /api/calendario/eventi`
+  - `GET /api/calendario/prossimi`
+  - `GET /api/marche-custom`
+  - `POST /api/marche-custom`
+- **Frontend Aggiornato**:
+  - `App.js`: `loadStats()` e `loadCentriAssistenza()` ora passano `authToken`
+  - `PlanimetriaSuggerimenti.js`: `PlanimetriaEditor`, `SuggerimentiProattivi`, `NotificationBadge` ora ricevono `authToken` come prop
+- **Testato**: ✅ Backend 94% (15/16), Frontend 100% - iteration_5.json
+- **Verificato**: 14 elettrodomestici, 18 manutenzioni, 19 suggerimenti visibili
+
 #### Fix Matterport Tag Import (P1) ✅
 - **Problema**: I nuovi tag aggiunti su Matterport Cloud non apparivano nel dialog di importazione
 - **Causa**: L'SDK Matterport cachava i tag e non venivano ricaricati quando si apriva il dialog
