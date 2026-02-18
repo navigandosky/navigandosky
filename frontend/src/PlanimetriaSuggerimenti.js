@@ -20,7 +20,7 @@ const API = `${BACKEND_URL}/api`;
 
 // ============== PLANIMETRIA INTERATTIVA ==============
 
-export const PlanimetriaEditor = ({ elettrodomestici, onElettrodomesticoClick }) => {
+export const PlanimetriaEditor = ({ elettrodomestici, onElettrodomesticoClick, authToken }) => {
   const [planimetrie, setPlanimetrie] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [planDetail, setPlanDetail] = useState(null);
@@ -34,7 +34,7 @@ export const PlanimetriaEditor = ({ elettrodomestici, onElettrodomesticoClick })
 
   const loadPlanimetrie = async () => {
     try {
-      const res = await axios.get(`${API}/planimetrie`);
+      const res = await axios.get(`${API}/planimetrie`, { params: { token: authToken } });
       setPlanimetrie(res.data);
       if (res.data.length > 0 && !selectedPlan) {
         setSelectedPlan(res.data[0].id);
@@ -409,7 +409,7 @@ const TIPO_ICONS = {
   sostituzione: RefreshCw
 };
 
-export const SuggerimentiProattivi = ({ onNavigateToElettrodomestico }) => {
+export const SuggerimentiProattivi = ({ onNavigateToElettrodomestico, authToken }) => {
   const [suggerimenti, setSuggerimenti] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filtro, setFiltro] = useState("tutti");
@@ -417,7 +417,7 @@ export const SuggerimentiProattivi = ({ onNavigateToElettrodomestico }) => {
 
   const loadSuggerimenti = async () => {
     try {
-      const res = await axios.get(`${API}/suggerimenti`);
+      const res = await axios.get(`${API}/suggerimenti`, { params: { token: authToken } });
       setSuggerimenti(res.data);
     } catch (error) {
       console.error("Error loading suggerimenti:", error);
@@ -568,13 +568,13 @@ export const SuggerimentiProattivi = ({ onNavigateToElettrodomestico }) => {
 };
 
 // Badge per notifiche header
-export const NotificationBadge = ({ onClick }) => {
+export const NotificationBadge = ({ onClick, authToken }) => {
   const [count, setCount] = useState({ totale: 0, urgenti: 0 });
 
   useEffect(() => {
     const loadCount = async () => {
       try {
-        const res = await axios.get(`${API}/suggerimenti/count`);
+        const res = await axios.get(`${API}/suggerimenti/count`, { params: { token: authToken } });
         setCount(res.data);
       } catch (error) {
         console.error("Error loading count:", error);
@@ -584,7 +584,7 @@ export const NotificationBadge = ({ onClick }) => {
     loadCount();
     const interval = setInterval(loadCount, 60000); // Refresh ogni minuto
     return () => clearInterval(interval);
-  }, []);
+  }, [authToken]);
 
   if (count.totale === 0) return null;
 
