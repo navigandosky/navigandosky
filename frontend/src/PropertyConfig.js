@@ -693,6 +693,11 @@ export default function PropertyConfig({ currentUser, authToken }) {
         email: "",
         password: "",
         region: "eu"
+      },
+      balin: {
+        enabled: false,
+        email: "",
+        api_token: ""
       }
     },
     ezviz: {
