@@ -384,10 +384,10 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
         {/* Selected Camera Panel - Compact and always visible */}
         {selectedCamera && (
           <div className="bg-slate-800 border-t border-slate-700 px-3 py-2 flex-shrink-0">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 mr-36">
               {/* Camera Thumbnail - smaller */}
               <div 
-                className="w-14 h-10 bg-slate-700 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-red-500 transition-all relative flex-shrink-0"
+                className="w-12 h-9 bg-slate-700 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-red-500 transition-all relative flex-shrink-0"
                 onClick={() => {
                   const cameraToUse = selectedCameraRef.current || selectedCamera;
                   if (cameraToUse.status === "online") {
@@ -414,32 +414,31 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                 )}
               </div>
 
-              {/* Camera Info - Compact single row */}
-              <div className="flex-1 min-w-0 flex items-center gap-3">
-                <div className="min-w-0 flex-shrink">
-                  <div className="flex items-center gap-1.5">
-                    <Circle 
-                      className={`h-2 w-2 flex-shrink-0 ${
-                        selectedCamera.status === "online" 
-                          ? "fill-green-500 text-green-500" 
-                          : "fill-red-500 text-red-500"
-                      }`} 
-                    />
-                    <span className="text-sm font-medium text-white truncate max-w-[120px]">{selectedCamera.name}</span>
-                  </div>
-                  <p className="text-xs text-slate-500 truncate max-w-[150px]">{selectedCamera.serial}</p>
+              {/* Camera Info - Compact */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <Circle 
+                    className={`h-2 w-2 flex-shrink-0 ${
+                      selectedCamera.status === "online" 
+                        ? "fill-green-500 text-green-500" 
+                        : "fill-red-500 text-red-500"
+                    }`} 
+                  />
+                  <span className="text-sm font-medium text-white truncate">{selectedCamera.name}</span>
+                  <span className="text-xs text-slate-500">•</span>
+                  <span className="text-xs text-slate-500 truncate">{selectedCamera.serial}</span>
+                  {selectedCamera.poi_id && (
+                    <>
+                      <span className="text-xs text-slate-500">•</span>
+                      <MapPin className="h-3 w-3 text-emerald-400 flex-shrink-0" />
+                      <span className="text-xs text-emerald-400 truncate">{getPoiName(selectedCamera.poi_id)}</span>
+                    </>
+                  )}
                 </div>
-                
-                {selectedCamera.poi_id && (
-                  <div className="flex items-center gap-1 text-xs text-emerald-400 flex-shrink-0">
-                    <MapPin className="h-3 w-3" />
-                    <span className="truncate max-w-[80px]">{getPoiName(selectedCamera.poi_id)}</span>
-                  </div>
-                )}
               </div>
 
-              {/* Actions - Compact buttons */}
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+              {/* Actions - Compact buttons inline */}
+              <div className="flex items-center gap-1 flex-shrink-0">
                 <Button
                   size="sm"
                   variant={selectedCamera.poi_id ? "outline" : "default"}
