@@ -7432,6 +7432,7 @@ async def collect_and_store_sensor_data():
 
 @api_router.get("/sensors/history")
 async def get_sensor_history(
+    token: Optional[str] = Query(None),
     device_id: Optional[str] = None,
     sensor_type: Optional[str] = None,
     start_date: Optional[str] = None,
@@ -7439,7 +7440,11 @@ async def get_sensor_history(
     limit: int = 500
 ):
     """Get sensor reading history with optional filters"""
-    query = {"user_id": DEFAULT_USER_ID}
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
+    query = {"user_id": user_id}
     
     if device_id:
         query["device_id"] = device_id
@@ -7463,16 +7468,21 @@ async def get_sensor_history(
 @api_router.get("/sensors/history/{device_id}")
 async def get_device_sensor_history(
     device_id: str,
+    token: Optional[str] = Query(None),
     sensor_type: Optional[str] = None,
     hours: int = 24,
     limit: int = 500
 ):
     """Get sensor history for a specific device"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
     
     query = {
         "device_id": device_id,
-        "user_id": DEFAULT_USER_ID,
+        "user_id": user_id,
         "timestamp": {"$gte": start_time}
     }
     
@@ -7550,22 +7560,26 @@ async def get_sensor_stats(
 
 
 @api_router.get("/sensors/report")
-async def get_sensors_report(hours: int = 24):
+async def get_sensors_report(token: Optional[str] = Query(None), hours: int = 24):
     """
     Get a comprehensive report of all sensors with stats and recent readings.
     Perfect for dashboard display.
     """
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
     
     # Get device names from SmartThings for better display
     device_names = {}
     try:
-        token = await get_smartthings_token()
-        if token:
+        st_token = await get_smartthings_token(user_id)
+        if st_token:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 response = await client.get(
                     f"{SMARTTHINGS_API_URL}/devices",
-                    headers={"Authorization": f"Bearer {token}"}
+                    headers={"Authorization": f"Bearer {st_token}"}
                 )
                 if response.status_code == 200:
                     devices = response.json().get("items", [])
@@ -7582,7 +7596,7 @@ async def get_sensors_report(hours: int = 24):
     pipeline = [
         {
             "$match": {
-                "user_id": DEFAULT_USER_ID,
+                "user_id": user_id,
                 "timestamp": {"$gte": start_time}
             }
         },
