@@ -1939,7 +1939,7 @@ function App() {
 
         {/* Report Sensori Tab */}
         {activeTab === "sensori" && (
-          <SensorReport />
+          <SensorReport authToken={authToken} />
         )}
 
         {/* Veicoli GPS Tab */}
