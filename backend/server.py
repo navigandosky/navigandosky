@@ -7094,13 +7094,15 @@ async def get_system_status():
         "attenzione": 0,
         "critici": 0,
         "totali": 0,
-        "smartthings_connected": bool(SMARTTHINGS_TOKEN),
-        "ezviz_connected": bool((EZVIZ_USERNAME and EZVIZ_PASSWORD) or EZVIZ_APPKEY),
+        "smartthings_connected": False,
+        "ezviz_connected": False,
         "matterport_configured": bool(MATTERPORT_SPACE_ID)
     }
     
     # Check SmartThings devices
-    if SMARTTHINGS_TOKEN:
+    token = await get_smartthings_token()
+    if token:
+        status["smartthings_connected"] = True
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get(
@@ -7114,8 +7116,34 @@ async def get_system_status():
         except:
             pass
     
+    # Check eWeLink devices  
+    ewelink_token = await get_ewelink_token()
+    if ewelink_token:
+        try:
+            base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(
+                    f"{base_url}/v2/device/thing",
+                    headers={
+                        "Authorization": f"Bearer {ewelink_token}",
+                        "X-CK-Appid": EWELINK_APPID
+                    }
+                )
+                if response.status_code == 200:
+                    things = response.json().get("data", {}).get("thingList", [])
+                    for thing in things:
+                        item_data = thing.get("itemData", {})
+                        status["totali"] += 1
+                        if item_data.get("online"):
+                            status["ok"] += 1
+                        else:
+                            status["attenzione"] += 1
+        except:
+            pass
+    
     # Check Ezviz cameras
     if (EZVIZ_USERNAME and EZVIZ_PASSWORD) or EZVIZ_APPKEY:
+        status["ezviz_connected"] = True
         try:
             cameras_result = await get_ezviz_cameras()
             for cam in cameras_result.get("cameras", []):
