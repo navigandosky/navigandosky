@@ -2107,15 +2107,23 @@ async def add_categoria_custom(nome: str = Form(...), token: Optional[str] = Que
 # ------------ MARCHE CUSTOM ------------
 
 @api_router.get("/marche-custom")
-async def get_marche_custom(user_id: str = DEFAULT_USER_ID):
+async def get_marche_custom(token: Optional[str] = Query(None)):
     """Get custom brands added by user"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     marche = await db.marche_custom.find({"user_id": user_id}, {"_id": 0}).to_list(100)
     return marche
 
 
 @api_router.post("/marche-custom")
-async def add_marca_custom(nome: str = Form(...), user_id: str = DEFAULT_USER_ID):
+async def add_marca_custom(nome: str = Form(...), token: Optional[str] = Query(None)):
     """Add a custom brand"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     marca = {
         "id": str(uuid.uuid4()),
         "nome": nome,
