@@ -2888,11 +2888,15 @@ async def create_ticket(data: TicketCreate):
 
 @api_router.get("/tickets", response_model=List[TicketConDettagli])
 async def get_tickets(
-    user_id: str = DEFAULT_USER_ID,
+    token: Optional[str] = Query(None),
     stato: Optional[StatoTicket] = None,
     elettrodomestico_id: Optional[str] = None
 ):
     """Ottieni tutti i ticket"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     query = {"user_id": user_id}
     if stato:
         query["stato"] = stato.value
@@ -3281,11 +3285,15 @@ async def get_qrcode_card(elettrodomestico_id: str):
 
 @api_router.get("/calendario/eventi", response_model=List[CalendarEvent])
 async def get_calendar_events(
-    user_id: str = DEFAULT_USER_ID,
+    token: Optional[str] = Query(None),
     start: Optional[str] = None,
     end: Optional[str] = None
 ):
     """Ottieni eventi per il calendario"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     events = []
     
     # Manutenzioni
@@ -3385,10 +3393,14 @@ async def get_calendar_events(
 
 @api_router.get("/calendario/prossimi")
 async def get_prossimi_eventi(
-    user_id: str = DEFAULT_USER_ID,
+    token: Optional[str] = Query(None),
     giorni: int = Query(7, ge=1, le=90)
 ):
     """Ottieni eventi dei prossimi N giorni"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     oggi = datetime.now(timezone.utc).date()
     fine = oggi + timedelta(days=giorni)
     
