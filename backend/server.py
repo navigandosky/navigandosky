@@ -5277,13 +5277,13 @@ async def get_ewelink_status():
             "auth_required": True
         }
     
-    # Try to fetch user info to verify token
+    # Try to fetch devices to verify token (profile endpoint may not be authorized for all appids)
     base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
     
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.get(
-                f"{base_url}/v2/user/profile",
+                f"{base_url}/v2/device/thing",
                 headers={
                     "Authorization": f"Bearer {token}",
                     "X-CK-Appid": EWELINK_APPID,
@@ -5293,15 +5293,13 @@ async def get_ewelink_status():
             
             data = response.json()
             if response.status_code == 200 and data.get("error") == 0:
-                user = data.get("data", {})
+                things = data.get("data", {}).get("thingList", [])
+                online_count = sum(1 for t in things if t.get("itemData", {}).get("online"))
                 return {
                     "connected": True,
-                    "message": "Connesso",
-                    "user": {
-                        "email": user.get("email"),
-                        "nickname": user.get("nickname"),
-                        "countryCode": user.get("countryCode")
-                    },
+                    "message": f"Connesso - {len(things)} dispositivi ({online_count} online)",
+                    "device_count": len(things),
+                    "online_count": online_count,
                     "region": EWELINK_REGION
                 }
             else:
