@@ -373,7 +373,7 @@ export default function SensorReport() {
   const loadReport = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/sensors/report?hours=${timePeriod}`);
+      const response = await axios.get(`${API}/sensors/report?hours=${timePeriod}&token=${authToken}`);
       setReport(response.data);
       
       // Auto-select first sensor if none selected
@@ -389,14 +389,14 @@ export default function SensorReport() {
     } finally {
       setLoading(false);
     }
-  }, [timePeriod]);
+  }, [timePeriod, authToken]);
 
   // Load chart data for selected sensor
   const loadChartData = async (deviceId, sensorType) => {
     setChartLoading(true);
     try {
       const response = await axios.get(
-        `${API}/sensors/chart-data/${deviceId}?sensor_type=${sensorType}&hours=${timePeriod}&interval=${interval}`
+        `${API}/sensors/chart-data/${deviceId}?sensor_type=${sensorType}&hours=${timePeriod}&interval=${interval}&token=${authToken}`
       );
       setChartData(response.data);
     } catch (error) {
