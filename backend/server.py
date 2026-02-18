@@ -3782,14 +3782,36 @@ SMARTTHINGS_TOKEN = os.environ.get('SMARTTHINGS_TOKEN', '')
 SMARTTHINGS_API_URL = "https://api.smartthings.com/v1"
 
 
-async def get_smartthings_token():
+async def get_smartthings_token(user_id: str = None):
     """
     Get SmartThings token with priority:
-    1. From property_config in database (persistent)
-    2. From environment variable (fallback)
+    1. From property_config for specific user (if user_id provided)
+    2. From property_config in database (any active)
+    3. From environment variable (fallback)
     """
     try:
-        # Try to get from database first
+        # First try to get for specific user
+        if user_id:
+            prop = await db.property_config.find_one(
+                {"user_id": user_id, "is_active": True}, 
+                {"integrations.smartthings.token": 1, "_id": 0}
+            )
+            if prop:
+                db_token = prop.get("integrations", {}).get("smartthings", {}).get("token")
+                if db_token and len(db_token) > 10:
+                    return db_token
+        
+        # Then try any active property (excluding default-user which may have old token)
+        prop = await db.property_config.find_one(
+            {"is_active": True, "user_id": {"$ne": "default-user"}}, 
+            {"integrations.smartthings.token": 1, "_id": 0}
+        )
+        if prop:
+            db_token = prop.get("integrations", {}).get("smartthings", {}).get("token")
+            if db_token and len(db_token) > 10:
+                return db_token
+        
+        # Fallback to any active property
         prop = await db.property_config.find_one(
             {"is_active": True}, 
             {"integrations.smartthings.token": 1, "_id": 0}
