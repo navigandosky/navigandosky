@@ -134,7 +134,7 @@ class TestBalinGPSWithToken:
     def auth_token(self):
         """Get authentication token for Admin user"""
         response = requests.post(
-            f"{BASE_URL}/api/login",
+            f"{BASE_URL}/api/auth/login",
             json={"username": "Admin", "password": "SmartMaster2026"}
         )
         if response.status_code == 200:
