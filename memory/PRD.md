@@ -4,6 +4,20 @@
 
 ### ✅ Completato Oggi (18/02/2026)
 
+#### Fix Matterport Tag Import (P1) ✅
+- **Problema**: I nuovi tag aggiunti su Matterport Cloud non apparivano nel dialog di importazione
+- **Causa**: L'SDK Matterport cachava i tag e non venivano ricaricati quando si apriva il dialog
+- **Fix Applicato**:
+  1. **Auto-refresh tag** quando si apre il dialog "Importa Tag"
+  2. **Toast informativi** che mostrano "Caricamento tag..." e "X tag disponibili"
+  3. **Refresh migliorato** in `MatterportViewer.js` con doppia chiamata per invalidare cache
+  4. **Pulsante "Aggiorna"** per refresh veloce dei tag
+  5. **Pulsante "Ricarica Space"** per refresh completo (ricarica iframe)
+- **File modificati**: 
+  - `frontend/src/MatterportManager.js` (auto-refresh su apertura dialog)
+  - `frontend/src/MatterportViewer.js` (migliorato refreshTags)
+- **Testato**: ✅ Dialog mostra correttamente 15 tag disponibili
+
 #### Integrazione Balin GPS Tracker ✅
 - **Richiesta**: Integrare il servizio Balin GPS per tracciare la posizione dei veicoli
 - **Documentazione API**: Fornita dall'utente - REST API con Basic Auth (email + api_token)
