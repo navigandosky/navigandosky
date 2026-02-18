@@ -1863,7 +1863,6 @@ function App() {
             {[
               { id: "matterport", label: "Vista 3D", icon: Eye },
               { id: "videocam", label: "Video Cam", icon: Video },
-              { id: "veicoli", label: "Veicoli", icon: Car },
               { id: "smartdomo", label: "SmartDomo", icon: Thermometer },
               { id: "sensori", label: "Report Sensori", icon: Activity },
               { id: "elettrodomestici", label: "Apparati", icon: Zap },
@@ -1871,6 +1870,7 @@ function App() {
               { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
               { id: "tickets", label: "Ticket", icon: Ticket },
               { id: "assistente", label: "Assistente", icon: Bot },
+              { id: "veicoli", label: "Veicoli", icon: Car },
               { id: "proprieta", label: "Setup", icon: Settings },
               ...(currentUser?.role === "admin" ? [{ id: "utenti", label: "Utenti", icon: Users }] : []),
             ].map((tab) => {
