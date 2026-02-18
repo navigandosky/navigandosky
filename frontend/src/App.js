@@ -1963,6 +1963,7 @@ function App() {
               // Trova l'elettrodomestico e vai alla sua scheda
               setActiveTab("elettrodomestici");
             }}
+            authToken={authToken}
           />
         )}
 
@@ -2008,6 +2009,7 @@ function App() {
               setEditingElettro(elettro);
               setElettroDialogOpen(true);
             }}
+            authToken={authToken}
           />
         )}
 
