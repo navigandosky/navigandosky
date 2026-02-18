@@ -1,8 +1,52 @@
 # SmartDomo - PRD
 
+## Stato Attuale (18/02/2026)
+
+### ✅ Completato Oggi (18/02/2026)
+
+#### Integrazione Balin GPS Tracker ✅
+- **Richiesta**: Integrare il servizio Balin GPS per tracciare la posizione dei veicoli
+- **Documentazione API**: Fornita dall'utente - REST API con Basic Auth (email + api_token)
+- **Implementazione Backend**:
+  - Nuovo modello `BalinConfig` per configurazione (email, api_token)
+  - Aggiunto `balin` a `IntegrationsConfig` nel modello PropertyConfig
+  - Funzione `get_balin_credentials()` per recuperare credenziali da DB
+  - Funzione `balin_api_request()` per chiamate autenticate a Balin API
+  - **5 nuovi endpoint**:
+    - `GET /api/balin/status` - Stato connessione
+    - `GET /api/balin/devices` - Lista veicoli con posizione
+    - `GET /api/balin/device/{imei}` - Dettaglio singolo veicolo
+    - `GET /api/balin/device/{imei}/history` - Storico posizioni (max 1 giorno, 30 gg indietro)
+    - `GET /api/balin/device/{imei}/trips` - Storico viaggi (max 90 gg)
+- **Implementazione Frontend**:
+  - Nuovo componente `VehicleTracker.js` con:
+    - Card veicoli con stato (in movimento/fermo)
+    - Indicatori: Online/Offline, Alimentato/Batteria, GPS, Satelliti
+    - Posizione GPS con coordinate
+    - Velocità, direzione, contachilometri
+    - Link a Google Maps
+    - Dialog dettagli veicolo
+    - Auto-refresh ogni 30 secondi
+  - Nuova tab "Veicoli" nel menu principale (tra Video Cam e SmartDomo)
+  - Card "Balin GPS Tracker" in Setup → Integrazioni con:
+    - Switch abilita/disabilita
+    - Campo Email Account Balin
+    - Campo API Token (mascherato)
+    - Badge stato connessione
+    - Componente `BalinStatus` per mostrare stato
+- **File creati**: 
+  - `frontend/src/VehicleTracker.js`
+- **File modificati**: 
+  - `backend/server.py` (modelli, endpoint Balin, spostamento router)
+  - `frontend/src/PropertyConfig.js` (card Balin, BalinStatus component)
+  - `frontend/src/App.js` (import VehicleTracker, tab Veicoli, icona Car)
+- **Testato**: ✅ Backend 100% (9/9), Frontend 100% (14/14) - iteration_4.json
+
+---
+
 ## Stato Attuale (06/02/2026)
 
-### ✅ Completati Oggi (06/02/2026)
+### ✅ Completati (06/02/2026)
 
 #### Nuova Sezione "Video Cam" Dedicata ✅
 - **Richiesta**: Creare interfaccia dedicata per le videocamere EZVIZ con Matterport viewer
