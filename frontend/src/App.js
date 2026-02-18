@@ -58,7 +58,8 @@ import {
   Navigation,
   Box,
   Video,
-  RefreshCw
+  RefreshCw,
+  Car
 } from "lucide-react";
 import { LoginPage, UserManagement } from "./AuthPage";
 import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "./TicketCalendarQR";
