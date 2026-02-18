@@ -1290,8 +1290,12 @@ async def create_property(data: PropertyConfigCreate):
 
 
 @api_router.get("/property", response_model=List[PropertyConfig])
-async def get_properties(user_id: str = DEFAULT_USER_ID):
+async def get_properties(token: Optional[str] = Query(None)):
     """Ottiene tutte le proprietà dell'utente"""
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     properties = await db.property_config.find(
         {"user_id": user_id}, {"_id": 0}
     ).to_list(100)
