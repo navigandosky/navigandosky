@@ -131,7 +131,7 @@ SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD', '')
 SMTP_FROM = os.environ.get('SMTP_FROM', '')
 
 # Frontend URL for QR codes
-FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://domo-vehicle.preview.emergentagent.com')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://homeconnect-hub.preview.emergentagent.com')
 
 
 # ============== ENUMS ==============

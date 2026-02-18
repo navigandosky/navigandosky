@@ -1,100 +1,116 @@
 <analysis>**original_problem_statement:**
-The user's primary goal is to continue developing the SmartDomo application. In this session, the user guided the agent through a series of UI enhancements and critical bug fixes.
-
-**Key objectives from this session:**
-1.  **UI/UX:** Add the Trivor company logo to the login page and the main application view, ensuring it doesn't obstruct other UI elements.
-2.  **UI/UX:** Make the Point of Interest (POI) list in the 3D view scrollable and prevent it from overlapping with the new logo.
-3.  **Bug Fix:** Resolve a critical navigation issue where using Go to POI for an imported Matterport tag would move the camera to the wrong location.
-4.  **Feature:** Implement an ON/OFF toggle switch for eWeLink devices directly within the POI details panel in the 3D view.
-5.  **Bug Fix:** Fix an issue where the POI list was only showing a subset of items (2 instead of 27) due to data inconsistencies ( and  mismatches) in the database.
-6.  **Feature:** Add a new Sensori tab in the 3D view to display a filtered list of only those devices that are linked to a POI.
-7.  **Feature:** Create a new Air Quality card on the main dashboard to display data (PM2.5, PM10) from specialized sensors.
-8.  **Bug Fix:** Resolve a bug where the dropdown menu for linking an appliance to a POI was not showing all available POIs due to data being loaded before user authentication.
-9.  **Bug Fix:** Correct the display of energy data (Power in Watts, Current in Amperes) for eWeLink devices, which were showing incorrect or null values due to normalization errors.
-10. **Feature (In Progress):** Implement support for multi-channel SonOff devices (e.g., 4-channel switches), to display and control each channel as an individual switch in the UI.
+The user's primary goal is to continue developing the SmartDomo application. The initial task was to integrate the Balin GPS tracking service to display vehicle location data. Throughout the session, the user requested several additional features and bug fixes:
+1.  **Balin GPS Integration:** Implement the full Balin GPS service, including a configuration UI, a new Veicoli (Vehicles) section with an interactive map (using Leaflet), and the ability to view historical trip data.
+2.  **Login & Menu UI:** Fix a perceived login issue and reorder the main navigation menu to place Veicoli before Setup.
+3.  **SmartThings & eWeLink Integration Fixes:** The user reported both integrations were failing. The agent needed to diagnose and fix connection issues, which turned out to be complex authentication and data-scoping problems.
+4.  **Matterport Tag Import Bug (P1):** Resolve a high-priority issue where new Matterport tags were not appearing in the import dialog.
+5.  **Video Camera Layout Bug:** Fix a UI issue where the bottom panel with camera details was being cut off.
+6.  **Major Data Regression:** The user reported that several key features (energy consumption monitoring, sensor reports, appliance lists, and maintenance lists) that were previously working had disappeared, indicating a severe data visibility problem.
 
 **User's preferred language**: Italian
 
 **what currently exists?**
-The SmartDomo application is a full-stack platform with a React frontend and a FastAPI backend. It integrates Matterport for 3D visualization and eWeLink for IoT device control. During this session, several UI/UX issues and critical data-related bugs were resolved. Key fixes addressed incorrect navigation, inconsistent data filtering, and inaccurate sensor readings. New features include direct device control from the 3D view, a dedicated air quality dashboard card, and a filtered list of POI-linked sensors. The backend has been prepared to support multi-channel devices, but the frontend work is pending.
+The SmartDomo application is a full-stack platform for smart home management. In this session, the agent successfully completed the full Balin GPS integration and fixed numerous critical bugs. The current state is:
+-   **Balin GPS Integration:** Fully implemented. Includes a configuration card in the Setup page, a new Veicoli tab with an interactive Leaflet map showing real-time vehicle locations, and a side panel to load and display historical trip data (polylines) on the map.
+-   **Integration Connectivity:** Both **SmartThings** and **eWeLink** integrations have been successfully re-connected. The agent resolved complex authentication issues (expired tokens, deprecated API endpoints) and critical multi-tenancy data-scoping bugs that were preventing the backend from retrieving the correct credentials.
+-   **Sensor Data Restored:** The Report Sensori page is now functional. After fixing the eWeLink connection, the background data collector is working again, and the report correctly displays live sensor data, historical charts, and tabs for different sensor types (Temperature, Humidity, Energy).
+-   **Bug Fixes:**
+    *   **Matterport Tag Import:** The P1 issue is resolved. The import dialog now automatically refreshes tags upon opening, and improved Refresh and Reload buttons provide a reliable way for users to load newly added tags.
+    *   **Video Camera Layout:** The UI has been fixed. The bottom panel with camera details is now a compact, single-row layout that is fully visible and no longer obscured by other UI elements.
+    *   **Configuration Saving:** A bug preventing deeply nested settings (like Balin credentials) from being saved has been fixed by implementing a recursive update function in the backend.
+
+However, a major regression issue persists where several key sections of the application are not displaying data, even though the underlying integrations are now connected.
 
 **Last working item**:
-- Last item agent was working: The agent was implementing support for multi-channel eWeLink devices (e.g., 4-channel SonOff switches). The user wants to see and control each channel as a separate device. The agent modified the backend to explode these devices into individual virtual channels (e.g., , ) and updated the toggle endpoint to handle these new IDs.
+- Last item agent was working: The agent was investigating a critical, widespread data regression issue reported by the user. The user provided screenshots showing empty lists for Apparati (Appliances), Manutenzioni (Maintenance), and missing energy consumption data, despite the agent having just fixed the underlying eWeLink and SmartThings integrations.
 - Status: IN PROGRESS
-- Agent Testing Done: N
-- Which testing method agent to use? Frontend testing agent
-- User Testing Done: N
+- Agent Testing Done: N (Agent fixed the root integration issues but has not yet addressed the data visibility on these specific pages)
+- Which testing method agent to use? both
+- User Testing Done: N (User has just reported the issue)
 
 **All Pending/In progress Issue list**:
--   **Issue 1: Data Normalization and Consistency (P1)**
+-   **Issue 1: Widespread Data Not Displaying in UI (P0)**
+-   **Issue 2: Frequent and unexplained session timeouts (P2)**
 
 **Issues Detail:**
--   **Issue 1: Data Normalization and Consistency**
-    -   **Attempted fixes:** The agent fixed a specific normalization issue with the 'current' (Ampere) value from eWeLink devices. However, this is part of a larger, recurring pattern of data-related bugs caused by inconsistencies (e.g.,  being an internal UUID vs. a Matterport ID,  in one collection being a  from another). The agent has performed multiple data cleanup operations in this session to align IDs.
-    -   **Next debug checklist:** This is an architectural risk.
-        1.  Propose a task to the user to perform a comprehensive audit and migration to unify ID schemes across the  and  collections.
-        2.  When creating new entities, ensure the backend validates and stores the correct type of ID (e.g., always use the Matterport  from the  collection, not the internal UUID).
-        3.  Consolidate data access logic to prevent future inconsistencies.
-    -   **Why fix this issue and what will be achieved with the fix?** This is the root cause of many bugs the user has reported (e.g., missing POIs, incorrect links). Solving it permanently will significantly improve application stability and reduce future development time.
+-   **Issue 1: Widespread Data Not Displaying in UI**
+    -   **Attempted fixes:** The agent successfully restored the eWeLink and SmartThings connections, which fixed the Report Sensori page. However, this did not resolve the data visibility issue for other sections like Apparati, Manutenzioni, and the energy consumption card.
+    -   **Next debug checklist:** The issue is almost certainly a recurring multi-tenancy bug. Backend endpoints are likely fetching data for the wrong user (e.g., ) instead of the currently authenticated user. The same fix pattern applied to the Balin and SmartThings status endpoints needs to be applied to all data-fetching endpoints.
+        1.  Identify the API endpoints that populate the Apparati, Manutenzioni, and energy consumption sections in .
+        2.  For each endpoint, verify that the database query (e.g., ) includes a filter for the current  passed from the authentication token.
+        3.  Modify the endpoints to correctly filter by . Prioritize the logged-in user's data over any other data.
+    -   **Why fix this issue and what will be achieved with the fix?** Core application functionality is broken, making the app unusable and causing significant user frustration. Fixing this will restore the main features of the application.
     -   **Status:** IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?** Both
+    -   **Blocked on other issue:** None
+-   **Issue 2: Frequent and unexplained session timeouts**
+    -   **Attempted fixes:** None in this session. This issue was carried over from the previous handoff.
+    -   **Next debug checklist:**
+        1.  Investigate how  is managed in  and React state within .
+        2.  Check for any logic that might be prematurely clearing the token or triggering a logout.
+        3.  Re-verify the backend JWT timeout setting in .
+    -   **Why fix this issue and what will be achieved with the fix?** The short session life disrupts user workflow and makes the app difficult to use.
+    -   **Status:** NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?** Both
     -   **Blocked on other issue:** None
 
 **In progress Task List**:
--   **Task 1: Complete Frontend for Multi-Channel Device Support (P0)**
-
-**Task Detail:**
--   **Task 1: Complete Frontend for Multi-Channel Device Support**
-    -   **Where to resume:** The backend () now returns an expanded list of devices, where a 4-channel switch appears as 4 separate items.
-        1.  In , ensure the Domotica tab correctly renders a card for each of these new virtual channels.
-        2.  Verify that the toggle button on each virtual channel card works correctly.
-        3.  In , update the Sensori tab to also list these individual channels if they are linked to POIs.
-    -   **What will be achieved with this?** The user will be able to see and control each of the 4 switches on their SonOff devices as individual items in the dashboard and 3D view.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Frontend
-    -   **Blocked on something:** None
+None.
 
 **Upcoming and Future Tasks**
 *   **Upcoming Tasks:**
-    *   **Refactor  (P1):** Break down the monolithic file into separate FastAPI routers for maintainability (e.g., , ).
-    *   **Refactor  (P1):** Decompose the large component into smaller, more manageable child components (, , , etc.).
+    *   **Refactor  (P0):** Urgently refactor all data-fetching endpoints to be multi-tenant aware, ensuring they filter by . This is critical to prevent further data isolation bugs.
+    *   **Refactor  (P1):** Break down the large component into smaller pieces and use custom hooks for state management.
+    *   **Implement POI Creation for MPSKIN (P2):** Implement a manual system for users to add markers to MPSKIN tours.
 *   **Future Tasks:**
-    *   Mobile App Development (PWA or React Native)
-    *   Intelligent Notifications for maintenance or abnormal sensor readings
-    *   QR Code scanning to access appliance details
-    *   Data Export to CSV/Excel
+    *   Implement live video stream (HLS/RTMP) for cameras.
+    *   Group multi-channel device controls into a single expandable card.
+    *   Mobile App Development (PWA or React Native).
+    *   QR code scanning to view appliance details.
 
 **Completed work in this session**
-- **Feature: Trivor Logo Integration:** Added the Trivor logo to the login page and main app view, adjusting its CSS to avoid obscuring other UI elements.
-- **Bug Fix: Matterport Navigation:** Corrected the Go to POI logic for imported Matterport tags by prioritizing  over less reliable methods.
-- **Feature: Direct eWeLink Toggle:** Implemented a clickable ON/OFF switch in the 3D view's POI details panel, allowing direct control of linked devices.
-- **Bug Fix: POI List Filtering:** Resolved a major bug where only 2 of 27 POIs were showing. The issue was traced to inconsistent  and  values in the database, which were corrected via a script.
-- **Feature: Sensori Tab in 3D View:** Added a new tab to the sidebar that displays a filtered list of only the IoT devices/sensors that are linked to a POI.
-- **Feature: Air Quality Dashboard Card:** Created a new UI card on the  to specifically display PM2.5, PM10, temperature, and humidity from air quality sensors.
-- **Bug Fix: Incomplete POI Dropdown:** Fixed an issue where the dropdown for linking appliances to POIs was missing items. The fix ensures the POI list is re-fetched after user login.
-- **Bug Fix: Incorrect Energy Readings:** Corrected the backend logic to properly handle and normalize  (W) and  (A) values from eWeLink energy monitors, ensuring  is treated as a valid value and calculations are correct.
-- **UI Enhancement: POI List Scroll:** Made the POI list in the 3D view scrollable and added padding to ensure all items are accessible and not hidden by the logo.
+- **Feature: Balin GPS Integration:**
+    -   Added backend models and API endpoints in  to communicate with the Balin API.
+    -   Created a configuration UI in .
+    -   Created a new Veicoli section with an interactive Leaflet map and vehicle list in .
+    -   Implemented historical route tracking with polyline rendering on the map.
+- **Bug Fix: Multi-Tenancy Data Scoping:**
+    -   Fixed critical bugs in  and  in  where the wrong user's configuration was being read. The fix involved making the functions user-aware.
+- **Bug Fix: eWeLink Integration Restored:**
+    -   Fixed a login failure due to a deprecated API by manually refreshing an expired token and updating the database.
+    -   Modified the  endpoint to use a working API call () to check connectivity, resolving the not authorized error.
+- **Bug Fix: Sensor & Energy Data Restored:**
+    -   Identified that missing sensor and energy data was due to the failed eWeLink connection. After fixing the connection, the background data collector resumed working, and the Report Sensori page is now fully functional.
+- **Bug Fix: Matterport Tag Import (P1):**
+    -   Resolved the issue of new tags not appearing by automatically refreshing tags when the import dialog is opened in .
+- **Bug Fix: Configuration Save Failure:**
+    -   Fixed a bug in the  update endpoint in  that prevented saving deeply nested configuration objects by implementing a recursive merge logic.
+- **Bug Fix: Video Camera Layout:**
+    -   Redesigned the bottom information panel in  to be a compact, single-row layout, making it fully visible.
 
 **Earlier issues found/mentioned but not fixed**
-- The architectural issue of **Data Normalization Fragility**, mentioned in the previous handoff, persists. While specific instances were fixed (e.g., current calculation), the lack of a centralized, single point of normalization remains a risk for future regressions.
+-   **Architectural Issue: Data Normalization Fragility:** The application still suffers from using multiple, inconsistent ID formats and, more importantly, a lack of systematic multi-tenancy enforcement in its data access layer. This is the root cause of the current major bug and recurring data isolation issues.
 
 **Known issue recurrence from previous fork**
-- **Issue recurrence in previous fork:** Data Normalization and Data Consistency.
-- **Recurrence count:** High. This session fixed incorrect  normalization and multiple bugs related to mismatched IDs (, ) between database collections.
-- **Status:** RESOLVED (for now). Specific bugs are fixed, but the underlying architectural weakness remains.
+-   **Issue recurrence in previous fork:** Data Isolation and Consistency.
+-   **Recurrence count:** High. This issue manifested multiple times in this session (SmartThings, Balin, and now the widespread data regression).
+-   **Status:** IN PROGRESS (a fix for the entire system is needed).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **eWeLink Multi-channel Devices:** Devices with specific UIIDs (4, 77, etc.) contain a  array in their API response. The backend was modified to expand these into multiple virtual devices, each representing a single channel, with a unique ID like .
--   **Data ID Mismatches:** A recurring source of bugs. The agent had to repeatedly debug and run cleanup scripts to fix inconsistencies between internal database UUIDs and external IDs from Matterport, and mismatches between how different collections referenced each other (e.g.,  sometimes contained a ).
--   **React  for Auth-dependent Data:** A bug where a dropdown list was incomplete was solved by adding a  hook that re-fetches data when the  becomes available after login, ensuring API calls are made with proper authentication.
+-   **Systemic Multi-Tenancy Bug:** A recurring bug pattern was identified where backend endpoints fetched data using simple queries like  without filtering by . This caused data from the wrong user to be loaded. The fix involves making data-access functions user-aware.
+-   **Recursive Backend Update:** A bug preventing the saving of deeply nested JSON objects was fixed by replacing a shallow  update with a recursive function that correctly merges nested dictionaries.
+-   **API Integration & Debugging:** Successfully integrated the Balin GPS API. Debugged and fixed complex authentication issues with the eWeLink API, involving expired tokens, refresh tokens, and deprecated endpoints.
+-   **React State & Component Lifecycle:** Fixed the Matterport tag import issue by triggering a data refresh ( combined with ) when a dialog component becomes visible, rather than relying on a one-time load.
 
 **key DB schema**
--   **elettrodomestici**: Contains  (linking to an eWeLink device) and  or  (linking to a POI). Several records were manually updated to fix incorrect links.
--   **pois**: The  field was unified to use the Matterport space ID () for all relevant records to fix a major filtering bug. The  was also corrected on many records.
+-   **property_config**: Found to contain multiple documents for different users, causing data isolation bugs when not queried with a specific . The schema itself is complex with nested objects for each integration (, , etc.).
+-   **ewelink_tokens**: This collection stores eWeLink authentication tokens (, , ), which was critical for restoring the eWeLink integration after a login failure.
+-   **sensor_readings**: This collection was found to have stale data, which was the key clue that the background data collection process had failed due to the eWeLink authentication issue.
 
 **All files of reference**
 -   
@@ -103,57 +119,62 @@ The SmartDomo application is a full-stack platform with a React frontend and a F
 -   
 -   
 -   
+-   
+-   
 
 **Areas that need refactoring**:
--   ****: Remains a critical bottleneck. It's oversized and handles routing, business logic, and data transformation for all features. It urgently needs to be broken into smaller, domain-specific routers.
--   ****: This component continues to grow and handles too many distinct pieces of functionality (3D view, side panels, multiple data tabs, dialogs). It should be decomposed into smaller components.
--   ****: With custom logic for different card types (climate, energy, air quality), this component is also becoming large and could benefit from being broken down.
+-   **All Backend Data Endpoints (Urgent):** Every endpoint in  that fetches data from MongoDB must be audited and refactored to ensure it filters by . This is the top priority to fix the current regression and prevent future data leaks.
+-   ****: The file is now over 8700 lines. It must be broken down into smaller FastAPI routers.
+-   ****: Still a monolithic component managing too much state.
 
 **key api endpoints**
--   : **MODIFIED**. Now expands multi-channel devices into individual virtual devices.
--   : **MODIFIED**. Now supports channel-specific IDs (e.g., ) to control individual outlets on a multi-channel device.
--   : **FIXED**. The backend logic was corrected, and underlying data was cleaned up to ensure it returns all POIs for the authenticated user's space.
--   : The underlying eWeLink data processing was **FIXED** to correctly extract and normalize , , , , and  values.
--   : Data returned by this endpoint is now correct as it relies on the fixed sensor data extraction.
+-   : **NEW**. Fetches a list of vehicles from the Balin API.
+-   : **NEW**. Fetches historical trip data for a vehicle.
+-   : **NEW & FIXED**. Checks Balin connection status. Was fixed to be multi-tenant aware.
+-   : **FIXED**. Was modified to use a working API endpoint () to determine connection status.
+-   : **FIXED**. Update logic was rewritten to support deeply nested objects.
+-   : **WORKING**. This endpoint now correctly returns data after the eWeLink connection was restored.
+-   , : **SUSPECTED BROKEN**. These are likely the source of the current UI data regression and need to be investigated for the multi-tenancy bug.
 
 **Critical Info for New Agent**
--   **User Language:** The user is Italian. All communication should be in Italian.
--   **Data Consistency is Key:** Be extremely cautious with database operations. There is a history of mismatched IDs between the , , and  collections. Before adding new linking features, verify that the IDs being stored and queried are consistent. You may need to perform data cleanup.
--   **Multi-Channel Devices:** The immediate task is to complete the frontend implementation for multi-channel devices. The backend is ready, but the UI needs to display and control the new virtual channels.
-
-**documents and test reports created in this job**
--    (updated)
+-   **User Language:** The user is Italian. All communication **must** be in Italian.
+-   **THE RECURRING BUG:** The most critical issue is the lack of  filtering on backend endpoints. The agent has fixed this for  and , but the bug clearly exists elsewhere. **Assume every data-fetching endpoint is broken until proven otherwise.** The next agent's first task is to apply this fix pattern to the endpoints powering the Apparati, Manutenzioni, and energy consumption sections.
+-   **User Frustration:** The user is very frustrated about the regressions. It is crucial to acknowledge their concern and immediately address the widespread data visibility issue as the highest priority.
 
 **Last 10 User Messages and any pending HUMAN messages**
-10. **User:** Asks to create a new dashboard card for Air Quality sensors to show PM10, PM2.5, and CO2. (Status: **RESOLVED**)
-9.  **User:** Reports that when adding/editing an appliance, the dropdown list of POIs to link to is missing items (e.g., Lavatrice). (Status: **RESOLVED**)
-8.  **User:** In the Sensori tab of the 3D view, asks to display energy consumption (Watts) for relevant devices, not just the ON/OFF status. (Status: **RESOLVED**)
-7.  **User:** Points out that the Current (Amperes) value shown is incorrect (e.g., 84A instead of ~0.8A). (Status: **RESOLVED**)
-6.  **User:** Asks to handle multi-channel SonOff devices (4 switches) by showing each channel as a separate, individually controllable item. (Status: **IN PROGRESS**)
-5.  **User:** Clarifies that in the main dashboard's Domotica tab, they want to see ALL devices, while in the Vista 3D sidebar, they want to see ONLY devices linked to a POI. (Status: **RESOLVED**)
-4.  **User:** Clarifies that in the eWeLink device list (on the dashboard), they want to see ONLY devices that are linked to a Matterport POI. (Status: **RESOLVED**, then reverted based on message #5)
-3.  **User:** Reports that the POI list in the 3D view is only showing 2 items instead of all of them. (Status: **RESOLVED**)
-2.  **User:** Asks to add a clickable ON/OFF toggle switch for devices in the POI details panel of the 3D view. (Status: **RESOLVED**)
-1.  **User:** Reports that the Go to POI function for an imported Matterport tag (Stampante Brother Laser) is navigating to the wrong room. (Status: **RESOLVED**)
+10. **User:** Fixes the save error for Balin config. (Status: **RESOLVED**)
+9.  **User:** Asks to fix the Matterport tag import (P1) issue. (Status: **RESOLVED**)
+8.  **User:** Reports the Video Cam bottom panel is cut off. (Status: **RESOLVED**)
+7.  **User:** Reports that energy consumption data and sensor reports have disappeared, a major regression. (Status: **PARTIALLY RESOLVED** - Sensor report is fixed, but other areas are still broken).
+6.  **User:** Provides eWeLink credentials and reports the login from the portal is not working. (Status: **RESOLVED** - Agent fixed the connection).
+5.  **User:** Reports multiple core features are still broken (Apparati, Manutenzioni, etc.) and is extremely frustrated. (Status: **PENDING - CURRENT TASK**)
+4.  **User:** (Implicit request from last message) Fix the empty Apparati page. (Status: **PENDING**)
+3.  **User:** (Implicit request from last message) Fix the empty Manutenzioni page. (Status: **PENDING**)
+2.  **User:** (Implicit request from last message) Fix the empty energy consumption summary card. (Status: **PENDING**)
+1.  **User:** (Implicit request from last message) Fix the empty sensor list in the Panoramica report. (Status: **PENDING**)
 
 **Project Health Check:**
--   **Broken**: The multi-channel device feature is incomplete (backend is done, frontend is not).
--   **Mocked**: None.
+-   **Broken**: Apparati, Manutenzioni, and several other data-driven UI sections are currently not displaying data due to a widespread backend data filtering bug.
+-   **Mocked**: The live video feature still uses snapshots instead of a true HLS/RTMP stream.
 
 **3rd Party Integrations**
--   **eWeLink**: **WORKING**. Used for IoT device control and sensor reading. Logic was significantly improved to handle energy monitors, air quality sensors, and multi-channel switches.
--   **Matterport SDK & Cloud API**: **WORKING**. Used for 3D visualization and navigation. Navigation logic was fixed.
--   **SmartThings**: Present but seems to be used as a fallback or is less reliable.
+-   **eWeLink**: **Working**. Connection restored after manual token refresh and an endpoint fix. Powers sensors and energy monitoring.
+-   **Matterport SDK & Cloud API**: **Working**. Import bug resolved.
+-   **EZVIZ**: Working.
+-   **SmartThings**: **Working**. Connection restored after fixing a critical multi-tenancy data-scoping bug.
+-   **Balin GPS**: **Working**. Fully integrated with map and history features.
+-   **React-Leaflet**: Newly added for map functionality.
 
 **Testing status**
--   **Testing agent used after significant changes**: NO
+-   **Testing agent used after significant changes**: YES. A testing agent was used to validate the initial Balin GPS integration. Subsequent fixes were tested manually with curl and screenshots.
 -   **Troubleshoot agent used after agent stuck in loop**: NO
 -   **Test files created**: []
--   **Known regressions**: None in this session, but the risk of data-related regressions remains high due to architectural issues.
+-   **Known regressions**: A major regression occurred where multiple data-driven sections stopped working. The root cause was partially fixed (eWeLink auth), but the symptoms (empty UI) persist due to a widespread data-scoping bug.
 
 **Credentials to test flow:**
 -   **Admin**:  / 
--   **User**:  / 
+-   **eWeLink (if needed for re-auth):**  / 
 
 **What agent forgot to execute**
-The agent did not forget any tasks but was in the middle of implementing the multi-channel device support when the session concluded. The next agent must pick up this task and complete the frontend implementation.</analysis>
+-   The agent did not address the P2 issue of Frequent and unexplained session timeouts from the initial handoff summary.
+-   The agent did not proactively apply the multi-tenancy fix to all endpoints after discovering the pattern, leading to the current widespread data regression.</analysis>
