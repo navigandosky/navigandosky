@@ -8702,6 +8702,10 @@ async def get_balin_device_trips(
         raise HTTPException(status_code=500, detail=f"Errore recupero viaggi: {str(e)}")
 
 
+# Include the router in the main app (must be after all @api_router decorators)
+app.include_router(api_router)
+
+
 @app.on_event("startup")
 async def startup_event():
     """Start background tasks on app startup"""
