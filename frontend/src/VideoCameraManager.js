@@ -381,43 +381,43 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
           )}
         </div>
 
-        {/* Selected Camera Panel - Fixed height, always at bottom */}
+        {/* Selected Camera Panel - Compact and always visible */}
         {selectedCamera && (
-          <div className="h-[70px] bg-slate-800 border-t border-slate-700 px-4 py-3 pr-32 flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {/* Camera Thumbnail - smaller for compact view */}
-                <div 
-                  className="w-16 h-12 bg-slate-700 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-red-500 transition-all relative flex-shrink-0"
-                  onClick={() => {
-                    const cameraToUse = selectedCameraRef.current || selectedCamera;
-                    if (cameraToUse.status === "online") {
-                      openLiveDialog(cameraToUse);
-                    }
-                  }}
-                  title={selectedCamera.status === "online" ? "Clicca per video live" : "Camera offline"}
-                >
-                  {selectedCamera.image_url ? (
-                    <img 
-                      src={selectedCamera.image_url} 
-                      alt={selectedCamera.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Camera className="h-5 w-5 text-slate-500" />
-                    </div>
-                  )}
-                  {selectedCamera.status === "online" && (
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                      <Play className="h-4 w-4 text-white" />
-                    </div>
-                  )}
-                </div>
+          <div className="bg-slate-800 border-t border-slate-700 px-3 py-2 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              {/* Camera Thumbnail - smaller */}
+              <div 
+                className="w-14 h-10 bg-slate-700 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-red-500 transition-all relative flex-shrink-0"
+                onClick={() => {
+                  const cameraToUse = selectedCameraRef.current || selectedCamera;
+                  if (cameraToUse.status === "online") {
+                    openLiveDialog(cameraToUse);
+                  }
+                }}
+                title={selectedCamera.status === "online" ? "Clicca per video live" : "Camera offline"}
+              >
+                {selectedCamera.image_url ? (
+                  <img 
+                    src={selectedCamera.image_url} 
+                    alt={selectedCamera.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Camera className="h-4 w-4 text-slate-500" />
+                  </div>
+                )}
+                {selectedCamera.status === "online" && (
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <Play className="h-3 w-3 text-white" />
+                  </div>
+                )}
+              </div>
 
-                {/* Camera Details - Compact */}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+              {/* Camera Info - Compact single row */}
+              <div className="flex-1 min-w-0 flex items-center gap-3">
+                <div className="min-w-0 flex-shrink">
+                  <div className="flex items-center gap-1.5">
                     <Circle 
                       className={`h-2 w-2 flex-shrink-0 ${
                         selectedCamera.status === "online" 
@@ -425,82 +425,65 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
                           : "fill-red-500 text-red-500"
                       }`} 
                     />
-                    <h3 className="text-sm font-semibold text-white truncate">{selectedCamera.name}</h3>
+                    <span className="text-sm font-medium text-white truncate max-w-[120px]">{selectedCamera.name}</span>
                   </div>
-                  <p className="text-xs text-slate-400 truncate">{selectedCamera.model} • {selectedCamera.serial}</p>
-                  
-                  {/* POI Status - Compact */}
-                  {selectedCamera.poi_id ? (
-                    <div className="flex items-center gap-1 text-xs text-emerald-400">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{getPoiName(selectedCamera.poi_id)}</span>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500">Nessun POI collegato</p>
-                  )}
+                  <p className="text-xs text-slate-500 truncate max-w-[150px]">{selectedCamera.serial}</p>
                 </div>
+                
+                {selectedCamera.poi_id && (
+                  <div className="flex items-center gap-1 text-xs text-emerald-400 flex-shrink-0">
+                    <MapPin className="h-3 w-3" />
+                    <span className="truncate max-w-[80px]">{getPoiName(selectedCamera.poi_id)}</span>
+                  </div>
+                )}
               </div>
 
-              {/* Actions - Compact */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Link to POI Button */}
+              {/* Actions - Compact buttons */}
+              <div className="flex items-center gap-1.5 flex-shrink-0">
                 <Button
                   size="sm"
                   variant={selectedCamera.poi_id ? "outline" : "default"}
                   onClick={() => openLinkDialog(selectedCamera)}
-                  className={selectedCamera.poi_id 
-                    ? "border-emerald-500 text-emerald-400 hover:bg-emerald-500/10" 
+                  className={`h-7 text-xs px-2 ${selectedCamera.poi_id 
+                    ? "border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10" 
                     : "bg-blue-600 hover:bg-blue-500"
-                  }
+                  }`}
                 >
-                  {selectedCamera.poi_id ? (
-                    <>
-                      <Link2 className="h-4 w-4 mr-1" />
-                      Modifica POI
-                    </>
-                  ) : (
-                    <>
-                      <Link2 className="h-4 w-4 mr-1" />
-                      Collega POI
-                    </>
-                  )}
+                  <Link2 className="h-3 w-3 mr-1" />
+                  {selectedCamera.poi_id ? "Modifica" : "Collega"} POI
                 </Button>
 
-                {/* Go to POI Button */}
                 {selectedCamera.poi_id && (
                   <Button
                     size="sm"
                     onClick={() => navigateToPoi(selectedCamera.poi_id)}
-                    className="bg-red-600 hover:bg-red-500"
+                    className="h-7 text-xs px-2 bg-red-600 hover:bg-red-500"
                     disabled={!sdkReady}
                   >
-                    <Navigation className="h-4 w-4 mr-1" />
-                    Vai al POI
+                    <Navigation className="h-3 w-3 mr-1" />
+                    Vai
                   </Button>
                 )}
 
-                {/* View Stream Button */}
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-red-600 text-red-400 hover:bg-red-600/20"
+                  className="h-7 text-xs px-2 border-red-600/50 text-red-400 hover:bg-red-600/20"
                   disabled={selectedCamera.status !== "online"}
                   onClick={() => {
-                    // Use ref to get the LATEST camera value (avoids stale closure)
                     const cameraToUse = selectedCameraRef.current || selectedCamera;
                     openLiveDialog(cameraToUse);
                   }}
                 >
-                  <Play className="h-4 w-4 mr-1" />
+                  <Play className="h-3 w-3 mr-1" />
                   Live
                 </Button>
 
-                {/* Close */}
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => setSelectedCamera(null)}
-                  className="text-slate-400 hover:text-white"
+                  className="h-7 w-7 p-0 text-slate-400 hover:text-white"
                 >
                   <X className="h-4 w-4" />
                 </Button>
