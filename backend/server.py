@@ -8447,19 +8447,53 @@ BALIN_API_BASE = "https://api.balin.app/external_api/v1"
 
 
 async def get_balin_credentials(user_id: str = None) -> Optional[Dict[str, str]]:
-    """Get Balin credentials from property config for a specific user"""
-    query = {"user_id": user_id} if user_id else {"is_active": True}
-    prop = await db.property_config.find_one(query, {"_id": 0})
+    """
+    Get Balin credentials from property config with priority:
+    1. From property_config for specific user (if user_id provided)
+    2. From any active property_config (excluding default-user which may have old/no config)
+    3. From any active property_config as fallback
+    """
+    try:
+        # First try to get for specific user
+        if user_id:
+            prop = await db.property_config.find_one(
+                {"user_id": user_id, "is_active": True}, 
+                {"_id": 0, "integrations.balin": 1}
+            )
+            if prop and prop.get("integrations", {}).get("balin", {}).get("enabled"):
+                balin_config = prop["integrations"]["balin"]
+                email = balin_config.get("email")
+                api_token = balin_config.get("api_token")
+                if email and api_token and len(api_token) > 5:
+                    return {"email": email, "api_token": api_token}
+        
+        # Then try any active property (excluding default-user)
+        prop = await db.property_config.find_one(
+            {"is_active": True, "user_id": {"$ne": "default-user"}, "integrations.balin.enabled": True}, 
+            {"_id": 0, "integrations.balin": 1}
+        )
+        if prop:
+            balin_config = prop.get("integrations", {}).get("balin", {})
+            email = balin_config.get("email")
+            api_token = balin_config.get("api_token")
+            if email and api_token and len(api_token) > 5:
+                return {"email": email, "api_token": api_token}
+        
+        # Fallback to any active property with balin enabled
+        prop = await db.property_config.find_one(
+            {"is_active": True, "integrations.balin.enabled": True}, 
+            {"_id": 0, "integrations.balin": 1}
+        )
+        if prop:
+            balin_config = prop.get("integrations", {}).get("balin", {})
+            email = balin_config.get("email")
+            api_token = balin_config.get("api_token")
+            if email and api_token and len(api_token) > 5:
+                return {"email": email, "api_token": api_token}
+                
+    except Exception as e:
+        logger.debug(f"Could not get Balin credentials from DB: {e}")
     
-    if not prop:
-        prop = await db.property_config.find_one({"is_active": True}, {"_id": 0})
-    
-    if prop and prop.get("integrations", {}).get("balin", {}).get("enabled"):
-        balin_config = prop["integrations"]["balin"]
-        email = balin_config.get("email")
-        api_token = balin_config.get("api_token")
-        if email and api_token:
-            return {"email": email, "api_token": api_token}
     return None
 
 
