@@ -361,8 +361,8 @@ const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => 
 
       {/* Main Content - Matterport Viewer */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Matterport Viewer - shrinks when panel is visible */}
-        <div className={`relative bg-black ${selectedCamera ? 'flex-1' : 'flex-1'}`} style={{ minHeight: selectedCamera ? 'calc(100% - 70px)' : '100%' }}>
+        {/* Matterport Viewer - fills available space */}
+        <div className="relative bg-black flex-1 min-h-0">
           {currentUser?.matterport_space_id ? (
             <MatterportViewer
               ref={matterportRef}
