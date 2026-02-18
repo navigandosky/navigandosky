@@ -37,9 +37,10 @@
 - **File creati**: 
   - `frontend/src/VehicleTracker.js`
 - **File modificati**: 
-  - `backend/server.py` (modelli, endpoint Balin, spostamento router)
-  - `frontend/src/PropertyConfig.js` (card Balin, BalinStatus component)
-  - `frontend/src/App.js` (import VehicleTracker, tab Veicoli, icona Car)
+  - `backend/server.py` (modelli, endpoint Balin)
+  - `frontend/src/PropertyConfig.js` (card Balin, BalinStatus)
+  - `frontend/src/App.js` (import, tab Veicoli)
+- **Dipendenze aggiunte**: `react-leaflet`, `leaflet`
 - **Testato**: ✅ Backend 100% (9/9), Frontend 100% (14/14) - iteration_4.json
 
 ---
