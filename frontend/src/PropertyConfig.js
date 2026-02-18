@@ -182,6 +182,46 @@ const EweLinkStatus = () => {
   );
 };
 
+// Balin GPS Status Component
+const BalinStatus = () => {
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkStatus();
+  }, []);
+
+  const checkStatus = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/balin/status`);
+      setStatus(response.data);
+    } catch (error) {
+      setStatus({ connected: false, message: "Errore connessione" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <Badge variant="secondary" className="text-xs"><Loader2 className="h-3 w-3 animate-spin" /></Badge>;
+  }
+
+  if (status?.connected) {
+    return (
+      <Badge className="bg-emerald-500 text-xs">
+        <Check className="h-3 w-3 mr-1" /> {status.device_count} veicoli
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="secondary" className="text-xs">
+      <X className="h-3 w-3 mr-1" /> {status?.message || "Non configurato"}
+    </Badge>
+  );
+};
+
 // eWeLink Login Section Component
 const EweLinkLoginSection = () => {
   const [status, setStatus] = useState(null);
