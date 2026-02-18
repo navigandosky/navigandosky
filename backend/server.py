@@ -8293,9 +8293,6 @@ async def sync_poi_to_matterport_cloud(poi_id: str):
     return result
 
 
-# Include the router in the main app
-app.include_router(api_router)
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
