@@ -1384,6 +1384,69 @@ export default function PropertyConfig({ currentUser, authToken }) {
               )}
             </CardContent>
           </Card>
+
+          {/* Balin GPS */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-emerald-600" />
+                  <CardTitle>Balin GPS Tracker</CardTitle>
+                </div>
+                <BalinStatus />
+              </div>
+              <CardDescription>
+                Traccia la posizione dei tuoi veicoli con localizzatori Balin
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="balin-enabled"
+                  checked={formData.integrations?.balin?.enabled ?? false}
+                  onCheckedChange={(checked) => updateFormData("integrations.balin.enabled", checked)}
+                />
+                <Label htmlFor="balin-enabled">Abilita Balin GPS</Label>
+              </div>
+              
+              {formData.integrations?.balin?.enabled && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="balin-email">Email Account Balin</Label>
+                      <Input
+                        id="balin-email"
+                        type="email"
+                        value={formData.integrations?.balin?.email || ""}
+                        onChange={(e) => updateFormData("integrations.balin.email", e.target.value)}
+                        placeholder="tua@email.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="balin-token">API Token</Label>
+                      <PasswordInput
+                        id="balin-token"
+                        value={formData.integrations?.balin?.api_token}
+                        onChange={(e) => updateFormData("integrations.balin.api_token", e.target.value)}
+                        placeholder="Il tuo API token Balin"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Ottieni l'API token dalle{" "}
+                    <a
+                      href="https://balin.app"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-600 hover:underline"
+                    >
+                      impostazioni del profilo su Balin.app
+                    </a>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Tab: Matterport */}
