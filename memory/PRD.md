@@ -20,20 +20,21 @@
     - `GET /api/balin/device/{imei}/trips` - Storico viaggi (max 90 gg)
 - **Implementazione Frontend**:
   - Nuovo componente `VehicleTracker.js` con:
-    - Card veicoli con stato (in movimento/fermo)
-    - Indicatori: Online/Offline, Alimentato/Batteria, GPS, Satelliti
-    - Posizione GPS con coordinate
-    - Velocità, direzione, contachilometri
-    - Link a Google Maps
-    - Dialog dettagli veicolo
+    - **MAPPA INTERATTIVA Leaflet** con markers veicoli colorati (blu=movimento, verde=online, grigio=offline)
+    - Sidebar lista veicoli compatta
+    - Popup su marker con dettagli veicolo
+    - Pulsante espandi/riduci mappa
+    - Toggle vista Mappa/Lista
     - Auto-refresh ogni 30 secondi
-  - Nuova tab "Veicoli" nel menu principale (tra Video Cam e SmartDomo)
-  - Card "Balin GPS Tracker" in Setup → Integrazioni con:
-    - Switch abilita/disabilita
-    - Campo Email Account Balin
-    - Campo API Token (mascherato)
-    - Badge stato connessione
-    - Componente `BalinStatus` per mostrare stato
+    - **STORICO PERCORSI**:
+      - Pannello "Storico Percorsi" che appare quando si seleziona un veicolo
+      - Selezione periodo: Oggi, Ieri, 7 giorni, 30 giorni, Personalizzato
+      - Visualizzazione percorso sulla mappa con polyline blu tratteggiata
+      - Punti partenza (verde) e sosta (rosso) sulla mappa
+      - Lista tappe con timestamp, velocità e chilometri
+      - Legenda percorso in basso a sinistra
+  - Tab "Veicoli" spostata **prima di Setup** nel menu
+  - Card configurazione "Balin GPS Tracker" in Setup → Integrazioni
 - **File creati**: 
   - `frontend/src/VehicleTracker.js`
 - **File modificati**: 
