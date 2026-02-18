@@ -7883,6 +7883,7 @@ async def get_energy_summary(hours: int = 24):
 @api_router.get("/sensors/chart-data/{device_id}")
 async def get_sensor_chart_data(
     device_id: str,
+    token: Optional[str] = Query(None),
     sensor_type: str = "temperature",
     hours: int = 24,
     interval: str = "hour"  # minute, hour, day
@@ -7891,6 +7892,10 @@ async def get_sensor_chart_data(
     Get sensor data formatted for charts.
     Aggregates data by interval for smoother visualization.
     """
+    # Get user from token for multi-tenant filtering
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
     
     # Define date format based on interval
@@ -7906,7 +7911,7 @@ async def get_sensor_chart_data(
             "$match": {
                 "device_id": device_id,
                 "sensor_type": sensor_type,
-                "user_id": DEFAULT_USER_ID,
+                "user_id": user_id,
                 "timestamp": {"$gte": start_time.isoformat()}
             }
         },
