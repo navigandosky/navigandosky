@@ -1334,17 +1334,20 @@ async def update_property(property_id: str, data: PropertyConfigUpdate):
     """Aggiorna una proprietà"""
     update_data = {}
     
-    # Handle nested objects properly
+    def flatten_dict(d, parent_key=''):
+        """Recursively flatten nested dictionaries for MongoDB dot notation"""
+        items = []
+        for k, v in d.items():
+            new_key = f"{parent_key}.{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(flatten_dict(v, new_key).items())
+            elif v is not None:
+                items.append((new_key, v))
+        return dict(items)
+    
+    # Handle nested objects properly using recursive flattening
     data_dict = data.model_dump(exclude_unset=True)
-    for key, value in data_dict.items():
-        if value is not None:
-            if isinstance(value, dict):
-                # For nested objects, update each field individually
-                for nested_key, nested_value in value.items():
-                    if nested_value is not None:
-                        update_data[f"{key}.{nested_key}"] = nested_value
-            else:
-                update_data[key] = value
+    update_data = flatten_dict(data_dict)
     
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
