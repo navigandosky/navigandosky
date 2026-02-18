@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import {
   Car,
   MapPin,
   Navigation,
-  Battery,
   Wifi,
   WifiOff,
   Power,
@@ -14,21 +13,20 @@ import {
   Clock,
   RefreshCw,
   AlertCircle,
-  CheckCircle,
   Gauge,
   Compass,
   Settings,
   ChevronRight,
   Loader2,
   Map as MapIcon,
-  History,
-  Route
+  Route,
+  List,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -37,14 +35,103 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+// Leaflet imports
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Vehicle Card Component
-const VehicleCard = ({ vehicle, isSelected, onClick, onShowDetails }) => {
+// Fix Leaflet default icon issue
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+// Custom vehicle icons
+const createVehicleIcon = (isMoving, isConnected) => {
+  const color = isMoving ? '#3b82f6' : (isConnected ? '#22c55e' : '#6b7280');
+  return L.divIcon({
+    html: `<div style="
+      background-color: ${color};
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    ">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8A3 3 0 0 0 2 12.5V16c0 .6.4 1 1 1h2"/>
+        <circle cx="7" cy="17" r="2"/>
+        <path d="M9 17h6"/>
+        <circle cx="17" cy="17" r="2"/>
+      </svg>
+    </div>`,
+    className: 'vehicle-marker',
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -18]
+  });
+};
+
+// Map bounds fitter component
+const MapBoundsFitter = ({ vehicles }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (vehicles.length > 0) {
+      const validVehicles = vehicles.filter(v => v.lat && v.lng);
+      if (validVehicles.length > 0) {
+        const bounds = L.latLngBounds(validVehicles.map(v => [v.lat, v.lng]));
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+      }
+    }
+  }, [vehicles, map]);
+  
+  return null;
+};
+
+// Vehicle Card Component (compact for sidebar)
+const VehicleCard = ({ vehicle, isSelected, onClick, onShowDetails, compact = false }) => {
   const isMoving = vehicle.moving;
   const isConnected = vehicle.is_connected;
   const isPowered = vehicle.is_power_on;
   const hasGPS = vehicle.has_GPS;
+
+  if (compact) {
+    return (
+      <div 
+        className={`p-3 rounded-lg cursor-pointer transition-all hover:bg-gray-100 ${isSelected ? 'bg-emerald-50 border-l-4 border-emerald-500' : 'bg-white border border-gray-200'}`}
+        onClick={() => onClick(vehicle)}
+        data-testid={`vehicle-card-${vehicle.imei}`}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-full ${isMoving ? 'bg-blue-100' : 'bg-gray-100'}`}>
+            <Car className={`h-4 w-4 ${isMoving ? 'text-blue-600' : 'text-gray-500'}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm truncate">{vehicle.name || `Veicolo ${vehicle.numeric_label}`}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant={isMoving ? "default" : "secondary"} className={`text-xs ${isMoving ? "bg-blue-500" : ""}`}>
+                {isMoving ? "In movimento" : "Fermo"}
+              </Badge>
+              {isConnected ? (
+                <Wifi className="h-3 w-3 text-green-500" />
+              ) : (
+                <WifiOff className="h-3 w-3 text-gray-400" />
+              )}
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-gray-400" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card 
@@ -291,6 +378,8 @@ export default function VehicleTracker({ authToken }) {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailVehicle, setDetailVehicle] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState('map'); // 'map' or 'list'
+  const [mapExpanded, setMapExpanded] = useState(false);
 
   const loadVehicles = useCallback(async () => {
     try {
@@ -331,6 +420,22 @@ export default function VehicleTracker({ authToken }) {
     setDetailVehicle(vehicle);
     setDetailDialogOpen(true);
   };
+
+  const handleVehicleSelect = (vehicle) => {
+    setSelectedVehicle(vehicle);
+  };
+
+  // Calculate map center
+  const mapCenter = useMemo(() => {
+    const validVehicles = vehicles.filter(v => v.lat && v.lng);
+    if (validVehicles.length === 0) return [41.9028, 12.4964]; // Rome default
+    if (selectedVehicle?.lat && selectedVehicle?.lng) {
+      return [selectedVehicle.lat, selectedVehicle.lng];
+    }
+    const avgLat = validVehicles.reduce((sum, v) => sum + v.lat, 0) / validVehicles.length;
+    const avgLng = validVehicles.reduce((sum, v) => sum + v.lng, 0) / validVehicles.length;
+    return [avgLat, avgLng];
+  }, [vehicles, selectedVehicle]);
 
   // Summary stats
   const totalVehicles = vehicles.length;
@@ -383,7 +488,7 @@ export default function VehicleTracker({ authToken }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 h-full">
       {/* Header with Stats */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -411,6 +516,28 @@ export default function VehicleTracker({ authToken }) {
             </Badge>
           </div>
 
+          {/* View Toggle */}
+          <div className="flex border rounded-lg overflow-hidden">
+            <Button 
+              variant={viewMode === 'map' ? 'default' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('map')}
+              className={viewMode === 'map' ? 'bg-emerald-600' : ''}
+            >
+              <MapIcon className="h-4 w-4 mr-1" />
+              Mappa
+            </Button>
+            <Button 
+              variant={viewMode === 'list' ? 'default' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className={viewMode === 'list' ? 'bg-emerald-600' : ''}
+            >
+              <List className="h-4 w-4 mr-1" />
+              Lista
+            </Button>
+          </div>
+
           <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Aggiorna
@@ -418,18 +545,114 @@ export default function VehicleTracker({ authToken }) {
         </div>
       </div>
 
-      {/* Vehicles Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {vehicles.map((vehicle) => (
-          <VehicleCard
-            key={vehicle.imei}
-            vehicle={vehicle}
-            isSelected={selectedVehicle?.imei === vehicle.imei}
-            onClick={setSelectedVehicle}
-            onShowDetails={handleShowDetails}
-          />
-        ))}
-      </div>
+      {/* Map View */}
+      {viewMode === 'map' && (
+        <div className={`flex gap-4 ${mapExpanded ? 'h-[calc(100vh-180px)]' : 'h-[500px]'}`}>
+          {/* Sidebar with vehicle list */}
+          {!mapExpanded && (
+            <div className="w-80 bg-white rounded-lg border shadow-sm overflow-hidden flex flex-col">
+              <div className="p-3 border-b bg-gray-50">
+                <h3 className="font-semibold text-sm text-gray-700">Lista Veicoli</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                {vehicles.map((vehicle) => (
+                  <VehicleCard
+                    key={vehicle.imei}
+                    vehicle={vehicle}
+                    isSelected={selectedVehicle?.imei === vehicle.imei}
+                    onClick={handleVehicleSelect}
+                    onShowDetails={handleShowDetails}
+                    compact
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Map */}
+          <div className="flex-1 rounded-lg overflow-hidden border shadow-sm relative">
+            <MapContainer
+              center={mapCenter}
+              zoom={10}
+              style={{ height: '100%', width: '100%' }}
+              className="z-0"
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MapBoundsFitter vehicles={vehicles} />
+              
+              {vehicles.filter(v => v.lat && v.lng).map((vehicle) => (
+                <Marker
+                  key={vehicle.imei}
+                  position={[vehicle.lat, vehicle.lng]}
+                  icon={createVehicleIcon(vehicle.moving, vehicle.is_connected)}
+                  eventHandlers={{
+                    click: () => handleVehicleSelect(vehicle)
+                  }}
+                >
+                  <Popup>
+                    <div className="p-2 min-w-[200px]">
+                      <h3 className="font-bold text-base mb-2">{vehicle.name || `Veicolo ${vehicle.numeric_label}`}</h3>
+                      <div className="space-y-1 text-sm">
+                        <p className="flex items-center gap-2">
+                          <Badge variant={vehicle.moving ? "default" : "secondary"} className={`text-xs ${vehicle.moving ? "bg-blue-500" : ""}`}>
+                            {vehicle.moving ? "In movimento" : "Fermo"}
+                          </Badge>
+                        </p>
+                        <p><strong>Velocità:</strong> {vehicle.speed} km/h</p>
+                        <p><strong>Direzione:</strong> {vehicle.heading}°</p>
+                        {vehicle.last_position_formatted && (
+                          <p className="text-xs text-gray-500">
+                            Aggiornato: {vehicle.last_position_formatted}
+                          </p>
+                        )}
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => handleShowDetails(vehicle)}
+                      >
+                        Dettagli
+                      </Button>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+            
+            {/* Expand/Collapse button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="absolute top-3 right-3 z-[1000] bg-white shadow-md"
+              onClick={() => setMapExpanded(!mapExpanded)}
+            >
+              {mapExpanded ? (
+                <><Minimize2 className="h-4 w-4 mr-1" /> Riduci</>
+              ) : (
+                <><Maximize2 className="h-4 w-4 mr-1" /> Espandi</>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* List View (Grid) */}
+      {viewMode === 'list' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {vehicles.map((vehicle) => (
+            <VehicleCard
+              key={vehicle.imei}
+              vehicle={vehicle}
+              isSelected={selectedVehicle?.imei === vehicle.imei}
+              onClick={setSelectedVehicle}
+              onShowDetails={handleShowDetails}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Vehicle Detail Dialog */}
       <VehicleDetailDialog
