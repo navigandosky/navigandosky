@@ -4,6 +4,29 @@
 
 ### ✅ Completato Oggi (18/02/2026)
 
+#### Fix 4 Bug Segnalati dall'Utente ✅
+1. **Bug System Status (SmartDomo mostra 0 dispositivi)**
+   - **Causa**: `get_system_status()` usava variabile `token` non definita
+   - **Fix**: Chiamata corretta a `get_smartthings_token()` e aggiunto conteggio eWeLink
+   - **Verificato**: 95 dispositivi totali (91 OK, 4 Attenzione)
+
+2. **Bug Consumo Lavatrice (111.2 kWh invece di 11.12 kWh)**
+   - **Causa**: Divisione per 10 invece di 100 nei dati eWeLink S60TPF
+   - **Fix**: `monthKwh / 100` in `/api/device/{id}/consumption`
+   - **Verificato**: Ora mostra 11.12 kWh, costo €2.78
+
+3. **Bug Report Sensori (grafici non visibili)**
+   - **Causa**: Endpoint `/sensors/report`, `/sensors/chart-data` usavano `DEFAULT_USER_ID`
+   - **Fix**: Tutti gli endpoint ora filtrano per `user_id` dal token
+   - **Aggiunto**: `POST /api/sensors/history/migrate-user` per migrare dati vecchi
+   - **Verificato**: 18 sensori con grafici funzionanti, 6986 letture migrate
+
+4. **Bug Switch ON/OFF (errore 520)**
+   - **Status**: Era un problema temporaneo, i comandi funzionano correttamente
+   - **Verificato**: Switch eWeLink risponde correttamente
+
+- **Test Results**: Backend 100% (8/8), Frontend 100% - iteration_6.json
+
 #### Fix Bug Multi-Tenancy P0 - Dati Non Visualizzati ✅
 - **Problema**: Le sezioni Apparati, Manutenzioni, Dashboard stats e altre mostravano dati vuoti
 - **Causa Root**: Gli endpoint backend usavano `user_id: str = DEFAULT_USER_ID` come parametro fisso invece di leggere l'utente dal token di sessione
