@@ -92,26 +92,39 @@ const MatterportViewer = forwardRef(({
 
     /**
      * Reload/refresh tags from Matterport SDK
+     * Forces fresh data by trying multiple approaches
      * @returns {Array} - Updated list of tags
      */
     refreshTags: async () => {
       if (!sdkRef.current) return [];
       try {
         let tags = [];
-        // Try the new Tag.data API first
+        
+        // Try to invalidate cache by calling multiple times with delay
+        // First call might return cached data, second should be fresh
+        
+        // Try the new Tag.data API first (preferred)
         if (sdkRef.current.Tag && sdkRef.current.Tag.data) {
+          // First collect to potentially invalidate cache
+          await sdkRef.current.Tag.data.collect();
+          // Small delay to allow cache refresh
+          await new Promise(resolve => setTimeout(resolve, 500));
+          // Second collect for fresh data
           tags = await sdkRef.current.Tag.data.collect();
           console.log(`Refreshed ${tags.length} Tags (new API)`);
-        } else {
+        } else if (sdkRef.current.Mattertag) {
           // Fallback to deprecated Mattertag API
+          await sdkRef.current.Mattertag.getData();
+          await new Promise(resolve => setTimeout(resolve, 500));
           tags = await sdkRef.current.Mattertag.getData();
           console.log(`Refreshed ${tags.length} Mattertags (legacy API)`);
         }
+        
         setMattertags(tags);
         return tags;
       } catch (error) {
         console.error("Error refreshing tags:", error);
-        // Try legacy API as fallback
+        // Try legacy API as ultimate fallback
         try {
           const tags = await sdkRef.current.Mattertag.getData();
           setMattertags(tags);
