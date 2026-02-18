@@ -1832,7 +1832,7 @@ function App() {
             
             {/* User info e logout - affiancati */}
             <div className="flex items-center gap-3">
-              <NotificationBadge onClick={() => setActiveTab("suggerimenti")} />
+              <NotificationBadge onClick={() => setActiveTab("suggerimenti")} authToken={authToken} />
               <div className="flex items-center gap-3 pl-3 border-l">
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-700">{currentUser.full_name || currentUser.username}</p>
