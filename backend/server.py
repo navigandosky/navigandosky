@@ -1851,9 +1851,74 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
             "message": "Apparato non collegato a un sensore smart"
         }
     
-    # Get live sensor data from eWeLink - use devices-with-sensors to get all devices including power meters
+    # Get live sensor data - check both eWeLink and SmartThings
+    provider = elettro.get("smart_plug_provider", "ewelink")
+    
     try:
-        # First try to get from devices-with-sensors which includes all devices
+        # First try to get from eWeLink devices
+        ewelink_data = await get_ewelink_devices()
+        ewelink_devices = ewelink_data.get("devices", [])
+        
+        # Find the matching device in eWeLink
+        device_data = None
+        for device in ewelink_devices:
+            if device.get("id") == device_id or device.get("deviceid") == device_id:
+                device_data = device
+                break
+        
+        if device_data:
+            # Get sensor values from eWeLink device params
+            params = device_data.get("params", {})
+            
+            # Parse power/voltage/current (eWeLink sends them multiplied by 100)
+            power = params.get("power")
+            voltage = params.get("voltage")
+            current = params.get("current")
+            
+            if power is not None:
+                power = float(power) / 100  # Convert from centiwatts
+            if voltage is not None:
+                voltage = float(voltage) / 100  # Convert from centivolts
+            if current is not None:
+                current = float(current) / 100  # Convert from centiamps
+            
+            # Get daily/monthly consumption (x100)
+            day_kwh = params.get("dayKwh")
+            month_kwh = params.get("monthKwh")
+            if day_kwh is not None:
+                day_kwh = float(day_kwh) / 100
+            if month_kwh is not None:
+                month_kwh = float(month_kwh) / 100
+            
+            return {
+                "has_sensor": True,
+                "apparato": {
+                    "id": elettro.get("id"),
+                    "nome": elettro.get("nome"),
+                    "marca": elettro.get("marca"),
+                    "modello": elettro.get("modello"),
+                    "posizione": elettro.get("posizione"),
+                    "consumo_orario_kw": elettro.get("consumo_orario_kw")
+                },
+                "sensor": {
+                    "device_id": device_id,
+                    "device_name": device_data.get("name"),
+                    "online": device_data.get("online", False),
+                    "temperature": params.get("currentTemperature"),
+                    "humidity": params.get("currentHumidity"),
+                    "power": power,
+                    "voltage": voltage,
+                    "current": current,
+                    "day_kwh": day_kwh,
+                    "month_kwh": month_kwh,
+                    "switch_state": device_data.get("switch"),
+                    "can_switch": device_data.get("canSwitch", False),
+                    "source": "ewelink"
+                },
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        
+        # If not found in eWeLink, try SmartThings
         devices_response = await get_devices_with_sensor_values()
         devices = devices_response.get("devices", [])
         sensors = devices_response.get("sensors", {})
@@ -1890,9 +1955,9 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
                     "current": sensor_values.get("current"),
                     "switch_state": device_data.get("switchState") or device_data.get("switch"),
                     "can_switch": device_data.get("canSwitch", False),
-                    "source": devices_response.get("source", "ewelink"),
+                    "source": "smartthings",
                     # Door/window contact sensor data
-                    "contact": device_data.get("contact"),  # "open" or "closed"
+                    "contact": device_data.get("contact"),
                     "is_contact_sensor": device_data.get("is_contact_sensor", False),
                     "battery": device_data.get("battery"),
                     "last_trigger": device_data.get("last_trigger")
