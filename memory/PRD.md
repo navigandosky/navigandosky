@@ -1,8 +1,27 @@
 # SmartDomo - PRD
 
-## Stato Attuale (18/02/2026)
+## Stato Attuale (19/02/2026)
 
-### ✅ Completato Oggi (18/02/2026)
+### ✅ Completato Oggi (19/02/2026)
+
+#### Fix Vista 3D - Dati Live e Controllo Switch ✅
+- **Problema**: I POI collegati a dispositivi eWeLink non mostravano i dati live né il controllo ON/OFF
+- **Causa**: L'endpoint `get_poi_live_sensor_data()` e `get_all_poi_sensors()` usavano solo SmartThings API, ignorando i dispositivi eWeLink
+- **Fix Applicato**:
+  1. Modificato `get_poi_live_sensor_data()` per cercare prima nei dispositivi eWeLink
+  2. Modificato `get_all_poi_sensors()` per includere entrambi i provider
+  3. Aggiunta conversione valori eWeLink (power/voltage/current divisi per 100)
+- **Verificato**: POI "PC Postazione" mostra:
+  - Dati Live: 205W, 237V, 0.9A
+  - Pulsante "ACCESO" cliccabile per spegnere
+  - Consumi mensili: 18.09 kWh
+
+#### Note su Report Sensori Temperatura
+- I grafici funzionano correttamente ma mostrano pochi punti dati
+- Causa: Il sistema di raccolta dati è attivo solo da poche ore
+- I grafici si popoleranno automaticamente con più letture nel tempo
+
+### ✅ Completato Ieri (18/02/2026)
 
 #### Fix 4 Bug Segnalati dall'Utente ✅
 1. **Bug System Status (SmartDomo mostra 0 dispositivi)**
