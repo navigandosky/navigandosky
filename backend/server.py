@@ -1680,53 +1680,92 @@ async def get_all_poi_sensors(token: Optional[str] = None):
     if not elettros:
         return {"poi_sensors": {}, "count": 0}
     
-    # Get all device data at once
+    # Get all device data at once - from both eWeLink and SmartThings
     try:
+        # Get eWeLink devices first (most common)
+        ewelink_data = await get_ewelink_devices()
+        ewelink_devices = ewelink_data.get("devices", [])
+        ewelink_lookup = {}
+        for d in ewelink_devices:
+            ewelink_lookup[d.get("id")] = d
+            if d.get("deviceid"):
+                ewelink_lookup[d.get("deviceid")] = d
+        
+        # Get SmartThings devices
         devices_response = await get_devices_with_sensor_values()
-        devices = devices_response.get("devices", [])
-        sensors = devices_response.get("sensors", {})
-        states = devices_response.get("states", {})
+        st_devices = devices_response.get("devices", [])
+        st_sensors = devices_response.get("sensors", {})
+        st_states = devices_response.get("states", {})
+        st_lookup = {d.get("id"): d for d in st_devices}
         
-        # Build device lookup
-        device_lookup = {d.get("id"): d for d in devices}
-        
-        # Build POI -> sensor data map (keyed by both matterport_tag_id AND poi_id for frontend compatibility)
+        # Build POI -> sensor data map
         poi_sensors = {}
         for elettro in elettros:
             tag_id = elettro.get("matterport_tag_id")
-            poi_id = elettro.get("poi_id")  # Also support poi_id
+            poi_id = elettro.get("poi_id")
             device_id = elettro.get("smart_plug_id") or elettro.get("smartthings_device_id")
             
             if not device_id:
                 continue
             
-            device = device_lookup.get(device_id)
-            sensor_values = sensors.get(device_id, {})
+            # Try eWeLink first
+            device = ewelink_lookup.get(device_id)
+            if device:
+                params = device.get("params", {})
+                
+                # Parse power/voltage/current (eWeLink sends them multiplied by 100)
+                power = params.get("power")
+                voltage = params.get("voltage")
+                current = params.get("current")
+                
+                if power is not None:
+                    power = float(power) / 100
+                if voltage is not None:
+                    voltage = float(voltage) / 100
+                if current is not None:
+                    current = float(current) / 100
+                
+                sensor_data = {
+                    "apparato_id": elettro.get("id"),
+                    "apparato_nome": elettro.get("nome"),
+                    "device_id": device_id,
+                    "device_name": device.get("name"),
+                    "online": device.get("online", False),
+                    "switch_state": device.get("switch"),
+                    "can_switch": device.get("canSwitch", False),
+                    "temperature": params.get("currentTemperature"),
+                    "humidity": params.get("currentHumidity"),
+                    "power": power,
+                    "voltage": voltage,
+                    "current": current,
+                    "provider": "ewelink"
+                }
+            else:
+                # Try SmartThings
+                device = st_lookup.get(device_id)
+                sensor_values = st_sensors.get(device_id, {})
+                
+                sensor_data = {
+                    "apparato_id": elettro.get("id"),
+                    "apparato_nome": elettro.get("nome"),
+                    "device_id": device_id,
+                    "device_name": device.get("name") if device else None,
+                    "online": device.get("online", False) if device else False,
+                    "switch_state": st_states.get(device_id) or (device.get("switchState") if device else None),
+                    "can_switch": device.get("canSwitch", False) if device else False,
+                    "temperature": sensor_values.get("temperature"),
+                    "humidity": sensor_values.get("humidity"),
+                    "power": sensor_values.get("power"),
+                    "voltage": sensor_values.get("voltage"),
+                    "current": sensor_values.get("current"),
+                    "provider": "smartthings",
+                    "contact": device.get("contact") if device else None,
+                    "is_contact_sensor": device.get("is_contact_sensor", False) if device else False,
+                    "battery": device.get("battery") if device else None
+                }
             
-            sensor_data = {
-                "apparato_id": elettro.get("id"),
-                "apparato_nome": elettro.get("nome"),
-                "device_id": device_id,
-                "device_name": device.get("name") if device else None,
-                "online": device.get("online", False) if device else False,
-                "switch_state": states.get(device_id) or (device.get("switchState") if device else None),
-                "can_switch": device.get("canSwitch", False) if device else False,
-                "temperature": sensor_values.get("temperature"),
-                "humidity": sensor_values.get("humidity"),
-                "power": sensor_values.get("power"),
-                "voltage": sensor_values.get("voltage"),
-                "current": sensor_values.get("current"),
-                "provider": elettro.get("smart_plug_provider", "ewelink"),
-                # Door/window contact sensor data
-                "contact": device.get("contact") if device else None,  # "open" or "closed"
-                "is_contact_sensor": device.get("is_contact_sensor", False) if device else False,
-                "battery": device.get("battery") if device else None,
-                "last_trigger": device.get("last_trigger") if device else None
-            }
-            
-            # Add to map - prefer poi_id as key, fallback to tag_id
-            # Use only one key per sensor to avoid duplicates
-            key = poi_id if poi_id else tag_id
+            # Add to map - use tag_id as key
+            key = tag_id if tag_id else poi_id
             if key:
                 poi_sensors[key] = sensor_data
         
