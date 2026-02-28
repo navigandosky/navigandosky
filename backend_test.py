@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for VisitTadasuni Attractions CMS
-Tests all attractions-related endpoints and admin functionality
+Backend API Testing for Home Tadasuni Real Estate CMS (Immobili)
+Tests all immobili-related endpoints and admin functionality
 """
 
 import requests
@@ -18,7 +18,7 @@ API_BASE = f"{BACKEND_URL}/api"
 ADMIN_USERNAME = "visittadasuni"
 ADMIN_PASSWORD = "Tadasuni2025$"
 
-class AttractionsTester:
+class ImmobiliTester:
     def __init__(self):
         self.session = requests.Session()
         self.admin_token = None
