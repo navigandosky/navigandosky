@@ -4856,7 +4856,13 @@ const ImmobiliPage = ({ lang = "it" }) => {
 
                 {/* CTA */}
                 <div className="flex flex-wrap gap-3">
-                  {selectedImmobile.link_gemello_digitale && <a href={selectedImmobile.link_gemello_digitale} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold flex items-center gap-2">🏠 Esplora nel Gemello Digitale</a>}
+                  <button 
+                    onClick={() => { setDigitalTwinImmobile(selectedImmobile); setShowDigitalTwin(true); }}
+                    className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold flex items-center gap-2"
+                  >
+                    🌐 Digital Twin Home
+                  </button>
+                  {selectedImmobile.link_gemello_digitale && <a href={selectedImmobile.link_gemello_digitale} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold flex items-center gap-2">🏠 Gemello Digitale Esterno</a>}
                   <a href={`mailto:info@comune.tadasuni.or.it?subject=Richiesta informazioni: ${selectedImmobile.denominazione}`} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2"><Mail size={18} /> Richiedi Informazioni</a>
                   {selectedImmobile.coordinate_gps && <a href={`https://maps.google.com/?q=${selectedImmobile.coordinate_gps}`} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center gap-2"><MapPin size={18} /> Vedi su Mappa</a>}
                 </div>
