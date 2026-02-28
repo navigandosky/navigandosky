@@ -3602,12 +3602,13 @@ const ImmobiliAdminPanel = () => {
     }
   };
 
-  const handleImageUpload = async (immobileId, file, caption = "") => {
+  const handleImageUpload = async (immobileId, file, caption = "", is360 = false) => {
     if (!file) return;
     setUploadingFile(immobileId);
     const fd = new FormData();
     fd.append("file", file);
     fd.append("caption", caption);
+    fd.append("is_360", is360);
     try {
       await axios.post(`${API}/immobili/${immobileId}/images`, fd);
       await fetchImmobili();
