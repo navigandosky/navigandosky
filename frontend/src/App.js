@@ -3429,6 +3429,357 @@ const HomePage = ({ lang, setLang, t }) => {
   );
 };
 
+// ============== DIGITAL TWIN EDITOR ==============
+const DigitalTwinEditor = ({ immobileId }) => {
+  const [twin, setTwin] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [newRoomName, setNewRoomName] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [editingHotspot, setEditingHotspot] = useState(null);
+  const floorPlanRef = useRef(null);
+
+  useEffect(() => {
+    fetchTwin();
+  }, [immobileId]);
+
+  const fetchTwin = async () => {
+    try {
+      const response = await axios.get(`${API}/immobili/${immobileId}/digital-twin`);
+      setTwin(response.data);
+      if (response.data?.rooms?.length > 0 && !selectedRoom) {
+        setSelectedRoom(response.data.rooms[0]);
+      }
+    } catch (error) {
+      console.error("Error loading digital twin:", error);
+    }
+    setLoading(false);
+  };
+
+  const handleFloorPlanUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      await axios.post(`${API}/immobili/${immobileId}/digital-twin/floor-plan`, fd);
+      fetchTwin();
+    } catch (error) {
+      alert("Errore upload planimetria");
+    }
+    setUploading(false);
+  };
+
+  const handleRoomUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !newRoomName.trim()) {
+      alert("Inserisci un nome per la stanza");
+      return;
+    }
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("name", newRoomName.trim());
+    try {
+      const response = await axios.post(`${API}/immobili/${immobileId}/digital-twin/rooms`, fd);
+      setNewRoomName("");
+      fetchTwin();
+      if (response.data.room) {
+        setSelectedRoom(response.data.room);
+      }
+    } catch (error) {
+      alert("Errore upload stanza 360°");
+    }
+    setUploading(false);
+  };
+
+  const handleDeleteRoom = async (roomId) => {
+    if (!window.confirm("Eliminare questa stanza?")) return;
+    try {
+      await axios.delete(`${API}/immobili/${immobileId}/digital-twin/rooms/${roomId}`);
+      if (selectedRoom?.id === roomId) setSelectedRoom(null);
+      fetchTwin();
+    } catch (error) {
+      alert("Errore eliminazione stanza");
+    }
+  };
+
+  const handleFloorPlanClick = async (e) => {
+    if (!selectedRoom || !floorPlanRef.current) return;
+    const rect = floorPlanRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    
+    try {
+      await axios.put(`${API}/immobili/${immobileId}/digital-twin/rooms/${selectedRoom.id}`, {
+        floor_plan_x: x,
+        floor_plan_y: y
+      });
+      fetchTwin();
+    } catch (error) {
+      alert("Errore posizionamento stanza");
+    }
+  };
+
+  const handleAddHotspot = async (targetRoomId) => {
+    if (!selectedRoom) return;
+    try {
+      const targetRoom = twin.rooms.find(r => r.id === targetRoomId);
+      await axios.post(`${API}/immobili/${immobileId}/digital-twin/rooms/${selectedRoom.id}/hotspots`, {
+        target_room_id: targetRoomId,
+        label: `Vai a ${targetRoom?.name || 'stanza'}`,
+        position_yaw: 0,
+        position_pitch: 0
+      });
+      fetchTwin();
+    } catch (error) {
+      alert("Errore aggiunta collegamento");
+    }
+  };
+
+  const handleDeleteHotspot = async (hotspotId) => {
+    if (!selectedRoom) return;
+    try {
+      await axios.delete(`${API}/immobili/${immobileId}/digital-twin/rooms/${selectedRoom.id}/hotspots/${hotspotId}`);
+      fetchTwin();
+    } catch (error) {
+      alert("Errore eliminazione collegamento");
+    }
+  };
+
+  const handlePublishToggle = async () => {
+    try {
+      await axios.post(`${API}/immobili/${immobileId}/digital-twin`, {
+        ...twin,
+        is_published: !twin?.is_published
+      });
+      fetchTwin();
+    } catch (error) {
+      alert("Errore aggiornamento stato pubblicazione");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-lg text-purple-900 border-b pb-2 flex items-center gap-2">
+          🌐 Digital Twin Home
+        </h3>
+        {twin?.rooms?.length > 0 && (
+          <button 
+            onClick={handlePublishToggle}
+            className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 ${
+              twin?.is_published 
+                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {twin?.is_published ? <CheckCircle size={18} /> : <EyeOff size={18} />}
+            {twin?.is_published ? 'Pubblicato' : 'Non pubblicato'}
+          </button>
+        )}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Left: Floor Plan */}
+        <div className="bg-purple-50 rounded-xl p-4">
+          <h4 className="font-medium text-purple-800 mb-3 flex items-center gap-2">
+            🗺️ Planimetria
+          </h4>
+          
+          {twin?.floor_plan_url ? (
+            <div className="relative">
+              <img 
+                ref={floorPlanRef}
+                src={`${BACKEND_URL}${twin.floor_plan_url}`} 
+                alt="Planimetria" 
+                className="w-full rounded-lg border-2 border-purple-200 cursor-crosshair"
+                onClick={handleFloorPlanClick}
+              />
+              {/* Room markers */}
+              {twin.rooms?.filter(r => r.floor_plan_x != null).map(room => (
+                <div
+                  key={room.id}
+                  className={`absolute w-6 h-6 rounded-full transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-xs font-bold cursor-pointer transition ${
+                    selectedRoom?.id === room.id 
+                      ? 'bg-purple-600 text-white ring-4 ring-purple-300 scale-125' 
+                      : 'bg-blue-500 text-white hover:scale-110'
+                  }`}
+                  style={{ left: `${room.floor_plan_x}%`, top: `${room.floor_plan_y}%` }}
+                  onClick={(e) => { e.stopPropagation(); setSelectedRoom(room); }}
+                  title={room.name}
+                >
+                  {twin.rooms.indexOf(room) + 1}
+                </div>
+              ))}
+              <p className="text-xs text-purple-600 mt-2">
+                💡 Seleziona una stanza e clicca sulla planimetria per posizionarla
+              </p>
+              <label className="mt-2 inline-block px-3 py-1 bg-purple-200 hover:bg-purple-300 text-purple-800 rounded cursor-pointer text-sm">
+                <input type="file" accept="image/*" className="hidden" onChange={handleFloorPlanUpload} />
+                Cambia planimetria
+              </label>
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center">
+              <Map size={48} className="mx-auto mb-3 text-purple-400" />
+              <p className="text-purple-600 mb-3">Carica la planimetria dell'immobile</p>
+              <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg cursor-pointer inline-flex items-center gap-2">
+                <input type="file" accept="image/*" className="hidden" onChange={handleFloorPlanUpload} disabled={uploading} />
+                <Upload size={18} /> {uploading ? 'Caricamento...' : 'Carica Planimetria'}
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Rooms Management */}
+        <div className="bg-blue-50 rounded-xl p-4">
+          <h4 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
+            📸 Stanze 360° ({twin?.rooms?.length || 0})
+          </h4>
+
+          {/* Add new room */}
+          <div className="bg-white rounded-lg p-3 mb-4 space-y-2">
+            <input 
+              type="text" 
+              value={newRoomName}
+              onChange={(e) => setNewRoomName(e.target.value)}
+              placeholder="Nome stanza (es. Ingresso, Soggiorno...)"
+              className="w-full px-3 py-2 border rounded-lg text-sm"
+            />
+            <label className={`w-full px-4 py-2 rounded-lg cursor-pointer flex items-center justify-center gap-2 ${
+              newRoomName.trim() ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}>
+              <input 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleRoomUpload} 
+                disabled={!newRoomName.trim() || uploading}
+              />
+              <Upload size={18} /> {uploading ? 'Caricamento...' : 'Carica Foto 360°'}
+            </label>
+          </div>
+
+          {/* Rooms list */}
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {twin?.rooms?.length === 0 && (
+              <p className="text-gray-500 text-sm text-center py-4">
+                Nessuna stanza. Aggiungi la prima foto 360°.
+              </p>
+            )}
+            {twin?.rooms?.map((room, idx) => (
+              <div 
+                key={room.id}
+                className={`bg-white rounded-lg p-3 cursor-pointer transition ${
+                  selectedRoom?.id === room.id ? 'ring-2 ring-purple-500' : 'hover:bg-gray-50'
+                }`}
+                onClick={() => setSelectedRoom(room)}
+              >
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={`${BACKEND_URL}${room.image_360_url}`} 
+                    alt={room.name}
+                    className="w-16 h-16 object-cover rounded-lg"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-800">{idx + 1}. {room.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {room.floor_plan_x != null ? '✅ Posizionata' : '⚠️ Non posizionata'}
+                      {' · '}
+                      {room.hotspots?.length || 0} collegamenti
+                    </p>
+                  </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id); }}
+                    className="p-2 text-red-500 hover:bg-red-100 rounded"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Selected Room Details & Hotspots */}
+      {selectedRoom && (
+        <div className="bg-gray-50 rounded-xl p-4">
+          <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+            🔗 Collegamenti da "{selectedRoom.name}"
+          </h4>
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Current hotspots */}
+            <div>
+              <p className="text-sm text-gray-600 mb-2">Collegamenti attivi:</p>
+              {selectedRoom.hotspots?.length === 0 ? (
+                <p className="text-gray-400 text-sm">Nessun collegamento</p>
+              ) : (
+                <div className="space-y-2">
+                  {selectedRoom.hotspots?.map(hotspot => {
+                    const targetRoom = twin.rooms.find(r => r.id === hotspot.target_room_id);
+                    return (
+                      <div key={hotspot.id} className="flex items-center justify-between bg-white p-2 rounded-lg">
+                        <span className="text-sm">→ {targetRoom?.name || 'Stanza eliminata'}</span>
+                        <button onClick={() => handleDeleteHotspot(hotspot.id)} className="text-red-500 hover:bg-red-100 p-1 rounded">
+                          <X size={16} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Add new hotspot */}
+            <div>
+              <p className="text-sm text-gray-600 mb-2">Aggiungi collegamento a:</p>
+              <div className="space-y-1">
+                {twin.rooms?.filter(r => r.id !== selectedRoom.id && !selectedRoom.hotspots?.some(h => h.target_room_id === r.id)).map(room => (
+                  <button
+                    key={room.id}
+                    onClick={() => handleAddHotspot(room.id)}
+                    className="w-full text-left px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg text-sm flex items-center gap-2"
+                  >
+                    <Plus size={14} /> {room.name}
+                  </button>
+                ))}
+                {twin.rooms?.filter(r => r.id !== selectedRoom.id && !selectedRoom.hotspots?.some(h => h.target_room_id === r.id)).length === 0 && (
+                  <p className="text-gray-400 text-sm">Tutte le stanze sono già collegate</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preview link */}
+      {twin?.rooms?.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="font-medium text-purple-800">🎉 Tour Virtuale Configurato!</p>
+            <p className="text-sm text-purple-600">{twin.rooms.length} stanze · {twin.rooms.reduce((acc, r) => acc + (r.hotspots?.length || 0), 0)} collegamenti</p>
+          </div>
+          <p className="text-xs text-purple-500">
+            Visibile nella vetrina pubblica quando pubblicato
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ============== HOME TADASUNI - IMMOBILI ADMIN PANEL ==============
 const ImmobiliAdminPanel = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
