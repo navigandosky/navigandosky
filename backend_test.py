@@ -247,9 +247,9 @@ class ImmobiliTester:
             return False
     
     def test_image_upload(self):
-        """Test image upload for attraction"""
-        if not self.test_attraction_id:
-            self.log_result("Image Upload", False, "No test attraction ID available")
+        """Test image upload for property"""
+        if not self.test_immobile_id:
+            self.log_result("Image Upload", False, "No test property ID available")
             return False
             
         try:
