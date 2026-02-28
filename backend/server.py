@@ -341,6 +341,7 @@ class ImmobileImage(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     url: str
     caption: Optional[str] = None
+    is_360: bool = False  # Flag for 360° panoramic images
 
 # Referente model for immobili
 class Referente(BaseModel):
