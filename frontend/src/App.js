@@ -3566,6 +3566,16 @@ const ImmobiliAdminPanel = () => {
     }
   };
 
+  // Helper function to refresh current editing immobile
+  const refreshEditingImmobile = async (immobileId) => {
+    try {
+      const response = await axios.get(`${API}/immobili/${immobileId}`);
+      setEditingImmobile(response.data);
+    } catch (error) {
+      console.error("Errore refresh immobile:", error);
+    }
+  };
+
   const handleImageUpload = async (immobileId, file, caption = "") => {
     if (!file) return;
     setUploadingFile(immobileId);
@@ -3574,7 +3584,11 @@ const ImmobiliAdminPanel = () => {
     fd.append("caption", caption);
     try {
       await axios.post(`${API}/immobili/${immobileId}/images`, fd);
-      fetchImmobili();
+      await fetchImmobili();
+      // Refresh editingImmobile if we're editing this one
+      if (editingImmobile && editingImmobile.id === immobileId) {
+        await refreshEditingImmobile(immobileId);
+      }
     } catch (error) {
       alert("Errore upload immagine");
     }
@@ -3585,7 +3599,11 @@ const ImmobiliAdminPanel = () => {
     if (!window.confirm("Eliminare questa foto?")) return;
     try {
       await axios.delete(`${API}/immobili/${immobileId}/images/${imageId}`);
-      fetchImmobili();
+      await fetchImmobili();
+      // Refresh editingImmobile if we're editing this one
+      if (editingImmobile && editingImmobile.id === immobileId) {
+        await refreshEditingImmobile(immobileId);
+      }
     } catch (error) {
       alert("Errore eliminazione immagine");
     }
@@ -3600,7 +3618,11 @@ const ImmobiliAdminPanel = () => {
     fd.append("section", section);
     try {
       await axios.post(`${API}/immobili/${immobileId}/attachments`, fd);
-      fetchImmobili();
+      await fetchImmobili();
+      // Refresh editingImmobile to show new attachment in tab
+      if (editingImmobile && editingImmobile.id === immobileId) {
+        await refreshEditingImmobile(immobileId);
+      }
     } catch (error) {
       alert("Errore upload allegato");
     }
