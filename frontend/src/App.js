@@ -3153,7 +3153,7 @@ const HomePage = ({ lang, setLang, t }) => {
             <div>
               <h2 className="text-4xl font-serif font-bold text-stone-800 mb-6">{t.aboutTitle}</h2>
               <p className="text-lg text-stone-600 mb-8 leading-relaxed">{t.aboutDesc}</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-emerald-50 rounded-xl p-4">
                   <MapPin className="text-emerald-600 mb-2" size={28} />
                   <p className="font-semibold text-stone-800">180m</p>
@@ -3165,6 +3165,19 @@ const HomePage = ({ lang, setLang, t }) => {
                   <p className="text-sm text-stone-600">Abitanti</p>
                 </div>
               </div>
+              {/* Home Tadasuni - Borgo Experience */}
+              <Link to="/immobili" className="block bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-5 hover:from-blue-700 hover:to-indigo-800 transition-all shadow-lg hover:shadow-xl group">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/20 backdrop-blur rounded-lg p-3">
+                    <Landmark className="text-white" size={32} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-bold text-lg">Borgo Experience</p>
+                    <p className="text-blue-100 text-sm">Trova la tua casa nel borgo</p>
+                  </div>
+                  <ExternalLink className="text-white/70 group-hover:text-white transition" size={24} />
+                </div>
+              </Link>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <img src={images.casaPinna} alt="Casa Pinna" className="rounded-2xl shadow-lg h-48 w-full object-cover" />
