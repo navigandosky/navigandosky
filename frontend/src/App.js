@@ -3594,6 +3594,96 @@ const ImmobiliAdminPanel = () => {
     setUploadingFile(null);
   };
 
+  // Export handlers
+  const handleExportExcel = async () => {
+    try {
+      const response = await axios.get(`${API}/immobili/export/excel`);
+      const data = response.data.data;
+      // Create CSV content
+      const headers = ["Denominazione", "Indirizzo", "Comune", "Tipologia", "Superficie (mq)", "Vani", "Anno", "Stato", "Prezzo (€)", "Pubblicato"];
+      const rows = data.map(imm => [
+        imm.denominazione || "",
+        imm.indirizzo_via || "",
+        imm.indirizzo_comune || "",
+        imm.tipologia || "",
+        imm.superficie_lorda_mq || "",
+        imm.n_vani || "",
+        imm.anno_costruzione || "",
+        imm.stato_conservazione || "",
+        imm.prezzo_richiesto || "",
+        imm.published ? "Si" : "No"
+      ]);
+      const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+      // Download
+      const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `immobili_tadasuni_${new Date().toISOString().split("T")[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert("Errore durante l'esportazione Excel");
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      const response = await axios.get(`${API}/immobili/export/pdf`);
+      const data = response.data.data;
+      // Create printable HTML
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Home Tadasuni - Report Immobili</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
+            .immobile { border: 1px solid #ddd; margin-bottom: 20px; padding: 15px; border-radius: 8px; page-break-inside: avoid; }
+            .immobile h2 { margin: 0 0 10px 0; color: #1e3a8a; }
+            .info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .info p { margin: 5px 0; }
+            .label { color: #666; }
+            .footer { margin-top: 30px; text-align: center; color: #666; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <h1>🏠 Home Tadasuni - Catalogo Immobili</h1>
+          <p>Generato il ${new Date().toLocaleDateString("it-IT")} - Totale: ${data.length} immobili</p>
+          ${data.map(imm => `
+            <div class="immobile">
+              <h2>${imm.denominazione}</h2>
+              <div class="info">
+                <p><span class="label">Indirizzo:</span> ${imm.indirizzo_via || "-"}, ${imm.indirizzo_comune}</p>
+                <p><span class="label">Tipologia:</span> ${imm.tipologia || "-"}</p>
+                <p><span class="label">Superficie:</span> ${imm.superficie_lorda_mq ? imm.superficie_lorda_mq + " mq" : "-"}</p>
+                <p><span class="label">Vani:</span> ${imm.n_vani || "-"}</p>
+                <p><span class="label">Anno:</span> ${imm.anno_costruzione || "-"}</p>
+                <p><span class="label">Stato:</span> ${imm.stato_conservazione || "-"}</p>
+                <p><span class="label">Prezzo:</span> ${imm.prezzo_richiesto ? "€ " + imm.prezzo_richiesto.toLocaleString() : "Su richiesta"}</p>
+                <p><span class="label">Pubblicato:</span> ${imm.published ? "Si" : "No"}</p>
+              </div>
+              ${imm.descrizione_narrativa ? `<p style="margin-top:10px;"><em>${imm.descrizione_narrativa}</em></p>` : ""}
+            </div>
+          `).join("")}
+          <div class="footer">
+            <p>Home Tadasuni - Tadasuni Borgo Experience</p>
+            <p>Trivor srl - Fairsgate srl</p>
+          </div>
+        </body>
+        </html>
+      `;
+      // Open print window
+      const printWindow = window.open("", "_blank");
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.print();
+    } catch (error) {
+      alert("Errore durante l'esportazione PDF");
+    }
+  };
+
   // Referenti helpers
   const addReferente = () => {
     setFormData({...formData, referenti: [...(formData.referenti || []), { id: Date.now().toString(), nominativo: "", contatti: "" }]});
