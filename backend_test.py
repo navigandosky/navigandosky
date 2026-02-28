@@ -275,6 +275,7 @@ class ImmobiliTester:
             if response.status_code == 200:
                 data = response.json()
                 if data.get("success") and data.get("image"):
+                    self.test_image_id = data["image"].get("id")
                     self.log_result("Image Upload", True, f"Image uploaded: {data['image'].get('url')}")
                     return True
                 else:
