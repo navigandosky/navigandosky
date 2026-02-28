@@ -342,6 +342,18 @@ class ImmobileImage(BaseModel):
     url: str
     caption: Optional[str] = None
 
+# Referente model for immobili
+class Referente(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    nominativo: str
+    contatti: Optional[str] = None
+
+# Impianto model for immobili
+class Impianto(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    descrizione: str
+    data_certificazione: Optional[str] = None
+
 class ImmobileCreate(BaseModel):
     # I. ANAGRAFICA GENERALE
     ente_proprietario: Optional[str] = None
@@ -350,6 +362,16 @@ class ImmobileCreate(BaseModel):
     indirizzo_comune: str = "Tadasuni"
     indirizzo_provincia: str = "OR"
     indirizzo_regione: str = "Sardegna"
+    # Proprietario details
+    proprietario_nome: Optional[str] = None
+    proprietario_cognome: Optional[str] = None
+    proprietario_data_nascita: Optional[str] = None
+    proprietario_cf: Optional[str] = None
+    proprietario_residenza: Optional[str] = None
+    proprietario_telefono: Optional[str] = None
+    proprietario_email: Optional[str] = None
+    proprietario_riferimenti: Optional[str] = None
+    proprietario_note: Optional[str] = None
     
     # II. CLASSIFICAZIONE DEL BENE
     tipo_bene: str = "edificato"  # edificato, non_edificato
@@ -378,6 +400,7 @@ class ImmobileCreate(BaseModel):
     volume_entro_terra_mc: Optional[float] = None
     volume_fuori_terra_mc: Optional[float] = None
     n_vani: Optional[int] = None
+    planimetrie_presenti: bool = False
     
     # V. UBICAZIONE
     localizzazione_omi: Optional[str] = None
@@ -392,6 +415,7 @@ class ImmobileCreate(BaseModel):
     # VII. STATO E CONSERVAZIONE
     anno_costruzione: Optional[int] = None
     stato_conservazione: Optional[str] = None  # ottimo, buono, mediocre, pessimo
+    data_ultima_manutenzione: Optional[str] = None
     stato_occupazione: Optional[str] = None  # libero, occupato
     soggetto_occupante: Optional[str] = None
     natura_giuridica_occupazione: Optional[str] = None
@@ -402,6 +426,7 @@ class ImmobileCreate(BaseModel):
     tipo_vincoli: Optional[str] = None
     conformita_urbanistica: bool = False
     destinazione_urbanistica_attuale: Optional[str] = None
+    destinazioni_urbanistiche_lista: Optional[List[str]] = None  # Dynamic list
     destinazione_urbanistica_prevista: Optional[str] = None
     iter_cambio_destinazione: Optional[str] = None
     titolo_legittimita: Optional[str] = None
@@ -415,6 +440,7 @@ class ImmobileCreate(BaseModel):
     tipo_riscaldamento: Optional[str] = None
     connessione_internet: bool = False
     tipo_connessione: Optional[str] = None
+    impianti_lista: Optional[List[dict]] = None  # List of {descrizione, data_certificazione}
     
     # X. MARKETING E VALORIZZAZIONE
     prezzo_richiesto: Optional[float] = None
