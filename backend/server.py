@@ -1541,8 +1541,13 @@ async def delete_immobile(immobile_id: str):
 
 # Immobili Images
 @api_router.post("/immobili/{immobile_id}/images")
-async def upload_immobile_image(immobile_id: str, file: UploadFile = File(...), caption: str = Form(None)):
-    """Upload image for property"""
+async def upload_immobile_image(
+    immobile_id: str, 
+    file: UploadFile = File(...), 
+    caption: str = Form(None),
+    is_360: bool = Form(False)
+):
+    """Upload image for property (supports 360° panoramic images)"""
     immobile = await db.immobili.find_one({"id": immobile_id})
     if not immobile:
         raise HTTPException(status_code=404, detail="Immobile non trovato")
@@ -1566,7 +1571,8 @@ async def upload_immobile_image(immobile_id: str, file: UploadFile = File(...), 
     image_data = {
         "id": file_id,
         "url": f"/api/uploads/{filename}",
-        "caption": caption
+        "caption": caption,
+        "is_360": is_360
     }
     
     await db.immobili.update_one(
