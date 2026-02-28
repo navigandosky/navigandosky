@@ -3401,6 +3401,805 @@ const HomePage = ({ lang, setLang, t }) => {
   );
 };
 
+// ============== HOME TADASUNI - IMMOBILI ADMIN PANEL ==============
+const ImmobiliAdminPanel = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem("adminToken") || "");
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
+  const [loginError, setLoginError] = useState("");
+  const [immobili, setImmobili] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingImmobile, setEditingImmobile] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(null);
+  const [activeSection, setActiveSection] = useState("anagrafica");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterTipologia, setFilterTipologia] = useState("all");
+  const [filterStato, setFilterStato] = useState("all");
+
+  const emptyImmobile = {
+    ente_proprietario: "", denominazione: "", indirizzo_via: "", indirizzo_comune: "Tadasuni", indirizzo_provincia: "OR", indirizzo_regione: "Sardegna",
+    tipo_bene: "edificato", destinazione_uso: "", tipologia: "",
+    catasto_sezione_urbana: "", catasto_foglio: "", catasto_particella: "", catasto_subalterno: "", catasto_categoria: "", terreno_foglio: "", terreno_particella: "",
+    superficie_lorda_mq: "", superficie_fondiaria_mq: "", n_edifici: "", n_piani_fuori_terra: "", n_piani_entro_terra: "", collegamenti_impianti: "", superficie_coperta_mq: "", superficie_scoperta_mq: "", volume_entro_terra_mc: "", volume_fuori_terra_mc: "", n_vani: "",
+    localizzazione_omi: "", coordinate_gps: "", link_gemello_digitale: "",
+    certificato_energetico: false, classe_energetica: "", cdu: false,
+    anno_costruzione: "", stato_conservazione: "", stato_occupazione: "", soggetto_occupante: "", natura_giuridica_occupazione: "", tipo_occupazione_durata: "",
+    presenza_vincoli: false, tipo_vincoli: "", conformita_urbanistica: false, destinazione_urbanistica_attuale: "", destinazione_urbanistica_prevista: "", iter_cambio_destinazione: "", titolo_legittimita: "", conformita_catastale: false,
+    impianto_idrico: false, impianto_elettrico: false, impianto_fognario: false, riscaldamento: false, tipo_riscaldamento: "", connessione_internet: false, tipo_connessione: "",
+    prezzo_richiesto: "", prezzo_mq: "", prezzo_pubblico: false, descrizione_narrativa: "", punti_forza: "", target_ideale: "", potenzialita_uso: "",
+    responsabile_tecnico: "", esaminatore: "", published: true
+  };
+
+  const [formData, setFormData] = useState(emptyImmobile);
+
+  const tipologieOptions = [
+    { value: "casa_singola", label: "Casa Singola" },
+    { value: "villetta", label: "Villetta" },
+    { value: "appartamento", label: "Appartamento" },
+    { value: "magazzino", label: "Magazzino" },
+    { value: "ex_stalla", label: "Ex Stalla" },
+    { value: "rudere", label: "Rudere" },
+    { value: "terreno", label: "Terreno" },
+    { value: "altro", label: "Altro" }
+  ];
+
+  const statoConservazioneOptions = [
+    { value: "ottimo", label: "Ottimo" },
+    { value: "buono", label: "Buono" },
+    { value: "mediocre", label: "Mediocre" },
+    { value: "pessimo", label: "Pessimo" },
+    { value: "da_ristrutturare", label: "Da Ristrutturare" }
+  ];
+
+  const targetOptions = [
+    { value: "nomadi_digitali", label: "Nomadi Digitali" },
+    { value: "over_55", label: "Over 55" },
+    { value: "famiglie", label: "Famiglie" },
+    { value: "investitori", label: "Investitori" },
+    { value: "artigiani", label: "Artigiani/Artisti" }
+  ];
+
+  useEffect(() => {
+    if (token) {
+      setIsLoggedIn(true);
+      fetchImmobili();
+    }
+  }, [token]);
+
+  const fetchImmobili = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API}/immobili`);
+      setImmobili(response.data);
+    } catch (error) {
+      console.error("Error fetching immobili:", error);
+    }
+    setLoading(false);
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (loginForm.username === "visittadasuni" && loginForm.password === "Tadasuni2025$") {
+      localStorage.setItem("adminToken", "authenticated");
+      setToken("authenticated");
+      setIsLoggedIn(true);
+      setLoginError("");
+      fetchImmobili();
+    } else {
+      setLoginError("Credenziali non valide");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("adminToken");
+    setToken("");
+    setIsLoggedIn(false);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const dataToSend = { ...formData };
+      // Convert numeric fields
+      ["superficie_lorda_mq", "superficie_fondiaria_mq", "superficie_coperta_mq", "superficie_scoperta_mq", "volume_entro_terra_mc", "volume_fuori_terra_mc", "prezzo_richiesto", "prezzo_mq"].forEach(f => {
+        if (dataToSend[f]) dataToSend[f] = parseFloat(dataToSend[f]);
+      });
+      ["n_edifici", "n_piani_fuori_terra", "n_piani_entro_terra", "n_vani", "anno_costruzione"].forEach(f => {
+        if (dataToSend[f]) dataToSend[f] = parseInt(dataToSend[f]);
+      });
+
+      if (editingImmobile) {
+        await axios.put(`${API}/immobili/${editingImmobile.id}`, dataToSend);
+      } else {
+        await axios.post(`${API}/immobili`, dataToSend);
+      }
+      fetchImmobili();
+      setShowForm(false);
+      setEditingImmobile(null);
+      setFormData(emptyImmobile);
+    } catch (error) {
+      alert("Errore nel salvataggio");
+    }
+  };
+
+  const handleEdit = (immobile) => {
+    setEditingImmobile(immobile);
+    setFormData({
+      ...emptyImmobile,
+      ...Object.fromEntries(Object.entries(immobile).map(([k, v]) => [k, v ?? ""]))
+    });
+    setShowForm(true);
+    setActiveSection("anagrafica");
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Eliminare questo immobile?")) return;
+    try {
+      await axios.delete(`${API}/immobili/${id}`);
+      fetchImmobili();
+    } catch (error) {
+      alert("Errore nell'eliminazione");
+    }
+  };
+
+  const handleImageUpload = async (immobileId, file) => {
+    if (!file) return;
+    setUploadingFile(immobileId);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("caption", "");
+    try {
+      await axios.post(`${API}/immobili/${immobileId}/images`, fd);
+      fetchImmobili();
+    } catch (error) {
+      alert("Errore upload immagine");
+    }
+    setUploadingFile(null);
+  };
+
+  const handleImageDelete = async (immobileId, imageId) => {
+    try {
+      await axios.delete(`${API}/immobili/${immobileId}/images/${imageId}`);
+      fetchImmobili();
+    } catch (error) {
+      alert("Errore eliminazione immagine");
+    }
+  };
+
+  const handleAttachmentUpload = async (immobileId, file, description, section) => {
+    if (!file) return;
+    setUploadingFile(immobileId);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("description", description || file.name);
+    fd.append("section", section);
+    try {
+      await axios.post(`${API}/immobili/${immobileId}/attachments`, fd);
+      fetchImmobili();
+    } catch (error) {
+      alert("Errore upload allegato");
+    }
+    setUploadingFile(null);
+  };
+
+  const handleAttachmentDelete = async (immobileId, attachmentId) => {
+    try {
+      await axios.delete(`${API}/immobili/${immobileId}/attachments/${attachmentId}`);
+      fetchImmobili();
+    } catch (error) {
+      alert("Errore eliminazione allegato");
+    }
+  };
+
+  const filteredImmobili = immobili.filter(imm => {
+    const matchSearch = imm.denominazione?.toLowerCase().includes(searchTerm.toLowerCase()) || imm.indirizzo_via?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchTipologia = filterTipologia === "all" || imm.tipologia === filterTipologia;
+    const matchStato = filterStato === "all" || imm.stato_conservazione === filterStato;
+    return matchSearch && matchTipologia && matchStato;
+  });
+
+  const getTipologiaLabel = (value) => tipologieOptions.find(t => t.value === value)?.label || value;
+  const getStatoLabel = (value) => statoConservazioneOptions.find(s => s.value === value)?.label || value;
+
+  const sections = [
+    { id: "anagrafica", label: "Anagrafica", icon: "📋" },
+    { id: "classificazione", label: "Classificazione", icon: "🏠" },
+    { id: "catastale", label: "Dati Catastali", icon: "📑" },
+    { id: "dimensioni", label: "Dimensioni", icon: "📐" },
+    { id: "ubicazione", label: "Ubicazione", icon: "📍" },
+    { id: "certificazioni", label: "Certificazioni", icon: "📜" },
+    { id: "stato", label: "Stato e Conservazione", icon: "🔧" },
+    { id: "vincoli", label: "Vincoli e Conformità", icon: "⚖️" },
+    { id: "impianti", label: "Impianti", icon: "⚡" },
+    { id: "marketing", label: "Marketing", icon: "💰" },
+    { id: "responsabili", label: "Responsabili", icon: "👤" }
+  ];
+
+  // Login screen
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 flex items-center justify-center p-4">
+        <form onSubmit={handleLogin} className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-800">🏠 Home Tadasuni</h1>
+            <p className="text-gray-500 text-sm">Gestione Immobili</p>
+          </div>
+          {loginError && <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4 text-sm">{loginError}</div>}
+          <div className="space-y-4">
+            <input type="text" placeholder="Username" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} className="w-full px-4 py-3 border rounded-lg" required />
+            <input type="password" placeholder="Password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} className="w-full px-4 py-3 border rounded-lg" required />
+            <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold">Accedi</button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-blue-900 text-white py-4 px-6 shadow-lg">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold">🏠 Home Tadasuni</h1>
+            <span className="text-blue-300 text-sm">Gestione Immobili</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link to="/immobili" className="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-lg text-sm flex items-center gap-2"><Eye size={16} /> Vetrina Pubblica</Link>
+            <Link to="/" className="px-4 py-2 bg-blue-800 hover:bg-blue-700 rounded-lg text-sm">Sito Principale</Link>
+            <button onClick={handleLogout} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm flex items-center gap-2"><LogOut size={16} /> Esci</button>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Toolbar */}
+        <div className="flex flex-wrap gap-4 mb-6 items-center justify-between">
+          <div className="flex gap-3 items-center flex-wrap">
+            <input type="text" placeholder="🔍 Cerca immobile..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="px-4 py-2 border rounded-lg w-64" />
+            <select value={filterTipologia} onChange={(e) => setFilterTipologia(e.target.value)} className="px-4 py-2 border rounded-lg">
+              <option value="all">Tutte le tipologie</option>
+              {tipologieOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            <select value={filterStato} onChange={(e) => setFilterStato(e.target.value)} className="px-4 py-2 border rounded-lg">
+              <option value="all">Tutti gli stati</option>
+              {statoConservazioneOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+          <button onClick={() => { setEditingImmobile(null); setFormData(emptyImmobile); setShowForm(true); setActiveSection("anagrafica"); }} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2">
+            <Plus size={20} /> Nuovo Immobile
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-4 shadow"><p className="text-gray-500 text-sm">Totale Immobili</p><p className="text-2xl font-bold text-blue-900">{immobili.length}</p></div>
+          <div className="bg-white rounded-xl p-4 shadow"><p className="text-gray-500 text-sm">Pubblicati</p><p className="text-2xl font-bold text-green-600">{immobili.filter(i => i.published).length}</p></div>
+          <div className="bg-white rounded-xl p-4 shadow"><p className="text-gray-500 text-sm">Da Ristrutturare</p><p className="text-2xl font-bold text-orange-600">{immobili.filter(i => i.stato_conservazione === "da_ristrutturare" || i.stato_conservazione === "pessimo").length}</p></div>
+          <div className="bg-white rounded-xl p-4 shadow"><p className="text-gray-500 text-sm">Liberi</p><p className="text-2xl font-bold text-emerald-600">{immobili.filter(i => i.stato_occupazione === "libero").length}</p></div>
+        </div>
+
+        {/* Form Modal */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden">
+              <div className="bg-blue-900 text-white p-4 flex justify-between items-center">
+                <h2 className="text-xl font-bold">{editingImmobile ? "Modifica Immobile" : "Nuovo Immobile"}</h2>
+                <button onClick={() => setShowForm(false)} className="p-2 hover:bg-blue-800 rounded-lg"><X size={24} /></button>
+              </div>
+              
+              {/* Section Tabs */}
+              <div className="bg-gray-100 p-2 flex flex-wrap gap-1 border-b">
+                {sections.map(sec => (
+                  <button key={sec.id} onClick={() => setActiveSection(sec.id)} className={`px-3 py-2 rounded-lg text-sm font-medium transition ${activeSection === sec.id ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-200"}`}>
+                    {sec.icon} {sec.label}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[60vh]">
+                {/* ANAGRAFICA */}
+                {activeSection === "anagrafica" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">📋 Anagrafica Generale</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Denominazione *</label><input type="text" value={formData.denominazione} onChange={(e) => setFormData({...formData, denominazione: e.target.value})} className="w-full px-4 py-2 border rounded-lg" required /></div>
+                      <div><label className="block text-sm font-medium mb-1">Ente Proprietario</label><input type="text" value={formData.ente_proprietario} onChange={(e) => setFormData({...formData, ente_proprietario: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                    <div className="grid md:grid-cols-4 gap-4">
+                      <div className="md:col-span-2"><label className="block text-sm font-medium mb-1">Via/Piazza</label><input type="text" value={formData.indirizzo_via} onChange={(e) => setFormData({...formData, indirizzo_via: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Comune</label><input type="text" value={formData.indirizzo_comune} onChange={(e) => setFormData({...formData, indirizzo_comune: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Provincia</label><input type="text" value={formData.indirizzo_provincia} onChange={(e) => setFormData({...formData, indirizzo_provincia: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* CLASSIFICAZIONE */}
+                {activeSection === "classificazione" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">🏠 Classificazione del Bene</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Tipo Bene</label>
+                        <select value={formData.tipo_bene} onChange={(e) => setFormData({...formData, tipo_bene: e.target.value})} className="w-full px-4 py-2 border rounded-lg">
+                          <option value="edificato">Edificato</option><option value="non_edificato">Non Edificato</option>
+                        </select>
+                      </div>
+                      <div><label className="block text-sm font-medium mb-1">Tipologia</label>
+                        <select value={formData.tipologia} onChange={(e) => setFormData({...formData, tipologia: e.target.value})} className="w-full px-4 py-2 border rounded-lg">
+                          <option value="">Seleziona...</option>
+                          {tipologieOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                      </div>
+                      <div><label className="block text-sm font-medium mb-1">Destinazione d'uso</label>
+                        <select value={formData.destinazione_uso} onChange={(e) => setFormData({...formData, destinazione_uso: e.target.value})} className="w-full px-4 py-2 border rounded-lg">
+                          <option value="">Seleziona...</option>
+                          <option value="residenziale">Residenziale</option><option value="commerciale">Commerciale</option><option value="agricolo">Agricolo</option><option value="magazzino">Magazzino</option><option value="misto">Misto</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* DATI CATASTALI */}
+                {activeSection === "catastale" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">📑 Dati Catastali</h3>
+                    <h4 className="font-medium text-gray-700">Catasto Fabbricati</h4>
+                    <div className="grid md:grid-cols-5 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Sezione Urbana</label><input type="text" value={formData.catasto_sezione_urbana} onChange={(e) => setFormData({...formData, catasto_sezione_urbana: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Foglio</label><input type="text" value={formData.catasto_foglio} onChange={(e) => setFormData({...formData, catasto_foglio: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Particella</label><input type="text" value={formData.catasto_particella} onChange={(e) => setFormData({...formData, catasto_particella: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Subalterno</label><input type="text" value={formData.catasto_subalterno} onChange={(e) => setFormData({...formData, catasto_subalterno: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Categoria</label><input type="text" value={formData.catasto_categoria} onChange={(e) => setFormData({...formData, catasto_categoria: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                    <h4 className="font-medium text-gray-700 mt-4">Catasto Terreni</h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Foglio</label><input type="text" value={formData.terreno_foglio} onChange={(e) => setFormData({...formData, terreno_foglio: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Particella</label><input type="text" value={formData.terreno_particella} onChange={(e) => setFormData({...formData, terreno_particella: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* DIMENSIONI */}
+                {activeSection === "dimensioni" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">📐 Dimensioni e Struttura</h3>
+                    <div className="grid md:grid-cols-4 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Superficie Lorda (mq)</label><input type="number" step="0.01" value={formData.superficie_lorda_mq} onChange={(e) => setFormData({...formData, superficie_lorda_mq: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Superficie Fondiaria (mq)</label><input type="number" step="0.01" value={formData.superficie_fondiaria_mq} onChange={(e) => setFormData({...formData, superficie_fondiaria_mq: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Superficie Coperta (mq)</label><input type="number" step="0.01" value={formData.superficie_coperta_mq} onChange={(e) => setFormData({...formData, superficie_coperta_mq: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Superficie Scoperta (mq)</label><input type="number" step="0.01" value={formData.superficie_scoperta_mq} onChange={(e) => setFormData({...formData, superficie_scoperta_mq: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                    <div className="grid md:grid-cols-5 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">N. Edifici</label><input type="number" value={formData.n_edifici} onChange={(e) => setFormData({...formData, n_edifici: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Piani F.T.</label><input type="number" value={formData.n_piani_fuori_terra} onChange={(e) => setFormData({...formData, n_piani_fuori_terra: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Piani E.T.</label><input type="number" value={formData.n_piani_entro_terra} onChange={(e) => setFormData({...formData, n_piani_entro_terra: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">N. Vani</label><input type="number" value={formData.n_vani} onChange={(e) => setFormData({...formData, n_vani: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Collegamenti</label><input type="text" value={formData.collegamenti_impianti} onChange={(e) => setFormData({...formData, collegamenti_impianti: e.target.value})} placeholder="Scale, ascensori..." className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Volume E.T. (mc)</label><input type="number" step="0.01" value={formData.volume_entro_terra_mc} onChange={(e) => setFormData({...formData, volume_entro_terra_mc: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Volume F.T. (mc)</label><input type="number" step="0.01" value={formData.volume_fuori_terra_mc} onChange={(e) => setFormData({...formData, volume_fuori_terra_mc: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* UBICAZIONE */}
+                {activeSection === "ubicazione" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">📍 Ubicazione</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Localizzazione OMI</label><input type="text" value={formData.localizzazione_omi} onChange={(e) => setFormData({...formData, localizzazione_omi: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Coordinate GPS</label><input type="text" value={formData.coordinate_gps} onChange={(e) => setFormData({...formData, coordinate_gps: e.target.value})} placeholder="40.0833, 8.9167" className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Link Gemello Digitale</label><input type="url" value={formData.link_gemello_digitale} onChange={(e) => setFormData({...formData, link_gemello_digitale: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* CERTIFICAZIONI */}
+                {activeSection === "certificazioni" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">📜 Certificazioni</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.certificato_energetico} onChange={(e) => setFormData({...formData, certificato_energetico: e.target.checked})} className="w-5 h-5" /><label>Certificato Energetico</label></div>
+                      <div><label className="block text-sm font-medium mb-1">Classe Energetica</label><select value={formData.classe_energetica} onChange={(e) => setFormData({...formData, classe_energetica: e.target.value})} className="w-full px-4 py-2 border rounded-lg"><option value="">N/A</option><option value="A4">A4</option><option value="A3">A3</option><option value="A2">A2</option><option value="A1">A1</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option></select></div>
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.cdu} onChange={(e) => setFormData({...formData, cdu: e.target.checked})} className="w-5 h-5" /><label>CDU (Certificato Destinazione Urbanistica)</label></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* STATO E CONSERVAZIONE */}
+                {activeSection === "stato" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">🔧 Stato e Conservazione</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Anno Costruzione</label><input type="number" value={formData.anno_costruzione} onChange={(e) => setFormData({...formData, anno_costruzione: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Stato Conservazione</label><select value={formData.stato_conservazione} onChange={(e) => setFormData({...formData, stato_conservazione: e.target.value})} className="w-full px-4 py-2 border rounded-lg"><option value="">Seleziona...</option>{statoConservazioneOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></div>
+                      <div><label className="block text-sm font-medium mb-1">Stato Occupazione</label><select value={formData.stato_occupazione} onChange={(e) => setFormData({...formData, stato_occupazione: e.target.value})} className="w-full px-4 py-2 border rounded-lg"><option value="">Seleziona...</option><option value="libero">Libero</option><option value="occupato">Occupato</option></select></div>
+                    </div>
+                    {formData.stato_occupazione === "occupato" && (
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div><label className="block text-sm font-medium mb-1">Soggetto Occupante</label><input type="text" value={formData.soggetto_occupante} onChange={(e) => setFormData({...formData, soggetto_occupante: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                        <div><label className="block text-sm font-medium mb-1">Natura Giuridica</label><input type="text" value={formData.natura_giuridica_occupazione} onChange={(e) => setFormData({...formData, natura_giuridica_occupazione: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                        <div><label className="block text-sm font-medium mb-1">Tipo e Durata</label><input type="text" value={formData.tipo_occupazione_durata} onChange={(e) => setFormData({...formData, tipo_occupazione_durata: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* VINCOLI */}
+                {activeSection === "vincoli" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">⚖️ Vincoli e Conformità</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.presenza_vincoli} onChange={(e) => setFormData({...formData, presenza_vincoli: e.target.checked})} className="w-5 h-5" /><label>Presenza Vincoli</label></div>
+                      {formData.presenza_vincoli && <div><label className="block text-sm font-medium mb-1">Tipo Vincoli</label><input type="text" value={formData.tipo_vincoli} onChange={(e) => setFormData({...formData, tipo_vincoli: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>}
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.conformita_urbanistica} onChange={(e) => setFormData({...formData, conformita_urbanistica: e.target.checked})} className="w-5 h-5" /><label>Conformità Urbanistica</label></div>
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.conformita_catastale} onChange={(e) => setFormData({...formData, conformita_catastale: e.target.checked})} className="w-5 h-5" /><label>Conformità Catastale</label></div>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Destinazione Urbanistica Attuale</label><input type="text" value={formData.destinazione_urbanistica_attuale} onChange={(e) => setFormData({...formData, destinazione_urbanistica_attuale: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Destinazione Urbanistica Prevista</label><input type="text" value={formData.destinazione_urbanistica_prevista} onChange={(e) => setFormData({...formData, destinazione_urbanistica_prevista: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* IMPIANTI */}
+                {activeSection === "impianti" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">⚡ Impianti e Dotazioni</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.impianto_idrico} onChange={(e) => setFormData({...formData, impianto_idrico: e.target.checked})} className="w-5 h-5" /><label>💧 Impianto Idrico</label></div>
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.impianto_elettrico} onChange={(e) => setFormData({...formData, impianto_elettrico: e.target.checked})} className="w-5 h-5" /><label>⚡ Impianto Elettrico</label></div>
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.impianto_fognario} onChange={(e) => setFormData({...formData, impianto_fognario: e.target.checked})} className="w-5 h-5" /><label>🚿 Impianto Fognario</label></div>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.riscaldamento} onChange={(e) => setFormData({...formData, riscaldamento: e.target.checked})} className="w-5 h-5" /><label>🔥 Riscaldamento</label></div>
+                      {formData.riscaldamento && <div><label className="block text-sm font-medium mb-1">Tipo Riscaldamento</label><input type="text" value={formData.tipo_riscaldamento} onChange={(e) => setFormData({...formData, tipo_riscaldamento: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>}
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.connessione_internet} onChange={(e) => setFormData({...formData, connessione_internet: e.target.checked})} className="w-5 h-5" /><label>📶 Connessione Internet</label></div>
+                      {formData.connessione_internet && <div><label className="block text-sm font-medium mb-1">Tipo Connessione</label><input type="text" value={formData.tipo_connessione} onChange={(e) => setFormData({...formData, tipo_connessione: e.target.value})} placeholder="ADSL, Fibra, 4G..." className="w-full px-4 py-2 border rounded-lg" /></div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* MARKETING */}
+                {activeSection === "marketing" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">💰 Marketing e Valorizzazione</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Prezzo Richiesto (€)</label><input type="number" step="0.01" value={formData.prezzo_richiesto} onChange={(e) => setFormData({...formData, prezzo_richiesto: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Prezzo al mq (€)</label><input type="number" step="0.01" value={formData.prezzo_mq} onChange={(e) => setFormData({...formData, prezzo_mq: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg"><input type="checkbox" checked={formData.prezzo_pubblico} onChange={(e) => setFormData({...formData, prezzo_pubblico: e.target.checked})} className="w-5 h-5" /><label>💶 Mostra Prezzo Pubblicamente</label></div>
+                    </div>
+                    <div><label className="block text-sm font-medium mb-1">Descrizione Narrativa</label><textarea value={formData.descrizione_narrativa} onChange={(e) => setFormData({...formData, descrizione_narrativa: e.target.value})} rows={3} placeholder="Racconta la storia di questa casa..." className="w-full px-4 py-2 border rounded-lg"></textarea></div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Punti di Forza</label><input type="text" value={formData.punti_forza} onChange={(e) => setFormData({...formData, punti_forza: e.target.value})} placeholder="Vista lago, silenzioso, vicino servizi..." className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Target Ideale</label><select value={formData.target_ideale} onChange={(e) => setFormData({...formData, target_ideale: e.target.value})} className="w-full px-4 py-2 border rounded-lg"><option value="">Seleziona...</option>{targetOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+                    </div>
+                    <div><label className="block text-sm font-medium mb-1">Potenzialità d'Uso</label><input type="text" value={formData.potenzialita_uso} onChange={(e) => setFormData({...formData, potenzialita_uso: e.target.value})} placeholder="B&B, Atelier, Smart Working, Casa vacanze..." className="w-full px-4 py-2 border rounded-lg" /></div>
+                  </div>
+                )}
+
+                {/* RESPONSABILI */}
+                {activeSection === "responsabili" && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">👤 Responsabili</h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium mb-1">Responsabile Servizio Tecnico</label><input type="text" value={formData.responsabile_tecnico} onChange={(e) => setFormData({...formData, responsabile_tecnico: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div><label className="block text-sm font-medium mb-1">Esaminatore</label><input type="text" value={formData.esaminatore} onChange={(e) => setFormData({...formData, esaminatore: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg"><input type="checkbox" checked={formData.published} onChange={(e) => setFormData({...formData, published: e.target.checked})} className="w-5 h-5" /><label>✅ Pubblica nella Vetrina</label></div>
+                  </div>
+                )}
+
+                {/* Form buttons */}
+                <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                  <button type="button" onClick={() => setShowForm(false)} className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">Annulla</button>
+                  <button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2"><Save size={18} /> Salva Immobile</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Immobili List */}
+        {loading ? (
+          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div></div>
+        ) : filteredImmobili.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl shadow"><Landmark size={48} className="mx-auto mb-4 text-gray-400" /><p className="text-gray-500">Nessun immobile trovato. Clicca "Nuovo Immobile" per iniziare.</p></div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredImmobili.map((imm) => (
+              <div key={imm.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition">
+                {/* Image */}
+                <div className="relative h-48 bg-gray-200">
+                  {imm.images && imm.images.length > 0 ? (
+                    <img src={`${BACKEND_URL}${imm.images[0].url}`} alt={imm.denominazione} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400"><Camera size={48} /></div>
+                  )}
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    {imm.published ? <span className="px-2 py-1 bg-green-500 text-white text-xs rounded">Pubblicato</span> : <span className="px-2 py-1 bg-gray-500 text-white text-xs rounded">Bozza</span>}
+                  </div>
+                  {imm.tipologia && <span className="absolute bottom-2 left-2 px-2 py-1 bg-blue-600 text-white text-xs rounded">{getTipologiaLabel(imm.tipologia)}</span>}
+                </div>
+                {/* Content */}
+                <div className="p-4">
+                  <h3 className="font-bold text-lg text-gray-800 mb-1">{imm.denominazione}</h3>
+                  <p className="text-gray-500 text-sm mb-3">{imm.indirizzo_via}, {imm.indirizzo_comune}</p>
+                  <div className="flex flex-wrap gap-2 mb-3 text-xs text-gray-600">
+                    {imm.superficie_lorda_mq && <span className="bg-gray-100 px-2 py-1 rounded">📐 {imm.superficie_lorda_mq} mq</span>}
+                    {imm.n_vani && <span className="bg-gray-100 px-2 py-1 rounded">🚪 {imm.n_vani} vani</span>}
+                    {imm.stato_conservazione && <span className={`px-2 py-1 rounded ${imm.stato_conservazione === "ottimo" || imm.stato_conservazione === "buono" ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"}`}>{getStatoLabel(imm.stato_conservazione)}</span>}
+                  </div>
+                  {imm.prezzo_richiesto && <p className="text-xl font-bold text-blue-600 mb-3">€ {imm.prezzo_richiesto.toLocaleString()}</p>}
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <button onClick={() => handleEdit(imm)} className="flex-1 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg text-sm flex items-center justify-center gap-1"><Edit size={16} /> Modifica</button>
+                    <button onClick={() => handleDelete(imm.id)} className="py-2 px-3 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg"><Trash2 size={16} /></button>
+                  </div>
+                  {/* Images & Attachments */}
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-gray-500">📸 Foto ({imm.images?.length || 0})</span>
+                      <label className="text-xs text-blue-600 hover:underline cursor-pointer">
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(imm.id, e.target.files[0])} />
+                        + Aggiungi
+                      </label>
+                    </div>
+                    <div className="flex gap-1 flex-wrap">
+                      {imm.images?.slice(0, 4).map(img => (
+                        <div key={img.id} className="relative group">
+                          <img src={`${BACKEND_URL}${img.url}`} className="w-12 h-12 object-cover rounded" alt="" />
+                          <button onClick={() => handleImageDelete(imm.id, img.id)} className="absolute -top-1 -right-1 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 text-xs"><X size={10} /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-gray-500">📎 Allegati ({imm.attachments?.length || 0})</span>
+                      <label className="text-xs text-blue-600 hover:underline cursor-pointer">
+                        <input type="file" className="hidden" onChange={(e) => { const desc = prompt("Descrizione allegato:"); if (desc !== null) handleAttachmentUpload(imm.id, e.target.files[0], desc, "generale"); }} />
+                        + Allega file
+                      </label>
+                    </div>
+                    {imm.attachments?.length > 0 && (
+                      <div className="mt-1 space-y-1">
+                        {imm.attachments.map(att => (
+                          <div key={att.id} className="flex items-center justify-between text-xs bg-gray-50 p-1 rounded">
+                            <span className="truncate flex-1">{att.description || att.filename}</span>
+                            <div className="flex gap-1">
+                              <a href={`${BACKEND_URL}${att.url}`} target="_blank" rel="noopener noreferrer" className="p-1 text-blue-600 hover:bg-blue-100 rounded"><Eye size={12} /></a>
+                              <button onClick={() => handleAttachmentDelete(imm.id, att.id)} className="p-1 text-red-600 hover:bg-red-100 rounded"><Trash2 size={12} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============== HOME TADASUNI - PUBLIC PAGE ==============
+const ImmobiliPage = ({ lang = "it" }) => {
+  const [immobili, setImmobili] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedImmobile, setSelectedImmobile] = useState(null);
+  const [filters, setFilters] = useState({ tipologia: "all", stato: "all", prezzoMax: "", superficieMin: "" });
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const tipologieOptions = [
+    { value: "casa_singola", label: "Casa Singola" },
+    { value: "villetta", label: "Villetta" },
+    { value: "appartamento", label: "Appartamento" },
+    { value: "magazzino", label: "Magazzino" },
+    { value: "rudere", label: "Rudere" },
+    { value: "terreno", label: "Terreno" }
+  ];
+
+  useEffect(() => {
+    fetchImmobili();
+  }, []);
+
+  const fetchImmobili = async () => {
+    try {
+      const response = await axios.get(`${API}/immobili?published_only=true`);
+      setImmobili(response.data);
+    } catch (error) {
+      console.error("Error:", error);
+    }
+    setLoading(false);
+  };
+
+  const filteredImmobili = immobili.filter(imm => {
+    const matchSearch = imm.denominazione?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchTipologia = filters.tipologia === "all" || imm.tipologia === filters.tipologia;
+    const matchStato = filters.stato === "all" || imm.stato_conservazione === filters.stato;
+    const matchPrezzo = !filters.prezzoMax || (imm.prezzo_richiesto && imm.prezzo_richiesto <= parseFloat(filters.prezzoMax));
+    const matchSuperficie = !filters.superficieMin || (imm.superficie_lorda_mq && imm.superficie_lorda_mq >= parseFloat(filters.superficieMin));
+    return matchSearch && matchTipologia && matchStato && matchPrezzo && matchSuperficie;
+  });
+
+  const getTipologiaLabel = (value) => tipologieOptions.find(t => t.value === value)?.label || value;
+
+  return (
+    <div className="min-h-screen bg-stone-50">
+      {/* Header */}
+      <header className="bg-blue-900 text-white py-6">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">🏠 Home Tadasuni</h1>
+              <p className="text-blue-200">Trova la tua casa nel borgo</p>
+            </div>
+            <Link to="/" className="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-lg">← Torna al sito</Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Hero */}
+        <div className="bg-gradient-to-r from-blue-800 to-indigo-900 rounded-2xl p-8 mb-8 text-white">
+          <h2 className="text-2xl font-bold mb-2">Vivi l'esperienza di Tadasuni</h2>
+          <p className="text-blue-200 mb-4">Scopri le case disponibili nel borgo e inizia una nuova vita in Sardegna</p>
+          <div className="flex flex-wrap gap-4">
+            <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2"><span className="text-2xl font-bold">{immobili.length}</span><span className="text-blue-200 ml-2">Immobili</span></div>
+            <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2"><span className="text-2xl font-bold">{immobili.filter(i => i.stato_occupazione === "libero").length}</span><span className="text-blue-200 ml-2">Disponibili</span></div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="flex-1 min-w-[200px]"><label className="block text-sm font-medium text-gray-700 mb-1">🔍 Cerca</label><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Nome o indirizzo..." className="w-full px-4 py-2 border rounded-lg" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Tipologia</label><select value={filters.tipologia} onChange={(e) => setFilters({...filters, tipologia: e.target.value})} className="px-4 py-2 border rounded-lg"><option value="all">Tutte</option>{tipologieOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Stato</label><select value={filters.stato} onChange={(e) => setFilters({...filters, stato: e.target.value})} className="px-4 py-2 border rounded-lg"><option value="all">Tutti</option><option value="ottimo">Ottimo</option><option value="buono">Buono</option><option value="da_ristrutturare">Da Ristrutturare</option></select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Prezzo Max (€)</label><input type="number" value={filters.prezzoMax} onChange={(e) => setFilters({...filters, prezzoMax: e.target.value})} placeholder="es. 50000" className="w-32 px-4 py-2 border rounded-lg" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Superficie Min (mq)</label><input type="number" value={filters.superficieMin} onChange={(e) => setFilters({...filters, superficieMin: e.target.value})} placeholder="es. 50" className="w-32 px-4 py-2 border rounded-lg" /></div>
+          </div>
+        </div>
+
+        {/* Results */}
+        {loading ? (
+          <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div></div>
+        ) : filteredImmobili.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl shadow"><p className="text-gray-500">Nessun immobile corrisponde ai criteri di ricerca.</p></div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredImmobili.map((imm) => (
+              <div key={imm.id} onClick={() => setSelectedImmobile(imm)} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer group">
+                <div className="relative h-56 bg-gray-200">
+                  {imm.images && imm.images.length > 0 ? (
+                    <img src={`${BACKEND_URL}${imm.images[0].url}`} alt={imm.denominazione} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400"><Camera size={64} /></div>
+                  )}
+                  {imm.tipologia && <span className="absolute top-3 left-3 px-3 py-1 bg-blue-600 text-white text-sm rounded-full">{getTipologiaLabel(imm.tipologia)}</span>}
+                  {imm.stato_occupazione === "libero" && <span className="absolute top-3 right-3 px-3 py-1 bg-green-500 text-white text-sm rounded-full">Disponibile</span>}
+                </div>
+                <div className="p-5">
+                  <h3 className="font-bold text-xl text-gray-800 mb-1">{imm.denominazione}</h3>
+                  <p className="text-gray-500 text-sm mb-3 flex items-center gap-1"><MapPin size={14} /> {imm.indirizzo_via}, {imm.indirizzo_comune}</p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {imm.superficie_lorda_mq && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">📐 {imm.superficie_lorda_mq} mq</span>}
+                    {imm.n_vani && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">🚪 {imm.n_vani} vani</span>}
+                    {imm.anno_costruzione && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">📅 {imm.anno_costruzione}</span>}
+                  </div>
+                  {imm.prezzo_pubblico && imm.prezzo_richiesto ? (
+                    <p className="text-2xl font-bold text-blue-600">€ {imm.prezzo_richiesto.toLocaleString()}</p>
+                  ) : (
+                    <p className="text-lg text-gray-500">Prezzo su richiesta</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Detail Modal */}
+        {selectedImmobile && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="relative">
+                {selectedImmobile.images && selectedImmobile.images.length > 0 ? (
+                  <img src={`${BACKEND_URL}${selectedImmobile.images[0].url}`} alt="" className="w-full h-64 object-cover" />
+                ) : (
+                  <div className="w-full h-64 bg-gray-200 flex items-center justify-center"><Camera size={64} className="text-gray-400" /></div>
+                )}
+                <button onClick={() => setSelectedImmobile(null)} className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100"><X size={24} /></button>
+              </div>
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800">{selectedImmobile.denominazione}</h2>
+                    <p className="text-gray-500 flex items-center gap-1"><MapPin size={16} /> {selectedImmobile.indirizzo_via}, {selectedImmobile.indirizzo_comune}</p>
+                  </div>
+                  {selectedImmobile.prezzo_pubblico && selectedImmobile.prezzo_richiesto && (
+                    <div className="text-right"><p className="text-3xl font-bold text-blue-600">€ {selectedImmobile.prezzo_richiesto.toLocaleString()}</p>{selectedImmobile.prezzo_mq && <p className="text-sm text-gray-500">€ {selectedImmobile.prezzo_mq}/mq</p>}</div>
+                  )}
+                </div>
+                
+                {/* Gallery */}
+                {selectedImmobile.images && selectedImmobile.images.length > 1 && (
+                  <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                    {selectedImmobile.images.map(img => (
+                      <img key={img.id} src={`${BACKEND_URL}${img.url}`} alt="" className="h-20 w-28 object-cover rounded-lg flex-shrink-0" />
+                    ))}
+                  </div>
+                )}
+
+                {/* Description */}
+                {selectedImmobile.descrizione_narrativa && (
+                  <div className="mb-6"><h3 className="font-semibold text-gray-800 mb-2">📖 La Storia</h3><p className="text-gray-600 leading-relaxed">{selectedImmobile.descrizione_narrativa}</p></div>
+                )}
+
+                {/* Features */}
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-800 mb-3">📐 Caratteristiche</h3>
+                    <div className="space-y-2 text-sm">
+                      {selectedImmobile.tipologia && <p><span className="text-gray-500">Tipologia:</span> <span className="font-medium">{getTipologiaLabel(selectedImmobile.tipologia)}</span></p>}
+                      {selectedImmobile.superficie_lorda_mq && <p><span className="text-gray-500">Superficie:</span> <span className="font-medium">{selectedImmobile.superficie_lorda_mq} mq</span></p>}
+                      {selectedImmobile.n_vani && <p><span className="text-gray-500">Vani:</span> <span className="font-medium">{selectedImmobile.n_vani}</span></p>}
+                      {selectedImmobile.n_piani_fuori_terra && <p><span className="text-gray-500">Piani:</span> <span className="font-medium">{selectedImmobile.n_piani_fuori_terra}</span></p>}
+                      {selectedImmobile.anno_costruzione && <p><span className="text-gray-500">Anno:</span> <span className="font-medium">{selectedImmobile.anno_costruzione}</span></p>}
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-800 mb-3">⚡ Dotazioni</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedImmobile.impianto_idrico && <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">💧 Acqua</span>}
+                      {selectedImmobile.impianto_elettrico && <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">⚡ Elettricità</span>}
+                      {selectedImmobile.impianto_fognario && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">🚿 Fognatura</span>}
+                      {selectedImmobile.riscaldamento && <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm">🔥 Riscaldamento</span>}
+                      {selectedImmobile.connessione_internet && <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">📶 Internet</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Potential */}
+                {(selectedImmobile.punti_forza || selectedImmobile.potenzialita_uso) && (
+                  <div className="bg-blue-50 rounded-xl p-4 mb-6">
+                    <h3 className="font-semibold text-blue-800 mb-2">✨ Potenzialità</h3>
+                    {selectedImmobile.punti_forza && <p className="text-blue-700 mb-1"><strong>Punti di forza:</strong> {selectedImmobile.punti_forza}</p>}
+                    {selectedImmobile.potenzialita_uso && <p className="text-blue-700"><strong>Ideale per:</strong> {selectedImmobile.potenzialita_uso}</p>}
+                  </div>
+                )}
+
+                {/* CTA */}
+                <div className="flex flex-wrap gap-3">
+                  {selectedImmobile.link_gemello_digitale && <a href={selectedImmobile.link_gemello_digitale} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold flex items-center gap-2">🏠 Esplora nel Gemello Digitale</a>}
+                  <a href={`mailto:info@comune.tadasuni.or.it?subject=Richiesta informazioni: ${selectedImmobile.denominazione}`} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2"><Mail size={18} /> Richiedi Informazioni</a>
+                  {selectedImmobile.coordinate_gps && <a href={`https://maps.google.com/?q=${selectedImmobile.coordinate_gps}`} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center gap-2"><MapPin size={18} /> Vedi su Mappa</a>}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-blue-900 text-white py-8 mt-12">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p className="text-blue-200">🏠 Home Tadasuni - Un progetto di <strong>Tadasuni Borgo Experience</strong></p>
+          <p className="text-sm text-blue-300 mt-2">Trivor srl - Fairsgate srl ©</p>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
 // ============== MAIN APP ==============
 function App() {
   const [lang, setLang] = useState("it");
