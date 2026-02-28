@@ -3533,8 +3533,12 @@ const ImmobiliAdminPanel = () => {
     setEditingImmobile(immobile);
     setFormData({
       ...emptyImmobile,
-      ...Object.fromEntries(Object.entries(immobile).map(([k, v]) => [k, v ?? ""]))
+      ...Object.fromEntries(Object.entries(immobile).map(([k, v]) => [k, v ?? (Array.isArray(emptyImmobile[k]) ? [] : "")]))
     });
+    // Load destinazioni urbanistiche if present
+    if (immobile.destinazioni_urbanistiche_lista?.length) {
+      setDestinazioniUrbanistiche(immobile.destinazioni_urbanistiche_lista);
+    }
     setShowForm(true);
     setActiveSection("anagrafica");
   };
@@ -3549,12 +3553,12 @@ const ImmobiliAdminPanel = () => {
     }
   };
 
-  const handleImageUpload = async (immobileId, file) => {
+  const handleImageUpload = async (immobileId, file, caption = "") => {
     if (!file) return;
     setUploadingFile(immobileId);
     const fd = new FormData();
     fd.append("file", file);
-    fd.append("caption", "");
+    fd.append("caption", caption);
     try {
       await axios.post(`${API}/immobili/${immobileId}/images`, fd);
       fetchImmobili();
@@ -3565,6 +3569,7 @@ const ImmobiliAdminPanel = () => {
   };
 
   const handleImageDelete = async (immobileId, imageId) => {
+    if (!window.confirm("Eliminare questa foto?")) return;
     try {
       await axios.delete(`${API}/immobili/${immobileId}/images/${imageId}`);
       fetchImmobili();
@@ -3587,6 +3592,73 @@ const ImmobiliAdminPanel = () => {
       alert("Errore upload allegato");
     }
     setUploadingFile(null);
+  };
+
+  // Referenti helpers
+  const addReferente = () => {
+    setFormData({...formData, referenti: [...(formData.referenti || []), { id: Date.now().toString(), nominativo: "", contatti: "" }]});
+  };
+  const updateReferente = (index, field, value) => {
+    const updated = [...(formData.referenti || [])];
+    updated[index] = {...updated[index], [field]: value};
+    setFormData({...formData, referenti: updated});
+  };
+  const removeReferente = (index) => {
+    setFormData({...formData, referenti: (formData.referenti || []).filter((_, i) => i !== index)});
+  };
+
+  // Impianti helpers
+  const addImpianto = () => {
+    setFormData({...formData, impianti_lista: [...(formData.impianti_lista || []), { id: Date.now().toString(), descrizione: "", data_certificazione: "" }]});
+  };
+  const updateImpianto = (index, field, value) => {
+    const updated = [...(formData.impianti_lista || [])];
+    updated[index] = {...updated[index], [field]: value};
+    setFormData({...formData, impianti_lista: updated});
+  };
+  const removeImpianto = (index) => {
+    setFormData({...formData, impianti_lista: (formData.impianti_lista || []).filter((_, i) => i !== index)});
+  };
+
+  // Destinazioni urbanistiche helpers
+  const addDestinazione = () => {
+    if (!newDestinazione.trim()) return;
+    const updated = [...destinazioniUrbanistiche, newDestinazione.trim()];
+    setDestinazioniUrbanistiche(updated);
+    setFormData({...formData, destinazioni_urbanistiche_lista: updated});
+    setNewDestinazione("");
+  };
+
+  // Attachment component for each section
+  const AttachmentSection = ({ immobileId, section, attachments = [] }) => {
+    const sectionAttachments = attachments.filter(a => a.section === section);
+    return (
+      <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-dashed">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-gray-600">📎 Allegati ({sectionAttachments.length})</span>
+          <label className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded cursor-pointer flex items-center gap-1">
+            <input type="file" className="hidden" onChange={(e) => {
+              const desc = prompt("Descrizione allegato:");
+              if (desc !== null && e.target.files[0]) handleAttachmentUpload(immobileId, e.target.files[0], desc, section);
+            }} />
+            <Plus size={14} /> Allega file
+          </label>
+        </div>
+        {sectionAttachments.length > 0 && (
+          <div className="space-y-1 mt-2">
+            {sectionAttachments.map(att => (
+              <div key={att.id} className="flex items-center justify-between bg-white p-2 rounded text-sm">
+                <span className="truncate flex-1">{att.description || att.filename}</span>
+                <div className="flex gap-1 ml-2">
+                  <a href={`${BACKEND_URL}${att.url}`} target="_blank" rel="noopener noreferrer" className="p-1 text-blue-600 hover:bg-blue-100 rounded" title="Anteprima"><Eye size={16} /></a>
+                  <button onClick={() => handleAttachmentDelete(immobileId, att.id)} className="p-1 text-red-600 hover:bg-red-100 rounded" title="Elimina"><Trash2 size={16} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleAttachmentDelete = async (immobileId, attachmentId) => {
