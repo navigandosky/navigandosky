@@ -92,146 +92,158 @@ class ImmobiliTester:
             self.log_result("Google Maps Config", False, f"Exception: {str(e)}")
             return False
     
-    def test_get_attractions_empty(self):
-        """Test getting attractions when database might be empty"""
+    def test_get_immobili_empty(self):
+        """Test getting immobili when database might be empty"""
         try:
-            response = self.session.get(f"{API_BASE}/attractions")
+            response = self.session.get(f"{API_BASE}/immobili")
             
             if response.status_code == 200:
                 data = response.json()
                 if isinstance(data, list):
-                    self.log_result("Get Attractions (Empty)", True, f"Retrieved {len(data)} attractions")
+                    self.log_result("Get Immobili (Empty)", True, f"Retrieved {len(data)} properties")
                     return True
                 else:
-                    self.log_result("Get Attractions (Empty)", False, "Response is not a list")
+                    self.log_result("Get Immobili (Empty)", False, "Response is not a list")
                     return False
             else:
-                self.log_result("Get Attractions (Empty)", False, f"HTTP {response.status_code}: {response.text}")
+                self.log_result("Get Immobili (Empty)", False, f"HTTP {response.status_code}: {response.text}")
                 return False
                 
         except Exception as e:
-            self.log_result("Get Attractions (Empty)", False, f"Exception: {str(e)}")
+            self.log_result("Get Immobili (Empty)", False, f"Exception: {str(e)}")
             return False
     
-    def test_create_attraction(self):
-        """Test creating a new attraction"""
+    def test_create_immobile(self):
+        """Test creating a new property"""
         try:
-            attraction_data = {
-                "name": "Chiesa di Santa Croce",
-                "name_en": "Church of Santa Croce",
-                "description": "Bellissima chiesa del XVIII secolo nel centro di Tadasuni",
-                "description_en": "Beautiful 18th century church in the center of Tadasuni",
-                "category": "chiesa",
-                "google_maps_link": "https://maps.google.com/?q=40.0123,8.9876",
-                "opening_hours": "9:00-18:00",
-                "price": "Gratuito",
-                "contact": "Comune di Tadasuni",
+            immobile_data = {
+                "denominazione": "Casa Tradizionale Tadasuni",
+                "indirizzo_via": "Via Roma 15",
+                "indirizzo_comune": "Tadasuni",
+                "indirizzo_provincia": "OR",
+                "indirizzo_regione": "Sardegna",
+                "tipo_bene": "edificato",
+                "destinazione_uso": "residenziale",
+                "tipologia": "casa_singola",
+                "superficie_lorda_mq": 120.5,
+                "n_vani": 4,
+                "anno_costruzione": 1950,
+                "stato_conservazione": "buono",
+                "stato_occupazione": "libero",
+                "prezzo_richiesto": 85000.0,
+                "prezzo_mq": 708.33,
+                "prezzo_pubblico": True,
+                "descrizione_narrativa": "Caratteristica casa tradizionale nel centro storico di Tadasuni, con vista panoramica sul lago Omodeo.",
+                "punti_forza": "Vista lago, posizione centrale, caratteristiche originali",
+                "target_ideale": "famiglie, investitori",
+                "potenzialita_uso": "residenza, b&b",
+                "impianto_idrico": True,
+                "impianto_elettrico": True,
                 "published": True
             }
             
-            response = self.session.post(f"{API_BASE}/attractions", json=attraction_data)
+            response = self.session.post(f"{API_BASE}/immobili", json=immobile_data)
             
             if response.status_code == 200:
                 data = response.json()
-                if data.get("id") and data.get("name") == attraction_data["name"]:
-                    self.test_attraction_id = data["id"]
-                    # Check if coordinates were extracted from Google Maps link
-                    has_coords = data.get("latitude") is not None and data.get("longitude") is not None
-                    coord_msg = " (coordinates extracted)" if has_coords else " (no coordinates)"
-                    self.log_result("Create Attraction", True, f"Attraction created with ID: {self.test_attraction_id}{coord_msg}")
+                if data.get("id") and data.get("denominazione") == immobile_data["denominazione"]:
+                    self.test_immobile_id = data["id"]
+                    self.log_result("Create Immobile", True, f"Property created with ID: {self.test_immobile_id}")
                     return True
                 else:
-                    self.log_result("Create Attraction", False, "Response missing id or name mismatch")
+                    self.log_result("Create Immobile", False, "Response missing id or denominazione mismatch")
                     return False
             else:
-                self.log_result("Create Attraction", False, f"HTTP {response.status_code}: {response.text}")
+                self.log_result("Create Immobile", False, f"HTTP {response.status_code}: {response.text}")
                 return False
                 
         except Exception as e:
-            self.log_result("Create Attraction", False, f"Exception: {str(e)}")
+            self.log_result("Create Immobile", False, f"Exception: {str(e)}")
             return False
     
-    def test_get_single_attraction(self):
-        """Test getting a single attraction by ID"""
-        if not self.test_attraction_id:
-            self.log_result("Get Single Attraction", False, "No test attraction ID available")
+    def test_get_single_immobile(self):
+        """Test getting a single property by ID"""
+        if not self.test_immobile_id:
+            self.log_result("Get Single Immobile", False, "No test property ID available")
             return False
             
         try:
-            response = self.session.get(f"{API_BASE}/attractions/{self.test_attraction_id}")
+            response = self.session.get(f"{API_BASE}/immobili/{self.test_immobile_id}")
             
             if response.status_code == 200:
                 data = response.json()
-                if data.get("id") == self.test_attraction_id:
-                    self.log_result("Get Single Attraction", True, f"Retrieved attraction: {data.get('name')}")
+                if data.get("id") == self.test_immobile_id:
+                    self.log_result("Get Single Immobile", True, f"Retrieved property: {data.get('denominazione')}")
                     return True
                 else:
-                    self.log_result("Get Single Attraction", False, "ID mismatch in response")
+                    self.log_result("Get Single Immobile", False, "ID mismatch in response")
                     return False
             else:
-                self.log_result("Get Single Attraction", False, f"HTTP {response.status_code}: {response.text}")
+                self.log_result("Get Single Immobile", False, f"HTTP {response.status_code}: {response.text}")
                 return False
                 
         except Exception as e:
-            self.log_result("Get Single Attraction", False, f"Exception: {str(e)}")
+            self.log_result("Get Single Immobile", False, f"Exception: {str(e)}")
             return False
     
-    def test_update_attraction(self):
-        """Test updating an attraction"""
-        if not self.test_attraction_id:
-            self.log_result("Update Attraction", False, "No test attraction ID available")
+    def test_update_immobile(self):
+        """Test updating a property"""
+        if not self.test_immobile_id:
+            self.log_result("Update Immobile", False, "No test property ID available")
             return False
             
         try:
             update_data = {
-                "description": "Chiesa storica del XVIII secolo con affreschi originali",
-                "price": "Ingresso libero",
-                "opening_hours": "9:00-12:00, 15:00-18:00"
+                "descrizione_narrativa": "Casa tradizionale completamente ristrutturata con materiali locali e vista mozzafiato sul lago Omodeo",
+                "prezzo_richiesto": 90000.0,
+                "stato_conservazione": "ottimo",
+                "certificato_energetico": True,
+                "classe_energetica": "C"
             }
             
-            response = self.session.put(f"{API_BASE}/attractions/{self.test_attraction_id}", json=update_data)
+            response = self.session.put(f"{API_BASE}/immobili/{self.test_immobile_id}", json=update_data)
             
             if response.status_code == 200:
                 data = response.json()
-                if data.get("description") == update_data["description"]:
-                    self.log_result("Update Attraction", True, "Attraction updated successfully")
+                if data.get("descrizione_narrativa") == update_data["descrizione_narrativa"]:
+                    self.log_result("Update Immobile", True, "Property updated successfully")
                     return True
                 else:
-                    self.log_result("Update Attraction", False, "Update not reflected in response")
+                    self.log_result("Update Immobile", False, "Update not reflected in response")
                     return False
             else:
-                self.log_result("Update Attraction", False, f"HTTP {response.status_code}: {response.text}")
+                self.log_result("Update Immobile", False, f"HTTP {response.status_code}: {response.text}")
                 return False
                 
         except Exception as e:
-            self.log_result("Update Attraction", False, f"Exception: {str(e)}")
+            self.log_result("Update Immobile", False, f"Exception: {str(e)}")
             return False
     
-    def test_get_attractions_with_data(self):
-        """Test getting attractions after creating one"""
+    def test_get_immobili_with_data(self):
+        """Test getting immobili after creating one"""
         try:
-            response = self.session.get(f"{API_BASE}/attractions")
+            response = self.session.get(f"{API_BASE}/immobili")
             
             if response.status_code == 200:
                 data = response.json()
                 if isinstance(data, list) and len(data) > 0:
-                    # Check if our test attraction is in the list
-                    found = any(attr.get("id") == self.test_attraction_id for attr in data)
+                    # Check if our test property is in the list
+                    found = any(prop.get("id") == self.test_immobile_id for prop in data)
                     if found:
-                        self.log_result("Get Attractions (With Data)", True, f"Retrieved {len(data)} attractions including test attraction")
+                        self.log_result("Get Immobili (With Data)", True, f"Retrieved {len(data)} properties including test property")
                         return True
                     else:
-                        self.log_result("Get Attractions (With Data)", False, "Test attraction not found in list")
+                        self.log_result("Get Immobili (With Data)", False, "Test property not found in list")
                         return False
                 else:
-                    self.log_result("Get Attractions (With Data)", False, "No attractions returned")
+                    self.log_result("Get Immobili (With Data)", False, "No properties returned")
                     return False
             else:
-                self.log_result("Get Attractions (With Data)", False, f"HTTP {response.status_code}: {response.text}")
+                self.log_result("Get Immobili (With Data)", False, f"HTTP {response.status_code}: {response.text}")
                 return False
                 
         except Exception as e:
-            self.log_result("Get Attractions (With Data)", False, f"Exception: {str(e)}")
+            self.log_result("Get Immobili (With Data)", False, f"Exception: {str(e)}")
             return False
     
     def test_image_upload(self):
