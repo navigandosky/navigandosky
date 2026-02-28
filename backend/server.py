@@ -1737,6 +1737,281 @@ async def export_immobili_pdf():
     immobili = await db.immobili.find({}, {"_id": 0}).to_list(1000)
     return {"data": immobili, "format": "pdf"}
 
+# ============== DIGITAL TWIN HOME API ==============
+
+@api_router.get("/immobili/{immobile_id}/digital-twin")
+async def get_digital_twin(immobile_id: str):
+    """Get digital twin tour for a property"""
+    twin = await db.digital_twins.find_one({"immobile_id": immobile_id}, {"_id": 0})
+    if not twin:
+        return None
+    return twin
+
+@api_router.post("/immobili/{immobile_id}/digital-twin")
+async def create_digital_twin(immobile_id: str, data: dict):
+    """Create or update digital twin tour for a property"""
+    # Check if immobile exists
+    immobile = await db.immobili.find_one({"id": immobile_id})
+    if not immobile:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    
+    # Check if twin already exists
+    existing = await db.digital_twins.find_one({"immobile_id": immobile_id})
+    
+    twin_data = {
+        "immobile_id": immobile_id,
+        "name": data.get("name", "Tour Virtuale"),
+        "description": data.get("description"),
+        "floor_plan_url": data.get("floor_plan_url"),
+        "floor_plan_floors": data.get("floor_plan_floors", 1),
+        "rooms": data.get("rooms", []),
+        "start_room_id": data.get("start_room_id"),
+        "is_published": data.get("is_published", False),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if existing:
+        await db.digital_twins.update_one(
+            {"immobile_id": immobile_id},
+            {"$set": twin_data}
+        )
+        twin_data["id"] = existing.get("id")
+    else:
+        twin_data["id"] = str(uuid.uuid4())
+        twin_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        await db.digital_twins.insert_one(twin_data)
+    
+    return {"success": True, "digital_twin": {k: v for k, v in twin_data.items() if k != "_id"}}
+
+@api_router.delete("/immobili/{immobile_id}/digital-twin")
+async def delete_digital_twin(immobile_id: str):
+    """Delete digital twin tour"""
+    result = await db.digital_twins.delete_one({"immobile_id": immobile_id})
+    return {"success": True, "deleted": result.deleted_count > 0}
+
+@api_router.post("/immobili/{immobile_id}/digital-twin/floor-plan")
+async def upload_floor_plan(immobile_id: str, file: UploadFile = File(...)):
+    """Upload floor plan image for digital twin"""
+    immobile = await db.immobili.find_one({"id": immobile_id})
+    if not immobile:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Tipo file non supportato")
+    
+    # Save file
+    file_id = str(uuid.uuid4())
+    file_ext = file.filename.split(".")[-1] if "." in file.filename else "png"
+    filename = f"floorplan_{immobile_id}_{file_id}.{file_ext}"
+    file_path = UPLOADS_DIR / filename
+    
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    floor_plan_url = f"/api/uploads/{filename}"
+    
+    # Update digital twin with floor plan
+    await db.digital_twins.update_one(
+        {"immobile_id": immobile_id},
+        {"$set": {"floor_plan_url": floor_plan_url, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    
+    return {"success": True, "url": floor_plan_url}
+
+@api_router.post("/immobili/{immobile_id}/digital-twin/rooms")
+async def add_twin_room(
+    immobile_id: str, 
+    file: UploadFile = File(...),
+    name: str = Form(...),
+    description: str = Form(None),
+    floor_plan_x: float = Form(None),
+    floor_plan_y: float = Form(None),
+    default_yaw: float = Form(0),
+    default_pitch: float = Form(0)
+):
+    """Add a room (360° image) to the digital twin"""
+    immobile = await db.immobili.find_one({"id": immobile_id})
+    if not immobile:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Tipo file non supportato. Usa JPEG, PNG o WebP.")
+    
+    # Save 360° image
+    room_id = str(uuid.uuid4())
+    file_ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    filename = f"room360_{immobile_id}_{room_id}.{file_ext}"
+    file_path = UPLOADS_DIR / filename
+    
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    # Get current rooms count for order
+    twin = await db.digital_twins.find_one({"immobile_id": immobile_id})
+    current_rooms = twin.get("rooms", []) if twin else []
+    
+    room_data = {
+        "id": room_id,
+        "name": name,
+        "description": description,
+        "image_360_url": f"/api/uploads/{filename}",
+        "floor_plan_x": floor_plan_x,
+        "floor_plan_y": floor_plan_y,
+        "default_yaw": default_yaw,
+        "default_pitch": default_pitch,
+        "hotspots": [],
+        "order": len(current_rooms)
+    }
+    
+    # Ensure digital twin exists and add room
+    if twin:
+        await db.digital_twins.update_one(
+            {"immobile_id": immobile_id},
+            {
+                "$push": {"rooms": room_data},
+                "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}
+            }
+        )
+        # Set as start room if it's the first
+        if len(current_rooms) == 0:
+            await db.digital_twins.update_one(
+                {"immobile_id": immobile_id},
+                {"$set": {"start_room_id": room_id}}
+            )
+    else:
+        twin_data = {
+            "id": str(uuid.uuid4()),
+            "immobile_id": immobile_id,
+            "name": "Tour Virtuale",
+            "rooms": [room_data],
+            "start_room_id": room_id,
+            "is_published": False,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.digital_twins.insert_one(twin_data)
+    
+    return {"success": True, "room": room_data}
+
+@api_router.put("/immobili/{immobile_id}/digital-twin/rooms/{room_id}")
+async def update_twin_room(immobile_id: str, room_id: str, data: dict):
+    """Update a room in the digital twin"""
+    twin = await db.digital_twins.find_one({"immobile_id": immobile_id})
+    if not twin:
+        raise HTTPException(status_code=404, detail="Digital Twin non trovato")
+    
+    rooms = twin.get("rooms", [])
+    room_index = next((i for i, r in enumerate(rooms) if r["id"] == room_id), None)
+    
+    if room_index is None:
+        raise HTTPException(status_code=404, detail="Stanza non trovata")
+    
+    # Update room fields
+    for key in ["name", "description", "floor_plan_x", "floor_plan_y", "default_yaw", "default_pitch", "hotspots", "order"]:
+        if key in data:
+            rooms[room_index][key] = data[key]
+    
+    await db.digital_twins.update_one(
+        {"immobile_id": immobile_id},
+        {"$set": {"rooms": rooms, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"success": True, "room": rooms[room_index]}
+
+@api_router.delete("/immobili/{immobile_id}/digital-twin/rooms/{room_id}")
+async def delete_twin_room(immobile_id: str, room_id: str):
+    """Delete a room from the digital twin"""
+    twin = await db.digital_twins.find_one({"immobile_id": immobile_id})
+    if not twin:
+        raise HTTPException(status_code=404, detail="Digital Twin non trovato")
+    
+    rooms = twin.get("rooms", [])
+    room_to_delete = next((r for r in rooms if r["id"] == room_id), None)
+    
+    if room_to_delete:
+        # Delete the 360° image file
+        filename = room_to_delete["image_360_url"].split("/")[-1]
+        file_path = UPLOADS_DIR / filename
+        if file_path.exists():
+            file_path.unlink()
+        
+        # Remove room and update hotspots in other rooms
+        new_rooms = [r for r in rooms if r["id"] != room_id]
+        for room in new_rooms:
+            room["hotspots"] = [h for h in room.get("hotspots", []) if h["target_room_id"] != room_id]
+        
+        # Update start_room_id if needed
+        update_data = {"rooms": new_rooms, "updated_at": datetime.now(timezone.utc).isoformat()}
+        if twin.get("start_room_id") == room_id:
+            update_data["start_room_id"] = new_rooms[0]["id"] if new_rooms else None
+        
+        await db.digital_twins.update_one(
+            {"immobile_id": immobile_id},
+            {"$set": update_data}
+        )
+    
+    return {"success": True}
+
+@api_router.post("/immobili/{immobile_id}/digital-twin/rooms/{room_id}/hotspots")
+async def add_room_hotspot(immobile_id: str, room_id: str, hotspot: dict):
+    """Add a hotspot to a room"""
+    twin = await db.digital_twins.find_one({"immobile_id": immobile_id})
+    if not twin:
+        raise HTTPException(status_code=404, detail="Digital Twin non trovato")
+    
+    rooms = twin.get("rooms", [])
+    room_index = next((i for i, r in enumerate(rooms) if r["id"] == room_id), None)
+    
+    if room_index is None:
+        raise HTTPException(status_code=404, detail="Stanza non trovata")
+    
+    hotspot_data = {
+        "id": str(uuid.uuid4()),
+        "target_room_id": hotspot["target_room_id"],
+        "position_yaw": hotspot.get("position_yaw", 0),
+        "position_pitch": hotspot.get("position_pitch", 0),
+        "label": hotspot.get("label")
+    }
+    
+    if "hotspots" not in rooms[room_index]:
+        rooms[room_index]["hotspots"] = []
+    rooms[room_index]["hotspots"].append(hotspot_data)
+    
+    await db.digital_twins.update_one(
+        {"immobile_id": immobile_id},
+        {"$set": {"rooms": rooms, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"success": True, "hotspot": hotspot_data}
+
+@api_router.delete("/immobili/{immobile_id}/digital-twin/rooms/{room_id}/hotspots/{hotspot_id}")
+async def delete_room_hotspot(immobile_id: str, room_id: str, hotspot_id: str):
+    """Delete a hotspot from a room"""
+    twin = await db.digital_twins.find_one({"immobile_id": immobile_id})
+    if not twin:
+        raise HTTPException(status_code=404, detail="Digital Twin non trovato")
+    
+    rooms = twin.get("rooms", [])
+    room_index = next((i for i, r in enumerate(rooms) if r["id"] == room_id), None)
+    
+    if room_index is None:
+        raise HTTPException(status_code=404, detail="Stanza non trovata")
+    
+    rooms[room_index]["hotspots"] = [h for h in rooms[room_index].get("hotspots", []) if h["id"] != hotspot_id]
+    
+    await db.digital_twins.update_one(
+        {"immobile_id": immobile_id},
+        {"$set": {"rooms": rooms, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"success": True}
+
 # Include router
 app.include_router(api_router)
 
