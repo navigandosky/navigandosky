@@ -451,9 +451,8 @@ class ImmobileCreate(BaseModel):
     target_ideale: Optional[str] = None  # nomadi_digitali, over_55, famiglie, investitori
     potenzialita_uso: Optional[str] = None  # b&b, atelier, smart_working
     
-    # XI. RESPONSABILI
-    responsabile_tecnico: Optional[str] = None
-    esaminatore: Optional[str] = None
+    # XI. REFERENTI (lista dinamica)
+    referenti: Optional[List[dict]] = None  # List of {nominativo, contatti}
     
     # Stato pubblicazione
     published: bool = True
@@ -466,6 +465,16 @@ class ImmobileUpdate(BaseModel):
     indirizzo_comune: Optional[str] = None
     indirizzo_provincia: Optional[str] = None
     indirizzo_regione: Optional[str] = None
+    # Proprietario details
+    proprietario_nome: Optional[str] = None
+    proprietario_cognome: Optional[str] = None
+    proprietario_data_nascita: Optional[str] = None
+    proprietario_cf: Optional[str] = None
+    proprietario_residenza: Optional[str] = None
+    proprietario_telefono: Optional[str] = None
+    proprietario_email: Optional[str] = None
+    proprietario_riferimenti: Optional[str] = None
+    proprietario_note: Optional[str] = None
     
     # II. CLASSIFICAZIONE DEL BENE
     tipo_bene: Optional[str] = None
