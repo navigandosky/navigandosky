@@ -3863,6 +3863,8 @@ const ImmobiliAdminPanel = () => {
                       <div><label className="block text-sm font-medium mb-1">Foglio</label><input type="text" value={formData.terreno_foglio} onChange={(e) => setFormData({...formData, terreno_foglio: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                       <div><label className="block text-sm font-medium mb-1">Particella</label><input type="text" value={formData.terreno_particella} onChange={(e) => setFormData({...formData, terreno_particella: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                     </div>
+                    {/* Allegati Catastale */}
+                    {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="catastale" attachments={editingImmobile.attachments} />}
                   </div>
                 )}
 
@@ -3883,10 +3885,13 @@ const ImmobiliAdminPanel = () => {
                       <div><label className="block text-sm font-medium mb-1">N. Vani</label><input type="number" value={formData.n_vani} onChange={(e) => setFormData({...formData, n_vani: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                       <div><label className="block text-sm font-medium mb-1">Collegamenti</label><input type="text" value={formData.collegamenti_impianti} onChange={(e) => setFormData({...formData, collegamenti_impianti: e.target.value})} placeholder="Scale, ascensori..." className="w-full px-4 py-2 border rounded-lg" /></div>
                     </div>
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid md:grid-cols-3 gap-4">
                       <div><label className="block text-sm font-medium mb-1">Volume E.T. (mc)</label><input type="number" step="0.01" value={formData.volume_entro_terra_mc} onChange={(e) => setFormData({...formData, volume_entro_terra_mc: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                       <div><label className="block text-sm font-medium mb-1">Volume F.T. (mc)</label><input type="number" step="0.01" value={formData.volume_fuori_terra_mc} onChange={(e) => setFormData({...formData, volume_fuori_terra_mc: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.planimetrie_presenti} onChange={(e) => setFormData({...formData, planimetrie_presenti: e.target.checked})} className="w-5 h-5" /><label>📋 Planimetrie Presenti</label></div>
                     </div>
+                    {/* Allegati Dimensioni */}
+                    {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="dimensioni" attachments={editingImmobile.attachments} />}
                   </div>
                 )}
 
@@ -3899,6 +3904,8 @@ const ImmobiliAdminPanel = () => {
                       <div><label className="block text-sm font-medium mb-1">Coordinate GPS</label><input type="text" value={formData.coordinate_gps} onChange={(e) => setFormData({...formData, coordinate_gps: e.target.value})} placeholder="40.0833, 8.9167" className="w-full px-4 py-2 border rounded-lg" /></div>
                       <div><label className="block text-sm font-medium mb-1">Link Gemello Digitale</label><input type="url" value={formData.link_gemello_digitale} onChange={(e) => setFormData({...formData, link_gemello_digitale: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                     </div>
+                    {/* Allegati Ubicazione */}
+                    {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="ubicazione" attachments={editingImmobile.attachments} />}
                   </div>
                 )}
 
@@ -3911,6 +3918,8 @@ const ImmobiliAdminPanel = () => {
                       <div><label className="block text-sm font-medium mb-1">Classe Energetica</label><select value={formData.classe_energetica} onChange={(e) => setFormData({...formData, classe_energetica: e.target.value})} className="w-full px-4 py-2 border rounded-lg"><option value="">N/A</option><option value="A4">A4</option><option value="A3">A3</option><option value="A2">A2</option><option value="A1">A1</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option><option value="F">F</option><option value="G">G</option></select></div>
                       <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.cdu} onChange={(e) => setFormData({...formData, cdu: e.target.checked})} className="w-5 h-5" /><label>CDU (Certificato Destinazione Urbanistica)</label></div>
                     </div>
+                    {/* Allegati Certificazioni */}
+                    {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="certificazioni" attachments={editingImmobile.attachments} />}
                   </div>
                 )}
 
@@ -3918,9 +3927,10 @@ const ImmobiliAdminPanel = () => {
                 {activeSection === "stato" && (
                   <div className="space-y-4">
                     <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">🔧 Stato e Conservazione</h3>
-                    <div className="grid md:grid-cols-3 gap-4">
+                    <div className="grid md:grid-cols-4 gap-4">
                       <div><label className="block text-sm font-medium mb-1">Anno Costruzione</label><input type="number" value={formData.anno_costruzione} onChange={(e) => setFormData({...formData, anno_costruzione: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                       <div><label className="block text-sm font-medium mb-1">Stato Conservazione</label><select value={formData.stato_conservazione} onChange={(e) => setFormData({...formData, stato_conservazione: e.target.value})} className="w-full px-4 py-2 border rounded-lg"><option value="">Seleziona...</option>{statoConservazioneOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></div>
+                      <div><label className="block text-sm font-medium mb-1">Data Ultima Manutenzione</label><input type="date" value={formData.data_ultima_manutenzione} onChange={(e) => setFormData({...formData, data_ultima_manutenzione: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                       <div><label className="block text-sm font-medium mb-1">Stato Occupazione</label><select value={formData.stato_occupazione} onChange={(e) => setFormData({...formData, stato_occupazione: e.target.value})} className="w-full px-4 py-2 border rounded-lg"><option value="">Seleziona...</option><option value="libero">Libero</option><option value="occupato">Occupato</option></select></div>
                     </div>
                     {formData.stato_occupazione === "occupato" && (
@@ -3930,6 +3940,8 @@ const ImmobiliAdminPanel = () => {
                         <div><label className="block text-sm font-medium mb-1">Tipo e Durata</label><input type="text" value={formData.tipo_occupazione_durata} onChange={(e) => setFormData({...formData, tipo_occupazione_durata: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                       </div>
                     )}
+                    {/* Allegati Stato */}
+                    {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="stato" attachments={editingImmobile.attachments} />}
                   </div>
                 )}
 
