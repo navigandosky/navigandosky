@@ -3166,7 +3166,7 @@ const HomePage = ({ lang, setLang, t }) => {
                 </div>
               </div>
               {/* Home Tadasuni - Borgo Experience */}
-              <Link to="/immobili" className="block bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-5 hover:from-blue-700 hover:to-indigo-800 transition-all shadow-lg hover:shadow-xl group">
+              <Link to="/immobili" className="block bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-5 hover:from-blue-700 hover:to-indigo-800 transition-all shadow-lg hover:shadow-xl group mb-3">
                 <div className="flex items-center gap-4">
                   <div className="bg-white/20 backdrop-blur rounded-lg p-3">
                     <Landmark className="text-white" size={32} />
@@ -3176,6 +3176,19 @@ const HomePage = ({ lang, setLang, t }) => {
                     <p className="text-blue-100 text-sm">Trova la tua casa nel borgo</p>
                   </div>
                   <ExternalLink className="text-white/70 group-hover:text-white transition" size={24} />
+                </div>
+              </Link>
+              {/* CMS Immobili - Accesso Riservato */}
+              <Link to="/immobili-admin" className="block bg-stone-100 hover:bg-stone-200 border border-stone-300 rounded-xl p-4 transition-all group">
+                <div className="flex items-center gap-3">
+                  <div className="bg-stone-200 group-hover:bg-stone-300 rounded-lg p-2 transition">
+                    <Settings className="text-stone-600" size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-stone-700 font-semibold text-sm">CMS Immobili</p>
+                    <p className="text-stone-500 text-xs">Accesso riservato</p>
+                  </div>
+                  <LogOut className="text-stone-400 group-hover:text-stone-600 transition" size={18} />
                 </div>
               </Link>
             </div>
