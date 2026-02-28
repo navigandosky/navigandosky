@@ -1564,7 +1564,7 @@ async def upload_immobile_image(immobile_id: str, file: UploadFile = File(...), 
     # Add to immobile
     image_data = {
         "id": file_id,
-        "url": f"/uploads/{filename}",
+        "url": f"/api/uploads/{filename}",
         "caption": caption
     }
     
@@ -1635,7 +1635,7 @@ async def upload_immobile_attachment(
     attachment_data = {
         "id": file_id,
         "filename": file.filename,
-        "url": f"/uploads/{filename}",
+        "url": f"/api/uploads/{filename}",
         "description": description,
         "section": section,
         "file_type": file_type
