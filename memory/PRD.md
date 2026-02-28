@@ -115,6 +115,12 @@ Sistema completo per la gestione immobiliare con:
 
 ## Stato Implementazione
 
+### Bug Fix (Febbraio 2026)
+- [x] Fix messaggio errore salvataggio - ora mostra dettagli specifici
+- [x] Fix aggiornamento allegati nelle tab - ora refresha editingImmobile dopo upload
+- [x] Fix conversione campi numerici vuoti (da stringa vuota a null)
+- [x] Aggiunta conferma prima di eliminare allegato
+
 ### Completato (Dicembre 2025)
 - [x] Sito marketing multilingue
 - [x] Chatbot AI con knowledge base
