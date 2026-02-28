@@ -4344,6 +4344,251 @@ const ImmobiliAdminPanel = () => {
   );
 };
 
+// ============== DIGITAL TWIN HOME VIEWER ==============
+const DigitalTwinViewer = ({ immobileId, immobileName, onClose }) => {
+  const [twin, setTwin] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentRoom, setCurrentRoom] = useState(null);
+  const [showFloorPlan, setShowFloorPlan] = useState(true);
+  const panoramaRef = useRef(null);
+  const viewerInstance = useRef(null);
+
+  useEffect(() => {
+    fetchTwin();
+    return () => {
+      if (viewerInstance.current) {
+        viewerInstance.current.destroy();
+        viewerInstance.current = null;
+      }
+    };
+  }, [immobileId]);
+
+  useEffect(() => {
+    if (currentRoom && panoramaRef.current) {
+      initViewer();
+    }
+  }, [currentRoom]);
+
+  const fetchTwin = async () => {
+    try {
+      const response = await axios.get(`${API}/immobili/${immobileId}/digital-twin`);
+      if (response.data) {
+        setTwin(response.data);
+        // Set initial room
+        const startRoom = response.data.rooms?.find(r => r.id === response.data.start_room_id) || response.data.rooms?.[0];
+        if (startRoom) setCurrentRoom(startRoom);
+      }
+    } catch (error) {
+      console.error("Error loading digital twin:", error);
+    }
+    setLoading(false);
+  };
+
+  const initViewer = async () => {
+    if (!currentRoom || !panoramaRef.current) return;
+    
+    try {
+      const { Viewer } = await import('@photo-sphere-viewer/core');
+      await import('@photo-sphere-viewer/core/index.css');
+      
+      if (viewerInstance.current) {
+        viewerInstance.current.destroy();
+      }
+
+      viewerInstance.current = new Viewer({
+        container: panoramaRef.current,
+        panorama: `${BACKEND_URL}${currentRoom.image_360_url}`,
+        navbar: ['zoom', 'move', 'fullscreen'],
+        defaultYaw: (currentRoom.default_yaw || 0) * Math.PI / 180,
+        defaultPitch: (currentRoom.default_pitch || 0) * Math.PI / 180,
+        defaultZoomLvl: 50,
+      });
+
+      // Add click handler for hotspots (visual markers)
+      if (currentRoom.hotspots?.length > 0) {
+        // We'll render hotspots as overlay HTML
+      }
+    } catch (error) {
+      console.error("Error initializing viewer:", error);
+    }
+  };
+
+  const navigateToRoom = (roomId) => {
+    const room = twin?.rooms?.find(r => r.id === roomId);
+    if (room) setCurrentRoom(room);
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black z-[200] flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent mx-auto mb-4"></div>
+          <p>Caricamento Digital Twin...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!twin || !twin.rooms?.length) {
+    return (
+      <div className="fixed inset-0 bg-black z-[200] flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="text-6xl mb-4">🏠</div>
+          <h2 className="text-2xl font-bold mb-2">Digital Twin non disponibile</h2>
+          <p className="text-gray-400 mb-6">Il tour virtuale per questo immobile non è ancora stato creato.</p>
+          <button onClick={onClose} className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold">
+            Chiudi
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black z-[200] flex">
+      {/* Close button */}
+      <button 
+        onClick={onClose} 
+        className="absolute top-4 right-4 z-50 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition"
+      >
+        <X size={28} />
+      </button>
+
+      {/* Floor Plan Sidebar */}
+      {showFloorPlan && twin.floor_plan_url && (
+        <div className="w-80 bg-gray-900 p-4 flex flex-col">
+          <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+            <Map size={20} /> Planimetria
+          </h3>
+          
+          {/* Floor Plan Image with Room Points */}
+          <div className="relative bg-white rounded-lg overflow-hidden mb-4 flex-shrink-0">
+            <img 
+              src={`${BACKEND_URL}${twin.floor_plan_url}`} 
+              alt="Planimetria" 
+              className="w-full h-auto"
+            />
+            {/* Room markers on floor plan */}
+            {twin.rooms.filter(r => r.floor_plan_x != null && r.floor_plan_y != null).map(room => (
+              <button
+                key={room.id}
+                onClick={() => navigateToRoom(room.id)}
+                className={`absolute w-6 h-6 rounded-full transform -translate-x-1/2 -translate-y-1/2 transition-all ${
+                  currentRoom?.id === room.id 
+                    ? 'bg-purple-600 ring-4 ring-purple-300 scale-125' 
+                    : 'bg-blue-500 hover:bg-blue-400 hover:scale-110'
+                }`}
+                style={{ left: `${room.floor_plan_x}%`, top: `${room.floor_plan_y}%` }}
+                title={room.name}
+              >
+                <span className="sr-only">{room.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Room List */}
+          <div className="flex-1 overflow-y-auto">
+            <h4 className="text-gray-400 text-sm font-semibold mb-2">STANZE ({twin.rooms.length})</h4>
+            <div className="space-y-2">
+              {twin.rooms.map((room, idx) => (
+                <button
+                  key={room.id}
+                  onClick={() => navigateToRoom(room.id)}
+                  className={`w-full text-left p-3 rounded-lg transition flex items-center gap-3 ${
+                    currentRoom?.id === room.id 
+                      ? 'bg-purple-600 text-white' 
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <span className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{room.name}</p>
+                    {room.description && (
+                      <p className="text-xs opacity-70 truncate">{room.description}</p>
+                    )}
+                  </div>
+                  {currentRoom?.id === room.id && (
+                    <span className="text-purple-200">●</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Property Info */}
+          <div className="mt-4 pt-4 border-t border-gray-700">
+            <p className="text-gray-400 text-sm">{immobileName}</p>
+            <p className="text-purple-400 text-xs mt-1">🌐 Digital Twin Home</p>
+          </div>
+        </div>
+      )}
+
+      {/* Toggle Floor Plan Button */}
+      <button
+        onClick={() => setShowFloorPlan(!showFloorPlan)}
+        className="absolute left-4 bottom-4 z-50 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg flex items-center gap-2 transition"
+      >
+        <Map size={18} />
+        {showFloorPlan ? 'Nascondi Mappa' : 'Mostra Mappa'}
+      </button>
+
+      {/* Main Panorama Viewer */}
+      <div className="flex-1 relative">
+        {/* Room Title */}
+        <div className="absolute top-4 left-4 z-40 bg-black/70 backdrop-blur px-4 py-2 rounded-lg">
+          <h2 className="text-white font-bold text-lg">{currentRoom?.name}</h2>
+          {currentRoom?.description && (
+            <p className="text-gray-300 text-sm">{currentRoom.description}</p>
+          )}
+        </div>
+
+        {/* 360 Viewer */}
+        <div ref={panoramaRef} className="w-full h-full" />
+
+        {/* Hotspot Navigation Buttons */}
+        {currentRoom?.hotspots?.length > 0 && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-40 flex gap-2">
+            {currentRoom.hotspots.map(hotspot => {
+              const targetRoom = twin.rooms.find(r => r.id === hotspot.target_room_id);
+              if (!targetRoom) return null;
+              return (
+                <button
+                  key={hotspot.id}
+                  onClick={() => navigateToRoom(hotspot.target_room_id)}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-full font-medium flex items-center gap-2 transition shadow-lg"
+                >
+                  <Navigation size={16} />
+                  {hotspot.label || `Vai a ${targetRoom.name}`}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Quick Room Navigation */}
+        <div className="absolute top-4 right-16 z-40 flex gap-2">
+          {twin.rooms.map((room, idx) => (
+            <button
+              key={room.id}
+              onClick={() => navigateToRoom(room.id)}
+              className={`w-10 h-10 rounded-full font-bold transition ${
+                currentRoom?.id === room.id 
+                  ? 'bg-purple-600 text-white' 
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+              title={room.name}
+            >
+              {idx + 1}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ============== HOME TADASUNI - PUBLIC PAGE ==============
 const ImmobiliPage = ({ lang = "it" }) => {
   const [immobili, setImmobili] = useState([]);
