@@ -4343,6 +4343,12 @@ const ImmobiliPage = ({ lang = "it" }) => {
   const [selectedImmobile, setSelectedImmobile] = useState(null);
   const [filters, setFilters] = useState({ tipologia: "all", stato: "all", prezzoMax: "", superficieMin: "" });
   const [searchTerm, setSearchTerm] = useState("");
+  // Gallery state
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [show360Viewer, setShow360Viewer] = useState(false);
+  const panoramaRef = useRef(null);
+  const viewerInstance = useRef(null);
 
   const tipologieOptions = [
     { value: "casa_singola", label: "Casa Singola" },
@@ -4356,6 +4362,31 @@ const ImmobiliPage = ({ lang = "it" }) => {
   useEffect(() => {
     fetchImmobili();
   }, []);
+
+  // Initialize 360 viewer when showing
+  useEffect(() => {
+    if (show360Viewer && lightboxImage?.is_360 && panoramaRef.current) {
+      // Dynamically import Photo Sphere Viewer
+      import('@photo-sphere-viewer/core').then(({ Viewer }) => {
+        import('@photo-sphere-viewer/core/index.css');
+        if (viewerInstance.current) {
+          viewerInstance.current.destroy();
+        }
+        viewerInstance.current = new Viewer({
+          container: panoramaRef.current,
+          panorama: `${BACKEND_URL}${lightboxImage.url}`,
+          navbar: ['zoom', 'move', 'fullscreen'],
+          defaultZoomLvl: 50,
+        });
+      });
+    }
+    return () => {
+      if (viewerInstance.current) {
+        viewerInstance.current.destroy();
+        viewerInstance.current = null;
+      }
+    };
+  }, [show360Viewer, lightboxImage]);
 
   const fetchImmobili = async () => {
     try {
@@ -4377,6 +4408,25 @@ const ImmobiliPage = ({ lang = "it" }) => {
   });
 
   const getTipologiaLabel = (value) => tipologieOptions.find(t => t.value === value)?.label || value;
+
+  // Gallery navigation
+  const openLightbox = (image, index, images) => {
+    setLightboxImage(image);
+    setLightboxIndex(index);
+    setShow360Viewer(image.is_360);
+  };
+
+  const closeLightbox = () => {
+    setLightboxImage(null);
+    setShow360Viewer(false);
+  };
+
+  const navigateLightbox = (direction, images) => {
+    const newIndex = (lightboxIndex + direction + images.length) % images.length;
+    setLightboxIndex(newIndex);
+    setLightboxImage(images[newIndex]);
+    setShow360Viewer(images[newIndex].is_360);
+  };
 
   return (
     <div className="min-h-screen bg-stone-50">
