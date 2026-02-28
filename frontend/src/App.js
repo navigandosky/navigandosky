@@ -3334,9 +3334,11 @@ const HomePage = ({ lang, setLang, t }) => {
                 <a href="https://comune.tadasuni.or.it/" target="_blank" rel="noopener noreferrer" className="block text-stone-400 hover:text-white transition">Comune di Tadasuni</a>
                 <a href="https://dromosfestival.it/" target="_blank" rel="noopener noreferrer" className="block text-stone-400 hover:text-white transition">Dromos Festival</a>
                 <Link to="/attrazioni" className="block text-stone-400 hover:text-white transition">{t.attractions}</Link>
+                <Link to="/immobili" className="block text-stone-400 hover:text-white transition">🏠 Home Tadasuni</Link>
                 <Link to="/eventi" className="block text-stone-400 hover:text-white transition">{t.events}</Link>
                 <Link to="/admin" className="block text-stone-400 hover:text-white transition">{t.admin}</Link>
                 <Link to="/attrazioni-admin" className="block text-stone-400 hover:text-white transition">🏛️ CMS Attrazioni</Link>
+                <Link to="/immobili-admin" className="block text-stone-400 hover:text-white transition">🏠 CMS Immobili</Link>
               </div>
             </div>
             <div>
