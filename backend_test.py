@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 # Get backend URL from frontend .env file
-BACKEND_URL = "https://tadasuni-tourism.preview.emergentagent.com"
+BACKEND_URL = "https://property-cms-dev.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 # Test credentials
