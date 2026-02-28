@@ -4943,6 +4943,15 @@ const ImmobiliPage = ({ lang = "it" }) => {
         )}
       </div>
 
+      {/* Digital Twin Viewer */}
+      {showDigitalTwin && digitalTwinImmobile && (
+        <DigitalTwinViewer 
+          immobileId={digitalTwinImmobile.id}
+          immobileName={digitalTwinImmobile.denominazione}
+          onClose={() => { setShowDigitalTwin(false); setDigitalTwinImmobile(null); }}
+        />
+      )}
+
       {/* Footer */}
       <footer className="bg-blue-900 text-white py-8 mt-12">
         <div className="max-w-7xl mx-auto px-4 text-center">
