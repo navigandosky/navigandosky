@@ -4714,29 +4714,42 @@ const DigitalTwinViewer = ({ immobileId, immobileName, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [currentRoom, setCurrentRoom] = useState(null);
   const [showFloorPlan, setShowFloorPlan] = useState(true);
+  const [viewerError, setViewerError] = useState(null);
+  const [viewerReady, setViewerReady] = useState(false);
   const panoramaRef = useRef(null);
   const viewerInstance = useRef(null);
+  const isMounted = useRef(true);
 
   useEffect(() => {
+    isMounted.current = true;
     fetchTwin();
     return () => {
+      isMounted.current = false;
       if (viewerInstance.current) {
-        viewerInstance.current.destroy();
+        try {
+          viewerInstance.current.destroy();
+        } catch (e) {
+          console.warn("Error destroying viewer:", e);
+        }
         viewerInstance.current = null;
       }
     };
   }, [immobileId]);
 
   useEffect(() => {
-    if (currentRoom && panoramaRef.current) {
-      initViewer();
+    if (currentRoom && panoramaRef.current && isMounted.current) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        if (isMounted.current) initViewer();
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [currentRoom]);
 
   const fetchTwin = async () => {
     try {
       const response = await axios.get(`${API}/immobili/${immobileId}/digital-twin`);
-      if (response.data) {
+      if (response.data && isMounted.current) {
         setTwin(response.data);
         // Set initial room
         const startRoom = response.data.rooms?.find(r => r.id === response.data.start_room_id) || response.data.rooms?.[0];
@@ -4745,41 +4758,60 @@ const DigitalTwinViewer = ({ immobileId, immobileName, onClose }) => {
     } catch (error) {
       console.error("Error loading digital twin:", error);
     }
-    setLoading(false);
+    if (isMounted.current) setLoading(false);
   };
 
   const initViewer = async () => {
-    if (!currentRoom || !panoramaRef.current) return;
+    if (!currentRoom || !panoramaRef.current || !isMounted.current) return;
+    
+    setViewerReady(false);
+    setViewerError(null);
     
     try {
-      const { Viewer } = await import('@photo-sphere-viewer/core');
-      await import('@photo-sphere-viewer/core/index.css');
-      
+      // Destroy existing viewer first
       if (viewerInstance.current) {
-        viewerInstance.current.destroy();
+        try {
+          viewerInstance.current.destroy();
+        } catch (e) {
+          console.warn("Error destroying old viewer:", e);
+        }
+        viewerInstance.current = null;
       }
 
-      viewerInstance.current = new Viewer({
+      const { Viewer } = await import('@photo-sphere-viewer/core');
+      
+      if (!isMounted.current || !panoramaRef.current) return;
+
+      const viewer = new Viewer({
         container: panoramaRef.current,
         panorama: `${BACKEND_URL}${currentRoom.image_360_url}`,
-        navbar: ['zoom', 'move', 'fullscreen'],
+        navbar: ['zoom', 'fullscreen'],
         defaultYaw: (currentRoom.default_yaw || 0) * Math.PI / 180,
         defaultPitch: (currentRoom.default_pitch || 0) * Math.PI / 180,
         defaultZoomLvl: 50,
+        loadingTxt: 'Caricamento...',
+        mousewheel: true,
+        touchmoveTwoFingers: true,
       });
 
-      // Add click handler for hotspots (visual markers)
-      if (currentRoom.hotspots?.length > 0) {
-        // We'll render hotspots as overlay HTML
-      }
+      viewer.addEventListener('ready', () => {
+        if (isMounted.current) setViewerReady(true);
+      });
+
+      viewerInstance.current = viewer;
     } catch (error) {
       console.error("Error initializing viewer:", error);
+      if (isMounted.current) {
+        setViewerError("Errore nel caricamento della vista 360°");
+      }
     }
   };
 
   const navigateToRoom = (roomId) => {
     const room = twin?.rooms?.find(r => r.id === roomId);
-    if (room) setCurrentRoom(room);
+    if (room && room.id !== currentRoom?.id) {
+      setCurrentRoom(room);
+    }
   };
 
   if (loading) {
