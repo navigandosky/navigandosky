@@ -3507,12 +3507,24 @@ const ImmobiliAdminPanel = () => {
     e.preventDefault();
     try {
       const dataToSend = { ...formData };
-      // Convert numeric fields
+      // Convert numeric fields - set to null if empty
       ["superficie_lorda_mq", "superficie_fondiaria_mq", "superficie_coperta_mq", "superficie_scoperta_mq", "volume_entro_terra_mc", "volume_fuori_terra_mc", "prezzo_richiesto", "prezzo_mq"].forEach(f => {
-        if (dataToSend[f]) dataToSend[f] = parseFloat(dataToSend[f]);
+        if (dataToSend[f] !== "" && dataToSend[f] !== null && dataToSend[f] !== undefined) {
+          dataToSend[f] = parseFloat(dataToSend[f]);
+        } else {
+          dataToSend[f] = null;
+        }
       });
       ["n_edifici", "n_piani_fuori_terra", "n_piani_entro_terra", "n_vani", "anno_costruzione"].forEach(f => {
-        if (dataToSend[f]) dataToSend[f] = parseInt(dataToSend[f]);
+        if (dataToSend[f] !== "" && dataToSend[f] !== null && dataToSend[f] !== undefined) {
+          dataToSend[f] = parseInt(dataToSend[f]);
+        } else {
+          dataToSend[f] = null;
+        }
+      });
+      // Clean empty strings to null for optional text fields
+      Object.keys(dataToSend).forEach(k => {
+        if (dataToSend[k] === "") dataToSend[k] = null;
       });
 
       if (editingImmobile) {
@@ -3525,7 +3537,8 @@ const ImmobiliAdminPanel = () => {
       setEditingImmobile(null);
       setFormData(emptyImmobile);
     } catch (error) {
-      alert("Errore nel salvataggio");
+      console.error("Errore salvataggio:", error);
+      alert("Errore nel salvataggio: " + (error.response?.data?.detail || error.message));
     }
   };
 
