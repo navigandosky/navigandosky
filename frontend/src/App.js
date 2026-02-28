@@ -4600,6 +4600,9 @@ const ImmobiliPage = ({ lang = "it" }) => {
   const [lightboxImage, setLightboxImage] = useState(null);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [show360Viewer, setShow360Viewer] = useState(false);
+  // Digital Twin state
+  const [showDigitalTwin, setShowDigitalTwin] = useState(false);
+  const [digitalTwinImmobile, setDigitalTwinImmobile] = useState(null);
   const panoramaRef = useRef(null);
   const viewerInstance = useRef(null);
 
