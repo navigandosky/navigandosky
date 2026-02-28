@@ -111,11 +111,14 @@ backend:
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Created complete API for properties: GET/POST/PUT/DELETE /api/immobili, image upload, attachments with sections. All fields from Excel schema implemented."
+      - working: true
+        agent: "testing"
+        comment: "✅ ALL BACKEND TESTS PASSED (12/12): Admin login ✅, GET immobili ✅, POST immobili ✅, GET single immobile ✅, PUT immobile ✅, Image upload ✅, Attachment upload ✅, DELETE image ✅, DELETE attachment ✅, DELETE immobile ✅. Complete CRUD functionality working perfectly with proper file handling and validation."
 
 frontend:
   - task: "ImmobiliAdminPanel CMS"
