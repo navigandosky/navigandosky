@@ -4244,6 +4244,18 @@ const ImmobiliAdminPanel = () => {
                   </div>
                 )}
 
+                {activeSection === "digitaltwin" && editingImmobile && (
+                  <DigitalTwinEditor immobileId={editingImmobile.id} />
+                )}
+
+                {activeSection === "digitaltwin" && !editingImmobile && (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🌐</div>
+                    <h3 className="text-xl font-semibold text-gray-700 mb-2">Digital Twin Home</h3>
+                    <p className="text-gray-500">Salva prima l'immobile, poi potrai configurare il tour virtuale.</p>
+                  </div>
+                )}
+
                 {/* Form buttons */}
                 <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
                   <button type="button" onClick={() => setShowForm(false)} className="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">Annulla</button>
