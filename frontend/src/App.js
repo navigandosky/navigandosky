@@ -3787,9 +3787,14 @@ const ImmobiliAdminPanel = () => {
   };
 
   const handleAttachmentDelete = async (immobileId, attachmentId) => {
+    if (!window.confirm("Eliminare questo allegato?")) return;
     try {
       await axios.delete(`${API}/immobili/${immobileId}/attachments/${attachmentId}`);
-      fetchImmobili();
+      await fetchImmobili();
+      // Refresh editingImmobile to update attachment list in tab
+      if (editingImmobile && editingImmobile.id === immobileId) {
+        await refreshEditingImmobile(immobileId);
+      }
     } catch (error) {
       alert("Errore eliminazione allegato");
     }
