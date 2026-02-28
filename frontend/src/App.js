@@ -4525,12 +4525,38 @@ const ImmobiliPage = ({ lang = "it" }) => {
                   )}
                 </div>
                 
-                {/* Gallery */}
-                {selectedImmobile.images && selectedImmobile.images.length > 1 && (
-                  <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                    {selectedImmobile.images.map(img => (
-                      <img key={img.id} src={`${BACKEND_URL}${img.url}`} alt="" className="h-20 w-28 object-cover rounded-lg flex-shrink-0" />
-                    ))}
+                {/* Gallery Section - Enhanced */}
+                {selectedImmobile.images && selectedImmobile.images.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                      📸 Galleria Fotografica 
+                      {selectedImmobile.images.some(img => img.is_360) && (
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">Include foto 360°</span>
+                      )}
+                    </h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                      {selectedImmobile.images.map((img, idx) => (
+                        <div 
+                          key={img.id} 
+                          onClick={() => openLightbox(img, idx, selectedImmobile.images)}
+                          className="relative aspect-square cursor-pointer group overflow-hidden rounded-lg bg-gray-100"
+                        >
+                          <img 
+                            src={`${BACKEND_URL}${img.url}`} 
+                            alt={img.caption || `Foto ${idx + 1}`} 
+                            className="w-full h-full object-cover group-hover:scale-110 transition duration-300" 
+                          />
+                          {img.is_360 && (
+                            <div className="absolute top-1 right-1 bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                              <span className="animate-spin-slow">🌐</span> 360°
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
+                            <Eye size={24} className="text-white opacity-0 group-hover:opacity-100 transition" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
