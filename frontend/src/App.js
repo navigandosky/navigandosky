@@ -3418,19 +3418,23 @@ const ImmobiliAdminPanel = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTipologia, setFilterTipologia] = useState("all");
   const [filterStato, setFilterStato] = useState("all");
+  const [showGallery, setShowGallery] = useState(null);
+  const [destinazioniUrbanistiche, setDestinazioniUrbanistiche] = useState([]);
+  const [newDestinazione, setNewDestinazione] = useState("");
 
   const emptyImmobile = {
     ente_proprietario: "", denominazione: "", indirizzo_via: "", indirizzo_comune: "Tadasuni", indirizzo_provincia: "OR", indirizzo_regione: "Sardegna",
+    proprietario_nome: "", proprietario_cognome: "", proprietario_data_nascita: "", proprietario_cf: "", proprietario_residenza: "", proprietario_telefono: "", proprietario_email: "", proprietario_riferimenti: "", proprietario_note: "",
     tipo_bene: "edificato", destinazione_uso: "", tipologia: "",
     catasto_sezione_urbana: "", catasto_foglio: "", catasto_particella: "", catasto_subalterno: "", catasto_categoria: "", terreno_foglio: "", terreno_particella: "",
-    superficie_lorda_mq: "", superficie_fondiaria_mq: "", n_edifici: "", n_piani_fuori_terra: "", n_piani_entro_terra: "", collegamenti_impianti: "", superficie_coperta_mq: "", superficie_scoperta_mq: "", volume_entro_terra_mc: "", volume_fuori_terra_mc: "", n_vani: "",
+    superficie_lorda_mq: "", superficie_fondiaria_mq: "", n_edifici: "", n_piani_fuori_terra: "", n_piani_entro_terra: "", collegamenti_impianti: "", superficie_coperta_mq: "", superficie_scoperta_mq: "", volume_entro_terra_mc: "", volume_fuori_terra_mc: "", n_vani: "", planimetrie_presenti: false,
     localizzazione_omi: "", coordinate_gps: "", link_gemello_digitale: "",
     certificato_energetico: false, classe_energetica: "", cdu: false,
-    anno_costruzione: "", stato_conservazione: "", stato_occupazione: "", soggetto_occupante: "", natura_giuridica_occupazione: "", tipo_occupazione_durata: "",
-    presenza_vincoli: false, tipo_vincoli: "", conformita_urbanistica: false, destinazione_urbanistica_attuale: "", destinazione_urbanistica_prevista: "", iter_cambio_destinazione: "", titolo_legittimita: "", conformita_catastale: false,
-    impianto_idrico: false, impianto_elettrico: false, impianto_fognario: false, riscaldamento: false, tipo_riscaldamento: "", connessione_internet: false, tipo_connessione: "",
+    anno_costruzione: "", stato_conservazione: "", data_ultima_manutenzione: "", stato_occupazione: "", soggetto_occupante: "", natura_giuridica_occupazione: "", tipo_occupazione_durata: "",
+    presenza_vincoli: false, tipo_vincoli: "", conformita_urbanistica: false, destinazione_urbanistica_attuale: "", destinazioni_urbanistiche_lista: [], destinazione_urbanistica_prevista: "", iter_cambio_destinazione: "", titolo_legittimita: "", conformita_catastale: false,
+    impianto_idrico: false, impianto_elettrico: false, impianto_fognario: false, riscaldamento: false, tipo_riscaldamento: "", connessione_internet: false, tipo_connessione: "", impianti_lista: [],
     prezzo_richiesto: "", prezzo_mq: "", prezzo_pubblico: false, descrizione_narrativa: "", punti_forza: "", target_ideale: "", potenzialita_uso: "",
-    responsabile_tecnico: "", esaminatore: "", published: true
+    referenti: [], published: true
   };
 
   const [formData, setFormData] = useState(emptyImmobile);
