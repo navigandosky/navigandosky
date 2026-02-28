@@ -568,6 +568,16 @@ class ImmobileResponse(BaseModel):
     indirizzo_comune: str
     indirizzo_provincia: str
     indirizzo_regione: str
+    # Proprietario details
+    proprietario_nome: Optional[str] = None
+    proprietario_cognome: Optional[str] = None
+    proprietario_data_nascita: Optional[str] = None
+    proprietario_cf: Optional[str] = None
+    proprietario_residenza: Optional[str] = None
+    proprietario_telefono: Optional[str] = None
+    proprietario_email: Optional[str] = None
+    proprietario_riferimenti: Optional[str] = None
+    proprietario_note: Optional[str] = None
     
     # II. CLASSIFICAZIONE DEL BENE
     tipo_bene: str
@@ -595,6 +605,7 @@ class ImmobileResponse(BaseModel):
     volume_entro_terra_mc: Optional[float] = None
     volume_fuori_terra_mc: Optional[float] = None
     n_vani: Optional[int] = None
+    planimetrie_presenti: bool = False
     
     # V. UBICAZIONE
     localizzazione_omi: Optional[str] = None
@@ -609,6 +620,7 @@ class ImmobileResponse(BaseModel):
     # VII. STATO E CONSERVAZIONE
     anno_costruzione: Optional[int] = None
     stato_conservazione: Optional[str] = None
+    data_ultima_manutenzione: Optional[str] = None
     stato_occupazione: Optional[str] = None
     soggetto_occupante: Optional[str] = None
     natura_giuridica_occupazione: Optional[str] = None
@@ -619,6 +631,7 @@ class ImmobileResponse(BaseModel):
     tipo_vincoli: Optional[str] = None
     conformita_urbanistica: bool = False
     destinazione_urbanistica_attuale: Optional[str] = None
+    destinazioni_urbanistiche_lista: Optional[List[str]] = None
     destinazione_urbanistica_prevista: Optional[str] = None
     iter_cambio_destinazione: Optional[str] = None
     titolo_legittimita: Optional[str] = None
@@ -632,6 +645,7 @@ class ImmobileResponse(BaseModel):
     tipo_riscaldamento: Optional[str] = None
     connessione_internet: bool = False
     tipo_connessione: Optional[str] = None
+    impianti_lista: Optional[List[dict]] = None
     
     # X. MARKETING E VALORIZZAZIONE
     prezzo_richiesto: Optional[float] = None
@@ -642,9 +656,8 @@ class ImmobileResponse(BaseModel):
     target_ideale: Optional[str] = None
     potenzialita_uso: Optional[str] = None
     
-    # XI. RESPONSABILI
-    responsabile_tecnico: Optional[str] = None
-    esaminatore: Optional[str] = None
+    # XI. REFERENTI
+    referenti: Optional[List[dict]] = None
     
     # Media
     images: List[ImmobileImage] = []
