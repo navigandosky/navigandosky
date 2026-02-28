@@ -3790,6 +3790,31 @@ const ImmobiliAdminPanel = () => {
                       <div><label className="block text-sm font-medium mb-1">Comune</label><input type="text" value={formData.indirizzo_comune} onChange={(e) => setFormData({...formData, indirizzo_comune: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                       <div><label className="block text-sm font-medium mb-1">Provincia</label><input type="text" value={formData.indirizzo_provincia} onChange={(e) => setFormData({...formData, indirizzo_provincia: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                     </div>
+                    
+                    {/* Dati Proprietario */}
+                    <div className="bg-blue-50 rounded-xl p-4 mt-4">
+                      <h4 className="font-medium text-blue-800 mb-3">👤 Dati Proprietario</h4>
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div><label className="block text-sm font-medium mb-1">Nome</label><input type="text" value={formData.proprietario_nome} onChange={(e) => setFormData({...formData, proprietario_nome: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                        <div><label className="block text-sm font-medium mb-1">Cognome</label><input type="text" value={formData.proprietario_cognome} onChange={(e) => setFormData({...formData, proprietario_cognome: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                        <div><label className="block text-sm font-medium mb-1">Data di Nascita</label><input type="date" value={formData.proprietario_data_nascita} onChange={(e) => setFormData({...formData, proprietario_data_nascita: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4 mt-3">
+                        <div><label className="block text-sm font-medium mb-1">Codice Fiscale</label><input type="text" value={formData.proprietario_cf} onChange={(e) => setFormData({...formData, proprietario_cf: e.target.value.toUpperCase()})} className="w-full px-4 py-2 border rounded-lg uppercase" maxLength={16} /></div>
+                        <div><label className="block text-sm font-medium mb-1">Residenza</label><input type="text" value={formData.proprietario_residenza} onChange={(e) => setFormData({...formData, proprietario_residenza: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4 mt-3">
+                        <div><label className="block text-sm font-medium mb-1">📞 Telefono</label><input type="tel" value={formData.proprietario_telefono} onChange={(e) => setFormData({...formData, proprietario_telefono: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                        <div><label className="block text-sm font-medium mb-1">📧 Email</label><input type="email" value={formData.proprietario_email} onChange={(e) => setFormData({...formData, proprietario_email: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4 mt-3">
+                        <div><label className="block text-sm font-medium mb-1">Riferimenti</label><input type="text" value={formData.proprietario_riferimenti} onChange={(e) => setFormData({...formData, proprietario_riferimenti: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                        <div><label className="block text-sm font-medium mb-1">Note</label><textarea value={formData.proprietario_note} onChange={(e) => setFormData({...formData, proprietario_note: e.target.value})} className="w-full px-4 py-2 border rounded-lg" rows={2}></textarea></div>
+                      </div>
+                    </div>
+                    
+                    {/* Allegati Anagrafica */}
+                    {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="anagrafica" attachments={editingImmobile.attachments} />}
                   </div>
                 )}
 
@@ -3816,6 +3841,8 @@ const ImmobiliAdminPanel = () => {
                         </select>
                       </div>
                     </div>
+                    {/* Allegati Classificazione */}
+                    {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="classificazione" attachments={editingImmobile.attachments} />}
                   </div>
                 )}
 
