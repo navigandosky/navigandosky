@@ -1434,6 +1434,208 @@ async def get_chatbot_stats():
         "custom_knowledge_entries": knowledge_count
     }
 
+# ============== IMMOBILI (HOME TADASUNI) API ==============
+
+@api_router.get("/immobili", response_model=List[ImmobileResponse])
+async def get_immobili(published_only: bool = False):
+    """Get all properties"""
+    query = {"published": True} if published_only else {}
+    immobili = await db.immobili.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return immobili
+
+@api_router.get("/immobili/{immobile_id}", response_model=ImmobileResponse)
+async def get_immobile(immobile_id: str):
+    """Get single property"""
+    immobile = await db.immobili.find_one({"id": immobile_id}, {"_id": 0})
+    if not immobile:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    return immobile
+
+@api_router.post("/immobili", response_model=ImmobileResponse)
+async def create_immobile(immobile: ImmobileCreate):
+    """Create a new property"""
+    now = datetime.now(timezone.utc).isoformat()
+    immobile_dict = immobile.model_dump()
+    immobile_dict["id"] = str(uuid.uuid4())
+    immobile_dict["images"] = []
+    immobile_dict["attachments"] = []
+    immobile_dict["created_at"] = now
+    immobile_dict["updated_at"] = now
+    
+    await db.immobili.insert_one(immobile_dict)
+    return immobile_dict
+
+@api_router.put("/immobili/{immobile_id}", response_model=ImmobileResponse)
+async def update_immobile(immobile_id: str, immobile: ImmobileUpdate):
+    """Update a property"""
+    existing = await db.immobili.find_one({"id": immobile_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    
+    update_data = {k: v for k, v in immobile.model_dump().items() if v is not None}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.immobili.update_one({"id": immobile_id}, {"$set": update_data})
+    updated = await db.immobili.find_one({"id": immobile_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/immobili/{immobile_id}")
+async def delete_immobile(immobile_id: str):
+    """Delete a property"""
+    result = await db.immobili.delete_one({"id": immobile_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    return {"success": True, "message": "Immobile eliminato"}
+
+# Immobili Images
+@api_router.post("/immobili/{immobile_id}/images")
+async def upload_immobile_image(immobile_id: str, file: UploadFile = File(...), caption: str = Form(None)):
+    """Upload image for property"""
+    immobile = await db.immobili.find_one({"id": immobile_id})
+    if not immobile:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Tipo file non supportato")
+    
+    # Save file
+    file_id = str(uuid.uuid4())
+    file_ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    filename = f"{file_id}.{file_ext}"
+    file_path = UPLOADS_DIR / filename
+    
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    # Add to immobile
+    image_data = {
+        "id": file_id,
+        "url": f"/uploads/{filename}",
+        "caption": caption
+    }
+    
+    await db.immobili.update_one(
+        {"id": immobile_id},
+        {"$push": {"images": image_data}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"success": True, "image": image_data}
+
+@api_router.delete("/immobili/{immobile_id}/images/{image_id}")
+async def delete_immobile_image(immobile_id: str, image_id: str):
+    """Delete image from property"""
+    immobile = await db.immobili.find_one({"id": immobile_id})
+    if not immobile:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    
+    # Find and remove image
+    images = immobile.get("images", [])
+    image_to_delete = next((img for img in images if img["id"] == image_id), None)
+    
+    if image_to_delete:
+        # Delete file
+        filename = image_to_delete["url"].split("/")[-1]
+        file_path = UPLOADS_DIR / filename
+        if file_path.exists():
+            file_path.unlink()
+        
+        # Remove from database
+        await db.immobili.update_one(
+            {"id": immobile_id},
+            {"$pull": {"images": {"id": image_id}}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    
+    return {"success": True}
+
+# Immobili Attachments
+@api_router.post("/immobili/{immobile_id}/attachments")
+async def upload_immobile_attachment(
+    immobile_id: str, 
+    file: UploadFile = File(...), 
+    description: str = Form(None),
+    section: str = Form("generale")
+):
+    """Upload attachment for property"""
+    immobile = await db.immobili.find_one({"id": immobile_id})
+    if not immobile:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    
+    # Save file
+    file_id = str(uuid.uuid4())
+    file_ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    filename = f"{file_id}.{file_ext}"
+    file_path = UPLOADS_DIR / filename
+    
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    # Determine file type
+    file_type = "document"
+    if file.content_type and file.content_type.startswith("image/"):
+        file_type = "image"
+    elif file.content_type == "application/pdf":
+        file_type = "pdf"
+    
+    # Add to immobile
+    attachment_data = {
+        "id": file_id,
+        "filename": file.filename,
+        "url": f"/uploads/{filename}",
+        "description": description,
+        "section": section,
+        "file_type": file_type
+    }
+    
+    await db.immobili.update_one(
+        {"id": immobile_id},
+        {"$push": {"attachments": attachment_data}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"success": True, "attachment": attachment_data}
+
+@api_router.delete("/immobili/{immobile_id}/attachments/{attachment_id}")
+async def delete_immobile_attachment(immobile_id: str, attachment_id: str):
+    """Delete attachment from property"""
+    immobile = await db.immobili.find_one({"id": immobile_id})
+    if not immobile:
+        raise HTTPException(status_code=404, detail="Immobile non trovato")
+    
+    # Find and remove attachment
+    attachments = immobile.get("attachments", [])
+    attachment_to_delete = next((att for att in attachments if att["id"] == attachment_id), None)
+    
+    if attachment_to_delete:
+        # Delete file
+        filename = attachment_to_delete["url"].split("/")[-1]
+        file_path = UPLOADS_DIR / filename
+        if file_path.exists():
+            file_path.unlink()
+        
+        # Remove from database
+        await db.immobili.update_one(
+            {"id": immobile_id},
+            {"$pull": {"attachments": {"id": attachment_id}}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+        )
+    
+    return {"success": True}
+
+# Export Immobili
+@api_router.get("/immobili/export/excel")
+async def export_immobili_excel():
+    """Export properties to Excel format (returns JSON for frontend to process)"""
+    immobili = await db.immobili.find({}, {"_id": 0}).to_list(1000)
+    return {"data": immobili, "format": "excel"}
+
+@api_router.get("/immobili/export/pdf")
+async def export_immobili_pdf():
+    """Export properties to PDF format (returns JSON for frontend to process)"""
+    immobili = await db.immobili.find({}, {"_id": 0}).to_list(1000)
+    return {"data": immobili, "format": "pdf"}
+
 # Include router
 app.include_router(api_router)
 
