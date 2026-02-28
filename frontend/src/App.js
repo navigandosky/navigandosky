@@ -4292,16 +4292,23 @@ const ImmobiliAdminPanel = () => {
                   {/* Images & Attachments */}
                   <div className="mt-3 pt-3 border-t">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-gray-500">📸 Foto ({imm.images?.length || 0})</span>
-                      <label className="text-xs text-blue-600 hover:underline cursor-pointer">
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(imm.id, e.target.files[0])} />
-                        + Aggiungi
-                      </label>
+                      <span className="text-xs text-gray-500">📸 Foto ({imm.images?.length || 0}) {imm.images?.some(i => i.is_360) && <span className="text-purple-600 ml-1">🌐</span>}</span>
+                      <div className="flex gap-2">
+                        <label className="text-xs text-blue-600 hover:underline cursor-pointer">
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(imm.id, e.target.files[0], "", false)} />
+                          + Foto
+                        </label>
+                        <label className="text-xs text-purple-600 hover:underline cursor-pointer">
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(imm.id, e.target.files[0], "Foto 360°", true)} />
+                          + 360°
+                        </label>
+                      </div>
                     </div>
                     <div className="flex gap-1 flex-wrap">
                       {imm.images?.slice(0, 4).map(img => (
                         <div key={img.id} className="relative group">
                           <img src={`${BACKEND_URL}${img.url}`} className="w-12 h-12 object-cover rounded" alt="" />
+                          {img.is_360 && <span className="absolute top-0 left-0 bg-purple-600 text-white text-[8px] px-1 rounded-br">360°</span>}
                           <button onClick={() => handleImageDelete(imm.id, img.id)} className="absolute -top-1 -right-1 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 text-xs"><X size={10} /></button>
                         </div>
                       ))}
