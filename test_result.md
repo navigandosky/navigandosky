@@ -102,99 +102,73 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: Extended CMS with categories for restaurants, accommodations, and itineraries with waypoints
+user_problem_statement: Home Tadasuni - Real Estate CMS for cataloging properties in Tadasuni village
 
 backend:
-  - task: "Attractions API with extended fields"
+  - task: "Immobili API CRUD operations"
     implemented: true
     working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Extended AttractionCreate/Update/Response models with fields for restaurants (cuisine_type, price_range, reservation_link), accommodations (stars, booking_link, amenities), and itineraries (duration, difficulty, distance, waypoints)"
-      - working: true
-        agent: "testing"
-        comment: "✅ TESTED: Backend API working correctly. All extended fields are properly supported and data is being saved/retrieved correctly for restaurants, accommodations, and itineraries."
+        comment: "Created complete API for properties: GET/POST/PUT/DELETE /api/immobili, image upload, attachments with sections. All fields from Excel schema implemented."
 
 frontend:
-  - task: "Extended categories in admin form"
+  - task: "ImmobiliAdminPanel CMS"
     implemented: true
     working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Added grouped categories (Attrazioni, Dove Mangiare, Dove Dormire, Itinerari) with conditional form fields for each type. Restaurant fields: cuisine_type, price_range, reservation_link. Accommodation fields: stars, booking_link, amenities. Itinerary fields: duration, difficulty, distance, waypoints with add/remove/reorder functionality."
-      - working: true
-        agent: "testing"
-        comment: "✅ TESTED: Admin form working perfectly. Restaurant form shows orange 'Info Ristorante' section with Tipo Cucina, Fascia Prezzo, Link Prenotazione fields. Accommodation form shows blue 'Info Alloggio' section with Stelle, Link Prenotazione, Servizi fields. Itinerary form shows green 'Info Itinerario' section with Durata, Difficoltà, Distanza fields and 'Tappe dell'itinerario' section with 'Aggiungi Tappa' button. Minor: Waypoint circles not appearing correctly after adding waypoints, but form structure is correct."
+        comment: "Admin panel with 11 section tabs (Anagrafica, Classificazione, Catastale, Dimensioni, Ubicazione, Certificazioni, Stato, Vincoli, Impianti, Marketing, Responsabili). Includes image upload, attachment upload with View/Delete, price visibility flag."
 
-  - task: "Category filter tabs in admin"
+  - task: "ImmobiliPage Public Landing"
     implemented: true
     working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Added filter tabs (Tutti, Attrazioni, Dove Mangiare, Dove Dormire, Itinerari) with counts for each category group"
-      - working: true
-        agent: "testing"
-        comment: "✅ TESTED: Admin filter tabs working perfectly. All tabs present: 📋 Tutti(4), 🏛️ Attrazioni(1), 🍽️ Dove Mangiare(1), 🏨 Dove Dormire(1), 🚶 Itinerari(1). Counts are displayed correctly in parentheses. Clicking tabs filters the list correctly."
+        comment: "Public landing page with filters (tipologia, stato, prezzo, superficie), property cards with images, detail modal with storytelling, characteristics, amenities, and CTA buttons."
 
-  - task: "Public page with grouped filters"
+  - task: "Navigation links"
     implemented: true
     working: true
     file: "/app/frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
         agent: "main"
-        comment: "Updated public attractions page with grouped filter buttons and title 'Scopri Tadasuni'"
-      - working: true
-        agent: "testing"
-        comment: "✅ TESTED: Public page working perfectly. Title 'Scopri Tadasuni' and subtitle 'Attrazioni, ristoranti, alloggi e itinerari' are correct. All filter buttons present: 📋 Tutti, 🏛️ Attrazioni, 🍽️ Dove Mangiare, 🏨 Dove Dormire, 🚶 Itinerari. Clicking filters correctly shows filtered items."
-
-  - task: "Detail view for restaurants/accommodations/itineraries"
-    implemented: true
-    working: true
-    file: "/app/frontend/src/App.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Enhanced detail page to show type-specific info: restaurant cuisine/price, accommodation stars/amenities/booking, itinerary duration/difficulty/distance/waypoints list"
-      - working: true
-        agent: "testing"
-        comment: "✅ TESTED: Detail views working perfectly. Restaurant 'Sa Pedrera' shows orange background with 'Tipo Cucina: Cucina Sarda' and 'Fascia Prezzo: €€'. Accommodation 'B&B Il Borgo Antico' shows blue background with stars (⭐⭐⭐), Servizi, and booking link. Itinerary shows green background with duration, difficulty, distance, and waypoints section (though specific waypoint details need verification)."
+        comment: "Added routes /#/immobili and /#/immobili-admin. Footer links for 🏠 Home Tadasuni and 🏠 CMS Immobili"
 
 metadata:
   created_by: "main_agent"
-  version: "1.2"
-  test_sequence: 3
+  version: "2.0"
+  test_sequence: 4
   run_ui: true
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Immobili admin login and CRUD"
+    - "Immobili public page with filters"
+    - "Image and attachment management"
   stuck_tasks: []
-  test_all: false
-  test_priority: "completed"
+  test_all: true
+  test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
-    message: "Extended CMS with new categories: Dove Mangiare (ristorante, pizzeria, bar, agriturismo_rist), Dove Dormire (hotel, b&b, agriturismo, casa_vacanze), Itinerari. Each type has specific fields that appear conditionally in the form. Itineraries support waypoints with add/remove/reorder. Please test: 1) Creating items of each type, 2) Waypoint management for itineraries, 3) Public display of all types"
-  - agent: "testing"
-    message: "✅ COMPREHENSIVE TESTING COMPLETED: All major functionality working correctly. Admin panel login successful with credentials visittadasuni/Tadasuni2025$. Category filter tabs working with counts. Admin forms showing correct conditional fields with proper color coding (orange for restaurants, blue for accommodations, green for itineraries). Public page filters and detail views working correctly. Restaurant and accommodation detail pages showing type-specific information with correct styling. Minor issue: Waypoint circles not appearing correctly in itinerary form, but overall functionality is solid. Ready for production use."
+    message: "Created Home Tadasuni real estate CMS. Backend API complete with all fields from Excel schema. Frontend has admin panel with 11 section tabs and public landing page with advanced filters. Test: 1) Login at /#/immobili-admin with visittadasuni/Tadasuni2025$, 2) Create property with all fields, 3) Upload images and attachments, 4) View on public page /#/immobili, 5) Test filters and detail modal"
