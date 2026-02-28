@@ -4608,6 +4608,77 @@ const ImmobiliPage = ({ lang = "it" }) => {
             </div>
           </div>
         )}
+
+        {/* Lightbox for Gallery - Large View (1000x1000+) */}
+        {lightboxImage && (
+          <div className="fixed inset-0 bg-black/95 z-[100] flex items-center justify-center" onClick={closeLightbox}>
+            <button 
+              onClick={closeLightbox} 
+              className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition z-10"
+            >
+              <X size={28} />
+            </button>
+            
+            {/* Navigation arrows */}
+            {selectedImmobile?.images?.length > 1 && (
+              <>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); navigateLightbox(-1, selectedImmobile.images); }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition z-10"
+                >
+                  <ChevronUp size={32} className="rotate-[-90deg]" />
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); navigateLightbox(1, selectedImmobile.images); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition z-10"
+                >
+                  <ChevronUp size={32} className="rotate-90" />
+                </button>
+              </>
+            )}
+
+            {/* Image container */}
+            <div onClick={(e) => e.stopPropagation()} className="relative max-w-[90vw] max-h-[90vh]">
+              {lightboxImage.is_360 && show360Viewer ? (
+                /* 360° Panorama Viewer */
+                <div className="relative">
+                  <div 
+                    ref={panoramaRef} 
+                    className="w-[1000px] h-[700px] max-w-[90vw] max-h-[80vh] rounded-lg overflow-hidden"
+                  />
+                  <div className="absolute top-4 left-4 bg-purple-600 text-white px-3 py-1.5 rounded-full text-sm flex items-center gap-2">
+                    <span className="animate-pulse">🌐</span> Vista 360° - Trascina per esplorare
+                  </div>
+                </div>
+              ) : (
+                /* Standard image */
+                <img 
+                  src={`${BACKEND_URL}${lightboxImage.url}`} 
+                  alt={lightboxImage.caption || "Foto immobile"} 
+                  className="max-w-[1200px] max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                  style={{ minWidth: '600px', minHeight: '400px' }}
+                />
+              )}
+              
+              {/* Caption and counter */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-b-lg">
+                <div className="flex justify-between items-center text-white">
+                  <div>
+                    {lightboxImage.caption && <p className="text-lg">{lightboxImage.caption}</p>}
+                    {lightboxImage.is_360 && (
+                      <span className="inline-flex items-center gap-1 text-purple-300 text-sm mt-1">
+                        <span>🌐</span> Foto 360° - Insta360 X5
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-white/70 text-sm">
+                    {lightboxIndex + 1} / {selectedImmobile?.images?.length || 1}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
