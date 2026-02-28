@@ -4211,8 +4211,10 @@ function App() {
         <Route path="/" element={<HomePage lang={lang} setLang={setLang} t={t} />} />
         <Route path="/eventi" element={<EventsPage lang={lang} t={t} />} />
         <Route path="/attrazioni" element={<AttractionsPage lang={lang} t={t} />} />
+        <Route path="/immobili" element={<ImmobiliPage lang={lang} />} />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/attrazioni-admin" element={<AttractionsAdminPanel />} />
+        <Route path="/immobili-admin" element={<ImmobiliAdminPanel />} />
         <Route path="/chatbot-admin" element={<ChatbotAdminPanel />} />
       </Routes>
     </HashRouter>
