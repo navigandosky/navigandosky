@@ -343,6 +343,49 @@ class ImmobileImage(BaseModel):
     caption: Optional[str] = None
     is_360: bool = False  # Flag for 360° panoramic images
 
+# ============== DIGITAL TWIN HOME MODELS ==============
+class TwinHotspot(BaseModel):
+    """Hotspot che collega una stanza a un'altra"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    target_room_id: str  # ID della stanza di destinazione
+    position_yaw: float = 0  # Posizione orizzontale nel panorama (gradi)
+    position_pitch: float = 0  # Posizione verticale nel panorama (gradi)
+    label: Optional[str] = None  # Es: "Vai al Soggiorno"
+
+class TwinRoom(BaseModel):
+    """Una stanza/punto di vista nel tour virtuale"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str  # Es: "Ingresso", "Soggiorno", "Cucina"
+    description: Optional[str] = None
+    image_360_url: str  # URL dell'immagine 360°
+    # Posizione sulla planimetria (percentuale 0-100)
+    floor_plan_x: Optional[float] = None
+    floor_plan_y: Optional[float] = None
+    # Hotspot per navigare ad altre stanze
+    hotspots: List[TwinHotspot] = []
+    # Configurazione vista iniziale
+    default_yaw: float = 0  # Direzione iniziale orizzontale
+    default_pitch: float = 0  # Direzione iniziale verticale
+    order: int = 0  # Ordine nel tour
+
+class DigitalTwinHome(BaseModel):
+    """Tour virtuale completo di un immobile"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    immobile_id: str  # Riferimento all'immobile
+    name: str = "Tour Virtuale"
+    description: Optional[str] = None
+    # Planimetria
+    floor_plan_url: Optional[str] = None
+    floor_plan_floors: int = 1  # Numero di piani
+    # Stanze del tour
+    rooms: List[TwinRoom] = []
+    # Stanza iniziale
+    start_room_id: Optional[str] = None
+    # Metadati
+    is_published: bool = False
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: Optional[str] = None
+
 # Referente model for immobili
 class Referente(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
