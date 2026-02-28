@@ -3848,7 +3848,8 @@ const ImmobiliAdminPanel = () => {
     { id: "vincoli", label: "Vincoli e Conformità", icon: "⚖️" },
     { id: "impianti", label: "Impianti", icon: "⚡" },
     { id: "marketing", label: "Marketing", icon: "💰" },
-    { id: "responsabili", label: "Referenti", icon: "👥" }
+    { id: "responsabili", label: "Referenti", icon: "👥" },
+    { id: "digitaltwin", label: "Digital Twin", icon: "🌐" }
   ];
 
   // Login screen
