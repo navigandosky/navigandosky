@@ -261,10 +261,10 @@ class ImmobiliTester:
             
             with open(tmp_file_path, 'rb') as f:
                 files = {'file': ('test_image.jpg', f, 'image/jpeg')}
-                data = {'caption': 'Test image for Chiesa di Santa Croce'}
+                data = {'caption': 'Vista esterna della casa tradizionale'}
                 
                 response = self.session.post(
-                    f"{API_BASE}/attractions/{self.test_attraction_id}/images",
+                    f"{API_BASE}/immobili/{self.test_immobile_id}/images",
                     files=files,
                     data=data
                 )
