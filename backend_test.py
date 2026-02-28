@@ -22,7 +22,9 @@ class ImmobiliTester:
     def __init__(self):
         self.session = requests.Session()
         self.admin_token = None
-        self.test_attraction_id = None
+        self.test_immobile_id = None
+        self.test_image_id = None
+        self.test_attachment_id = None
         self.test_results = []
         
     def log_result(self, test_name, success, message, details=None):
