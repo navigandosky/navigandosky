@@ -131,6 +131,20 @@ Sistema completo per la gestione immobiliare con:
 - [x] Badge "360°" su thumbnail per foto panoramiche
 - [x] Viewer panoramico interattivo (trascina per esplorare)
 
+### Digital Twin Home - Tour Virtuale (Febbraio 2026)
+- [x] Backend completo: API per Digital Twin, stanze, hotspot
+- [x] Modelli: DigitalTwinHome, TwinRoom, TwinHotspot
+- [x] Upload planimetria per ogni immobile
+- [x] Upload stanze 360° con posizionamento sulla planimetria
+- [x] Sistema di hotspot per collegare le stanze tra loro
+- [x] Admin CMS: Tab "Digital Twin" con editor completo
+- [x] Vetrina Pubblica: pulsante "Digital Twin Home" nel dettaglio immobile
+- [x] Viewer interattivo con:
+  - Sidebar planimetria con punti navigabili
+  - Lista stanze con navigazione rapida
+  - Hotspot per passare da una stanza all'altra
+  - Vista 360° a schermo intero
+
 ### Completato (Dicembre 2025)
 - [x] Sito marketing multilingue
 - [x] Chatbot AI con knowledge base
