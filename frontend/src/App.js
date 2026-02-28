@@ -3957,9 +3957,34 @@ const ImmobiliAdminPanel = () => {
                       <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.conformita_urbanistica} onChange={(e) => setFormData({...formData, conformita_urbanistica: e.target.checked})} className="w-5 h-5" /><label>Conformità Urbanistica</label></div>
                       <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.conformita_catastale} onChange={(e) => setFormData({...formData, conformita_catastale: e.target.checked})} className="w-5 h-5" /><label>Conformità Catastale</label></div>
                     </div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div><label className="block text-sm font-medium mb-1">Destinazione Urbanistica Attuale</label><input type="text" value={formData.destinazione_urbanistica_attuale} onChange={(e) => setFormData({...formData, destinazione_urbanistica_attuale: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
-                      <div><label className="block text-sm font-medium mb-1">Destinazione Urbanistica Prevista</label><input type="text" value={formData.destinazione_urbanistica_prevista} onChange={(e) => setFormData({...formData, destinazione_urbanistica_prevista: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    {/* Destinazione Urbanistica con lista dinamica */}
+                    <div className="bg-blue-50 rounded-xl p-4">
+                      <h4 className="font-medium text-blue-800 mb-3">🏙️ Destinazione Urbanistica</h4>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Destinazione Attuale</label>
+                          <select value={formData.destinazione_urbanistica_attuale} onChange={(e) => setFormData({...formData, destinazione_urbanistica_attuale: e.target.value})} className="w-full px-4 py-2 border rounded-lg">
+                            <option value="">Seleziona o aggiungi nuova...</option>
+                            {destinazioniUrbanistiche.map((d, i) => <option key={i} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Aggiungi alla lista</label>
+                          <div className="flex gap-2">
+                            <input type="text" value={newDestinazione} onChange={(e) => setNewDestinazione(e.target.value)} placeholder="Nuova destinazione..." className="flex-1 px-4 py-2 border rounded-lg" />
+                            <button type="button" onClick={addDestinazione} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"><Plus size={18} /></button>
+                          </div>
+                        </div>
+                      </div>
+                      {destinazioniUrbanistiche.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {destinazioniUrbanistiche.map((d, i) => <span key={i} className="px-2 py-1 bg-white text-blue-700 text-xs rounded border">{d}</span>)}
+                        </div>
+                      )}
+                      <div className="grid md:grid-cols-2 gap-4 mt-3">
+                        <div><label className="block text-sm font-medium mb-1">Destinazione Prevista</label><input type="text" value={formData.destinazione_urbanistica_prevista} onChange={(e) => setFormData({...formData, destinazione_urbanistica_prevista: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                        <div><label className="block text-sm font-medium mb-1">Iter Cambio Destinazione</label><input type="text" value={formData.iter_cambio_destinazione} onChange={(e) => setFormData({...formData, iter_cambio_destinazione: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -3981,6 +4006,28 @@ const ImmobiliAdminPanel = () => {
                       <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"><input type="checkbox" checked={formData.connessione_internet} onChange={(e) => setFormData({...formData, connessione_internet: e.target.checked})} className="w-5 h-5" /><label>📶 Connessione Internet</label></div>
                       {formData.connessione_internet && <div><label className="block text-sm font-medium mb-1">Tipo Connessione</label><input type="text" value={formData.tipo_connessione} onChange={(e) => setFormData({...formData, tipo_connessione: e.target.value})} placeholder="ADSL, Fibra, 4G..." className="w-full px-4 py-2 border rounded-lg" /></div>}
                     </div>
+                    {/* Lista Impianti Dinamica */}
+                    <div className="bg-yellow-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-yellow-800">📋 Lista Impianti Certificati</h4>
+                        <button type="button" onClick={addImpianto} className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm flex items-center gap-1"><Plus size={14} /> Aggiungi</button>
+                      </div>
+                      {(formData.impianti_lista || []).length === 0 ? (
+                        <p className="text-gray-500 text-sm">Nessun impianto aggiunto. Clicca "Aggiungi" per iniziare.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {(formData.impianti_lista || []).map((imp, i) => (
+                            <div key={imp.id || i} className="flex items-center gap-2 bg-white p-2 rounded-lg">
+                              <input type="text" value={imp.descrizione} onChange={(e) => updateImpianto(i, "descrizione", e.target.value)} placeholder="Descrizione impianto" className="flex-1 px-3 py-1 border rounded" />
+                              <input type="date" value={imp.data_certificazione || ""} onChange={(e) => updateImpianto(i, "data_certificazione", e.target.value)} className="px-3 py-1 border rounded" />
+                              <button type="button" onClick={() => removeImpianto(i)} className="p-1 text-red-600 hover:bg-red-100 rounded"><Trash2 size={16} /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Allegati Impianti */}
+                    {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="impianti" attachments={editingImmobile.attachments} />}
                   </div>
                 )}
 
@@ -3999,16 +4046,33 @@ const ImmobiliAdminPanel = () => {
                       <div><label className="block text-sm font-medium mb-1">Target Ideale</label><select value={formData.target_ideale} onChange={(e) => setFormData({...formData, target_ideale: e.target.value})} className="w-full px-4 py-2 border rounded-lg"><option value="">Seleziona...</option>{targetOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
                     </div>
                     <div><label className="block text-sm font-medium mb-1">Potenzialità d'Uso</label><input type="text" value={formData.potenzialita_uso} onChange={(e) => setFormData({...formData, potenzialita_uso: e.target.value})} placeholder="B&B, Atelier, Smart Working, Casa vacanze..." className="w-full px-4 py-2 border rounded-lg" /></div>
+                    {/* Allegati Marketing */}
+                    {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="marketing" attachments={editingImmobile.attachments} />}
                   </div>
                 )}
 
-                {/* RESPONSABILI */}
+                {/* REFERENTI */}
                 {activeSection === "responsabili" && (
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">👤 Responsabili</h3>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div><label className="block text-sm font-medium mb-1">Responsabile Servizio Tecnico</label><input type="text" value={formData.responsabile_tecnico} onChange={(e) => setFormData({...formData, responsabile_tecnico: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
-                      <div><label className="block text-sm font-medium mb-1">Esaminatore</label><input type="text" value={formData.esaminatore} onChange={(e) => setFormData({...formData, esaminatore: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
+                    <h3 className="font-semibold text-lg text-blue-900 border-b pb-2">👥 Referenti</h3>
+                    <div className="bg-green-50 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium text-green-800">📋 Lista Referenti</h4>
+                        <button type="button" onClick={addReferente} className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm flex items-center gap-1"><Plus size={14} /> Aggiungi Referente</button>
+                      </div>
+                      {(formData.referenti || []).length === 0 ? (
+                        <p className="text-gray-500 text-sm">Nessun referente aggiunto. Clicca "Aggiungi Referente" per iniziare.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {(formData.referenti || []).map((ref, i) => (
+                            <div key={ref.id || i} className="flex items-center gap-2 bg-white p-2 rounded-lg">
+                              <input type="text" value={ref.nominativo} onChange={(e) => updateReferente(i, "nominativo", e.target.value)} placeholder="Nominativo" className="flex-1 px-3 py-2 border rounded" />
+                              <input type="text" value={ref.contatti || ""} onChange={(e) => updateReferente(i, "contatti", e.target.value)} placeholder="Contatti (tel, email)" className="flex-1 px-3 py-2 border rounded" />
+                              <button type="button" onClick={() => removeReferente(i)} className="p-2 text-red-600 hover:bg-red-100 rounded"><Trash2 size={18} /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg"><input type="checkbox" checked={formData.published} onChange={(e) => setFormData({...formData, published: e.target.checked})} className="w-5 h-5" /><label>✅ Pubblica nella Vetrina</label></div>
                   </div>
