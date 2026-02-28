@@ -3745,9 +3745,17 @@ const ImmobiliAdminPanel = () => {
               {statoConservazioneOptions.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
-          <button onClick={() => { setEditingImmobile(null); setFormData(emptyImmobile); setShowForm(true); setActiveSection("anagrafica"); }} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2">
-            <Plus size={20} /> Nuovo Immobile
-          </button>
+          <div className="flex gap-2 items-center">
+            <button onClick={handleExportExcel} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm flex items-center gap-2" title="Esporta Excel">
+              <FileText size={16} /> Excel
+            </button>
+            <button onClick={handleExportPDF} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm flex items-center gap-2" title="Esporta PDF">
+              <FileText size={16} /> PDF
+            </button>
+            <button onClick={() => { setEditingImmobile(null); setFormData(emptyImmobile); setShowForm(true); setActiveSection("anagrafica"); }} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2">
+              <Plus size={20} /> Nuovo Immobile
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
