@@ -120,6 +120,16 @@ Sistema completo per la gestione immobiliare con:
 - [x] Fix aggiornamento allegati nelle tab - ora refresha editingImmobile dopo upload
 - [x] Fix conversione campi numerici vuoti (da stringa vuota a null)
 - [x] Aggiunta conferma prima di eliminare allegato
+- [x] Aggiunto link "Borgo Experience" e "CMS Immobili" nella sezione Il Borgo
+
+### Galleria Fotografica e 360° (Febbraio 2026)
+- [x] Galleria fotografica con lightbox grande (1000x1000+)
+- [x] Navigazione tra immagini con frecce e contatore
+- [x] Supporto immagini 360° (Insta360 X5) con Photo Sphere Viewer
+- [x] Backend: flag `is_360` per immagini panoramiche
+- [x] Admin: pulsanti separati "+ Foto" e "+ 360°" per upload
+- [x] Badge "360°" su thumbnail per foto panoramiche
+- [x] Viewer panoramico interattivo (trascina per esplorare)
 
 ### Completato (Dicembre 2025)
 - [x] Sito marketing multilingue
