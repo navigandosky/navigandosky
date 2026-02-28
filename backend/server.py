@@ -327,6 +327,296 @@ class AttractionResponse(BaseModel):
     distance: Optional[str] = None
     waypoints: Optional[List[dict]] = None
 
+# ============== IMMOBILI (HOME TADASUNI) MODELS ==============
+
+class ImmobileAttachment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    filename: str
+    url: str
+    description: Optional[str] = None
+    section: str  # anagrafica, catastale, dimensioni, stato, certificazioni, marketing
+    file_type: str  # image, document, pdf
+
+class ImmobileImage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    url: str
+    caption: Optional[str] = None
+
+class ImmobileCreate(BaseModel):
+    # I. ANAGRAFICA GENERALE
+    ente_proprietario: Optional[str] = None
+    denominazione: str
+    indirizzo_via: Optional[str] = None
+    indirizzo_comune: str = "Tadasuni"
+    indirizzo_provincia: str = "OR"
+    indirizzo_regione: str = "Sardegna"
+    
+    # II. CLASSIFICAZIONE DEL BENE
+    tipo_bene: str = "edificato"  # edificato, non_edificato
+    destinazione_uso: Optional[str] = None  # residenziale, commerciale, agricolo, magazzino
+    tipologia: Optional[str] = None  # casa_singola, villetta, appartamento, magazzino, ex_stalla
+    
+    # III. DATI CATASTALI - Catasto Fabbricati
+    catasto_sezione_urbana: Optional[str] = None
+    catasto_foglio: Optional[str] = None
+    catasto_particella: Optional[str] = None
+    catasto_subalterno: Optional[str] = None
+    catasto_categoria: Optional[str] = None
+    # Catasto Terreni
+    terreno_foglio: Optional[str] = None
+    terreno_particella: Optional[str] = None
+    
+    # IV. DIMENSIONI E STRUTTURA
+    superficie_lorda_mq: Optional[float] = None
+    superficie_fondiaria_mq: Optional[float] = None
+    n_edifici: Optional[int] = None
+    n_piani_fuori_terra: Optional[int] = None
+    n_piani_entro_terra: Optional[int] = None
+    collegamenti_impianti: Optional[str] = None  # scale, ascensori
+    superficie_coperta_mq: Optional[float] = None
+    superficie_scoperta_mq: Optional[float] = None
+    volume_entro_terra_mc: Optional[float] = None
+    volume_fuori_terra_mc: Optional[float] = None
+    n_vani: Optional[int] = None
+    
+    # V. UBICAZIONE
+    localizzazione_omi: Optional[str] = None
+    coordinate_gps: Optional[str] = None
+    link_gemello_digitale: Optional[str] = None
+    
+    # VI. CERTIFICAZIONI
+    certificato_energetico: bool = False
+    classe_energetica: Optional[str] = None
+    cdu: bool = False  # Certificato Destinazione Urbanistica
+    
+    # VII. STATO E CONSERVAZIONE
+    anno_costruzione: Optional[int] = None
+    stato_conservazione: Optional[str] = None  # ottimo, buono, mediocre, pessimo
+    stato_occupazione: Optional[str] = None  # libero, occupato
+    soggetto_occupante: Optional[str] = None
+    natura_giuridica_occupazione: Optional[str] = None
+    tipo_occupazione_durata: Optional[str] = None
+    
+    # VIII. VINCOLI E CONFORMITA
+    presenza_vincoli: bool = False
+    tipo_vincoli: Optional[str] = None
+    conformita_urbanistica: bool = False
+    destinazione_urbanistica_attuale: Optional[str] = None
+    destinazione_urbanistica_prevista: Optional[str] = None
+    iter_cambio_destinazione: Optional[str] = None
+    titolo_legittimita: Optional[str] = None
+    conformita_catastale: bool = False
+    
+    # IX. DOTAZIONI/IMPIANTI
+    impianto_idrico: bool = False
+    impianto_elettrico: bool = False
+    impianto_fognario: bool = False
+    riscaldamento: bool = False
+    tipo_riscaldamento: Optional[str] = None
+    connessione_internet: bool = False
+    tipo_connessione: Optional[str] = None
+    
+    # X. MARKETING E VALORIZZAZIONE
+    prezzo_richiesto: Optional[float] = None
+    prezzo_mq: Optional[float] = None
+    prezzo_pubblico: bool = False  # Flag per rendere il prezzo visibile pubblicamente
+    descrizione_narrativa: Optional[str] = None
+    punti_forza: Optional[str] = None  # es. "vista lago, silenzioso"
+    target_ideale: Optional[str] = None  # nomadi_digitali, over_55, famiglie, investitori
+    potenzialita_uso: Optional[str] = None  # b&b, atelier, smart_working
+    
+    # XI. RESPONSABILI
+    responsabile_tecnico: Optional[str] = None
+    esaminatore: Optional[str] = None
+    
+    # Stato pubblicazione
+    published: bool = True
+
+class ImmobileUpdate(BaseModel):
+    # I. ANAGRAFICA GENERALE
+    ente_proprietario: Optional[str] = None
+    denominazione: Optional[str] = None
+    indirizzo_via: Optional[str] = None
+    indirizzo_comune: Optional[str] = None
+    indirizzo_provincia: Optional[str] = None
+    indirizzo_regione: Optional[str] = None
+    
+    # II. CLASSIFICAZIONE DEL BENE
+    tipo_bene: Optional[str] = None
+    destinazione_uso: Optional[str] = None
+    tipologia: Optional[str] = None
+    
+    # III. DATI CATASTALI
+    catasto_sezione_urbana: Optional[str] = None
+    catasto_foglio: Optional[str] = None
+    catasto_particella: Optional[str] = None
+    catasto_subalterno: Optional[str] = None
+    catasto_categoria: Optional[str] = None
+    terreno_foglio: Optional[str] = None
+    terreno_particella: Optional[str] = None
+    
+    # IV. DIMENSIONI E STRUTTURA
+    superficie_lorda_mq: Optional[float] = None
+    superficie_fondiaria_mq: Optional[float] = None
+    n_edifici: Optional[int] = None
+    n_piani_fuori_terra: Optional[int] = None
+    n_piani_entro_terra: Optional[int] = None
+    collegamenti_impianti: Optional[str] = None
+    superficie_coperta_mq: Optional[float] = None
+    superficie_scoperta_mq: Optional[float] = None
+    volume_entro_terra_mc: Optional[float] = None
+    volume_fuori_terra_mc: Optional[float] = None
+    n_vani: Optional[int] = None
+    
+    # V. UBICAZIONE
+    localizzazione_omi: Optional[str] = None
+    coordinate_gps: Optional[str] = None
+    link_gemello_digitale: Optional[str] = None
+    
+    # VI. CERTIFICAZIONI
+    certificato_energetico: Optional[bool] = None
+    classe_energetica: Optional[str] = None
+    cdu: Optional[bool] = None
+    
+    # VII. STATO E CONSERVAZIONE
+    anno_costruzione: Optional[int] = None
+    stato_conservazione: Optional[str] = None
+    stato_occupazione: Optional[str] = None
+    soggetto_occupante: Optional[str] = None
+    natura_giuridica_occupazione: Optional[str] = None
+    tipo_occupazione_durata: Optional[str] = None
+    
+    # VIII. VINCOLI E CONFORMITA
+    presenza_vincoli: Optional[bool] = None
+    tipo_vincoli: Optional[str] = None
+    conformita_urbanistica: Optional[bool] = None
+    destinazione_urbanistica_attuale: Optional[str] = None
+    destinazione_urbanistica_prevista: Optional[str] = None
+    iter_cambio_destinazione: Optional[str] = None
+    titolo_legittimita: Optional[str] = None
+    conformita_catastale: Optional[bool] = None
+    
+    # IX. DOTAZIONI/IMPIANTI
+    impianto_idrico: Optional[bool] = None
+    impianto_elettrico: Optional[bool] = None
+    impianto_fognario: Optional[bool] = None
+    riscaldamento: Optional[bool] = None
+    tipo_riscaldamento: Optional[str] = None
+    connessione_internet: Optional[bool] = None
+    tipo_connessione: Optional[str] = None
+    
+    # X. MARKETING E VALORIZZAZIONE
+    prezzo_richiesto: Optional[float] = None
+    prezzo_mq: Optional[float] = None
+    prezzo_pubblico: Optional[bool] = None
+    descrizione_narrativa: Optional[str] = None
+    punti_forza: Optional[str] = None
+    target_ideale: Optional[str] = None
+    potenzialita_uso: Optional[str] = None
+    
+    # XI. RESPONSABILI
+    responsabile_tecnico: Optional[str] = None
+    esaminatore: Optional[str] = None
+    
+    # Stato pubblicazione
+    published: Optional[bool] = None
+
+class ImmobileResponse(BaseModel):
+    id: str
+    # I. ANAGRAFICA GENERALE
+    ente_proprietario: Optional[str] = None
+    denominazione: str
+    indirizzo_via: Optional[str] = None
+    indirizzo_comune: str
+    indirizzo_provincia: str
+    indirizzo_regione: str
+    
+    # II. CLASSIFICAZIONE DEL BENE
+    tipo_bene: str
+    destinazione_uso: Optional[str] = None
+    tipologia: Optional[str] = None
+    
+    # III. DATI CATASTALI
+    catasto_sezione_urbana: Optional[str] = None
+    catasto_foglio: Optional[str] = None
+    catasto_particella: Optional[str] = None
+    catasto_subalterno: Optional[str] = None
+    catasto_categoria: Optional[str] = None
+    terreno_foglio: Optional[str] = None
+    terreno_particella: Optional[str] = None
+    
+    # IV. DIMENSIONI E STRUTTURA
+    superficie_lorda_mq: Optional[float] = None
+    superficie_fondiaria_mq: Optional[float] = None
+    n_edifici: Optional[int] = None
+    n_piani_fuori_terra: Optional[int] = None
+    n_piani_entro_terra: Optional[int] = None
+    collegamenti_impianti: Optional[str] = None
+    superficie_coperta_mq: Optional[float] = None
+    superficie_scoperta_mq: Optional[float] = None
+    volume_entro_terra_mc: Optional[float] = None
+    volume_fuori_terra_mc: Optional[float] = None
+    n_vani: Optional[int] = None
+    
+    # V. UBICAZIONE
+    localizzazione_omi: Optional[str] = None
+    coordinate_gps: Optional[str] = None
+    link_gemello_digitale: Optional[str] = None
+    
+    # VI. CERTIFICAZIONI
+    certificato_energetico: bool = False
+    classe_energetica: Optional[str] = None
+    cdu: bool = False
+    
+    # VII. STATO E CONSERVAZIONE
+    anno_costruzione: Optional[int] = None
+    stato_conservazione: Optional[str] = None
+    stato_occupazione: Optional[str] = None
+    soggetto_occupante: Optional[str] = None
+    natura_giuridica_occupazione: Optional[str] = None
+    tipo_occupazione_durata: Optional[str] = None
+    
+    # VIII. VINCOLI E CONFORMITA
+    presenza_vincoli: bool = False
+    tipo_vincoli: Optional[str] = None
+    conformita_urbanistica: bool = False
+    destinazione_urbanistica_attuale: Optional[str] = None
+    destinazione_urbanistica_prevista: Optional[str] = None
+    iter_cambio_destinazione: Optional[str] = None
+    titolo_legittimita: Optional[str] = None
+    conformita_catastale: bool = False
+    
+    # IX. DOTAZIONI/IMPIANTI
+    impianto_idrico: bool = False
+    impianto_elettrico: bool = False
+    impianto_fognario: bool = False
+    riscaldamento: bool = False
+    tipo_riscaldamento: Optional[str] = None
+    connessione_internet: bool = False
+    tipo_connessione: Optional[str] = None
+    
+    # X. MARKETING E VALORIZZAZIONE
+    prezzo_richiesto: Optional[float] = None
+    prezzo_mq: Optional[float] = None
+    prezzo_pubblico: bool = False
+    descrizione_narrativa: Optional[str] = None
+    punti_forza: Optional[str] = None
+    target_ideale: Optional[str] = None
+    potenzialita_uso: Optional[str] = None
+    
+    # XI. RESPONSABILI
+    responsabile_tecnico: Optional[str] = None
+    esaminatore: Optional[str] = None
+    
+    # Media
+    images: List[ImmobileImage] = []
+    attachments: List[ImmobileAttachment] = []
+    
+    # Metadata
+    published: bool = True
+    created_at: str
+    updated_at: str
+
 # Tadasuni knowledge base
 TADASUNI_CONTEXT = """
 Tadasuni è un piccolissimo borgo della Sardegna centrale, situato nella regione storica del Barigadu, in provincia di Oristano.
