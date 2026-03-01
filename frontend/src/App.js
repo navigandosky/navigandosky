@@ -5673,7 +5673,7 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
                     🌐 {t?.digitalTwinHome || "Digital Twin Home"}
                   </button>
                   {selectedImmobile.link_gemello_digitale && <a href={selectedImmobile.link_gemello_digitale} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold flex items-center gap-2">🏠 {t?.digitalTwin || "Gemello Digitale"}</a>}
-                  <a href={`mailto:info@comune.tadasuni.or.it?subject=${t?.requestInfo || "Richiesta informazioni"}: ${selectedImmobile.denominazione}`} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2"><Mail size={18} /> {t?.requestInfo || "Richiedi Informazioni"}</a>
+                  <button onClick={() => openContactForm(selectedImmobile)} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center gap-2"><Mail size={18} /> {t?.requestInfo || "Richiedi Informazioni"}</button>
                   {selectedImmobile.coordinate_gps && <a href={`https://maps.google.com/?q=${selectedImmobile.coordinate_gps}`} target="_blank" rel="noopener noreferrer" className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center gap-2"><MapPin size={18} /> {t?.viewOnMap || "Vedi su Mappa"}</a>}
                 </div>
               </div>
