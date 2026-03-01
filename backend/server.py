@@ -60,6 +60,173 @@ async def health_check():
     """Health check endpoint for backend wake-up"""
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
+# Email configuration
+SMTP_SERVER = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+CONTACT_EMAIL = os.environ.get("CONTACT_EMAIL", SMTP_EMAIL)
+
+class ContactRequest(BaseModel):
+    name: str
+    email: str
+    phone: Optional[str] = None
+    message: str
+    property_name: Optional[str] = None
+    property_id: Optional[str] = None
+    lang: str = "it"
+
+@api_router.post("/contact")
+async def send_contact_email(request: ContactRequest):
+    """Send contact/info request email"""
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        raise HTTPException(status_code=500, detail="Email service not configured")
+    
+    try:
+        # Create email message
+        msg = MIMEMultipart('alternative')
+        msg['From'] = SMTP_EMAIL
+        msg['To'] = CONTACT_EMAIL
+        
+        # Subject based on property or general inquiry
+        if request.property_name:
+            msg['Subject'] = f"🏠 Richiesta Informazioni: {request.property_name}"
+        else:
+            msg['Subject'] = "📧 Nuovo Messaggio da VisitTadasuni"
+        
+        # Create HTML email body
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }}
+                .container {{ max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                .header {{ background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: white; padding: 20px; text-align: center; }}
+                .content {{ padding: 30px; }}
+                .field {{ margin-bottom: 20px; }}
+                .label {{ font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }}
+                .value {{ background: #f0f9ff; padding: 10px; border-radius: 5px; border-left: 3px solid #3b82f6; }}
+                .message-box {{ background: #fef3c7; padding: 15px; border-radius: 5px; border-left: 3px solid #f59e0b; }}
+                .footer {{ background: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; }}
+                .property-badge {{ display: inline-block; background: #8b5cf6; color: white; padding: 5px 15px; border-radius: 20px; margin-bottom: 15px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🏠 Home Tadasuni</h1>
+                    <p>Nuova richiesta di informazioni</p>
+                </div>
+                <div class="content">
+                    {"<span class='property-badge'>🏡 " + request.property_name + "</span>" if request.property_name else ""}
+                    
+                    <div class="field">
+                        <div class="label">👤 Nome</div>
+                        <div class="value">{request.name}</div>
+                    </div>
+                    
+                    <div class="field">
+                        <div class="label">📧 Email</div>
+                        <div class="value"><a href="mailto:{request.email}">{request.email}</a></div>
+                    </div>
+                    
+                    {"<div class='field'><div class='label'>📞 Telefono</div><div class='value'>" + request.phone + "</div></div>" if request.phone else ""}
+                    
+                    <div class="field">
+                        <div class="label">💬 Messaggio</div>
+                        <div class="message-box">{request.message}</div>
+                    </div>
+                </div>
+                <div class="footer">
+                    <p>Email inviata automaticamente da VisitTadasuni</p>
+                    <p>© 2025 Tadasuni Borgo Experience</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text fallback
+        text_body = f"""
+        Nuova richiesta di informazioni - Home Tadasuni
+        
+        {"Immobile: " + request.property_name if request.property_name else ""}
+        
+        Nome: {request.name}
+        Email: {request.email}
+        {"Telefono: " + request.phone if request.phone else ""}
+        
+        Messaggio:
+        {request.message}
+        
+        ---
+        Email inviata da VisitTadasuni
+        """
+        
+        msg.attach(MIMEText(text_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
+        
+        # Send email
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.send_message(msg)
+        
+        # Also send confirmation to the user
+        confirmation_msg = MIMEMultipart('alternative')
+        confirmation_msg['From'] = SMTP_EMAIL
+        confirmation_msg['To'] = request.email
+        confirmation_msg['Subject'] = "✅ Abbiamo ricevuto la tua richiesta - Home Tadasuni"
+        
+        confirmation_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }}
+                .container {{ max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; }}
+                .header {{ background: linear-gradient(135deg, #059669, #10b981); color: white; padding: 20px; text-align: center; }}
+                .content {{ padding: 30px; }}
+                .footer {{ background: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>✅ Richiesta Ricevuta!</h1>
+                </div>
+                <div class="content">
+                    <p>Ciao <strong>{request.name}</strong>,</p>
+                    <p>Grazie per averci contattato! Abbiamo ricevuto la tua richiesta{" riguardo <strong>" + request.property_name + "</strong>" if request.property_name else ""} e ti risponderemo al più presto.</p>
+                    <p>Nel frattempo, puoi continuare a esplorare le case disponibili su <a href="https://www.visittadasuni.it/#/immobili">Home Tadasuni</a>.</p>
+                    <br>
+                    <p>Cordiali saluti,<br><strong>Il Team di Tadasuni Borgo Experience</strong></p>
+                </div>
+                <div class="footer">
+                    <p>© 2025 VisitTadasuni - Comune di Tadasuni</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        confirmation_msg.attach(MIMEText(confirmation_html, 'html'))
+        
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.send_message(confirmation_msg)
+        
+        return {"success": True, "message": "Email inviata con successo"}
+        
+    except smtplib.SMTPAuthenticationError:
+        logger.error("SMTP Authentication failed")
+        raise HTTPException(status_code=500, detail="Errore di autenticazione email")
+    except Exception as e:
+        logger.error(f"Error sending email: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Errore invio email: {str(e)}")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
