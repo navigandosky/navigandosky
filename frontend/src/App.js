@@ -5368,10 +5368,36 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold">🏠 Home Tadasuni</h1>
-              <p className="text-blue-200">Trova la tua casa nel borgo</p>
+              <h1 className="text-3xl font-bold">🏠 {t?.homeTadasuni || "Home Tadasuni"}</h1>
+              <p className="text-blue-200">{t?.homeTadasuniSubtitle || "Trova la tua casa nel borgo"}</p>
             </div>
-            <Link to="/" className="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-lg">← Torna al sito</Link>
+            <div className="flex items-center gap-4">
+              {/* Language Selector */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowLangMenu(!showLangMenu)}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-700 hover:bg-blue-600 rounded-lg transition"
+                >
+                  <FlagIcon code={lang} size={20} />
+                  <ChevronDown size={16} />
+                </button>
+                {showLangMenu && (
+                  <div className="absolute right-0 mt-2 bg-white rounded-lg shadow-xl py-2 z-50 min-w-[150px]">
+                    {Object.keys(languageNames).map(code => (
+                      <button
+                        key={code}
+                        onClick={() => { setLang(code); setShowLangMenu(false); }}
+                        className={`w-full px-4 py-2 flex items-center gap-3 hover:bg-gray-100 ${lang === code ? 'bg-blue-50 text-blue-600' : 'text-gray-700'}`}
+                      >
+                        <FlagIcon code={code} size={20} />
+                        <span>{languageNames[code]}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Link to="/" className="px-4 py-2 bg-blue-700 hover:bg-blue-600 rounded-lg">← {t?.backToHome || "Torna al sito"}</Link>
+            </div>
           </div>
         </div>
       </header>
@@ -5379,22 +5405,22 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Hero */}
         <div className="bg-gradient-to-r from-blue-800 to-indigo-900 rounded-2xl p-8 mb-8 text-white">
-          <h2 className="text-2xl font-bold mb-2">Vivi l'esperienza di Tadasuni</h2>
-          <p className="text-blue-200 mb-4">Scopri le case disponibili nel borgo e inizia una nuova vita in Sardegna</p>
+          <h2 className="text-2xl font-bold mb-2">{t?.findYourHome || "Trova la tua casa nel borgo di Tadasuni"}</h2>
+          <p className="text-blue-200 mb-4">{t?.aboutDesc?.substring(0, 100) || "Scopri le case disponibili nel borgo e inizia una nuova vita in Sardegna"}...</p>
           <div className="flex flex-wrap gap-4">
-            <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2"><span className="text-2xl font-bold">{immobili.length}</span><span className="text-blue-200 ml-2">Immobili</span></div>
-            <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2"><span className="text-2xl font-bold">{immobili.filter(i => i.stato_occupazione === "libero").length}</span><span className="text-blue-200 ml-2">Disponibili</span></div>
+            <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2"><span className="text-2xl font-bold">{immobili.length}</span><span className="text-blue-200 ml-2">{t?.totalProperties || "Immobili"}</span></div>
+            <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2"><span className="text-2xl font-bold">{immobili.filter(i => i.stato_occupazione === "libero").length}</span><span className="text-blue-200 ml-2">{t?.available || "Disponibili"}</span></div>
           </div>
         </div>
 
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <div className="flex flex-wrap gap-4 items-end">
-            <div className="flex-1 min-w-[200px]"><label className="block text-sm font-medium text-gray-700 mb-1">🔍 Cerca</label><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Nome o indirizzo..." className="w-full px-4 py-2 border rounded-lg" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Tipologia</label><select value={filters.tipologia} onChange={(e) => setFilters({...filters, tipologia: e.target.value})} className="px-4 py-2 border rounded-lg"><option value="all">Tutte</option>{tipologieOptions.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Stato</label><select value={filters.stato} onChange={(e) => setFilters({...filters, stato: e.target.value})} className="px-4 py-2 border rounded-lg"><option value="all">Tutti</option><option value="ottimo">Ottimo</option><option value="buono">Buono</option><option value="da_ristrutturare">Da Ristrutturare</option></select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Prezzo Max (€)</label><input type="number" value={filters.prezzoMax} onChange={(e) => setFilters({...filters, prezzoMax: e.target.value})} placeholder="es. 50000" className="w-32 px-4 py-2 border rounded-lg" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Superficie Min (mq)</label><input type="number" value={filters.superficieMin} onChange={(e) => setFilters({...filters, superficieMin: e.target.value})} placeholder="es. 50" className="w-32 px-4 py-2 border rounded-lg" /></div>
+            <div className="flex-1 min-w-[200px]"><label className="block text-sm font-medium text-gray-700 mb-1">🔍 {t?.search || "Cerca"}</label><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t?.searchPlaceholder || "Nome o indirizzo..."} className="w-full px-4 py-2 border rounded-lg" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t?.typology || "Tipologia"}</label><select value={filters.tipologia} onChange={(e) => setFilters({...filters, tipologia: e.target.value})} className="px-4 py-2 border rounded-lg"><option value="all">{t?.allTypes || "Tutte"}</option>{tipologieOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t?.status || "Stato"}</label><select value={filters.stato} onChange={(e) => setFilters({...filters, stato: e.target.value})} className="px-4 py-2 border rounded-lg"><option value="all">{t?.allStatus || "Tutti"}</option>{statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t?.maxPrice || "Prezzo Max (€)"}</label><input type="number" value={filters.prezzoMax} onChange={(e) => setFilters({...filters, prezzoMax: e.target.value})} placeholder="es. 50000" className="w-32 px-4 py-2 border rounded-lg" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">{t?.minSurface || "Superficie Min (mq)"}</label><input type="number" value={filters.superficieMin} onChange={(e) => setFilters({...filters, superficieMin: e.target.value})} placeholder="es. 50" className="w-32 px-4 py-2 border rounded-lg" /></div>
             <div 
               onClick={() => setFilters({...filters, vistaLago: !filters.vistaLago})}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-all ${
@@ -5404,7 +5430,7 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
               }`}
             >
               <span>🌊</span>
-              <span className="font-medium">Vista Lago</span>
+              <span className="font-medium">{t?.lakeView || "Vista Lago"}</span>
             </div>
           </div>
         </div>
@@ -5413,7 +5439,7 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
         {loading ? (
           <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div></div>
         ) : filteredImmobili.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-2xl shadow"><p className="text-gray-500">Nessun immobile corrisponde ai criteri di ricerca.</p></div>
+          <div className="text-center py-12 bg-white rounded-2xl shadow"><p className="text-gray-500">{t?.noResults || "Nessun immobile corrisponde ai criteri di ricerca."}</p></div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredImmobili.map((imm) => (
