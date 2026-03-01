@@ -3805,7 +3805,7 @@ const ImmobiliAdminPanel = () => {
     tipo_bene: "edificato", destinazione_uso: "", tipologia: "",
     catasto_sezione_urbana: "", catasto_foglio: "", catasto_particella: "", catasto_subalterno: "", catasto_categoria: "", terreno_foglio: "", terreno_particella: "",
     superficie_lorda_mq: "", superficie_fondiaria_mq: "", n_edifici: "", n_piani_fuori_terra: "", n_piani_entro_terra: "", collegamenti_impianti: "", superficie_coperta_mq: "", superficie_scoperta_mq: "", volume_entro_terra_mc: "", volume_fuori_terra_mc: "", n_vani: "", planimetrie_presenti: false,
-    localizzazione_omi: "", coordinate_gps: "", link_gemello_digitale: "",
+    localizzazione_omi: "", coordinate_gps: "", link_gemello_digitale: "", vista_lago: false,
     certificato_energetico: false, classe_energetica: "", cdu: false,
     anno_costruzione: "", stato_conservazione: "", data_ultima_manutenzione: "", stato_occupazione: "", soggetto_occupante: "", natura_giuridica_occupazione: "", tipo_occupazione_durata: "",
     presenza_vincoli: false, tipo_vincoli: "", conformita_urbanistica: false, destinazione_urbanistica_attuale: "", destinazioni_urbanistiche_lista: [], destinazione_urbanistica_prevista: "", iter_cambio_destinazione: "", titolo_legittimita: "", conformita_catastale: false,
