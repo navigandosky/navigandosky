@@ -5753,6 +5753,104 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
         )}
       </div>
 
+      {/* Contact Form Modal */}
+      {showContactForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4" onClick={() => setShowContactForm(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+            {emailSent ? (
+              <div className="p-8 text-center">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="text-green-600" size={48} />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">{t?.emailSent || "Email Inviata!"}</h3>
+                <p className="text-gray-600">{t?.emailConfirmation || "Ti abbiamo inviato una conferma via email."}</p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6 text-white">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-xl font-bold">{t?.requestInfo || "Richiedi Informazioni"}</h3>
+                      {contactProperty && (
+                        <p className="text-blue-200 text-sm mt-1">📍 {contactProperty.denominazione}</p>
+                      )}
+                    </div>
+                    <button onClick={() => setShowContactForm(false)} className="p-1 hover:bg-white/20 rounded-full transition">
+                      <X size={24} />
+                    </button>
+                  </div>
+                </div>
+                <form onSubmit={handleSendEmail} className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t?.name || "Nome"} *</label>
+                    <input 
+                      type="text" 
+                      value={contactForm.name} 
+                      onChange={e => setContactForm({...contactForm, name: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder={t?.yourName || "Il tuo nome"}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t?.email || "Email"} *</label>
+                    <input 
+                      type="email" 
+                      value={contactForm.email} 
+                      onChange={e => setContactForm({...contactForm, email: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder={t?.yourEmail || "La tua email"}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t?.phone || "Telefono"}</label>
+                    <input 
+                      type="tel" 
+                      value={contactForm.phone} 
+                      onChange={e => setContactForm({...contactForm, phone: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder={t?.yourPhone || "Il tuo numero (opzionale)"}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t?.message || "Messaggio"} *</label>
+                    <textarea 
+                      value={contactForm.message} 
+                      onChange={e => setContactForm({...contactForm, message: e.target.value})}
+                      rows={4}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      placeholder={t?.yourMessage || "Scrivi il tuo messaggio..."}
+                      required
+                    />
+                  </div>
+                  <button 
+                    type="submit" 
+                    disabled={sendingEmail}
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition"
+                  >
+                    {sendingEmail ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        {t?.sending || "Invio in corso..."}
+                      </>
+                    ) : (
+                      <>
+                        <Mail size={20} />
+                        {t?.send || "Invia Richiesta"}
+                      </>
+                    )}
+                  </button>
+                  <p className="text-xs text-gray-500 text-center">
+                    {t?.privacyNote || "Inviando questo form accetti il trattamento dei tuoi dati personali."}
+                  </p>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Digital Twin Viewer */}
       {showDigitalTwin && digitalTwinImmobile && (
         <DigitalTwinViewer 
