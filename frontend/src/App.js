@@ -5289,6 +5289,12 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
   const [digitalTwinImmobile, setDigitalTwinImmobile] = useState(null);
   // Language menu
   const [showLangMenu, setShowLangMenu] = useState(false);
+  // Contact form state
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [contactProperty, setContactProperty] = useState(null);
+  const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "", message: "" });
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const panoramaRef = useRef(null);
   const viewerInstance = useRef(null);
 
