@@ -7,6 +7,24 @@ import { MessageCircle, X, Send, Globe, Menu, ChevronDown, ChevronUp, MapPin, Ma
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 const API = `${BACKEND_URL}/api`;
 
+// Wake-up function to ping backend on app start
+const wakeUpBackend = async () => {
+  try {
+    console.log("🔄 Waking up backend server...");
+    const startTime = Date.now();
+    await axios.get(`${API}/health`, { timeout: 30000 });
+    const elapsed = Date.now() - startTime;
+    console.log(`✅ Backend ready in ${elapsed}ms`);
+    return true;
+  } catch (error) {
+    console.log("⚠️ Backend wake-up ping sent, may take a moment to respond");
+    return false;
+  }
+};
+
+// Call wake-up immediately when app loads
+wakeUpBackend();
+
 // Categories for attractions
 const attractionCategories = [
   // Attrazioni
