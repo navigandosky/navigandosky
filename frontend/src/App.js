@@ -5385,6 +5385,42 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
     setShow360Viewer(images[newIndex].is_360);
   };
 
+  // Contact form handler
+  const openContactForm = (property = null) => {
+    setContactProperty(property);
+    setContactForm({ name: "", email: "", phone: "", message: property ? `Sono interessato all'immobile "${property.denominazione}". Vorrei ricevere maggiori informazioni.` : "" });
+    setEmailSent(false);
+    setShowContactForm(true);
+  };
+
+  const handleSendEmail = async (e) => {
+    e.preventDefault();
+    if (!contactForm.name || !contactForm.email || !contactForm.message) {
+      alert(t?.fillAllFields || "Compila tutti i campi obbligatori");
+      return;
+    }
+    setSendingEmail(true);
+    try {
+      await axios.post(`${API}/contact`, {
+        name: contactForm.name,
+        email: contactForm.email,
+        phone: contactForm.phone,
+        message: contactForm.message,
+        property_name: contactProperty?.denominazione,
+        property_id: contactProperty?.id,
+        lang: lang
+      });
+      setEmailSent(true);
+      setTimeout(() => {
+        setShowContactForm(false);
+        setEmailSent(false);
+      }, 3000);
+    } catch (error) {
+      alert(t?.emailError || "Errore nell'invio. Riprova più tardi.");
+    }
+    setSendingEmail(false);
+  };
+
   return (
     <div className="min-h-screen bg-stone-50">
       {/* Header */}
