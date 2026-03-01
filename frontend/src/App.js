@@ -5256,7 +5256,7 @@ const DigitalTwinViewer = ({ immobileId, immobileName, onClose }) => {
 };
 
 // ============== HOME TADASUNI - PUBLIC PAGE ==============
-const ImmobiliPage = ({ lang = "it" }) => {
+const ImmobiliPage = ({ lang = "it", setLang, t }) => {
   const [immobili, setImmobili] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImmobile, setSelectedImmobile] = useState(null);
@@ -5269,16 +5269,26 @@ const ImmobiliPage = ({ lang = "it" }) => {
   // Digital Twin state
   const [showDigitalTwin, setShowDigitalTwin] = useState(false);
   const [digitalTwinImmobile, setDigitalTwinImmobile] = useState(null);
+  // Language menu
+  const [showLangMenu, setShowLangMenu] = useState(false);
   const panoramaRef = useRef(null);
   const viewerInstance = useRef(null);
 
+  // Translated typology options
   const tipologieOptions = [
-    { value: "casa_singola", label: "Casa Singola" },
-    { value: "villetta", label: "Villetta" },
-    { value: "appartamento", label: "Appartamento" },
-    { value: "magazzino", label: "Magazzino" },
-    { value: "rudere", label: "Rudere" },
-    { value: "terreno", label: "Terreno" }
+    { value: "casa_singola", label: t?.singleHouse || "Casa Singola" },
+    { value: "villetta", label: t?.villa || "Villetta" },
+    { value: "appartamento", label: t?.apartment || "Appartamento" },
+    { value: "magazzino", label: t?.warehouse || "Magazzino" },
+    { value: "rudere", label: t?.ruin || "Rudere" },
+    { value: "terreno", label: t?.land || "Terreno" }
+  ];
+
+  // Translated status options  
+  const statusOptions = [
+    { value: "ottimo", label: t?.excellent || "Ottimo" },
+    { value: "buono", label: t?.good || "Buono" },
+    { value: "da_ristrutturare", label: t?.toRenovate || "Da Ristrutturare" }
   ];
 
   useEffect(() => {
