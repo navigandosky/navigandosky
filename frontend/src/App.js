@@ -5061,7 +5061,8 @@ const ImmobiliPage = ({ lang = "it" }) => {
     const matchStato = filters.stato === "all" || imm.stato_conservazione === filters.stato;
     const matchPrezzo = !filters.prezzoMax || (imm.prezzo_richiesto && imm.prezzo_richiesto <= parseFloat(filters.prezzoMax));
     const matchSuperficie = !filters.superficieMin || (imm.superficie_lorda_mq && imm.superficie_lorda_mq >= parseFloat(filters.superficieMin));
-    return matchSearch && matchTipologia && matchStato && matchPrezzo && matchSuperficie;
+    const matchVistaLago = !filters.vistaLago || imm.vista_lago === true;
+    return matchSearch && matchTipologia && matchStato && matchPrezzo && matchSuperficie && matchVistaLago;
   });
 
   const getTipologiaLabel = (value) => tipologieOptions.find(t => t.value === value)?.label || value;
