@@ -576,7 +576,17 @@ const translations = {
     internet: "Internet",
     borgoExperience: "Borgo Experience",
     cmsAccess: "Immobilien CMS",
-    reservedAccess: "Reservierter Zugang"
+    reservedAccess: "Reservierter Zugang",
+    yourName: "Ihr Name",
+    yourEmail: "Ihre E-Mail",
+    yourPhone: "Ihre Telefonnummer (optional)",
+    yourMessage: "Schreiben Sie Ihre Nachricht...",
+    sending: "Wird gesendet...",
+    emailSent: "E-Mail Gesendet!",
+    emailConfirmation: "Wir haben Ihnen eine Bestätigungs-E-Mail gesendet.",
+    emailError: "Fehler beim Senden. Bitte versuchen Sie es später erneut.",
+    fillAllFields: "Bitte füllen Sie alle Pflichtfelder aus",
+    privacyNote: "Mit dem Absenden dieses Formulars stimmen Sie der Verarbeitung Ihrer personenbezogenen Daten zu."
   }
 };
 
