@@ -5246,6 +5246,41 @@ const ImmobiliPage = ({ lang = "it" }) => {
                   </div>
                 </div>
 
+                {/* Ubicazione */}
+                <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-4 mb-6 border border-cyan-200">
+                  <h3 className="font-semibold text-cyan-800 mb-3 flex items-center gap-2">📍 Ubicazione</h3>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2 text-sm">
+                      {selectedImmobile.indirizzo_via && (
+                        <p><span className="text-gray-500">Indirizzo:</span> <span className="font-medium">{selectedImmobile.indirizzo_via}, {selectedImmobile.indirizzo_comune}</span></p>
+                      )}
+                      {selectedImmobile.localizzazione_omi && (
+                        <p><span className="text-gray-500">Zona OMI:</span> <span className="font-medium">{selectedImmobile.localizzazione_omi}</span></p>
+                      )}
+                      {selectedImmobile.coordinate_gps && (
+                        <p><span className="text-gray-500">GPS:</span> <span className="font-medium">{selectedImmobile.coordinate_gps}</span></p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 items-start">
+                      {selectedImmobile.vista_lago && (
+                        <span className="bg-cyan-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 shadow-md">
+                          🌊 Vista Lago
+                        </span>
+                      )}
+                      {selectedImmobile.coordinate_gps && (
+                        <a 
+                          href={`https://maps.google.com/?q=${selectedImmobile.coordinate_gps}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition"
+                        >
+                          <MapPin size={16} /> Vedi su Mappa
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Potential */}
                 {(selectedImmobile.punti_forza || selectedImmobile.potenzialita_uso) && (
                   <div className="bg-blue-50 rounded-xl p-4 mb-6">
