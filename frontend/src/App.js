@@ -4995,7 +4995,7 @@ const ImmobiliPage = ({ lang = "it" }) => {
   const [immobili, setImmobili] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImmobile, setSelectedImmobile] = useState(null);
-  const [filters, setFilters] = useState({ tipologia: "all", stato: "all", prezzoMax: "", superficieMin: "" });
+  const [filters, setFilters] = useState({ tipologia: "all", stato: "all", prezzoMax: "", superficieMin: "", vistaLago: false });
   const [searchTerm, setSearchTerm] = useState("");
   // Gallery state
   const [lightboxImage, setLightboxImage] = useState(null);
