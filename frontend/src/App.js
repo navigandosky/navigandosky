@@ -5451,20 +5451,21 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
                     <div className="w-full h-full flex items-center justify-center text-gray-400"><Camera size={64} /></div>
                   )}
                   {imm.tipologia && <span className="absolute top-3 left-3 px-3 py-1 bg-blue-600 text-white text-sm rounded-full">{getTipologiaLabel(imm.tipologia)}</span>}
-                  {imm.stato_occupazione === "libero" && <span className="absolute top-3 right-3 px-3 py-1 bg-green-500 text-white text-sm rounded-full">Disponibile</span>}
+                  {imm.stato_occupazione === "libero" && <span className="absolute top-3 right-3 px-3 py-1 bg-green-500 text-white text-sm rounded-full">{t?.available || "Disponibile"}</span>}
+                  {imm.vista_lago && <span className="absolute bottom-3 left-3 px-3 py-1 bg-cyan-500 text-white text-sm rounded-full">🌊 {t?.lakeView || "Vista Lago"}</span>}
                 </div>
                 <div className="p-5">
                   <h3 className="font-bold text-xl text-gray-800 mb-1">{imm.denominazione}</h3>
                   <p className="text-gray-500 text-sm mb-3 flex items-center gap-1"><MapPin size={14} /> {imm.indirizzo_via}, {imm.indirizzo_comune}</p>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {imm.superficie_lorda_mq && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">📐 {imm.superficie_lorda_mq} mq</span>}
-                    {imm.n_vani && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">🚪 {imm.n_vani} vani</span>}
+                    {imm.n_vani && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">🚪 {imm.n_vani} {t?.rooms || "vani"}</span>}
                     {imm.anno_costruzione && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">📅 {imm.anno_costruzione}</span>}
                   </div>
                   {imm.prezzo_pubblico && imm.prezzo_richiesto ? (
                     <p className="text-2xl font-bold text-blue-600">€ {imm.prezzo_richiesto.toLocaleString()}</p>
                   ) : (
-                    <p className="text-lg text-gray-500">Prezzo su richiesta</p>
+                    <p className="text-lg text-gray-500">{t?.onRequest || "Prezzo su richiesta"}</p>
                   )}
                 </div>
               </div>
