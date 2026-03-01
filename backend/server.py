@@ -51,6 +51,12 @@ AUDIO_DIR.mkdir(exist_ok=True)
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# Health check endpoint for wake-up
+@api_router.get("/health")
+async def health_check():
+    """Health check endpoint for backend wake-up"""
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
