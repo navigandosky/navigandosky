@@ -4421,6 +4421,11 @@ const ImmobiliAdminPanel = () => {
                       <div><label className="block text-sm font-medium mb-1">Coordinate GPS</label><input type="text" value={formData.coordinate_gps} onChange={(e) => setFormData({...formData, coordinate_gps: e.target.value})} placeholder="40.0833, 8.9167" className="w-full px-4 py-2 border rounded-lg" /></div>
                       <div><label className="block text-sm font-medium mb-1">Link Gemello Digitale</label><input type="url" value={formData.link_gemello_digitale} onChange={(e) => setFormData({...formData, link_gemello_digitale: e.target.value})} className="w-full px-4 py-2 border rounded-lg" /></div>
                     </div>
+                    <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <input type="checkbox" checked={formData.vista_lago} onChange={(e) => setFormData({...formData, vista_lago: e.target.checked})} className="w-5 h-5 text-blue-600" />
+                      <label className="font-medium text-blue-800">🌊 Vista Lago</label>
+                      <span className="text-sm text-blue-600">(Visibile nella vetrina pubblica)</span>
+                    </div>
                     {/* Allegati Ubicazione */}
                     {editingImmobile && <AttachmentSection immobileId={editingImmobile.id} section="ubicazione" attachments={editingImmobile.attachments} />}
                   </div>
