@@ -5120,6 +5120,17 @@ const ImmobiliPage = ({ lang = "it" }) => {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Stato</label><select value={filters.stato} onChange={(e) => setFilters({...filters, stato: e.target.value})} className="px-4 py-2 border rounded-lg"><option value="all">Tutti</option><option value="ottimo">Ottimo</option><option value="buono">Buono</option><option value="da_ristrutturare">Da Ristrutturare</option></select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Prezzo Max (€)</label><input type="number" value={filters.prezzoMax} onChange={(e) => setFilters({...filters, prezzoMax: e.target.value})} placeholder="es. 50000" className="w-32 px-4 py-2 border rounded-lg" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Superficie Min (mq)</label><input type="number" value={filters.superficieMin} onChange={(e) => setFilters({...filters, superficieMin: e.target.value})} placeholder="es. 50" className="w-32 px-4 py-2 border rounded-lg" /></div>
+            <div 
+              onClick={() => setFilters({...filters, vistaLago: !filters.vistaLago})}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-all ${
+                filters.vistaLago 
+                  ? 'bg-cyan-500 text-white shadow-md' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <span>🌊</span>
+              <span className="font-medium">Vista Lago</span>
+            </div>
           </div>
         </div>
 
