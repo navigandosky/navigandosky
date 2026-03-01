@@ -5500,9 +5500,9 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
                 {selectedImmobile.images && selectedImmobile.images.length > 0 && (
                   <div className="mb-6">
                     <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                      📸 Galleria Fotografica 
+                      📸 {t?.photoGallery || "Galleria Fotografica"} 
                       {selectedImmobile.images.some(img => img.is_360) && (
-                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">Include foto 360°</span>
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">{t?.includes360 || "Include foto 360°"}</span>
                       )}
                     </h3>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
