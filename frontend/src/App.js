@@ -370,7 +370,17 @@ const translations = {
     internet: "Internet",
     borgoExperience: "Borgo Experience",
     cmsAccess: "CMS Propriétés",
-    reservedAccess: "Accès réservé"
+    reservedAccess: "Accès réservé",
+    yourName: "Votre nom",
+    yourEmail: "Votre email",
+    yourPhone: "Votre téléphone (optionnel)",
+    yourMessage: "Écrivez votre message...",
+    sending: "Envoi en cours...",
+    emailSent: "Email Envoyé!",
+    emailConfirmation: "Nous vous avons envoyé un email de confirmation.",
+    emailError: "Erreur d'envoi. Veuillez réessayer plus tard.",
+    fillAllFields: "Veuillez remplir tous les champs obligatoires",
+    privacyNote: "En soumettant ce formulaire, vous acceptez le traitement de vos données personnelles."
   },
   es: {
     heroTitle: "Tadasuni Borgo Experience",
