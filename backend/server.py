@@ -450,6 +450,7 @@ class ImmobileCreate(BaseModel):
     localizzazione_omi: Optional[str] = None
     coordinate_gps: Optional[str] = None
     link_gemello_digitale: Optional[str] = None
+    vista_lago: bool = False  # Flag Vista Lago
     
     # VI. CERTIFICAZIONI
     certificato_energetico: bool = False
@@ -552,6 +553,7 @@ class ImmobileUpdate(BaseModel):
     localizzazione_omi: Optional[str] = None
     coordinate_gps: Optional[str] = None
     link_gemello_digitale: Optional[str] = None
+    vista_lago: bool = False  # Flag Vista Lago
     
     # VI. CERTIFICAZIONI
     certificato_energetico: Optional[bool] = None
@@ -655,6 +657,7 @@ class ImmobileResponse(BaseModel):
     localizzazione_omi: Optional[str] = None
     coordinate_gps: Optional[str] = None
     link_gemello_digitale: Optional[str] = None
+    vista_lago: bool = False  # Flag Vista Lago
     
     # VI. CERTIFICAZIONI
     certificato_energetico: bool = False
