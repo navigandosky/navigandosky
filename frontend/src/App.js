@@ -5533,43 +5533,43 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
 
                 {/* Description */}
                 {selectedImmobile.descrizione_narrativa && (
-                  <div className="mb-6"><h3 className="font-semibold text-gray-800 mb-2">📖 La Storia</h3><p className="text-gray-600 leading-relaxed">{selectedImmobile.descrizione_narrativa}</p></div>
+                  <div className="mb-6"><h3 className="font-semibold text-gray-800 mb-2">📖 {t?.theStory || "La Storia"}</h3><p className="text-gray-600 leading-relaxed">{selectedImmobile.descrizione_narrativa}</p></div>
                 )}
 
                 {/* Features */}
                 <div className="grid md:grid-cols-2 gap-6 mb-6">
                   <div className="bg-gray-50 rounded-xl p-4">
-                    <h3 className="font-semibold text-gray-800 mb-3">📐 Caratteristiche</h3>
+                    <h3 className="font-semibold text-gray-800 mb-3">📐 {t?.characteristics || "Caratteristiche"}</h3>
                     <div className="space-y-2 text-sm">
-                      {selectedImmobile.tipologia && <p><span className="text-gray-500">Tipologia:</span> <span className="font-medium">{getTipologiaLabel(selectedImmobile.tipologia)}</span></p>}
-                      {selectedImmobile.superficie_lorda_mq && <p><span className="text-gray-500">Superficie:</span> <span className="font-medium">{selectedImmobile.superficie_lorda_mq} mq</span></p>}
-                      {selectedImmobile.n_vani && <p><span className="text-gray-500">Vani:</span> <span className="font-medium">{selectedImmobile.n_vani}</span></p>}
-                      {selectedImmobile.n_piani_fuori_terra && <p><span className="text-gray-500">Piani:</span> <span className="font-medium">{selectedImmobile.n_piani_fuori_terra}</span></p>}
-                      {selectedImmobile.anno_costruzione && <p><span className="text-gray-500">Anno:</span> <span className="font-medium">{selectedImmobile.anno_costruzione}</span></p>}
+                      {selectedImmobile.tipologia && <p><span className="text-gray-500">{t?.typology || "Tipologia"}:</span> <span className="font-medium">{getTipologiaLabel(selectedImmobile.tipologia)}</span></p>}
+                      {selectedImmobile.superficie_lorda_mq && <p><span className="text-gray-500">{t?.surface || "Superficie"}:</span> <span className="font-medium">{selectedImmobile.superficie_lorda_mq} mq</span></p>}
+                      {selectedImmobile.n_vani && <p><span className="text-gray-500">{t?.rooms || "Vani"}:</span> <span className="font-medium">{selectedImmobile.n_vani}</span></p>}
+                      {selectedImmobile.n_piani_fuori_terra && <p><span className="text-gray-500">{t?.floors || "Piani"}:</span> <span className="font-medium">{selectedImmobile.n_piani_fuori_terra}</span></p>}
+                      {selectedImmobile.anno_costruzione && <p><span className="text-gray-500">{t?.year || "Anno"}:</span> <span className="font-medium">{selectedImmobile.anno_costruzione}</span></p>}
                     </div>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4">
-                    <h3 className="font-semibold text-gray-800 mb-3">⚡ Dotazioni</h3>
+                    <h3 className="font-semibold text-gray-800 mb-3">⚡ {t?.equipment || "Dotazioni"}</h3>
                     <div className="flex flex-wrap gap-2">
-                      {selectedImmobile.impianto_idrico && <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">💧 Acqua</span>}
-                      {selectedImmobile.impianto_elettrico && <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">⚡ Elettricità</span>}
-                      {selectedImmobile.impianto_fognario && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">🚿 Fognatura</span>}
-                      {selectedImmobile.riscaldamento && <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm">🔥 Riscaldamento</span>}
-                      {selectedImmobile.connessione_internet && <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">📶 Internet</span>}
+                      {selectedImmobile.impianto_idrico && <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">💧 {t?.water || "Acqua"}</span>}
+                      {selectedImmobile.impianto_elettrico && <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">⚡ {t?.electricity || "Elettricità"}</span>}
+                      {selectedImmobile.impianto_fognario && <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">🚿 {t?.sewage || "Fognatura"}</span>}
+                      {selectedImmobile.riscaldamento && <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm">🔥 {t?.heating || "Riscaldamento"}</span>}
+                      {selectedImmobile.connessione_internet && <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">📶 {t?.internet || "Internet"}</span>}
                     </div>
                   </div>
                 </div>
 
                 {/* Ubicazione */}
                 <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-4 mb-6 border border-cyan-200">
-                  <h3 className="font-semibold text-cyan-800 mb-3 flex items-center gap-2">📍 Ubicazione</h3>
+                  <h3 className="font-semibold text-cyan-800 mb-3 flex items-center gap-2">📍 {t?.location || "Ubicazione"}</h3>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2 text-sm">
                       {selectedImmobile.indirizzo_via && (
-                        <p><span className="text-gray-500">Indirizzo:</span> <span className="font-medium">{selectedImmobile.indirizzo_via}, {selectedImmobile.indirizzo_comune}</span></p>
+                        <p><span className="text-gray-500">{t?.address || "Indirizzo"}:</span> <span className="font-medium">{selectedImmobile.indirizzo_via}, {selectedImmobile.indirizzo_comune}</span></p>
                       )}
                       {selectedImmobile.localizzazione_omi && (
-                        <p><span className="text-gray-500">Zona OMI:</span> <span className="font-medium">{selectedImmobile.localizzazione_omi}</span></p>
+                        <p><span className="text-gray-500">{t?.gpsZone || "Zona OMI"}:</span> <span className="font-medium">{selectedImmobile.localizzazione_omi}</span></p>
                       )}
                       {selectedImmobile.coordinate_gps && (
                         <p><span className="text-gray-500">GPS:</span> <span className="font-medium">{selectedImmobile.coordinate_gps}</span></p>
@@ -5578,7 +5578,7 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
                     <div className="flex flex-wrap gap-2 items-start">
                       {selectedImmobile.vista_lago && (
                         <span className="bg-cyan-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 shadow-md">
-                          🌊 Vista Lago
+                          🌊 {t?.lakeView || "Vista Lago"}
                         </span>
                       )}
                       {selectedImmobile.coordinate_gps && (
@@ -5588,7 +5588,7 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
                           rel="noopener noreferrer"
                           className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition"
                         >
-                          <MapPin size={16} /> Vedi su Mappa
+                          <MapPin size={16} /> {t?.viewOnMap || "Vedi su Mappa"}
                         </a>
                       )}
                     </div>
@@ -5598,9 +5598,9 @@ const ImmobiliPage = ({ lang = "it", setLang, t }) => {
                 {/* Potential */}
                 {(selectedImmobile.punti_forza || selectedImmobile.potenzialita_uso) && (
                   <div className="bg-blue-50 rounded-xl p-4 mb-6">
-                    <h3 className="font-semibold text-blue-800 mb-2">✨ Potenzialità</h3>
-                    {selectedImmobile.punti_forza && <p className="text-blue-700 mb-1"><strong>Punti di forza:</strong> {selectedImmobile.punti_forza}</p>}
-                    {selectedImmobile.potenzialita_uso && <p className="text-blue-700"><strong>Ideale per:</strong> {selectedImmobile.potenzialita_uso}</p>}
+                    <h3 className="font-semibold text-blue-800 mb-2">✨ {t?.potential || "Potenzialità"}</h3>
+                    {selectedImmobile.punti_forza && <p className="text-blue-700 mb-1"><strong>{t?.strengths || "Punti di forza"}:</strong> {selectedImmobile.punti_forza}</p>}
+                    {selectedImmobile.potenzialita_uso && <p className="text-blue-700"><strong>{t?.idealFor || "Ideale per"}:</strong> {selectedImmobile.potenzialita_uso}</p>}
                   </div>
                 )}
 
