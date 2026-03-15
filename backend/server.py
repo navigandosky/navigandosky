@@ -5826,8 +5826,12 @@ async def get_ewelink_sensors():
 
 
 @api_router.post("/ewelink/sensors/collect")
-async def collect_ewelink_sensor_data():
+async def collect_ewelink_sensor_data(token: Optional[str] = Query(None)):
     """Collect and store sensor readings from eWeLink devices"""
+    # Get user from token for multi-tenant storage
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     try:
         sensors_response = await get_ewelink_sensors()
         sensors = sensors_response.get("sensors", [])
@@ -5850,7 +5854,7 @@ async def collect_ewelink_sensor_data():
                     "unit": "C",
                     "source": "ewelink",
                     "timestamp": timestamp,
-                    "user_id": DEFAULT_USER_ID
+                    "user_id": user_id
                 })
                 readings_saved += 1
             
@@ -5865,7 +5869,7 @@ async def collect_ewelink_sensor_data():
                     "unit": "%",
                     "source": "ewelink",
                     "timestamp": timestamp,
-                    "user_id": DEFAULT_USER_ID
+                    "user_id": user_id
                 })
                 readings_saved += 1
             
