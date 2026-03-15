@@ -5939,11 +5939,11 @@ async def get_sensor_collection_status():
 
 
 @api_router.post("/sensors/force-collect")
-async def force_sensor_collection():
+async def force_sensor_collection(token: Optional[str] = Query(None)):
     """Force immediate sensor data collection (manual trigger)"""
     try:
-        # Use the existing eWeLink collection endpoint
-        result = await collect_ewelink_sensor_data()
+        # Use the existing eWeLink collection endpoint with token
+        result = await collect_ewelink_sensor_data(token)
         return {
             "success": True,
             "message": "Raccolta manuale completata",
