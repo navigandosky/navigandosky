@@ -5884,7 +5884,7 @@ async def collect_ewelink_sensor_data(token: Optional[str] = Query(None)):
                     "unit": "%",
                     "source": "ewelink",
                     "timestamp": timestamp,
-                    "user_id": DEFAULT_USER_ID
+                    "user_id": user_id
                 })
                 readings_saved += 1
         
