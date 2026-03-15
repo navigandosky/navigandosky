@@ -7311,7 +7311,7 @@ async def collect_and_store_sensor_data(token: Optional[str] = Query(None)):
                 # Get all devices
                 response = await client.get(
                     f"{SMARTTHINGS_API_URL}/devices",
-                    headers={"Authorization": f"Bearer {token}"}
+                    headers={"Authorization": f"Bearer {st_token}"}
                 )
                 response.raise_for_status()
                 devices = response.json().get("items", [])
