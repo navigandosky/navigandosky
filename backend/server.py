@@ -7399,6 +7399,7 @@ async def collect_and_store_sensor_data(token: Optional[str] = Query(None)):
                     for r in readings_to_store:
                         doc = SensorReading(**r).model_dump()
                         doc["timestamp"] = doc["timestamp"].isoformat()
+                        doc["user_id"] = user_id  # Use authenticated user
                         docs.append(doc)
                     await db.sensor_readings.insert_many(docs)
                     stored_count = len(docs)
