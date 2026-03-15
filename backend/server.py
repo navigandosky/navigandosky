@@ -7288,20 +7288,24 @@ async def store_sensor_readings_batch(readings: List[SensorReadingCreate]):
 
 
 @api_router.post("/sensors/collect")
-async def collect_and_store_sensor_data():
+async def collect_and_store_sensor_data(token: Optional[str] = Query(None)):
     """
     Collect current sensor values from SmartThings or eWeLink and store them.
     This endpoint should be called periodically (e.g., every 5 minutes via cron).
     Falls back to eWeLink if SmartThings is unavailable.
     """
+    # Get user from token for multi-tenant storage
+    user = await get_user_from_token(token)
+    user_id = user["id"]
+    
     stored_count = 0
     source = "smartthings"
     
     # Try SmartThings first
-    token = await get_smartthings_token()
+    st_token = await get_smartthings_token(user_id)
     smartthings_failed = False
     
-    if token:
+    if st_token:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Get all devices
