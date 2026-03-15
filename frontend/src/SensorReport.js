@@ -411,7 +411,7 @@ export default function SensorReport({ authToken }) {
   const collectData = async () => {
     setCollecting(true);
     try {
-      const response = await axios.post(`${API}/sensors/force-collect`);
+      const response = await axios.post(`${API}/sensors/force-collect?token=${authToken}`);
       toast.success(`Raccolte ${response.data.readings_saved} letture da ${response.data.sensors_count} sensori!`);
       await loadReport();
       await loadCollectionStatus();
