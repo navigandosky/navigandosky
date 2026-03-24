@@ -143,18 +143,18 @@ const IntegrationStatus = ({ enabled, connected, name }) => {
 };
 
 // eWeLink Status Component
-const EweLinkStatus = () => {
+const EweLinkStatus = ({ authToken }) => {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkStatus();
-  }, []);
+  }, [authToken]);
 
   const checkStatus = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API}/ewelink/status`);
+      const response = await axios.get(`${API}/ewelink/status`, { params: { token: authToken } });
       setStatus(response.data);
     } catch (error) {
       setStatus({ connected: false, message: "Errore connessione" });
