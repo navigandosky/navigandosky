@@ -1342,11 +1342,37 @@ async def get_active_property(token: Optional[str] = Query(None)):
         {"user_id": user_id, "is_active": True}, {"_id": 0}
     )
     
-    # If not found, fallback to any active property (shared/global property)
+    # If not found, create a new empty property config for this user (NOT fallback to other users!)
     if not prop:
-        prop = await db.property_config.find_one(
-            {"is_active": True}, {"_id": 0}
-        )
+        # Create empty property config
+        new_prop = {
+            "id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "nome": "",
+            "indirizzo": "",
+            "citta": "",
+            "cap": "",
+            "provincia": "",
+            "nazione": "Italia",
+            "tipo": "",
+            "superficie_mq": 0,
+            "anno_costruzione": None,
+            "piani": 1,
+            "stanze": [],
+            "integrations": {
+                "smartthings": {"enabled": False, "token": "", "location_id": ""},
+                "ewelink": {"enabled": False, "email": "", "password": "", "region": "eu"},
+                "matterport": {"enabled": False, "space_id": "", "sdk_key": ""},
+                "ezviz": {"enabled": False, "username": "", "password": "", "region": "eu"},
+                "balin": {"enabled": False, "email": "", "api_token": ""}
+            },
+            "settings": {},
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.property_config.insert_one(new_prop)
+        prop = new_prop
     
     if prop:
         return deserialize_datetime(prop)
