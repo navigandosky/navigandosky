@@ -7,7 +7,7 @@ import requests
 import os
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://homeconnect-hub.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://smartdomo-bugfix.preview.emergentagent.com')
 API = f"{BASE_URL}/api"
 
 # Test credentials
