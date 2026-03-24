@@ -1315,7 +1315,7 @@ export default function PropertyConfig({ currentUser, authToken }) {
                   <Wifi className="h-5 w-5 text-blue-600" />
                   <CardTitle>eWeLink / Sonoff</CardTitle>
                 </div>
-                <EweLinkStatus />
+                <EweLinkStatus authToken={authToken} />
               </div>
               <CardDescription>
                 Connetti dispositivi Sonoff e compatibili eWeLink tramite OAuth2
