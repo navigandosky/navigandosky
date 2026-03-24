@@ -15,6 +15,15 @@
 - **Testato**: ✅ Backend 100% (8/8), Frontend 100% - iteration_7.json
 - **File modificati**: `backend/server.py`, `frontend/src/PropertyConfig.js`
 
+#### Fix Viewer 3D carica spazio sbagliato per utente ✅
+- **Problema**: L'utente LINCREDIBILE (Nadir) vedeva "94 Viale Murichessa" nel viewer 3D invece del suo spazio assegnato "LINCREDIBILE" (uLseUBGsktv)
+- **Causa Root**: In `loadSpaces()`, per gli utenti admin il codice selezionava lo spazio con `is_active: true` nella collection globale, ignorando il `matterport_space_id` dell'utente
+- **Fix Applicato**:
+  1. Modificata `loadSpaces()` per prioritizzare `currentUser.matterport_space_id` per tutti gli utenti
+  2. Aggiunto `key={activeSpace.space_id}` al componente MatterportViewer per forzare il reload quando si cambia spazio
+- **Testato**: ✅ Screenshot verifica "Spazi 3D • LINCREDIBILE" e "Space: uLseUBGsktv"
+- **File modificati**: `frontend/src/MatterportManager.js`
+
 ---
 
 ## Stato Attuale (19/02/2026)

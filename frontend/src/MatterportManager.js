@@ -259,8 +259,16 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       // For admin or users without specific space, show all spaces
       setSpaces(availableSpaces);
       
-      // Set active space
-      const active = availableSpaces.find(s => s.is_active);
+      // Set active space - prioritize user's assigned space
+      let active = null;
+      if (currentUser?.matterport_space_id) {
+        // Find the space matching the user's assigned space_id
+        active = availableSpaces.find(s => s.space_id === currentUser.matterport_space_id);
+      }
+      if (!active) {
+        // Fallback to the space marked as is_active
+        active = availableSpaces.find(s => s.is_active);
+      }
       if (active) {
         setActiveSpace(active);
         // Use space_id (Matterport ID) for POI filtering, fallback to id
@@ -2265,6 +2273,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
           {activeSpace ? (
             <>
               <MatterportViewer
+                key={activeSpace.space_id}
                 ref={matterportRef}
                 spaceId={activeSpace.space_id}
                 sdkKey={activeSpace.sdk_key}
