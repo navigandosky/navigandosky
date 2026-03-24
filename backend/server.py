@@ -1209,29 +1209,39 @@ async def create_user(data: UserCreate, token: str = Query(...)):
     doc = serialize_doc(user.model_dump())
     await db.users.insert_one(doc)
     
-    # Create empty property config for new user
+    # Create empty property config for new user matching the PropertyConfig model
     empty_property_config = {
         "id": str(uuid.uuid4()),
         "user_id": user.id,
-        "nome": "",
-        "indirizzo": "",
-        "citta": "",
-        "cap": "",
-        "provincia": "",
-        "nazione": "Italia",
-        "tipo": "",
-        "superficie_mq": 0,
-        "anno_costruzione": None,
-        "piani": 1,
-        "stanze": [],
+        "name": "",  # Required field
+        "description": "",
+        "cadastral": {
+            "indirizzo": "",
+            "citta": "",
+            "cap": "",
+            "provincia": "",
+            "nazione": "Italia",
+            "tipo": "",
+            "superficie_mq": 0,
+            "anno_costruzione": None,
+            "piani": 1
+        },
+        "matterport": {
+            "space_id": "",
+            "sdk_key": ""
+        },
         "integrations": {
             "smartthings": {"enabled": False, "token": "", "location_id": ""},
             "ewelink": {"enabled": False, "email": "", "password": "", "region": "eu"},
-            "matterport": {"enabled": False, "space_id": "", "sdk_key": ""},
-            "ezviz": {"enabled": False, "username": "", "password": "", "region": "eu"},
             "balin": {"enabled": False, "email": "", "api_token": ""}
         },
-        "settings": {},
+        "ezviz": {
+            "enabled": False,
+            "username": "",
+            "password": "",
+            "region": "eu"
+        },
+        "weather": {},
         "is_active": True,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
