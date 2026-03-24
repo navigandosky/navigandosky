@@ -800,10 +800,11 @@ export default function PropertyConfig({ currentUser, authToken }) {
     }
     
     try {
-      const response = await axios.get(`${API}/smartthings/devices`);
+      const response = await axios.get(`${API}/smartthings/status`, { params: { token: authToken } });
       setSmartThingsStatus({
-        connected: true,
-        deviceCount: response.data.count || 0
+        connected: response.data.connected,
+        deviceCount: response.data.device_count || 0,
+        message: response.data.message
       });
     } catch (error) {
       setSmartThingsStatus({
@@ -811,7 +812,7 @@ export default function PropertyConfig({ currentUser, authToken }) {
         error: error.response?.status === 401 ? "Token non valido" : "Errore connessione"
       });
     }
-  }, [formData.integrations?.smartthings?.enabled]);
+  }, [formData.integrations?.smartthings?.enabled, authToken]);
 
   useEffect(() => {
     loadProperty();
