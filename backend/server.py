@@ -4596,6 +4596,48 @@ async def get_device_consumption(device_id: str):
         }
 
 
+
+def normalize_ewelink_temperature(raw_value) -> float:
+    """Normalize eWeLink temperature values from various sensor formats.
+    Different sensors use different scales:
+    - SNZB-02D: integer × 100 (2268 = 22.68°C)
+    - Some thermostats: integer × 10 (240 = 24.0°C)
+    - NSPanel/Air Quality: already float (14.2, 25.6)
+    """
+    try:
+        val = float(raw_value)
+        # Check if it's already a float with decimal part (e.g., 14.2, 25.6)
+        if isinstance(raw_value, float) or (isinstance(raw_value, str) and '.' in str(raw_value)):
+            if -40 <= val <= 80:
+                return round(val, 1)
+        # Integer value > 1000: divide by 100 (e.g., 2268 -> 22.68)
+        if val > 1000:
+            return round(val / 100, 1)
+        # Integer value 100-999: divide by 10 (e.g., 240 -> 24.0)
+        if val >= 100:
+            return round(val / 10, 1)
+        # Value < 100: keep as-is (e.g., 40 for a radiator surface temp)
+        return round(val, 1)
+    except (ValueError, TypeError):
+        return None
+
+def normalize_ewelink_humidity(raw_value) -> float:
+    """Normalize eWeLink humidity values.
+    Some sensors send × 100 (4300 = 43%), others send direct values.
+    """
+    try:
+        val = float(raw_value)
+        if isinstance(raw_value, float) or (isinstance(raw_value, str) and '.' in str(raw_value)):
+            if 0 <= val <= 100:
+                return round(val, 1)
+        if val > 100:
+            return round(val / 100, 1)
+        return round(val, 1)
+    except (ValueError, TypeError):
+        return None
+
+
+
 @api_router.get("/smartthings/devices-with-sensors")
 async def get_devices_with_sensor_values():
     """
@@ -4792,26 +4834,16 @@ async def get_devices_with_sensor_values():
                     
                     raw_temp = params.get("temperature")
                     if raw_temp is not None:
-                        try:
-                            temp = float(raw_temp)
-                            # If temp > 100, it's likely x100 format, convert
-                            if temp > 100:
-                                temp = temp / 100
-                            sensors["temperature"] = round(temp, 1)
+                        temp = normalize_ewelink_temperature(raw_temp)
+                        if temp is not None:
+                            sensors["temperature"] = temp
                             sensors["temperatureUnit"] = "C"
-                        except (ValueError, TypeError):
-                            pass
                     
                     raw_humid = params.get("humidity")
                     if raw_humid is not None:
-                        try:
-                            humid = float(raw_humid)
-                            # If humidity > 100, it's likely x100 format, convert
-                            if humid > 100:
-                                humid = humid / 100
-                            sensors["humidity"] = round(humid, 1)
-                        except (ValueError, TypeError):
-                            pass
+                        humid = normalize_ewelink_humidity(raw_humid)
+                        if humid is not None:
+                            sensors["humidity"] = humid
                     
                     if params.get("power") is not None:
                         try:
@@ -7582,39 +7614,31 @@ async def collect_and_store_sensor_data(token: Optional[str] = Query(None)):
                     device_name = device.get("name", "Dispositivo eWeLink")
                     params = device.get("params", {})
                     
-                    # Temperature (normalize if > 100)
+                    # Temperature (normalize with smart heuristic)
                     temp = params.get("temperature") or params.get("currentTemperature")
                     if temp is not None:
-                        try:
-                            temp_val = float(temp)
-                            if temp_val > 100:
-                                temp_val = temp_val / 100
+                        temp_val = normalize_ewelink_temperature(temp)
+                        if temp_val is not None:
                             readings_to_store.append({
                                 "device_id": device_id,
                                 "device_name": device_name,
                                 "sensor_type": "temperature",
-                                "value": round(temp_val, 1),
+                                "value": temp_val,
                                 "unit": "C"
                             })
-                        except (ValueError, TypeError):
-                            pass
                     
-                    # Humidity (normalize if > 100)
+                    # Humidity (normalize with smart heuristic)
                     humidity = params.get("humidity") or params.get("currentHumidity")
                     if humidity is not None:
-                        try:
-                            humid_val = float(humidity)
-                            if humid_val > 100:
-                                humid_val = humid_val / 100
+                        humid_val = normalize_ewelink_humidity(humidity)
+                        if humid_val is not None:
                             readings_to_store.append({
                                 "device_id": device_id,
                                 "device_name": device_name,
                                 "sensor_type": "humidity",
-                                "value": round(humid_val, 1),
+                                "value": humid_val,
                                 "unit": "%"
                             })
-                        except (ValueError, TypeError):
-                            pass
                     
                     # Power (normalize - eWeLink S60TPF sends values x100, e.g., 2789 = 27.89W)
                     power = params.get("power")
@@ -7704,7 +7728,7 @@ async def get_sensor_history(
     user = await get_user_from_token(token)
     user_id = user["id"]
     
-    query = {"user_id": user_id}
+    query = {"user_id": {"$in": [user_id, DEFAULT_USER_ID]}}
     
     if device_id:
         query["device_id"] = device_id
@@ -7742,7 +7766,7 @@ async def get_device_sensor_history(
     
     query = {
         "device_id": device_id,
-        "user_id": user_id,
+        "user_id": {"$in": [user_id, DEFAULT_USER_ID]},
         "timestamp": {"$gte": start_time}
     }
     
@@ -7775,7 +7799,7 @@ async def get_sensor_stats(
             "$match": {
                 "device_id": device_id,
                 "sensor_type": sensor_type,
-                "user_id": user_id,
+                "user_id": {"$in": [user_id, DEFAULT_USER_ID]},
                 "timestamp": {"$gte": start_time}
             }
         },
@@ -7861,7 +7885,7 @@ async def get_sensors_report(token: Optional[str] = Query(None), hours: int = 24
     pipeline = [
         {
             "$match": {
-                "user_id": user_id,
+                "user_id": {"$in": [user_id, DEFAULT_USER_ID]},
                 "timestamp": {"$gte": start_time}
             }
         },
@@ -8171,7 +8195,7 @@ async def get_sensor_chart_data(
             "$match": {
                 "device_id": device_id,
                 "sensor_type": sensor_type,
-                "user_id": user_id,
+                "user_id": {"$in": [user_id, DEFAULT_USER_ID]},
                 "timestamp": {"$gte": start_time.isoformat()}
             }
         },
@@ -8712,7 +8736,12 @@ async def background_sensor_collector():
     """Background task that collects sensor data every 5 minutes"""
     while True:
         try:
-            logger.info("🔄 Background sensor collection starting...")
+            logger.info("Background sensor collection starting...")
+            
+            # Determine the user_id for this eWeLink data
+            # Since ewelink_tokens doesn't have user_id, use the first admin user
+            admin_user = await db.users.find_one({"role": "admin"}, {"_id": 0, "id": 1})
+            collector_user_id = admin_user["id"] if admin_user else DEFAULT_USER_ID
             
             # Get ALL eWeLink devices with sensor values (including power meters)
             devices_response = await get_devices_with_sensor_values()
@@ -8742,7 +8771,7 @@ async def background_sensor_collector():
                         "unit": "C",
                         "source": "ewelink",
                         "timestamp": timestamp,
-                        "user_id": DEFAULT_USER_ID
+                        "user_id": collector_user_id
                     })
                     readings_saved += 1
                 
@@ -8757,7 +8786,7 @@ async def background_sensor_collector():
                         "unit": "%",
                         "source": "ewelink",
                         "timestamp": timestamp,
-                        "user_id": DEFAULT_USER_ID
+                        "user_id": collector_user_id
                     })
                     readings_saved += 1
                 
@@ -8772,7 +8801,7 @@ async def background_sensor_collector():
                         "unit": "W",
                         "source": "ewelink",
                         "timestamp": timestamp,
-                        "user_id": DEFAULT_USER_ID
+                        "user_id": collector_user_id
                     })
                     readings_saved += 1
                 
@@ -8787,7 +8816,7 @@ async def background_sensor_collector():
                         "unit": "V",
                         "source": "ewelink",
                         "timestamp": timestamp,
-                        "user_id": DEFAULT_USER_ID
+                        "user_id": collector_user_id
                     })
                     readings_saved += 1
                 
@@ -8802,7 +8831,7 @@ async def background_sensor_collector():
                         "unit": "A",
                         "source": "ewelink",
                         "timestamp": timestamp,
-                        "user_id": DEFAULT_USER_ID
+                        "user_id": collector_user_id
                     })
                     readings_saved += 1
             

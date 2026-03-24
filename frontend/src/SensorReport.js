@@ -269,13 +269,16 @@ const SensorChart = ({ data, sensorType, title }) => {
   }
 
   // Format data for recharts
-  const chartData = data.labels.map((label, index) => ({
-    time: label.split('T')[1] || label, // Show only time part if available
-    fullTime: label,
-    avg: data.datasets.avg[index],
-    min: data.datasets.min[index],
-    max: data.datasets.max[index]
-  }));
+  const chartData = data.labels.map((label, index) => {
+    const hasTime = label.includes('T');
+    return {
+      time: hasTime ? label.split('T')[1] : label.split('-').slice(1).join('/'), // "14:00" or "03/24"
+      fullTime: label,
+      avg: data.datasets.avg[index],
+      min: data.datasets.min[index],
+      max: data.datasets.max[index]
+    };
+  });
 
   return (
     <div className="h-[300px]">
@@ -301,7 +304,7 @@ const SensorChart = ({ data, sensorType, title }) => {
           <Tooltip
             contentStyle={{ backgroundColor: '#1f2937', border: 'none', borderRadius: '8px' }}
             labelStyle={{ color: '#9ca3af' }}
-            formatter={(value, name) => [`${value}${config.unit}`, name === 'avg' ? 'Media' : name === 'min' ? 'Min' : 'Max']}
+            formatter={(value, name) => [`${value}${config.unit}`, name]}
             labelFormatter={(label, payload) => payload[0]?.payload?.fullTime || label}
           />
           <Legend />
@@ -346,7 +349,7 @@ export default function SensorReport({ authToken }) {
   const [chartData, setChartData] = useState(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [timePeriod, setTimePeriod] = useState("24");
-  const [interval, setInterval] = useState("hour");
+  const [chartInterval, setChartInterval] = useState("hour");
   const [activeTab, setActiveTab] = useState("overview");
 
   // Load collection status
@@ -396,7 +399,7 @@ export default function SensorReport({ authToken }) {
     setChartLoading(true);
     try {
       const response = await axios.get(
-        `${API}/sensors/chart-data/${deviceId}?sensor_type=${sensorType}&hours=${timePeriod}&interval=${interval}&token=${authToken}`
+        `${API}/sensors/chart-data/${deviceId}?sensor_type=${sensorType}&hours=${timePeriod}&interval=${chartInterval}&token=${authToken}`
       );
       setChartData(response.data);
     } catch (error) {
@@ -436,7 +439,7 @@ export default function SensorReport({ authToken }) {
     loadEnergySummary();
     
     // Refresh collection status every 30 seconds
-    const statusInterval = setInterval(loadCollectionStatus, 30000);
+    const statusInterval = window.setInterval(loadCollectionStatus, 30000);
     return () => clearInterval(statusInterval);
   }, [loadReport, loadCollectionStatus, loadEnergySummary]);
 
@@ -445,7 +448,7 @@ export default function SensorReport({ authToken }) {
     if (selectedSensor) {
       loadChartData(selectedSensor.device_id, selectedSensor.sensor_type);
     }
-  }, [interval]);
+  }, [chartInterval]);
 
   // Group sensors by type
   const groupedSensors = report?.sensors?.reduce((acc, sensor) => {
@@ -533,7 +536,7 @@ export default function SensorReport({ authToken }) {
           </Select>
           
           {/* Interval selector */}
-          <Select value={interval} onValueChange={setInterval}>
+          <Select value={chartInterval} onValueChange={setChartInterval}>
             <SelectTrigger className="w-[120px]">
               <Clock className="h-4 w-4 mr-2" />
               <SelectValue />
@@ -645,7 +648,7 @@ export default function SensorReport({ authToken }) {
                           )}
                         </CardTitle>
                         <CardDescription>
-                          {TIME_PERIODS.find(p => p.value === timePeriod)?.label} - Intervallo: {INTERVAL_OPTIONS.find(i => i.value === interval)?.label}
+                          {TIME_PERIODS.find(p => p.value === timePeriod)?.label} - Intervallo: {INTERVAL_OPTIONS.find(i => i.value === chartInterval)?.label}
                         </CardDescription>
                       </div>
                       {chartLoading && <Loader2 className="h-5 w-5 animate-spin text-blue-600" />}
