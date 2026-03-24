@@ -5089,7 +5089,7 @@ EWELINK_API_URLS = {
     'as': 'https://as-apia.coolkit.cc',
 }
 
-EWELINK_AUTH_URL = "https://c2ccdn.coolkit.cc/oauth/index.html"
+EWELINK_AUTH_URL = "https://web.ewelink.cc/oauth/index.html"
 
 # eWeLink token cache
 ewelink_access_token = None
