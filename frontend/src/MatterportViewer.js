@@ -18,8 +18,12 @@ const SDK_VERSION = "3.0.0-0-g0517b8d76c";
 const SDK_KEY = process.env.REACT_APP_MATTERPORT_SDK_KEY || "";
 const DEFAULT_SPACE_ID = process.env.REACT_APP_MATTERPORT_SPACE_ID || "j1r4zUjanif";
 
-// Matterport SDK URL
+// Matterport SDK URL - use script tag approach for better compatibility
 const getSDKUrl = (key) => 
+  `https://static.matterport.com/showcase-sdk/bootstrap/${SDK_VERSION}/sdk.js?applicationKey=${key}`;
+
+// Fallback SDK URL
+const getSDKUrlFallback = (key) =>
   `https://api.matterport.com/sdk/bootstrap/${SDK_VERSION}/sdk.es6.js?applicationKey=${key}`;
 
 // Showcase embed URL with SDK key
@@ -747,6 +751,41 @@ const MatterportViewer = forwardRef(({
     }
   }));
 
+  // Load the SDK via script tag (more compatible than dynamic import)
+  const loadSdkScript = useCallback((sdkUrl) => {
+    return new Promise((resolve, reject) => {
+      // Check if already loaded
+      if (window.MP_SDK) {
+        resolve(window.MP_SDK);
+        return;
+      }
+      
+      // Remove any existing SDK script
+      const existing = document.getElementById('matterport-sdk-script');
+      if (existing) existing.remove();
+      
+      const script = document.createElement('script');
+      script.id = 'matterport-sdk-script';
+      script.src = sdkUrl;
+      script.async = true;
+      
+      script.onload = () => {
+        if (window.MP_SDK) {
+          resolve(window.MP_SDK);
+        } else {
+          // Try ES6 module approach as fallback
+          reject(new Error('MP_SDK not available after script load'));
+        }
+      };
+      
+      script.onerror = () => {
+        reject(new Error('Failed to load Matterport SDK script'));
+      };
+      
+      document.head.appendChild(script);
+    });
+  }, []);
+
   // Load the SDK and connect to the iframe
   const connectSdk = useCallback(async () => {
     if (!iframeRef.current || !SDK_KEY) {
@@ -758,11 +797,24 @@ const MatterportViewer = forwardRef(({
     setConnectionStatus('connecting');
 
     try {
-      // Dynamically import the SDK module
-      const sdkModule = await import(/* webpackIgnore: true */ getSDKUrl(SDK_KEY));
+      let mpSdk = null;
       
-      // Connect to the iframe
-      const mpSdk = await sdkModule.connect(iframeRef.current);
+      // Try script tag approach first (more compatible)
+      try {
+        const sdk = await loadSdkScript(getSDKUrl(SDK_KEY));
+        mpSdk = await sdk.connect(iframeRef.current, SDK_KEY);
+      } catch (scriptError) {
+        console.warn("Script tag approach failed, trying dynamic import fallback:", scriptError.message);
+        // Fallback to dynamic import with api.matterport.com
+        try {
+          const sdkModule = await import(/* webpackIgnore: true */ getSDKUrlFallback(SDK_KEY));
+          mpSdk = await sdkModule.connect(iframeRef.current);
+        } catch (importError) {
+          console.warn("Dynamic import also failed:", importError.message);
+          throw new Error(`Impossibile caricare SDK Matterport. Verifica la connessione internet.`);
+        }
+      }
+      
       sdkRef.current = mpSdk;
 
       console.log("Matterport SDK connected successfully!");
@@ -821,7 +873,7 @@ const MatterportViewer = forwardRef(({
       setConnectionStatus('error');
       toast.error(`Errore connessione SDK: ${error.message}`);
     }
-  }, [onSdkReady, onTagsLoaded]);
+  }, [onSdkReady, onTagsLoaded, loadSdkScript]);
 
   // Handle iframe load event
   const handleIframeLoad = useCallback(() => {
