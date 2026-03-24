@@ -1344,29 +1344,39 @@ async def get_active_property(token: Optional[str] = Query(None)):
     
     # If not found, create a new empty property config for this user (NOT fallback to other users!)
     if not prop:
-        # Create empty property config
+        # Create empty property config matching the PropertyConfig model
         new_prop = {
             "id": str(uuid.uuid4()),
             "user_id": user_id,
-            "nome": "",
-            "indirizzo": "",
-            "citta": "",
-            "cap": "",
-            "provincia": "",
-            "nazione": "Italia",
-            "tipo": "",
-            "superficie_mq": 0,
-            "anno_costruzione": None,
-            "piani": 1,
-            "stanze": [],
+            "name": "",  # Required field
+            "description": "",
+            "cadastral": {
+                "indirizzo": "",
+                "citta": "",
+                "cap": "",
+                "provincia": "",
+                "nazione": "Italia",
+                "tipo": "",
+                "superficie_mq": 0,
+                "anno_costruzione": None,
+                "piani": 1
+            },
+            "matterport": {
+                "space_id": "",
+                "sdk_key": ""
+            },
             "integrations": {
                 "smartthings": {"enabled": False, "token": "", "location_id": ""},
                 "ewelink": {"enabled": False, "email": "", "password": "", "region": "eu"},
-                "matterport": {"enabled": False, "space_id": "", "sdk_key": ""},
-                "ezviz": {"enabled": False, "username": "", "password": "", "region": "eu"},
                 "balin": {"enabled": False, "email": "", "api_token": ""}
             },
-            "settings": {},
+            "ezviz": {
+                "enabled": False,
+                "username": "",
+                "password": "",
+                "region": "eu"
+            },
+            "weather": {},
             "is_active": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat()
