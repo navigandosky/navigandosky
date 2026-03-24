@@ -1,8 +1,25 @@
 # SmartDomo - PRD
 
+## Stato Attuale (24/03/2026)
+
+### ✅ Completato Oggi (24/03/2026)
+
+#### Fix Matterport Space ID - Bug Multi-Tenancy P0 ✅
+- **Problema**: L'aggiornamento dello Space ID Matterport veniva salvato nel profilo di un altro utente (Nadir) invece che in quello dell'Admin loggato
+- **Causa Root**: L'endpoint `PUT /api/property/{property_id}` non verificava la proprietà dell'utente tramite token. Filtrava solo per `property_id` senza controllare `user_id`
+- **Fix Applicato**:
+  1. Aggiunto parametro `token` all'endpoint `update_property` in `server.py`
+  2. La query MongoDB ora filtra per `{"id": property_id, "user_id": user_id}` - protezione cross-user
+  3. Frontend `PropertyConfig.js` ora passa il token nella chiamata PUT
+  4. Corretto manualmente lo space_id dell'Admin a `uLseUBGsktv` nel database
+- **Testato**: ✅ Backend 100% (8/8), Frontend 100% - iteration_7.json
+- **File modificati**: `backend/server.py`, `frontend/src/PropertyConfig.js`
+
+---
+
 ## Stato Attuale (19/02/2026)
 
-### ✅ Completato Oggi (19/02/2026)
+### ✅ Completato (19/02/2026)
 
 #### Fix Vista 3D - Dati Live e Controllo Switch ✅
 - **Problema**: I POI collegati a dispositivi eWeLink non mostravano i dati live né il controllo ON/OFF
