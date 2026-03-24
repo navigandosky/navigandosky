@@ -5089,7 +5089,7 @@ EWELINK_API_URLS = {
     'as': 'https://as-apia.coolkit.cc',
 }
 
-EWELINK_AUTH_URL = "https://web.ewelink.cc/oauth/index.html"
+EWELINK_AUTH_URL = "https://c2ccdn.coolkit.cc/oauth/index.html"
 
 # eWeLink token cache
 ewelink_access_token = None
@@ -5165,14 +5165,16 @@ async def refresh_ewelink_token(refresh_token: str):
     base_url = EWELINK_API_URLS.get(EWELINK_REGION, EWELINK_API_URLS['eu'])
     
     try:
+        body = {"rt": refresh_token}
+        sign = make_ewelink_auth_sign(EWELINK_APP_SECRET, body)
+        
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{base_url}/v2/user/refresh",
-                json={
-                    "rt": refresh_token
-                },
+                json=body,
                 headers={
                     "X-CK-Appid": EWELINK_APPID,
+                    "Authorization": f"Sign {sign}",
                     "Content-Type": "application/json"
                 }
             )

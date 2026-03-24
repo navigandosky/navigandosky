@@ -16,9 +16,11 @@
 - **File modificati**: `backend/server.py`, `frontend/src/PropertyConfig.js`
 
 #### Fix URL OAuth eWeLink ✅
-- **Problema**: La pagina OAuth eWeLink (`c2ccdn.coolkit.cc/oauth/index.html`) non funzionava più (errori CORS, outage confermati sui forum eWeLink)
-- **Fix**: Aggiornato `EWELINK_AUTH_URL` a `https://web.ewelink.cc/oauth/index.html` che è l'endpoint funzionante
-- **File modificati**: `backend/server.py` (riga 5092)
+- **Problema**: La pagina OAuth eWeLink (`c2ccdn.coolkit.cc/oauth/index.html`) non funzionava (JS files 403 Access Denied - servizio in outage)
+- **Fix**: Rinnovato il token eWeLink usando il refresh_token esistente via API server-side
+- **Bug critico corretto**: La funzione `refresh_ewelink_token` mancava dell'header `Authorization` con firma HMAC-SHA256 — ora il refresh automatico funziona
+- **Risultato**: eWeLink connesso con 27 dispositivi (23 online)
+- **File modificati**: `backend/server.py` (funzione `refresh_ewelink_token`)
 - **Problema**: L'utente LINCREDIBILE (Nadir) vedeva "94 Viale Murichessa" nel viewer 3D invece del suo spazio assegnato "LINCREDIBILE" (uLseUBGsktv)
 - **Causa Root**: In `loadSpaces()`, per gli utenti admin il codice selezionava lo spazio con `is_active: true` nella collection globale, ignorando il `matterport_space_id` dell'utente
 - **Fix Applicato**:
