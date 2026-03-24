@@ -4113,6 +4113,63 @@ async def get_smartthings_rooms():
         raise HTTPException(status_code=500, detail=f"SmartThings API error: {str(e)}")
 
 
+@api_router.get("/smartthings/status")
+async def get_smartthings_status(token: Optional[str] = Query(None)):
+    """Check SmartThings connection status"""
+    try:
+        # Get user from token for multi-tenant
+        user = await get_user_from_token(token)
+        user_id = user["id"]
+        
+        # Get SmartThings token for this user
+        st_token = await get_smartthings_token(user_id)
+        
+        if not st_token:
+            return {
+                "connected": False,
+                "message": "Token SmartThings non configurato. Inserisci il Personal Access Token (PAT) nelle impostazioni.",
+                "token_configured": False
+            }
+        
+        # Try to make a test API call
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{SMARTTHINGS_API_URL}/devices",
+                headers={"Authorization": f"Bearer {st_token}"}
+            )
+            
+            if response.status_code == 200:
+                devices = response.json().get("items", [])
+                return {
+                    "connected": True,
+                    "message": f"Connesso! {len(devices)} dispositivi trovati.",
+                    "device_count": len(devices),
+                    "token_configured": True
+                }
+            elif response.status_code == 401:
+                return {
+                    "connected": False,
+                    "message": "Token non valido o scaduto. Verifica il Personal Access Token.",
+                    "token_configured": True,
+                    "error": "unauthorized"
+                }
+            else:
+                return {
+                    "connected": False,
+                    "message": f"Errore connessione: {response.status_code}",
+                    "token_configured": True,
+                    "error": f"http_{response.status_code}"
+                }
+    except Exception as e:
+        logger.error(f"SmartThings status check error: {e}")
+        return {
+            "connected": False,
+            "message": f"Errore: {str(e)}",
+            "token_configured": False,
+            "error": str(e)
+        }
+
+
 @api_router.get("/smartthings/devices-by-room")
 async def get_smartthings_devices_by_room():
     """Get all SmartThings devices grouped by room"""
