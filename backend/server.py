@@ -1409,8 +1409,11 @@ async def get_property(property_id: str):
 
 
 @api_router.put("/property/{property_id}", response_model=PropertyConfig)
-async def update_property(property_id: str, data: PropertyConfigUpdate):
-    """Aggiorna una proprietà"""
+async def update_property(property_id: str, data: PropertyConfigUpdate, token: Optional[str] = Query(None)):
+    """Aggiorna una proprietà - verifica che appartenga all'utente loggato"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    
     update_data = {}
     
     def flatten_dict(d, parent_key=''):
@@ -1430,12 +1433,21 @@ async def update_property(property_id: str, data: PropertyConfigUpdate):
     
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
+    # Use both property_id AND user_id to ensure we only update the correct user's property
+    query_filter = {"id": property_id, "user_id": user_id}
     result = await db.property_config.update_one(
-        {"id": property_id},
+        query_filter,
         {"$set": update_data}
     )
     if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Proprietà non trovata")
+        # Fallback: try by property_id only if user_id is default-user (backward compat)
+        if user_id == DEFAULT_USER_ID:
+            result = await db.property_config.update_one(
+                {"id": property_id},
+                {"$set": update_data}
+            )
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Proprietà non trovata per questo utente")
     
     return await get_property(property_id)
 

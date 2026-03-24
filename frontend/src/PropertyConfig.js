@@ -833,7 +833,7 @@ export default function PropertyConfig({ currentUser, authToken }) {
     
     setSaving(true);
     try {
-      await axios.put(`${API}/property/${property.id}`, formData);
+      await axios.put(`${API}/property/${property.id}?token=${authToken}`, formData);
       
       // Also update user's MPSKIN URL and Matterport space if changed
       if (currentUser && authToken) {
