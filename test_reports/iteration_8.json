@@ -1,0 +1,78 @@
+{
+  "summary": "Verified bug fixes for session timeout and 3D view live sensor/switch features. All 10 backend tests passed. Frontend UI verified: Matterport 3D viewer loads with SDK Connesso badge, POI sidebar shows live sensor data (power W, voltage V, current A) and ON/OFF switch buttons, Sensori tab shows 7 sensors with live data, session persists after page reload.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/smartthings/*", "issue": "SmartThings integration returns 401 Unauthorized - token expired (expected, eWeLink fallback working)", "priority": "LOW"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_session_and_3d_view.py",
+    "/app/test_reports/pytest/pytest_session_3d_view.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_session_and_3d_view.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (All UI verifications passed)"
+  },
+  "test_credentials": {
+    "Admin": {"username": "Admin", "password": "SmartMaster2026"}
+  },
+  "seed_data_creation": "None - tested with existing data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Session timeout and 3D view live sensor/switch bugs are FIXED. Matterport SDK connects successfully. Live sensor data panel shows power/voltage/current values. ON/OFF switch buttons work from sidebar. Sensori tab shows 7 sensors. Session persists after page reload. SmartThings is DISCONNECTED (expected - expired token), eWeLink is connected with 27 devices.",
+  "bugs_verified": {
+    "session_timeout_fix": {
+      "description": "User experienced frequent unexplained session timeouts",
+      "status": "FIXED",
+      "verification": [
+        "Login as Admin/SmartMaster2026 works",
+        "Session persists after page reload",
+        "Health check uses /api/health endpoint (returns status ok)",
+        "No aggressive page auto-reload observed"
+      ]
+    },
+    "3d_view_live_sensor_switch": {
+      "description": "ON/OFF switch and live data panel for devices in 3D Matterport view stopped working",
+      "status": "FIXED",
+      "verification": [
+        "Matterport 3D viewer loads with 'SDK Connesso' badge",
+        "PC Postazione POI shows live sensor data: 193W power, 239V voltage, 0.8A current",
+        "PC Postazione shows 'ACCESO' (ON) switch button with 'clicca per spegnere' (click to turn off)",
+        "Luci Pedoni POI shows 'SPENTO' (OFF) switch button with 'clicca per accendere' (click to turn on)",
+        "Sensori (7) tab shows 7 sensors with live status indicators"
+      ]
+    }
+  },
+  "api_test_results": {
+    "test_health_endpoint_returns_ok": "PASS - /api/health returns status ok",
+    "test_admin_login_success": "PASS - Admin/SmartMaster2026 works",
+    "test_token_verification_works": "PASS - Token valid for API calls",
+    "test_ewelink_status_connected": "PASS - eWeLink connected with 27 devices",
+    "test_live_sensor_for_pc_postazione": "PASS - Returns has_sensor=true with power/voltage/current",
+    "test_switch_device_on": "PASS - POST /api/ewelink/device/1000c1e557/switch/on returns success",
+    "test_switch_device_off": "PASS - POST /api/ewelink/device/1000c1e557/switch/off returns success",
+    "test_devices_with_sensors_returns_data": "PASS - Returns 51 devices with sensor data",
+    "test_get_pois_returns_list": "PASS - Returns 36 POIs",
+    "test_poi_sensors_endpoint": "PASS - Returns 7 POI sensors"
+  },
+  "ui_test_results": {
+    "login": "PASS - Login form works correctly",
+    "vista_3d_tab": "PASS - Matterport 3D viewer loads",
+    "sdk_connection": "PASS - 'SDK Connesso' badge visible",
+    "pc_postazione_poi": "PASS - Shows live sensor data (193W, 239V, 0.8A) and ACCESO switch",
+    "luci_pedoni_poi": "PASS - Shows SPENTO switch button",
+    "sensori_tab": "PASS - Shows 7 sensors with live status",
+    "session_persistence": "PASS - Session persists after page reload"
+  }
+}

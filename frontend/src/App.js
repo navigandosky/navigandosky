@@ -1340,63 +1340,37 @@ function App() {
     toast.success("Logout effettuato");
   };
 
-  // Health check - verify backend is reachable with auto-reload
+  // Health check - verify backend is reachable
   useEffect(() => {
     let healthCheckInterval = null;
-    let consecutiveFailures = 0;
-    const MAX_FAILURES_BEFORE_RELOAD = 3;
     
     const checkBackendHealth = async () => {
       try {
-        // Simple health check - try to reach the backend
-        const response = await axios.get(`${API}/auth/verify?token=health_check`, { timeout: 5000 });
+        await axios.get(`${API}/health`, { timeout: 5000 });
         setBackendReady(true);
-        consecutiveFailures = 0;
-        
-        // If backend was down and is now up, reload the page to refresh all data
-        if (backendCheckCount > 0 && !backendReady) {
-          console.log("Backend recovered, reloading page...");
-          window.location.reload();
-        }
       } catch (error) {
-        // If we get any response (even 4xx), backend is up
         if (error.response) {
           setBackendReady(true);
-          consecutiveFailures = 0;
         } else {
-          // Network error - backend not reachable
-          consecutiveFailures++;
           setBackendReady(false);
           setBackendCheckCount(prev => prev + 1);
-          
-          // If too many failures, try to reload the page
-          if (consecutiveFailures >= MAX_FAILURES_BEFORE_RELOAD) {
-            console.log("Backend unreachable after multiple attempts, reloading...");
-            window.location.reload();
-          }
         }
       }
     };
 
-    // Initial check
     checkBackendHealth();
-    
-    // Continuous health check every 3 seconds
-    healthCheckInterval = setInterval(checkBackendHealth, 3000);
+    healthCheckInterval = setInterval(checkBackendHealth, 15000);
     
     return () => {
-      if (healthCheckInterval) {
-        clearInterval(healthCheckInterval);
-      }
+      if (healthCheckInterval) clearInterval(healthCheckInterval);
     };
-  }, [backendReady, backendCheckCount]);
+  }, []);
 
   // Verify session on mount
   useEffect(() => {
     const verifySession = async () => {
       const token = localStorage.getItem("smartdomo_token");
       if (!token) {
-        // Init admin if needed
         try {
           await axios.post(`${API}/auth/init-admin`);
         } catch (e) {
@@ -1412,13 +1386,27 @@ function App() {
           setCurrentUser(response.data.user);
           setAuthToken(token);
         } else {
+          // Session explicitly invalid - clear stored tokens
           localStorage.removeItem("smartdomo_token");
           localStorage.removeItem("smartdomo_user");
         }
       } catch (error) {
-        console.error("Session verification failed:", error);
-        localStorage.removeItem("smartdomo_token");
-        localStorage.removeItem("smartdomo_user");
+        // Only clear tokens on explicit 401/403 responses, not on network errors
+        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+          localStorage.removeItem("smartdomo_token");
+          localStorage.removeItem("smartdomo_user");
+        } else {
+          // Network error or server error - keep tokens and try to use cached user
+          const cachedUser = localStorage.getItem("smartdomo_user");
+          if (cachedUser) {
+            try {
+              setCurrentUser(JSON.parse(cachedUser));
+              setAuthToken(token);
+            } catch (e) {
+              // Invalid cached user
+            }
+          }
+        }
       }
       setAuthLoading(false);
     };

@@ -52,6 +52,7 @@ const MatterportViewer = forwardRef(({
   spaceId = DEFAULT_SPACE_ID, 
   onSdkReady, 
   onTagsLoaded,
+  onTagClick,
   className = ""
 }, ref) => {
   const iframeRef = useRef(null);
@@ -104,31 +105,23 @@ const MatterportViewer = forwardRef(({
       try {
         let tags = [];
         
-        // Try to invalidate cache by calling multiple times with delay
-        // First call might return cached data, second should be fresh
-        
-        // Try the new Tag.data API first (preferred)
-        if (sdkRef.current.Tag && sdkRef.current.Tag.data) {
-          // First collect to potentially invalidate cache
-          await sdkRef.current.Tag.data.collect();
-          // Small delay to allow cache refresh
-          await new Promise(resolve => setTimeout(resolve, 500));
-          // Second collect for fresh data
-          tags = await sdkRef.current.Tag.data.collect();
-          console.log(`Refreshed ${tags.length} Tags (new API)`);
-        } else if (sdkRef.current.Mattertag) {
-          // Fallback to deprecated Mattertag API
+        // Use legacy Mattertag API first (most reliable)
+        if (sdkRef.current.Mattertag) {
           await sdkRef.current.Mattertag.getData();
           await new Promise(resolve => setTimeout(resolve, 500));
           tags = await sdkRef.current.Mattertag.getData();
-          console.log(`Refreshed ${tags.length} Mattertags (legacy API)`);
+          console.log(`Refreshed ${tags.length} Mattertags`);
+        } else if (sdkRef.current.Tag && sdkRef.current.Tag.data && typeof sdkRef.current.Tag.data.collect === 'function') {
+          await sdkRef.current.Tag.data.collect();
+          await new Promise(resolve => setTimeout(resolve, 500));
+          tags = await sdkRef.current.Tag.data.collect();
+          console.log(`Refreshed ${tags.length} Tags (new API)`);
         }
         
         setMattertags(tags);
         return tags;
       } catch (error) {
         console.error("Error refreshing tags:", error);
-        // Try legacy API as ultimate fallback
         try {
           const tags = await sdkRef.current.Mattertag.getData();
           setMattertags(tags);
@@ -828,17 +821,17 @@ const MatterportViewer = forwardRef(({
         console.log("Could not get model data:", e);
       }
 
-      // Load Mattertags/Tags - try new API first, fallback to deprecated
+      // Load Mattertags/Tags - use legacy API first (more reliable), then try new
       try {
         let tags = [];
-        // Try the new Tag.data API first
-        if (mpSdk.Tag && mpSdk.Tag.data) {
+        // Try the deprecated Mattertag API first (most compatible)
+        if (mpSdk.Mattertag) {
+          tags = await mpSdk.Mattertag.getData();
+          console.log(`Loaded ${tags.length} Mattertags`);
+        } else if (mpSdk.Tag && mpSdk.Tag.data && typeof mpSdk.Tag.data.collect === 'function') {
+          // Try the new Tag.data API as fallback
           tags = await mpSdk.Tag.data.collect();
           console.log(`Loaded ${tags.length} Tags (new API)`);
-        } else {
-          // Fallback to deprecated Mattertag API
-          tags = await mpSdk.Mattertag.getData();
-          console.log(`Loaded ${tags.length} Mattertags (legacy API)`);
         }
         setMattertags(tags);
         
@@ -847,7 +840,7 @@ const MatterportViewer = forwardRef(({
         }
       } catch (e) {
         console.log("Could not load Tags:", e);
-        // Try legacy API as fallback
+        // Try alternative approach
         try {
           const tags = await mpSdk.Mattertag.getData();
           setMattertags(tags);
@@ -858,6 +851,21 @@ const MatterportViewer = forwardRef(({
         } catch (e2) {
           console.log("Could not load Mattertags either:", e2);
         }
+      }
+
+      // Subscribe to tag click events
+      try {
+        if (mpSdk.Mattertag && mpSdk.Mattertag.Event) {
+          mpSdk.on(mpSdk.Mattertag.Event.CLICK, (tagSid) => {
+            console.log("Matterport tag clicked:", tagSid);
+            if (onTagClick) {
+              onTagClick(tagSid);
+            }
+          });
+          console.log("Subscribed to Mattertag click events");
+        }
+      } catch (e) {
+        console.log("Could not subscribe to tag click events:", e);
       }
 
       setConnectionStatus('connected');
@@ -873,7 +881,7 @@ const MatterportViewer = forwardRef(({
       setConnectionStatus('error');
       toast.error(`Errore connessione SDK: ${error.message}`);
     }
-  }, [onSdkReady, onTagsLoaded, loadSdkScript]);
+  }, [onSdkReady, onTagsLoaded, onTagClick, loadSdkScript]);
 
   // Handle iframe load event
   const handleIframeLoad = useCallback(() => {

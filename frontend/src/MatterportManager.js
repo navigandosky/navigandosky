@@ -322,6 +322,20 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     setMatterportTags(tags || []);
   }, []);
 
+  // Handler for when a Matterport tag is clicked in the 3D viewer
+  const handleMatterportTagClick = useCallback((tagSid) => {
+    console.log("Tag clicked in 3D view:", tagSid);
+    // Find the POI that corresponds to this Matterport tag
+    const matchedPoi = pois.find(p => p.matterport_tag_id === tagSid);
+    if (matchedPoi) {
+      console.log("Matched POI:", matchedPoi.translations?.[0]?.title);
+      setSelectedPoi(matchedPoi);
+      setActiveTab("pois");
+    } else {
+      console.log("No POI found for tag:", tagSid);
+    }
+  }, [pois]);
+
   // Load SmartThings devices with sensor values
   const loadSmartThingsDevices = useCallback(async () => {
     try {
@@ -2278,6 +2292,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                 spaceId={activeSpace.space_id}
                 sdkKey={activeSpace.sdk_key}
                 onTagsLoaded={handleMatterportTagsLoaded}
+                onTagClick={handleMatterportTagClick}
                 className="w-full h-full"
               />
               
