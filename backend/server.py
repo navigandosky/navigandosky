@@ -1949,36 +1949,109 @@ async def get_elettrodomestico_by_poi(poi_id: str, token: Optional[str] = None):
 
 @api_router.get("/elettrodomestici/by-poi/{poi_id}/live-sensor")
 async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
-    """Get live sensor data for the appliance associated with a POI"""
-    # Find the appliance linked to this POI - try both poi_id and matterport_tag_id
-    query = {"$or": [
-        {"matterport_tag_id": poi_id},  # Try tag ID
-        {"poi_id": poi_id}  # Try POI database ID
-    ]}
+    """Get live sensor data for the appliance or sensor device associated with a POI"""
+    user_id = None
     if token:
         session = await db.sessions.find_one({"token": token})
         if session:
-            query["user_id"] = session["user_id"]
+            user_id = session["user_id"]
+    
+    # Find the appliance linked to this POI - try both poi_id and matterport_tag_id
+    query = {"$or": [
+        {"matterport_tag_id": poi_id},
+        {"poi_id": poi_id}
+    ]}
+    if user_id:
+        query["user_id"] = user_id
     
     elettro = await db.elettrodomestici.find_one(query, {"_id": 0})
-    if not elettro:
-        return {"has_sensor": False, "message": "Nessun apparato collegato a questo POI"}
     
     # Check if appliance has a linked smart device
-    device_id = elettro.get("smart_plug_id") or elettro.get("smartthings_device_id")
+    device_id = None
+    if elettro:
+        device_id = elettro.get("smart_plug_id") or elettro.get("smartthings_device_id")
+    
+    # If no linked appliance or no device_id, check if the POI itself has a linked device
     if not device_id:
-        return {
-            "has_sensor": False, 
-            "apparato": {
-                "nome": elettro.get("nome"),
-                "marca": elettro.get("marca"),
-                "modello": elettro.get("modello")
-            },
-            "message": "Apparato non collegato a un sensore smart"
-        }
+        poi = await db.pois.find_one({"id": poi_id}, {"_id": 0})
+        if not poi:
+            poi = await db.pois.find_one({"matterport_tag_id": poi_id}, {"_id": 0})
+        
+        if poi:
+            # Check direct device linkage on POI
+            poi_device_id = poi.get("ewelink_device_id") or poi.get("smartthings_device_id")
+            if poi_device_id:
+                device_id = poi_device_id
+            else:
+                # Try to match POI title to eWeLink device by name
+                poi_title = ""
+                for t in poi.get("translations", []):
+                    if t.get("language") == "it":
+                        poi_title = t.get("title", "").lower().strip()
+                        break
+                
+                if poi_title:
+                    try:
+                        ewelink_data = await get_ewelink_devices()
+                        ewelink_devices = ewelink_data.get("devices", [])
+                        
+                        for dev in ewelink_devices:
+                            dev_name = (dev.get("name") or "").lower().strip()
+                            params = dev.get("params", {})
+                            has_sensor_data = (
+                                params.get("currentTemperature") is not None or
+                                params.get("temperature") is not None or
+                                params.get("currentHumidity") is not None or
+                                params.get("humidity") is not None or
+                                params.get("power") is not None
+                            )
+                            if not has_sensor_data:
+                                continue
+                            
+                            # Match by name similarity
+                            title_words = set(poi_title.split())
+                            dev_words = set(dev_name.split())
+                            common = title_words & dev_words
+                            if len(common) >= 1 and (len(common) / max(len(title_words), 1)) >= 0.3:
+                                device_id = dev.get("id") or dev.get("deviceid")
+                                # Save the match for future lookups
+                                if device_id:
+                                    await db.pois.update_one(
+                                        {"id": poi.get("id")},
+                                        {"$set": {"ewelink_device_id": device_id}}
+                                    )
+                                break
+                    except Exception as e:
+                        logger.error(f"Error matching POI to eWeLink device: {e}")
+        
+        if not device_id and not elettro:
+            return {"has_sensor": False, "message": "Nessun apparato o sensore collegato a questo POI"}
+        
+        if not device_id and elettro:
+            return {
+                "has_sensor": False, 
+                "apparato": {
+                    "nome": elettro.get("nome"),
+                    "marca": elettro.get("marca"),
+                    "modello": elettro.get("modello")
+                },
+                "message": "Apparato non collegato a un sensore smart"
+            }
     
     # Get live sensor data - check both eWeLink and SmartThings
-    provider = elettro.get("smart_plug_provider", "ewelink")
+    provider = elettro.get("smart_plug_provider", "ewelink") if elettro else "ewelink"
+    
+    # Build apparato info (may be None if sensor-only POI)
+    apparato_info = None
+    if elettro:
+        apparato_info = {
+            "id": elettro.get("id"),
+            "nome": elettro.get("nome"),
+            "marca": elettro.get("marca"),
+            "modello": elettro.get("modello"),
+            "posizione": elettro.get("posizione"),
+            "consumo_orario_kw": elettro.get("consumo_orario_kw")
+        }
     
     try:
         # First try to get from eWeLink devices
@@ -2016,22 +2089,49 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
             if month_kwh is not None:
                 month_kwh = float(month_kwh) / 100
             
+            # Normalize temperature values from eWeLink
+            raw_temp = params.get("currentTemperature") or params.get("temperature")
+            temperature = normalize_ewelink_temperature(raw_temp) if raw_temp is not None else None
+            
+            # Normalize humidity values from eWeLink
+            raw_hum = params.get("currentHumidity") or params.get("humidity")
+            humidity = normalize_ewelink_humidity(raw_hum) if raw_hum is not None else None
+            
+            # Detect door/window contact sensor (eWeLink DW2/SNZB-04)
+            is_door_sensor = "lock" in params
+            door_state = None
+            door_battery = None
+            door_last_trigger = None
+            if is_door_sensor:
+                lock_val = params.get("lock", 0)
+                door_state = "open" if lock_val == 1 else "closed"
+                door_battery = params.get("battery")
+                trig_time = params.get("trigTime")
+                if trig_time:
+                    try:
+                        trig_ms = int(trig_time)
+                        door_last_trigger = datetime.fromtimestamp(trig_ms / 1000, tz=timezone.utc).isoformat()
+                    except (ValueError, TypeError):
+                        pass
+            
+            # Build sensor name from POI or device
+            sensor_name = device_data.get("name")
+            if not apparato_info:
+                apparato_info = {
+                    "nome": sensor_name,
+                    "marca": device_data.get("brandName", "eWeLink"),
+                    "modello": device_data.get("productModel", "")
+                }
+            
             return {
                 "has_sensor": True,
-                "apparato": {
-                    "id": elettro.get("id"),
-                    "nome": elettro.get("nome"),
-                    "marca": elettro.get("marca"),
-                    "modello": elettro.get("modello"),
-                    "posizione": elettro.get("posizione"),
-                    "consumo_orario_kw": elettro.get("consumo_orario_kw")
-                },
+                "apparato": apparato_info,
                 "sensor": {
                     "device_id": device_id,
-                    "device_name": device_data.get("name"),
+                    "device_name": sensor_name,
                     "online": device_data.get("online", False),
-                    "temperature": params.get("currentTemperature"),
-                    "humidity": params.get("currentHumidity"),
+                    "temperature": temperature,
+                    "humidity": humidity,
                     "power": power,
                     "voltage": voltage,
                     "current": current,
@@ -2039,6 +2139,10 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
                     "month_kwh": month_kwh,
                     "switch_state": device_data.get("switch"),
                     "can_switch": device_data.get("canSwitch", False),
+                    "contact": door_state,
+                    "is_contact_sensor": is_door_sensor,
+                    "battery": door_battery,
+                    "last_trigger": door_last_trigger,
                     "source": "ewelink"
                 },
                 "timestamp": datetime.now(timezone.utc).isoformat()
@@ -2060,16 +2164,16 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
             # Get sensor values for this device
             sensor_values = sensors.get(device_id, {})
             
+            if not apparato_info:
+                apparato_info = {
+                    "nome": device_data.get("name"),
+                    "marca": "SmartThings",
+                    "modello": device_data.get("deviceTypeName", "")
+                }
+            
             return {
                 "has_sensor": True,
-                "apparato": {
-                    "id": elettro.get("id"),
-                    "nome": elettro.get("nome"),
-                    "marca": elettro.get("marca"),
-                    "modello": elettro.get("modello"),
-                    "posizione": elettro.get("posizione"),
-                    "consumo_orario_kw": elettro.get("consumo_orario_kw")
-                },
+                "apparato": apparato_info,
                 "sensor": {
                     "device_id": device_id,
                     "device_name": device_data.get("name"),
@@ -2082,7 +2186,6 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
                     "switch_state": device_data.get("switchState") or device_data.get("switch"),
                     "can_switch": device_data.get("canSwitch", False),
                     "source": "smartthings",
-                    # Door/window contact sensor data
                     "contact": device_data.get("contact"),
                     "is_contact_sensor": device_data.get("is_contact_sensor", False),
                     "battery": device_data.get("battery"),
@@ -2092,12 +2195,8 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
             }
         else:
             return {
-                "has_sensor": True,
-                "apparato": {
-                    "nome": elettro.get("nome"),
-                    "marca": elettro.get("marca"),
-                    "modello": elettro.get("modello")
-                },
+                "has_sensor": False,
+                "apparato": apparato_info,
                 "sensor": {
                     "device_id": device_id,
                     "online": False
@@ -2108,9 +2207,7 @@ async def get_poi_live_sensor_data(poi_id: str, token: Optional[str] = None):
         logger.error(f"Error fetching live sensor for POI {poi_id}: {e}")
         return {
             "has_sensor": False,
-            "apparato": {
-                "nome": elettro.get("nome")
-            },
+            "apparato": apparato_info,
             "error": str(e)
         }
 
@@ -4600,8 +4697,8 @@ async def get_device_consumption(device_id: str):
 def normalize_ewelink_temperature(raw_value) -> float:
     """Normalize eWeLink temperature values from various sensor formats.
     Different sensors use different scales:
-    - SNZB-02D: integer × 100 (2268 = 22.68°C)
-    - Some thermostats: integer × 10 (240 = 24.0°C)
+    - SNZB-02D: integer * 100 (2268 = 22.68°C, 850 = 8.50°C)
+    - Some thermostats: integer * 10 (240 = 24.0°C, 270 = 27.0°C)
     - NSPanel/Air Quality: already float (14.2, 25.6)
     """
     try:
@@ -4613,9 +4710,13 @@ def normalize_ewelink_temperature(raw_value) -> float:
         # Integer value > 1000: divide by 100 (e.g., 2268 -> 22.68)
         if val > 1000:
             return round(val / 100, 1)
-        # Integer value 100-999: divide by 10 (e.g., 240 -> 24.0)
+        # Integer value 100-999: try /10 first, if > 50°C then use /100
         if val >= 100:
-            return round(val / 10, 1)
+            div10 = val / 10
+            if div10 > 50:
+                # Too high for home sensor, must be *100 format (e.g., 850 -> 8.5)
+                return round(val / 100, 1)
+            return round(div10, 1)
         # Value < 100: keep as-is (e.g., 40 for a radiator surface temp)
         return round(val, 1)
     except (ValueError, TypeError):

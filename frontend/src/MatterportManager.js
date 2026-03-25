@@ -649,24 +649,27 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     }
     setLoadingApparato(true);
     setLoadingLiveSensor(true);
+    
+    const params = authToken ? { token: authToken } : {};
+    
+    // Load appliance data (may not exist for sensor-only POIs)
     try {
-      const params = authToken ? { token: authToken } : {};
-      
-      // Load appliance data
       const res = await axios.get(`${API_URL}/api/elettrodomestici/by-poi/${poiId}`, { params });
       setLinkedApparato(res.data);
-      
-      // Load live sensor data
+    } catch (error) {
+      setLinkedApparato(null);
+    }
+    setLoadingApparato(false);
+    
+    // Always try to load live sensor data (works for both appliances and sensor-only POIs)
+    try {
       const sensorRes = await axios.get(`${API_URL}/api/elettrodomestici/by-poi/${poiId}/live-sensor`, { params });
       setLiveSensorData(sensorRes.data);
     } catch (error) {
-      console.log("No linked apparato for POI:", poiId);
-      setLinkedApparato(null);
+      console.log("No sensor data for POI:", poiId);
       setLiveSensorData(null);
-    } finally {
-      setLoadingApparato(false);
-      setLoadingLiveSensor(false);
     }
+    setLoadingLiveSensor(false);
   }, [authToken]);
 
   // Load linked apparato when selected POI changes
@@ -2041,112 +2044,130 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     <span className="font-medium text-sm text-amber-300">{linkedApparato.nome}</span>
                   </div>
                   
-                  {/* Live Sensor Data */}
-                  {liveSensorData?.has_sensor && liveSensorData?.sensor && (
-                    <div className="p-2 bg-gradient-to-r from-cyan-900/30 to-emerald-900/30 rounded border border-cyan-500/30 mb-2">
-                      <p className="text-xs text-cyan-300 mb-2 font-medium">📡 Dati Live</p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        {liveSensorData.sensor.power !== null && liveSensorData.sensor.power !== undefined && (
-                          <div className="text-center p-2 bg-slate-800/50 rounded">
-                            <p className="text-xl font-bold text-yellow-400">{liveSensorData.sensor.power.toFixed(0)}W</p>
-                            <p className="text-yellow-600 text-[10px]">Potenza</p>
-                          </div>
-                        )}
-                        {liveSensorData.sensor.temperature !== null && liveSensorData.sensor.temperature !== undefined && (
-                          <div className="text-center p-2 bg-slate-800/50 rounded">
-                            <p className="text-xl font-bold text-cyan-400">{liveSensorData.sensor.temperature.toFixed(1)}°</p>
-                            <p className="text-cyan-600 text-[10px]">Temp</p>
-                          </div>
-                        )}
-                        {liveSensorData.sensor.voltage !== null && liveSensorData.sensor.voltage !== undefined && (
-                          <div className="text-center p-2 bg-slate-800/50 rounded">
-                            <p className="text-xl font-bold text-blue-400">{liveSensorData.sensor.voltage.toFixed(0)}V</p>
-                            <p className="text-blue-600 text-[10px]">Tensione</p>
-                          </div>
-                        )}
-                        {liveSensorData.sensor.current !== null && liveSensorData.sensor.current !== undefined && (
-                          <div className="text-center p-2 bg-slate-800/50 rounded">
-                            <p className="text-xl font-bold text-green-400">{liveSensorData.sensor.current.toFixed(1)}A</p>
-                            <p className="text-green-600 text-[10px]">Corrente</p>
-                          </div>
-                        )}
-                        
-                        {/* Door/Window Contact Sensor */}
-                        {liveSensorData.sensor.contact && (
-                          <div className="text-center p-2 bg-slate-800/50 rounded">
-                            <p className={`text-xl font-bold ${
-                              liveSensorData.sensor.contact === 'open' 
-                                ? 'text-orange-400' 
-                                : 'text-emerald-400'
-                            }`}>
-                              {liveSensorData.sensor.contact === 'open' ? '🚪 APERTA' : '🔒 CHIUSA'}
-                            </p>
-                            <p className="text-slate-500 text-[10px]">Stato Porta</p>
-                          </div>
-                        )}
-                        
-                        {/* Battery Level */}
-                        {liveSensorData.sensor.battery !== null && liveSensorData.sensor.battery !== undefined && (
-                          <div className="text-center p-2 bg-slate-800/50 rounded">
-                            <p className={`text-xl font-bold ${
-                              liveSensorData.sensor.battery > 50 
-                                ? 'text-green-400' 
-                                : liveSensorData.sensor.battery > 20 
-                                  ? 'text-yellow-400' 
-                                  : 'text-red-400'
-                            }`}>
-                              🔋 {liveSensorData.sensor.battery}%
-                            </p>
-                            <p className="text-slate-500 text-[10px]">Batteria</p>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Last trigger time for contact sensors */}
-                      {liveSensorData.sensor.last_trigger && (
-                        <div className="mt-2 text-[10px] text-slate-500 text-center">
-                          Ultimo movimento: {new Date(liveSensorData.sensor.last_trigger).toLocaleString('it-IT')}
-                        </div>
-                      )}
-                      
-                      {/* Switch State - Clickable Toggle */}
-                      {liveSensorData.sensor.switch_state && (
-                        <button
-                          onClick={() => toggleEwelinkDevice(
-                            liveSensorData.sensor.device_id, 
-                            liveSensorData.sensor.switch_state
-                          )}
-                          disabled={togglingDevice || !liveSensorData.sensor.can_switch}
-                          className={`mt-2 w-full text-center py-2 rounded text-sm font-bold transition-all ${
-                            liveSensorData.sensor.switch_state === 'on' 
-                              ? 'bg-red-600/40 text-red-300 hover:bg-red-600/60 border border-red-500/50' 
-                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600'
-                          } ${togglingDevice ? 'opacity-50 cursor-wait' : liveSensorData.sensor.can_switch ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
-                          title={liveSensorData.sensor.can_switch ? 'Clicca per accendere/spegnere' : 'Dispositivo non controllabile'}
-                        >
-                          {togglingDevice ? (
-                            <>🔄 Cambio stato...</>
-                          ) : (
-                            <>
-                              {liveSensorData.sensor.switch_state === 'on' ? '⚡ ACCESO' : '⚫ SPENTO'}
-                              {liveSensorData.sensor.can_switch && (
-                                <span className="ml-2 text-[10px] opacity-70">
-                                  (clicca per {liveSensorData.sensor.switch_state === 'on' ? 'spegnere' : 'accendere'})
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  
                   {/* Apparato Details */}
                   <div className="text-xs text-slate-400 space-y-1">
                     {linkedApparato.marca && <p>Marca: <span className="text-slate-300">{linkedApparato.marca}</span></p>}
                     {linkedApparato.modello && <p>Modello: <span className="text-slate-300">{linkedApparato.modello}</span></p>}
                     {linkedApparato.posizione && <p>Posizione: <span className="text-slate-300">{linkedApparato.posizione}</span></p>}
                   </div>
+                </div>
+              )}
+              
+              {/* Live Sensor Data - shown for both linked appliances and sensor-only POIs */}
+              {!loadingLiveSensor && liveSensorData?.has_sensor && liveSensorData?.sensor && (
+                <div className="p-2 bg-gradient-to-r from-cyan-900/30 to-emerald-900/30 rounded-lg border border-cyan-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs text-cyan-300 font-medium">Dati Live</p>
+                    {liveSensorData.sensor.online !== undefined && (
+                      <div className="flex items-center gap-1">
+                        <div className={`w-2 h-2 rounded-full ${liveSensorData.sensor.online ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className="text-[10px] text-slate-400">{liveSensorData.sensor.online ? 'Online' : 'Offline'}</span>
+                      </div>
+                    )}
+                  </div>
+                  {!linkedApparato && liveSensorData.apparato?.nome && (
+                    <p className="text-xs text-cyan-400 mb-2 font-medium">{liveSensorData.apparato.nome}</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    {liveSensorData.sensor.temperature !== null && liveSensorData.sensor.temperature !== undefined && (
+                      <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-temperature">
+                        <p className="text-xl font-bold text-cyan-400">{Number(liveSensorData.sensor.temperature).toFixed(1)}°C</p>
+                        <p className="text-cyan-600 text-[10px]">Temperatura</p>
+                      </div>
+                    )}
+                    {liveSensorData.sensor.humidity !== null && liveSensorData.sensor.humidity !== undefined && (
+                      <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-humidity">
+                        <p className="text-xl font-bold text-blue-400">{Number(liveSensorData.sensor.humidity).toFixed(0)}%</p>
+                        <p className="text-blue-600 text-[10px]">Umidita</p>
+                      </div>
+                    )}
+                    {liveSensorData.sensor.power !== null && liveSensorData.sensor.power !== undefined && (
+                      <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-power">
+                        <p className="text-xl font-bold text-yellow-400">{Number(liveSensorData.sensor.power).toFixed(0)}W</p>
+                        <p className="text-yellow-600 text-[10px]">Potenza</p>
+                      </div>
+                    )}
+                    {liveSensorData.sensor.voltage !== null && liveSensorData.sensor.voltage !== undefined && (
+                      <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-voltage">
+                        <p className="text-xl font-bold text-blue-400">{Number(liveSensorData.sensor.voltage).toFixed(0)}V</p>
+                        <p className="text-blue-600 text-[10px]">Tensione</p>
+                      </div>
+                    )}
+                    {liveSensorData.sensor.current !== null && liveSensorData.sensor.current !== undefined && (
+                      <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-current">
+                        <p className="text-xl font-bold text-green-400">{Number(liveSensorData.sensor.current).toFixed(1)}A</p>
+                        <p className="text-green-600 text-[10px]">Corrente</p>
+                      </div>
+                    )}
+                    {liveSensorData.sensor.contact && (
+                      <div className="text-center p-2 bg-slate-800/50 rounded">
+                        <p className={`text-xl font-bold ${
+                          liveSensorData.sensor.contact === 'open' ? 'text-orange-400' : 'text-emerald-400'
+                        }`}>
+                          {liveSensorData.sensor.contact === 'open' ? 'APERTA' : 'CHIUSA'}
+                        </p>
+                        <p className="text-slate-500 text-[10px]">Stato Porta</p>
+                      </div>
+                    )}
+                    {liveSensorData.sensor.battery !== null && liveSensorData.sensor.battery !== undefined && (
+                      <div className="text-center p-2 bg-slate-800/50 rounded">
+                        <p className={`text-xl font-bold ${
+                          liveSensorData.sensor.battery > 50 ? 'text-green-400' : liveSensorData.sensor.battery > 20 ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                          {liveSensorData.sensor.battery}%
+                        </p>
+                        <p className="text-slate-500 text-[10px]">Batteria</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {liveSensorData.sensor.last_trigger && (
+                    <div className="mt-2 text-[10px] text-slate-500 text-center">
+                      Ultimo movimento: {new Date(liveSensorData.sensor.last_trigger).toLocaleString('it-IT')}
+                    </div>
+                  )}
+                  
+                  {/* Switch State - Clickable Toggle */}
+                  {liveSensorData.sensor.switch_state && (
+                    <button
+                      onClick={() => toggleEwelinkDevice(
+                        liveSensorData.sensor.device_id, 
+                        liveSensorData.sensor.switch_state
+                      )}
+                      disabled={togglingDevice || !liveSensorData.sensor.can_switch}
+                      className={`mt-2 w-full text-center py-2 rounded text-sm font-bold transition-all ${
+                        liveSensorData.sensor.switch_state === 'on' 
+                          ? 'bg-red-600/40 text-red-300 hover:bg-red-600/60 border border-red-500/50' 
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600 border border-slate-600'
+                      } ${togglingDevice ? 'opacity-50 cursor-wait' : liveSensorData.sensor.can_switch ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
+                      data-testid="device-switch-button"
+                    >
+                      {togglingDevice ? (
+                        <>Cambio stato...</>
+                      ) : (
+                        <>
+                          {liveSensorData.sensor.switch_state === 'on' ? 'ACCESO' : 'SPENTO'}
+                          {liveSensorData.sensor.can_switch && (
+                            <span className="ml-2 text-[10px] opacity-70">
+                              (clicca per {liveSensorData.sensor.switch_state === 'on' ? 'spegnere' : 'accendere'})
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </button>
+                  )}
+                  
+                  {/* Consumption data */}
+                  {(liveSensorData.sensor.day_kwh || liveSensorData.sensor.month_kwh) && (
+                    <div className="mt-2 grid grid-cols-2 gap-1 text-[10px]">
+                      {liveSensorData.sensor.day_kwh !== null && liveSensorData.sensor.day_kwh !== undefined && (
+                        <div className="text-center text-slate-400">Oggi: <span className="text-slate-300">{liveSensorData.sensor.day_kwh.toFixed(2)} kWh</span></div>
+                      )}
+                      {liveSensorData.sensor.month_kwh !== null && liveSensorData.sensor.month_kwh !== undefined && (
+                        <div className="text-center text-slate-400">Mese: <span className="text-slate-300">{liveSensorData.sensor.month_kwh.toFixed(2)} kWh</span></div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               
