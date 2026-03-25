@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import MatterportViewer from "./MatterportViewer";
+import { useLanguage } from "./i18n/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -160,6 +161,7 @@ const TTS_VOICES = [
 ];
 
 export default function MatterportManager({ authToken, currentUser, navigateToPoiId, onNavigationComplete }) {
+  const { t } = useLanguage();
   // State
   const [spaces, setSpaces] = useState([]);
   const [activeSpace, setActiveSpace] = useState(null);
@@ -2015,11 +2017,11 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     <Cloud size={10} className="mr-1" />Sincronizzato
                   </Badge>
                 ) : (
-                  <Badge className="bg-slate-600/50 text-slate-300 text-xs">Non sync</Badge>
+                  <Badge className="bg-slate-600/50 text-slate-300 text-xs">{t.matterport.notSynced}</Badge>
                 )}
                 {linkedApparato && (
                   <Badge className="bg-amber-600/20 text-amber-400 text-xs">
-                    <Zap size={10} className="mr-1" />Collegato
+                    <Zap size={10} className="mr-1" />{t.matterport.linkedDevice}
                   </Badge>
                 )}
               </div>
@@ -2057,7 +2059,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
               {!loadingLiveSensor && liveSensorData?.has_sensor && liveSensorData?.sensor && (
                 <div className="p-2 bg-gradient-to-r from-cyan-900/30 to-emerald-900/30 rounded-lg border border-cyan-500/30">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-cyan-300 font-medium">Dati Live</p>
+                    <p className="text-xs text-cyan-300 font-medium">{t.matterport.liveData}</p>
                     {liveSensorData.sensor.online !== undefined && (
                       <div className="flex items-center gap-1">
                         <div className={`w-2 h-2 rounded-full ${liveSensorData.sensor.online ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -2072,31 +2074,31 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                     {liveSensorData.sensor.temperature !== null && liveSensorData.sensor.temperature !== undefined && (
                       <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-temperature">
                         <p className="text-xl font-bold text-cyan-400">{Number(liveSensorData.sensor.temperature).toFixed(1)}°C</p>
-                        <p className="text-cyan-600 text-[10px]">Temperatura</p>
+                        <p className="text-cyan-600 text-[10px]">{t.dashboard.temperature}</p>
                       </div>
                     )}
                     {liveSensorData.sensor.humidity !== null && liveSensorData.sensor.humidity !== undefined && (
                       <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-humidity">
                         <p className="text-xl font-bold text-blue-400">{Number(liveSensorData.sensor.humidity).toFixed(0)}%</p>
-                        <p className="text-blue-600 text-[10px]">Umidita</p>
+                        <p className="text-blue-600 text-[10px]">{t.dashboard.humidity}</p>
                       </div>
                     )}
                     {liveSensorData.sensor.power !== null && liveSensorData.sensor.power !== undefined && (
                       <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-power">
                         <p className="text-xl font-bold text-yellow-400">{Number(liveSensorData.sensor.power).toFixed(0)}W</p>
-                        <p className="text-yellow-600 text-[10px]">Potenza</p>
+                        <p className="text-yellow-600 text-[10px]">{t.dashboard.power}</p>
                       </div>
                     )}
                     {liveSensorData.sensor.voltage !== null && liveSensorData.sensor.voltage !== undefined && (
                       <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-voltage">
                         <p className="text-xl font-bold text-blue-400">{Number(liveSensorData.sensor.voltage).toFixed(0)}V</p>
-                        <p className="text-blue-600 text-[10px]">Tensione</p>
+                        <p className="text-blue-600 text-[10px]">{t.dashboard.voltage}</p>
                       </div>
                     )}
                     {liveSensorData.sensor.current !== null && liveSensorData.sensor.current !== undefined && (
                       <div className="text-center p-2 bg-slate-800/50 rounded" data-testid="sensor-current">
                         <p className="text-xl font-bold text-green-400">{Number(liveSensorData.sensor.current).toFixed(1)}A</p>
-                        <p className="text-green-600 text-[10px]">Corrente</p>
+                        <p className="text-green-600 text-[10px]">{t.dashboard.current}</p>
                       </div>
                     )}
                     {liveSensorData.sensor.contact && (
@@ -2104,9 +2106,9 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                         <p className={`text-xl font-bold ${
                           liveSensorData.sensor.contact === 'open' ? 'text-orange-400' : 'text-emerald-400'
                         }`}>
-                          {liveSensorData.sensor.contact === 'open' ? 'APERTA' : 'CHIUSA'}
+                          {liveSensorData.sensor.contact === 'open' ? t.dashboard.open : t.dashboard.closed}
                         </p>
-                        <p className="text-slate-500 text-[10px]">Stato Porta</p>
+                        <p className="text-slate-500 text-[10px]">{t.dashboard.doorState}</p>
                       </div>
                     )}
                     {liveSensorData.sensor.battery !== null && liveSensorData.sensor.battery !== undefined && (
@@ -2116,14 +2118,14 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                         }`}>
                           {liveSensorData.sensor.battery}%
                         </p>
-                        <p className="text-slate-500 text-[10px]">Batteria</p>
+                        <p className="text-slate-500 text-[10px]">{t.dashboard.battery}</p>
                       </div>
                     )}
                   </div>
                   
                   {liveSensorData.sensor.last_trigger && (
                     <div className="mt-2 text-[10px] text-slate-500 text-center">
-                      Ultimo movimento: {new Date(liveSensorData.sensor.last_trigger).toLocaleString('it-IT')}
+                      {t.dashboard.lastMovement}: {new Date(liveSensorData.sensor.last_trigger).toLocaleString('it-IT')}
                     </div>
                   )}
                   
@@ -2143,13 +2145,13 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                       data-testid="device-switch-button"
                     >
                       {togglingDevice ? (
-                        <>Cambio stato...</>
+                        <>{t.dashboard.changingState}</>
                       ) : (
                         <>
-                          {liveSensorData.sensor.switch_state === 'on' ? 'ACCESO' : 'SPENTO'}
+                          {liveSensorData.sensor.switch_state === 'on' ? t.dashboard.on : t.dashboard.off}
                           {liveSensorData.sensor.can_switch && (
                             <span className="ml-2 text-[10px] opacity-70">
-                              (clicca per {liveSensorData.sensor.switch_state === 'on' ? 'spegnere' : 'accendere'})
+                              ({t.dashboard.clickTo} {liveSensorData.sensor.switch_state === 'on' ? t.dashboard.switchOff : t.dashboard.switchOn})
                             </span>
                           )}
                         </>
@@ -2161,7 +2163,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                   {(liveSensorData.sensor.day_kwh || liveSensorData.sensor.month_kwh) && (
                     <div className="mt-2 grid grid-cols-2 gap-1 text-[10px]">
                       {liveSensorData.sensor.day_kwh !== null && liveSensorData.sensor.day_kwh !== undefined && (
-                        <div className="text-center text-slate-400">Oggi: <span className="text-slate-300">{liveSensorData.sensor.day_kwh.toFixed(2)} kWh</span></div>
+                        <div className="text-center text-slate-400">{t.dashboard.today}: <span className="text-slate-300">{liveSensorData.sensor.day_kwh.toFixed(2)} kWh</span></div>
                       )}
                       {liveSensorData.sensor.month_kwh !== null && liveSensorData.sensor.month_kwh !== undefined && (
                         <div className="text-center text-slate-400">Mese: <span className="text-slate-300">{liveSensorData.sensor.month_kwh.toFixed(2)} kWh</span></div>
@@ -2255,7 +2257,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                   className="flex-1 h-8 text-xs bg-orange-600 hover:bg-orange-700"
                 >
                   <Navigation size={12} className="mr-1" />
-                  Vai al POI
+                  {t.matterport.goToPoi}
                 </Button>
                 <Button
                   size="sm"
@@ -2275,7 +2277,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                 {syncingToCloud === selectedPoi.id ? (
                   <><Loader2 size={12} className="mr-1 animate-spin" />Sync...</>
                 ) : (
-                  <><Cloud size={12} className="mr-1" />{selectedPoi.synced_to_cloud ? 'Risync' : 'Sync Cloud'}</>
+                  <><Cloud size={12} className="mr-1" />{t.matterport.syncCloud}</>
                 )}
               </Button>
             </div>
@@ -2434,9 +2436,9 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
           {!sidebarCollapsed && (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
               <TabsList className="w-full bg-slate-800/50 rounded-none shrink-0">
-                <TabsTrigger value="pois" className="flex-1 text-xs">POI ({pois.length})</TabsTrigger>
-                <TabsTrigger value="sensori" className="flex-1 text-xs">Sensori ({Object.keys(poiSensorData).length})</TabsTrigger>
-                <TabsTrigger value="spaces" className="flex-1 text-xs">Spazi ({spaces.length})</TabsTrigger>
+                <TabsTrigger value="pois" className="flex-1 text-xs">{t.matterport.pois} ({pois.length})</TabsTrigger>
+                <TabsTrigger value="sensori" className="flex-1 text-xs">{t.matterport.sensors} ({Object.keys(poiSensorData).length})</TabsTrigger>
+                <TabsTrigger value="spaces" className="flex-1 text-xs">{t.matterport.spaces} ({spaces.length})</TabsTrigger>
               </TabsList>
 
               {/* SENSORI TAB - Only devices with POI link */}
@@ -2445,7 +2447,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
                   {Object.keys(poiSensorData).length === 0 ? (
                     <div className="p-4 text-center text-slate-400 text-sm">
                       <Zap size={32} className="mx-auto mb-2 opacity-50" />
-                      <p>Nessun sensore collegato a POI</p>
+                      <p>{t.matterport.noSensorLinked}</p>
                     </div>
                   ) : (
                     Object.entries(poiSensorData).map(([poiId, sensorData]) => {

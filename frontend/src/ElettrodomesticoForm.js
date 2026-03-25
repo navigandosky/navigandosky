@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "./i18n/LanguageContext";
 import {
   Dialog,
   DialogContent,
@@ -82,6 +83,7 @@ export default function ElettrodomesticoDialog({
   pois = [],
   onSave 
 }) {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     nome: "",
     marca: "",
@@ -327,7 +329,7 @@ export default function ElettrodomesticoDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {elettrodomestico ? "Modifica Elettrodomestico" : "Nuovo Elettrodomestico"}
+            {elettrodomestico ? t.appliances.editAppliance : t.appliances.addNew}
           </DialogTitle>
         </DialogHeader>
         
@@ -1006,7 +1008,7 @@ export default function ElettrodomesticoDialog({
               Annulla
             </Button>
             <Button type="submit">
-              {elettrodomestico ? "Salva Modifiche" : "Crea Elettrodomestico"}
+              {elettrodomestico ? t.common.save : t.appliances.addNew}
             </Button>
           </DialogFooter>
         </form>

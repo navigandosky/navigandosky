@@ -3,7 +3,9 @@ import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from "date-fns";
-import { it } from "date-fns/locale";
+import { it as itLocale, enUS, fr as frLocale, es as esLocale } from "date-fns/locale";
+import { LanguageProvider, useLanguage } from "./i18n/LanguageContext";
+import LanguageSelector from "./i18n/LanguageSelector";
 import {
   Building2,
   Zap,
@@ -872,10 +874,10 @@ const CentroAssistenzaDialog = ({ open, onOpenChange, centro, onSave }) => {
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annulla
+              {t.common.cancel}
             </Button>
             <Button type="submit" data-testid="centro-save-btn">
-              {centro ? "Salva Modifiche" : "Crea Centro"}
+              {centro ? t.common.save : t.common.save}
             </Button>
           </DialogFooter>
         </form>
@@ -1045,7 +1047,7 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, preselectedElett
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {manutenzione ? "Modifica Manutenzione" : "Nuova Manutenzione"}
+            {manutenzione ? t.maintenance.editMaintenance : t.maintenance.addNew}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -1253,10 +1255,10 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, preselectedElett
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annulla
+              {t.common.cancel}
             </Button>
             <Button type="submit" data-testid="manut-save-btn">
-              {manutenzione ? "Salva Modifiche" : "Crea Manutenzione"}
+              {manutenzione ? t.common.save : t.maintenance.addNew}
             </Button>
           </DialogFooter>
         </form>
@@ -1266,7 +1268,12 @@ const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, preselectedElett
 };
 
 // Main App Component
-function App() {
+function SmartDomoApp() {
+  const { t, lang } = useLanguage();
+  
+  // date-fns locale mapping
+  const dateFnsLocales = { it: itLocale, en: enUS, fr: frLocale, es: esLocale };
+  const dateLocale = dateFnsLocales[lang] || itLocale;
   // Backend health state
   const [backendReady, setBackendReady] = useState(true);
   const [backendCheckCount, setBackendCheckCount] = useState(0);
@@ -1813,20 +1820,21 @@ function App() {
             <div className="flex items-center gap-3">
               <Building2 className="h-8 w-8 text-blue-600" />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">SmartDomo</h1>
-                <p className="text-xs text-gray-500">Gestione Intelligente Edifici</p>
+                <h1 className="text-xl font-bold text-gray-900">{t.header.title}</h1>
+                <p className="text-xs text-gray-500">{t.header.subtitle}</p>
               </div>
             </div>
             
-            {/* User info e logout - affiancati */}
+            {/* Language selector + User info + logout */}
             <div className="flex items-center gap-3">
+              <LanguageSelector />
               <NotificationBadge onClick={() => setActiveTab("suggerimenti")} authToken={authToken} />
               <div className="flex items-center gap-3 pl-3 border-l">
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-700">{currentUser.full_name || currentUser.username}</p>
                   <p className="text-xs text-gray-500 flex items-center gap-1 justify-end">
                     {currentUser.role === "admin" && <Shield className="h-3 w-3" />}
-                    {currentUser.role === "admin" ? "Amministratore" : "Utente"}
+                    {currentUser.role === "admin" ? t.header.admin : t.header.user}
                   </p>
                 </div>
                 <Button
@@ -1834,7 +1842,7 @@ function App() {
                   size="sm"
                   onClick={handleLogout}
                   className="text-gray-500 hover:text-red-500"
-                  title="Logout"
+                  title={t.header.logout}
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -1849,18 +1857,18 @@ function App() {
         <div className="w-full px-6">
           <div className="flex gap-1 overflow-x-auto">
             {[
-              { id: "matterport", label: "Vista 3D", icon: Eye },
-              { id: "videocam", label: "Video Cam", icon: Video },
-              { id: "smartdomo", label: "SmartDomo", icon: Thermometer },
-              { id: "sensori", label: "Report Sensori", icon: Activity },
-              { id: "elettrodomestici", label: "Apparati", icon: Zap },
-              { id: "calendario", label: "Calendario", icon: Calendar },
-              { id: "manutenzioni", label: "Manutenzioni", icon: Wrench },
-              { id: "tickets", label: "Ticket", icon: Ticket },
-              { id: "assistente", label: "Assistente", icon: Bot },
-              { id: "veicoli", label: "Veicoli", icon: Car },
-              { id: "proprieta", label: "Setup", icon: Settings },
-              ...(currentUser?.role === "admin" ? [{ id: "utenti", label: "Utenti", icon: Users }] : []),
+              { id: "matterport", label: t.nav.vista3d, icon: Eye },
+              { id: "videocam", label: t.nav.videocam, icon: Video },
+              { id: "smartdomo", label: t.nav.smartdomo, icon: Thermometer },
+              { id: "sensori", label: t.nav.reportSensori, icon: Activity },
+              { id: "elettrodomestici", label: t.nav.apparati, icon: Zap },
+              { id: "calendario", label: t.nav.calendario, icon: Calendar },
+              { id: "manutenzioni", label: t.nav.manutenzioni, icon: Wrench },
+              { id: "tickets", label: t.nav.ticket, icon: Ticket },
+              { id: "assistente", label: t.nav.assistente, icon: Bot },
+              { id: "veicoli", label: t.nav.veicoli, icon: Car },
+              { id: "proprieta", label: t.nav.setup, icon: Settings },
+              ...(currentUser?.role === "admin" ? [{ id: "utenti", label: t.nav.utenti, icon: Users }] : []),
             ].map((tab) => {
               // Colori specifici per ogni tab
               const tabColors = {
@@ -2010,7 +2018,7 @@ function App() {
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
-                    placeholder="Cerca elettrodomestici..."
+                    placeholder={t.common.search + "..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
@@ -2020,7 +2028,7 @@ function App() {
                 <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
                   <SelectTrigger className="w-[180px]">
                     <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Categoria" />
+                    <SelectValue placeholder={t.common.category} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutte</SelectItem>
@@ -2216,7 +2224,7 @@ function App() {
                 data-testid="add-manut-btn"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Nuova Manutenzione
+                {t.maintenance.addNew}
               </Button>
             </div>
 
@@ -2544,7 +2552,7 @@ function App() {
                 {apparatoManutenzioni.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <Wrench className="h-12 w-12 mx-auto mb-2 opacity-30" />
-                    <p>Nessuna manutenzione registrata</p>
+                    <p>{t.maintenance.noMaintenance}</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -2562,7 +2570,7 @@ function App() {
                             <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                {m.data_programmata ? format(parseISO(m.data_programmata), "dd/MM/yyyy", { locale: it }) : "N/D"}
+                                {m.data_programmata ? format(parseISO(m.data_programmata), "dd/MM/yyyy", { locale: dateLocale }) : "N/D"}
                               </span>
                               {m.tecnico && (
                                 <span className="flex items-center gap-1">
@@ -2598,7 +2606,7 @@ function App() {
                   }}
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Nuova Manutenzione
+                  {t.maintenance.addNew}
                 </Button>
               </TabsContent>
               
@@ -2732,39 +2740,39 @@ function App() {
               <TabsContent value="dettagli" className="mt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-gray-500">Marca</Label>
+                    <Label className="text-gray-500">{t.appliances.brand}</Label>
                     <p className="font-medium">{viewingApparato.marca || "N/D"}</p>
                   </div>
                   <div>
-                    <Label className="text-gray-500">Modello</Label>
+                    <Label className="text-gray-500">{t.appliances.model}</Label>
                     <p className="font-medium">{viewingApparato.modello || "N/D"}</p>
                   </div>
                   <div>
-                    <Label className="text-gray-500">Categoria</Label>
+                    <Label className="text-gray-500">{t.common.category}</Label>
                     <p className="font-medium">{viewingApparato.categoria}</p>
                   </div>
                   <div>
-                    <Label className="text-gray-500">Ubicazione</Label>
+                    <Label className="text-gray-500">{t.appliances.position}</Label>
                     <p className="font-medium">{viewingApparato.ubicazione || "N/D"}</p>
                   </div>
                   <div>
-                    <Label className="text-gray-500">Data Acquisto</Label>
+                    <Label className="text-gray-500">{t.appliances.purchaseDate}</Label>
                     <p className="font-medium">
                       {viewingApparato.data_acquisto 
-                        ? format(parseISO(viewingApparato.data_acquisto), "dd/MM/yyyy", { locale: it })
+                        ? format(parseISO(viewingApparato.data_acquisto), "dd/MM/yyyy", { locale: dateLocale })
                         : "N/D"}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-gray-500">Scadenza Garanzia</Label>
+                    <Label className="text-gray-500">{t.appliances.warrantyExpiry}</Label>
                     <p className="font-medium">
                       {viewingApparato.scadenza_garanzia 
-                        ? format(parseISO(viewingApparato.scadenza_garanzia), "dd/MM/yyyy", { locale: it })
+                        ? format(parseISO(viewingApparato.scadenza_garanzia), "dd/MM/yyyy", { locale: dateLocale })
                         : "N/D"}
                     </p>
                   </div>
                   <div className="col-span-2">
-                    <Label className="text-gray-500">Seriale</Label>
+                    <Label className="text-gray-500">{t.appliances.serialNumber}</Label>
                     <p className="font-medium font-mono">{viewingApparato.seriale || "N/D"}</p>
                   </div>
                 </div>
@@ -2779,7 +2787,7 @@ function App() {
                   }}
                 >
                   <Pencil className="h-4 w-4 mr-2" />
-                  Modifica Dettagli
+                  {t.common.edit}
                 </Button>
               </TabsContent>
               
@@ -2851,6 +2859,14 @@ function App() {
         />
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <SmartDomoApp />
+    </LanguageProvider>
   );
 }
 

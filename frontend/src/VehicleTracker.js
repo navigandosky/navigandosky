@@ -36,6 +36,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLanguage } from "./i18n/LanguageContext";
 import {
   Dialog,
   DialogContent,
@@ -639,6 +640,7 @@ const VehicleDetailDialog = ({ vehicle, open, onOpenChange }) => {
 
 // Main Component
 export default function VehicleTracker({ authToken }) {
+  const { t } = useLanguage();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

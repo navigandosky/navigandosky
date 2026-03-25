@@ -38,6 +38,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useLanguage } from "./i18n/LanguageContext";
 import {
   LineChart,
   Line,
@@ -340,6 +341,7 @@ const SensorChart = ({ data, sensorType, title }) => {
 };
 
 export default function SensorReport({ authToken }) {
+  const { t } = useLanguage();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [collecting, setCollecting] = useState(false);
@@ -514,7 +516,7 @@ export default function SensorReport({ authToken }) {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <BarChart3 className="h-6 w-6 text-blue-600" />
-            Report Sensori
+            {t.sensors.title}
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             Storico e analisi dei valori dei sensori
@@ -570,7 +572,7 @@ export default function SensorReport({ authToken }) {
       {(!report?.sensors || report.sensors.length === 0) && (
         <Card className="p-12 text-center">
           <Activity className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Nessun Dato Storico</h3>
+          <h3 className="text-lg font-medium text-gray-700 mb-2">{t.sensors.noData}</h3>
           <p className="text-gray-500 mb-6 max-w-md mx-auto">
             Non ci sono ancora letture dei sensori nel database. 
             Clicca il pulsante Raccogli Ora per iniziare a raccogliere dati dai tuoi sensori eWeLink.
@@ -599,15 +601,15 @@ export default function SensorReport({ authToken }) {
             </TabsTrigger>
             <TabsTrigger value="temperature" className="flex items-center gap-2">
               <Thermometer className="h-4 w-4" />
-              Temperatura
+              {t.sensors.temperature}
             </TabsTrigger>
             <TabsTrigger value="humidity" className="flex items-center gap-2">
               <Droplets className="h-4 w-4" />
-              Umidità
+              {t.sensors.humidity}
             </TabsTrigger>
             <TabsTrigger value="energy" className="flex items-center gap-2">
               <Zap className="h-4 w-4" />
-              Energia
+              {t.sensors.energy}
             </TabsTrigger>
           </TabsList>
 

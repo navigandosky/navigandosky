@@ -63,6 +63,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "./i18n/LanguageContext";
 import {
   Dialog,
   DialogContent,
@@ -834,6 +835,7 @@ const CameraCard = ({ camera, ezvizToken }) => {
 
 // Main Dashboard Component
 export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], elettrodomestici = [], currentUser }) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('clima');
   const [smartThingsDevices, setSmartThingsDevices] = useState([]);
   const [devicesByRoom, setDevicesByRoom] = useState([]);
@@ -1100,7 +1102,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-slate-400 flex items-center gap-2">
                   <Activity size={16} />
-                  Stato Sistema
+                  {t.dashboard.systemStatus}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1111,15 +1113,15 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                   </div>
                   <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-yellow-400">{systemStatus.attenzione}</p>
-                    <p className="text-xs text-yellow-400/70">Attenzione</p>
+                    <p className="text-xs text-yellow-400/70">{t.dashboard.warnings}</p>
                   </div>
                   <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-red-400">{systemStatus.critici}</p>
-                    <p className="text-xs text-red-400/70">Critici</p>
+                    <p className="text-xs text-red-400/70">{t.common.error}</p>
                   </div>
                   <div className="bg-slate-700/30 border border-slate-600/20 rounded-lg p-3 text-center">
                     <p className="text-2xl font-bold text-slate-300">{systemStatus.totali}</p>
-                    <p className="text-xs text-slate-400">Totali</p>
+                    <p className="text-xs text-slate-400">{t.common.total}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1140,7 +1142,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                   onClick={() => onNavigate && onNavigate('elettrodomestici')}
                 >
                   <Power size={16} className="mr-2" />
-                  Elettrodomestici ({elettrodomestici.length})
+                  {t.nav.apparati} ({elettrodomestici.length})
                 </Button>
                 <Button 
                   variant="ghost" 
@@ -1148,7 +1150,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                   onClick={() => onNavigate && onNavigate('manutenzioni')}
                 >
                   <Wrench size={16} className="mr-2" />
-                  Manutenzioni ({manutenzioni.length})
+                  {t.nav.manutenzioni} ({manutenzioni.length})
                 </Button>
                 <Button 
                   variant="ghost" 
@@ -1156,7 +1158,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                   onClick={() => onNavigate && onNavigate('calendario')}
                 >
                   <Calendar size={16} className="mr-2" />
-                  Calendario
+                  {t.nav.calendario}
                 </Button>
               </CardContent>
             </Card>
@@ -1166,7 +1168,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-slate-400 flex items-center gap-2">
                   <Calendar size={16} />
-                  Prossime Manutenzioni
+                  {t.maintenance.title}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -1268,7 +1270,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm text-green-400/70 flex items-center gap-2">
                           <Thermometer size={16} />
-                          Sensori Temperatura
+                          {t.sensors.temperature}
                           {climaData?.online && (
                             <Badge variant="outline" className="text-xs border-green-500/50 text-green-400">
                               LIVE
@@ -1605,7 +1607,7 @@ export default function SmartBuildingDashboard({ onNavigate, manutenzioni = [], 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-white">
-                      Dispositivi ({domoticaDevices.length}) {devicesByRoom.length > 0 ? `- ${devicesByRoom.length} Stanze` : ''}
+                      {t.dashboard.devices} ({domoticaDevices.length})
                     </h3>
                     <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
                       <Wifi size={12} className="mr-1" /> {domoticaDevices.length > 0 ? 'Connesso' : 'eWeLink'}

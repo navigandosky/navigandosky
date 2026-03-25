@@ -18,10 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import MatterportViewer from "./MatterportViewer";
+import { useLanguage } from "./i18n/LanguageContext";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const VideoCameraManager = ({ authToken, currentUser, matterportPois = [] }) => {
+  const { t } = useLanguage();
   // State
   const [cameras, setCameras] = useState([]);
   const [loading, setLoading] = useState(true);

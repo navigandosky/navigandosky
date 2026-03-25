@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useLanguage } from "./i18n/LanguageContext";
 import {
   Tabs,
   TabsContent,
@@ -650,6 +651,7 @@ const CentriAssistenzaManager = () => {
 };
 
 export default function PropertyConfig({ currentUser, authToken }) {
+  const { t } = useLanguage();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -898,7 +900,7 @@ export default function PropertyConfig({ currentUser, authToken }) {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Building2 className="h-6 w-6 text-blue-600" />
-            Configurazione Proprietà
+            {t.setup.title}
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             Gestisci i dati dell'immobile e le integrazioni smart home
@@ -915,7 +917,7 @@ export default function PropertyConfig({ currentUser, authToken }) {
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            Salva Modifiche
+            {t.setup.saveChanges}
           </Button>
         </div>
       </div>
@@ -933,7 +935,7 @@ export default function PropertyConfig({ currentUser, authToken }) {
           </TabsTrigger>
           <TabsTrigger value="integrations" className="flex items-center gap-2">
             <Wifi className="h-4 w-4" />
-            Integrazioni
+            {t.setup.integrations}
           </TabsTrigger>
           <TabsTrigger value="matterport" className="flex items-center gap-2">
             <Eye className="h-4 w-4" />

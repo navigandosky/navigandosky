@@ -45,11 +45,14 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { useLanguage } from "./i18n/LanguageContext";
+import LanguageSelector from "./i18n/LanguageSelector";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Login Page Component
 export const LoginPage = ({ onLogin }) => {
+  const { t } = useLanguage();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -58,7 +61,7 @@ export const LoginPage = ({ onLogin }) => {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
-      toast.error("Inserisci username e password");
+      toast.error(t.auth.error);
       return;
     }
 
@@ -70,14 +73,14 @@ export const LoginPage = ({ onLogin }) => {
       });
 
       if (response.data.success) {
-        toast.success("Login effettuato!");
+        toast.success(t.common.success);
         onLogin(response.data.user, response.data.token);
       } else {
-        toast.error(response.data.message || "Credenziali non valide");
+        toast.error(response.data.message || t.auth.error);
       }
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Errore durante il login");
+      toast.error(t.common.error);
     } finally {
       setLoading(false);
     }
@@ -85,6 +88,11 @@ export const LoginPage = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+      {/* Language selector - top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSelector />
+      </div>
+      
       <div className="w-full max-w-md">
         {/* Logo & Title */}
         <div className="text-center mb-8">
@@ -93,22 +101,22 @@ export const LoginPage = ({ onLogin }) => {
               <Building2 className="h-12 w-12 text-blue-400" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">SmartDomo</h1>
-          <p className="text-blue-200/70">Gestione Intelligente degli Immobili</p>
+          <h1 className="text-3xl font-bold text-white mb-2">{t.header.title}</h1>
+          <p className="text-blue-200/70">{t.header.subtitle}</p>
         </div>
 
         {/* Login Card */}
         <Card className="bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
           <CardHeader>
-            <CardTitle className="text-white text-center">Accedi</CardTitle>
+            <CardTitle className="text-white text-center">{t.auth.title}</CardTitle>
             <CardDescription className="text-blue-200/70 text-center">
-              Inserisci le tue credenziali per continuare
+              {t.auth.subtitle}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-white">Username</Label>
+                <Label htmlFor="username" className="text-white">{t.auth.username}</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -116,7 +124,7 @@ export const LoginPage = ({ onLogin }) => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Il tuo username"
+                    placeholder={t.auth.username}
                     className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
                     data-testid="login-username"
                     autoComplete="username"
@@ -125,7 +133,7 @@ export const LoginPage = ({ onLogin }) => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-white">Password</Label>
+                <Label htmlFor="password" className="text-white">{t.auth.password}</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
@@ -133,7 +141,7 @@ export const LoginPage = ({ onLogin }) => {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="La tua password"
+                    placeholder={t.auth.password}
                     className="pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
                     data-testid="login-password"
                     autoComplete="current-password"
@@ -157,12 +165,12 @@ export const LoginPage = ({ onLogin }) => {
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Accesso in corso...
+                    {t.auth.loggingIn}
                   </>
                 ) : (
                   <>
                     <LogIn className="h-4 w-4 mr-2" />
-                    Accedi
+                    {t.auth.login}
                   </>
                 )}
               </Button>
@@ -172,7 +180,7 @@ export const LoginPage = ({ onLogin }) => {
 
         {/* Footer */}
         <p className="text-center text-blue-200/50 text-sm mt-8">
-          SmartDomo © 2025 - Gestione Edifici Intelligenti
+          {t.auth.copyright}
         </p>
       </div>
       
@@ -202,6 +210,7 @@ export const LoginPage = ({ onLogin }) => {
 
 // User Management Component (Admin Panel)
 export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
+  const { t } = useLanguage();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -442,7 +451,7 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingUser ? "Modifica Utente" : "Nuovo Utente"}
+              {editingUser ? t.users.editUser : t.users.addUser}
             </DialogTitle>
           </DialogHeader>
           
@@ -499,7 +508,7 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">Utente</SelectItem>
-                  <SelectItem value="admin">Amministratore</SelectItem>
+                  <SelectItem value="admin">{t.users.admin}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -576,7 +585,7 @@ export const UserManagement = ({ currentUser, token, onUserUpdate }) => {
               Annulla
             </Button>
             <Button onClick={handleSave} data-testid="user-form-save">
-              {editingUser ? "Salva" : "Crea Utente"}
+              {editingUser ? t.common.save : t.users.addUser}
             </Button>
           </DialogFooter>
         </DialogContent>
