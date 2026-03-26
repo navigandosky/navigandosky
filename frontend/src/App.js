@@ -727,6 +727,7 @@ const Dashboard = ({ stats, consumiPerCategoria }) => {
 
 // Centro Assistenza Form Dialog
 const CentroAssistenzaDialog = ({ open, onOpenChange, centro, onSave }) => {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     nome_azienda: "",
     referente: "",
@@ -982,6 +983,7 @@ const DettaglioManutenzioneDialog = ({ open, onOpenChange, manutenzione, elettro
 
 // ============== MANUTENZIONE DIALOG (Modifica) ==============
 const ManutenzioneDialog = ({ open, onOpenChange, manutenzione, preselectedElettroId, elettrodomestici, centriAssistenza, onSave }) => {
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     elettrodomestico_id: "",
     tipo: "ordinaria",

@@ -1,34 +1,34 @@
 # SmartDomo - PRD
 
-## Stato Attuale (25/03/2026)
+## Stato Attuale (26/03/2026)
 
-### Completato Oggi (25/03/2026) - Sessione 2
+### Completato Oggi (26/03/2026) - Sessione 4
 
-#### Dati Live per TUTTI i Tipi di Sensore nei POI 3D
-- **Problema**: I POI sensori (temperatura, umidita, porte) non mostravano valori live nel pannello dettaglio
-- **Soluzione implementata**:
-  1. **Backend**: Endpoint `/api/elettrodomestici/by-poi/{poi_id}/live-sensor` esteso per gestire POI senza elettrodomestico collegato
-  2. **Auto-matching**: POI automaticamente abbinati a dispositivi eWeLink per nome (matching salvato in DB per lookup futuri)
-  3. **Sensori porta eWeLink** (DW2/SNZB-04): Aggiunto parsing parametro `lock` (0=chiusa, 1=aperta), `battery`, `trigTime`
-  4. **Normalizzazione temperatura migliorata**: Euristica corretta per valori 100-999 (se /10 > 50°C → usa /100)
-  5. **Frontend**: Pannello dati live unificato indipendente dall'elettrodomestico collegato
-- **Tipi sensori supportati**: Energia (W/V/A), Temperatura/Umidita, Porta (APERTA/CHIUSA), Switch ON/OFF, Batteria
-- **Testato**: Backend 100% (17/17), Frontend 100% - iteration_9.json
+#### Bug Fix Critico: "t is not defined" in CentroAssistenzaDialog
+- **Problema**: L'app crashava con errore runtime `ReferenceError: t is not defined` nel componente `CentroAssistenzaDialog`
+- **Causa**: L'implementazione i18n della sessione precedente ha aggiunto riferimenti a `t.common.cancel`, `t.common.save`, `t.maintenance.*` nei componenti `CentroAssistenzaDialog` e `ManutenzioneDialog` senza aggiungere il hook `useLanguage()` a ciascuno
+- **Fix**: Aggiunto `const { t } = useLanguage();` in entrambi i componenti
+- **File modificato**: `frontend/src/App.js`
+- **Testato**: Screenshot login + dashboard + manutenzioni - tutto funzionante
 
-#### Fix precedenti nella sessione
-- **Tag Click 3D Viewer**: Sottoscrizione evento Mattertag.Event.CLICK per selezionare POI dalla vista 3D
-- **Fix SDK Tag Loading**: API legacy Mattertag.getData() come primaria
-- **Fix Timeout Sessione (P2)**: Health check corretto, token preservato su errori di rete
-- **Testato**: iteration_8.json - 100%
+### Completato (25/03/2026) - Sessione 3
+- Fix regressione click Tag 3D Matterport
+- Fix timeout sessione P2
+- Dati live sensori temperatura/umidita nel pannello 3D
+- Stato Aperto/Chiuso per sensori porta nel pannello 3D
+- Sistema i18n multi-lingua (IT, EN, FR, ES) con selettore bandiere
 
----
+### Completato (25/03/2026) - Sessione 2
+- Dati live per tutti i tipi di sensore nei POI 3D (iteration_9.json 100%)
+- Fix Tag Click 3D Viewer
+- Fix SDK Tag Loading
+- Fix Timeout Sessione P2
 
 ### Completato (24/03/2026)
 - Fix Matterport Space ID multi-tenancy
 - Fix URL OAuth eWeLink e token refresh
 - Fix Viewer Matterport per utente specifico
-- Fix Matterport SDK loading (script tag injection)
-- Fix variable name collision SensorReport.js
+- Fix Matterport SDK loading
 
 ### Completato (19/02/2026)
 - Fix Vista 3D - Dati Live e Controllo Switch eWeLink
@@ -59,7 +59,7 @@
 ## Task Futuri
 
 ### P0
-- [ ] Refactoring `server.py` (9291 righe) in moduli separati
+- [ ] Refactoring `server.py` (9200+ righe) in moduli separati
 
 ### P1
 - [ ] Token refresh automatico SmartThings
@@ -74,16 +74,19 @@
 
 ## Credenziali
 - **Admin**: Admin / SmartMaster2026
-- **Nadir**: Nadir / (password sconosciuta nel contesto)
+- **Nadir**: navigandosky@yahoo.it / Iberia2021$
 
 ## Architettura
 ```
 /app/
 ├── backend/
-│   └── server.py (9291 righe)
+│   └── server.py (9200+ righe)
 └── frontend/src/
     ├── App.js, MatterportManager.js, MatterportViewer.js
     ├── SensorReport.js, PropertyConfig.js
     ├── SmartBuildingDashboard.js, VehicleTracker.js
-    └── VideoCameraManager.js, ElettrodomesticoForm.js
+    ├── VideoCameraManager.js, ElettrodomesticoForm.js
+    ├── AuthPage.js, PlanimetriaSuggerimenti.js
+    ├── RicercaCentriAssistenza.js, TicketCalendarQR.js
+    └── i18n/ (LanguageContext.js, LanguageSelector.js, translations/)
 ```
