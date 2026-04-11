@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 33% 98%;
+    --foreground: 200 60% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 200 60% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 60% 12%;
+    --primary: 200 72% 22%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 190 40% 92%;
+    --secondary-foreground: 200 72% 18%;
+    --muted: 210 25% 93%;
+    --muted-foreground: 200 15% 45%;
+    --accent: 43 90% 52%;
+    --accent-foreground: 200 72% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 200 20% 88%;
+    --input: 200 20% 88%;
+    --ring: 200 72% 22%;
+    --chart-1: 200 72% 42%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 43 90% 52%;
+    --chart-4: 340 65% 55%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.625rem;
+    --sidebar-background: 200 60% 8%;
+    --sidebar-foreground: 190 20% 90%;
+    --sidebar-primary: 190 60% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 40% 15%;
+    --sidebar-accent-foreground: 190 20% 90%;
+    --sidebar-border: 200 30% 18%;
+    --sidebar-ring: 200 72% 45%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, rgba(11, 61, 92, 0.85) 0%, rgba(18, 79, 104, 0.7) 40%, rgba(32, 178, 170, 0.4) 100%);
+}
+
+.card-hover {
+  transition: all 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(11, 61, 92, 0.15);
+}
+
+.wave-bg {
+  background: linear-gradient(180deg, hsl(200, 72%, 22%) 0%, hsl(190, 60%, 35%) 100%);
+}

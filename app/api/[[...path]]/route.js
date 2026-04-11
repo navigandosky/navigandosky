@@ -1,0 +1,686 @@
+import { NextResponse } from 'next/server';
+import { MongoClient } from 'mongodb';
+import { v4 as uuidv4 } from 'uuid';
+
+let cachedDb = null;
+
+async function getDb() {
+  if (cachedDb) return cachedDb;
+  const client = await MongoClient.connect(process.env.MONGO_URL);
+  cachedDb = client.db(process.env.DB_NAME);
+  return cachedDb;
+}
+
+const cors = {
+  'Access-Control-Allow-Origin': process.env.CORS_ORIGINS || '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+function json(data, status = 200) {
+  return NextResponse.json(data, { status, headers: cors });
+}
+
+// ==================== EXPERIENCES ====================
+async function handleExperiences(method, id, body, sp) {
+  const db = await getDb();
+  const col = db.collection('experiences');
+
+  if (method === 'GET' && !id) {
+    const filter = {};
+    if (sp.get('type')) filter.type = sp.get('type');
+    if (sp.get('language')) filter.languages = { $in: [sp.get('language')] };
+    if (sp.get('active') === 'true') filter.is_active = true;
+    if (sp.get('all') !== 'true' && !sp.get('active')) filter.is_active = true;
+    const items = await col.find(filter).sort({ created_at: -1 }).toArray();
+    return json(items);
+  }
+
+  if (method === 'GET' && id) {
+    const item = await col.findOne({ id });
+    if (!item) return json({ error: 'Non trovato' }, 404);
+    return json(item);
+  }
+
+  if (method === 'POST') {
+    const item = {
+      id: uuidv4(),
+      name: body.name || '',
+      type: body.type || 'BOAT_EXCURSION',
+      description: body.description || '',
+      duration_minutes: Number(body.duration_minutes) || 120,
+      max_capacity: Number(body.max_capacity) || 12,
+      price_b2c: Number(body.price_b2c) || 0,
+      price_b2b: Number(body.price_b2b) || 0,
+      languages: body.languages || ['IT'],
+      meeting_point: body.meeting_point || '',
+      weather_dependent: body.weather_dependent || false,
+      is_active: body.is_active !== undefined ? body.is_active : true,
+      cancellation_policy: body.cancellation_policy || 'Cancellazione gratuita fino a 48h prima',
+      itinerary_name: body.itinerary_name || '',
+      itinerary_description: body.itinerary_description || '',
+      itinerary_stops: body.itinerary_stops || [],
+      image_url: body.image_url || '',
+      resource_ids: body.resource_ids || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await col.insertOne(item);
+    return json(item, 201);
+  }
+
+  if (method === 'PUT' && id) {
+    const updates = { ...body, updated_at: new Date().toISOString() };
+    if (updates.duration_minutes) updates.duration_minutes = Number(updates.duration_minutes);
+    if (updates.max_capacity) updates.max_capacity = Number(updates.max_capacity);
+    if (updates.price_b2c) updates.price_b2c = Number(updates.price_b2c);
+    if (updates.price_b2b) updates.price_b2b = Number(updates.price_b2b);
+    const result = await col.findOneAndUpdate(
+      { id },
+      { $set: updates },
+      { returnDocument: 'after' }
+    );
+    if (!result) return json({ error: 'Non trovato' }, 404);
+    return json(result);
+  }
+
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ message: 'Eliminato' });
+  }
+  return json({ error: 'Richiesta non valida' }, 400);
+}
+
+// ==================== RESOURCES ====================
+async function handleResources(method, id, body, sp) {
+  const db = await getDb();
+  const col = db.collection('resources');
+
+  if (method === 'GET' && !id) {
+    const filter = {};
+    if (sp.get('type')) filter.type = sp.get('type');
+    const items = await col.find(filter).sort({ name: 1 }).toArray();
+    return json(items);
+  }
+
+  if (method === 'GET' && id) {
+    const item = await col.findOne({ id });
+    if (!item) return json({ error: 'Non trovato' }, 404);
+    return json(item);
+  }
+
+  if (method === 'POST') {
+    const item = {
+      id: uuidv4(),
+      name: body.name || '',
+      type: body.type || 'GUIDE',
+      boat_type: body.boat_type || null,
+      capacity: body.capacity ? Number(body.capacity) : null,
+      bio: body.bio || '',
+      languages: body.languages || [],
+      certifications: body.certifications || [],
+      phone: body.phone || '',
+      email: body.email || '',
+      is_available: true,
+      created_at: new Date().toISOString(),
+    };
+    await col.insertOne(item);
+    return json(item, 201);
+  }
+
+  if (method === 'PUT' && id) {
+    const result = await col.findOneAndUpdate(
+      { id },
+      { $set: { ...body, updated_at: new Date().toISOString() } },
+      { returnDocument: 'after' }
+    );
+    if (!result) return json({ error: 'Non trovato' }, 404);
+    return json(result);
+  }
+
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ message: 'Eliminato' });
+  }
+  return json({ error: 'Richiesta non valida' }, 400);
+}
+
+// ==================== SLOTS ====================
+async function handleSlots(method, id, body, action, sp) {
+  const db = await getDb();
+  const col = db.collection('slots');
+
+  // Block seats temporarily
+  if (method === 'POST' && id && action === 'block') {
+    const slot = await col.findOne({ id });
+    if (!slot) return json({ error: 'Slot non trovato' }, 404);
+    const blocked = await db.collection('seat_blocks')
+      .find({ slot_id: id, expires_at: { $gt: new Date().toISOString() } })
+      .toArray();
+    const totalBlocked = blocked.reduce((sum, b) => sum + b.seats, 0);
+    const available = slot.max_seats - slot.booked_seats - totalBlocked;
+    if (body.seats > available) return json({ error: 'Posti non disponibili' }, 400);
+    const blockId = uuidv4();
+    const sessionId = body.session_id || uuidv4();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    await db.collection('seat_blocks').insertOne({
+      id: blockId, slot_id: id, seats: body.seats, session_id: sessionId,
+      expires_at: expiresAt, created_at: new Date().toISOString(),
+    });
+    return json({ block_id: blockId, session_id: sessionId, expires_at: expiresAt });
+  }
+
+  if (method === 'GET' && !id) {
+    const filter = {};
+    if (sp.get('experience_id')) filter.experience_id = sp.get('experience_id');
+    if (sp.get('status')) filter.status = sp.get('status');
+    if (sp.get('date_from') || sp.get('date_to')) {
+      filter.start_datetime = {};
+      if (sp.get('date_from')) filter.start_datetime.$gte = sp.get('date_from');
+      if (sp.get('date_to')) filter.start_datetime.$lte = sp.get('date_to');
+    }
+    // Clean up expired blocks
+    await db.collection('seat_blocks').deleteMany({ expires_at: { $lt: new Date().toISOString() } });
+    const items = await col.find(filter).sort({ start_datetime: 1 }).toArray();
+    // Calculate real availability
+    for (let slot of items) {
+      const blocks = await db.collection('seat_blocks')
+        .find({ slot_id: slot.id, expires_at: { $gt: new Date().toISOString() } }).toArray();
+      slot.blocked_seats = blocks.reduce((s, b) => s + b.seats, 0);
+      slot.available_seats = slot.max_seats - slot.booked_seats - slot.blocked_seats;
+    }
+    return json(items);
+  }
+
+  if (method === 'GET' && id) {
+    const item = await col.findOne({ id });
+    if (!item) return json({ error: 'Non trovato' }, 404);
+    return json(item);
+  }
+
+  if (method === 'POST' && !id) {
+    const item = {
+      id: uuidv4(),
+      experience_id: body.experience_id,
+      resource_ids: body.resource_ids || [],
+      start_datetime: body.start_datetime,
+      end_datetime: body.end_datetime,
+      max_seats: Number(body.max_seats) || 12,
+      booked_seats: 0,
+      status: 'OPEN',
+      price_override: body.price_override ? Number(body.price_override) : null,
+      notes: body.notes || '',
+      created_at: new Date().toISOString(),
+    };
+    await col.insertOne(item);
+    return json(item, 201);
+  }
+
+  if (method === 'PUT' && id) {
+    const updates = { ...body };
+    if (updates.max_seats) updates.max_seats = Number(updates.max_seats);
+    const result = await col.findOneAndUpdate(
+      { id }, { $set: updates }, { returnDocument: 'after' }
+    );
+    if (!result) return json({ error: 'Non trovato' }, 404);
+    return json(result);
+  }
+
+  if (method === 'DELETE' && id && !action) {
+    await col.deleteOne({ id });
+    return json({ message: 'Eliminato' });
+  }
+  return json({ error: 'Richiesta non valida' }, 400);
+}
+
+// ==================== BOOKINGS ====================
+async function handleBookings(method, id, body, action, sp) {
+  const db = await getDb();
+  const col = db.collection('bookings');
+
+  if (method === 'GET' && !id) {
+    const filter = {};
+    if (sp.get('status')) filter.status = sp.get('status');
+    if (sp.get('slot_id')) filter.slot_id = sp.get('slot_id');
+    if (sp.get('customer_email')) filter.customer_email = sp.get('customer_email');
+    const items = await col.find(filter).sort({ created_at: -1 }).toArray();
+    return json(items);
+  }
+
+  if (method === 'GET' && id) {
+    const item = await col.findOne({ id });
+    if (!item) return json({ error: 'Non trovato' }, 404);
+    return json(item);
+  }
+
+  if (method === 'POST') {
+    const slot = await db.collection('slots').findOne({ id: body.slot_id });
+    if (!slot) return json({ error: 'Slot non trovato' }, 404);
+    if (slot.status === 'CANCELLED') return json({ error: 'Slot cancellato' }, 400);
+
+    // Clean expired blocks
+    await db.collection('seat_blocks').deleteMany({ expires_at: { $lt: new Date().toISOString() } });
+    const blocks = await db.collection('seat_blocks')
+      .find({ slot_id: body.slot_id, expires_at: { $gt: new Date().toISOString() } }).toArray();
+    const totalBlocked = blocks.reduce((s, b) => s + b.seats, 0);
+    const available = slot.max_seats - slot.booked_seats;
+    const seats = Number(body.seats) || 1;
+    if (seats > available) return json({ error: 'Posti insufficienti' }, 400);
+
+    // Get experience for pricing
+    const experience = await db.collection('experiences').findOne({ id: body.experience_id || slot.experience_id });
+    const pricePerSeat = slot.price_override || (experience ? experience.price_b2c : 0);
+    let totalAmount = pricePerSeat * seats;
+
+    // Apply voucher
+    let discount = 0;
+    let voucherCode = null;
+    if (body.voucher_code) {
+      const voucher = await db.collection('vouchers').findOne({
+        code: body.voucher_code.toUpperCase(), is_active: true
+      });
+      if (voucher && voucher.uses_count < voucher.max_uses) {
+        const now = new Date().toISOString();
+        if ((!voucher.valid_from || voucher.valid_from <= now) &&
+            (!voucher.valid_until || voucher.valid_until >= now)) {
+          if (voucher.type === 'PERCENTAGE') discount = (totalAmount * voucher.value) / 100;
+          else if (voucher.type === 'FIXED') discount = Math.min(voucher.value, totalAmount);
+          else if (voucher.type === 'GIFT') discount = Math.min(voucher.value, totalAmount);
+          if (voucher.min_amount && totalAmount < voucher.min_amount) discount = 0;
+          if (discount > 0) {
+            await db.collection('vouchers').updateOne(
+              { code: body.voucher_code.toUpperCase() }, { $inc: { uses_count: 1 } }
+            );
+            voucherCode = body.voucher_code.toUpperCase();
+          }
+        }
+      }
+    }
+
+    const count = await col.countDocuments();
+    const bookingRef = `MK-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+
+    const booking = {
+      id: uuidv4(),
+      booking_ref: bookingRef,
+      slot_id: body.slot_id,
+      experience_id: body.experience_id || slot.experience_id,
+      experience_name: experience ? experience.name : '',
+      customer_name: body.customer_name || '',
+      customer_email: body.customer_email || '',
+      customer_phone: body.customer_phone || '',
+      seats,
+      price_per_seat: pricePerSeat,
+      subtotal: totalAmount,
+      discount,
+      total_amount: totalAmount - discount,
+      voucher_code: voucherCode,
+      status: 'CONFIRMED',
+      payment_status: 'PAID',
+      special_requests: body.special_requests || '',
+      participants: body.participants || [],
+      slot_datetime: slot.start_datetime,
+      checked_in_at: null,
+      created_at: new Date().toISOString(),
+    };
+
+    await col.insertOne(booking);
+
+    // Update slot
+    await db.collection('slots').updateOne(
+      { id: body.slot_id },
+      { $inc: { booked_seats: seats } }
+    );
+    const updatedSlot = await db.collection('slots').findOne({ id: body.slot_id });
+    if (updatedSlot && updatedSlot.booked_seats >= updatedSlot.max_seats) {
+      await db.collection('slots').updateOne({ id: body.slot_id }, { $set: { status: 'FULL' } });
+    }
+
+    // Remove session blocks
+    if (body.session_id) {
+      await db.collection('seat_blocks').deleteMany({ session_id: body.session_id });
+    }
+
+    return json(booking, 201);
+  }
+
+  if (method === 'PUT' && id) {
+    if (body.action === 'cancel') {
+      const booking = await col.findOne({ id });
+      if (!booking) return json({ error: 'Non trovato' }, 404);
+      await col.updateOne({ id }, { $set: { status: 'CANCELLED', payment_status: 'REFUNDED' } });
+      await db.collection('slots').updateOne(
+        { id: booking.slot_id },
+        { $inc: { booked_seats: -booking.seats } }
+      );
+      const updatedSlot = await db.collection('slots').findOne({ id: booking.slot_id });
+      if (updatedSlot && updatedSlot.booked_seats < updatedSlot.max_seats && updatedSlot.status === 'FULL') {
+        await db.collection('slots').updateOne({ id: booking.slot_id }, { $set: { status: 'OPEN' } });
+      }
+      return json({ ...booking, status: 'CANCELLED', payment_status: 'REFUNDED' });
+    }
+    if (body.action === 'checkin') {
+      const result = await col.findOneAndUpdate(
+        { id },
+        { $set: { checked_in_at: new Date().toISOString() } },
+        { returnDocument: 'after' }
+      );
+      return json(result);
+    }
+    const result = await col.findOneAndUpdate(
+      { id }, { $set: body }, { returnDocument: 'after' }
+    );
+    if (!result) return json({ error: 'Non trovato' }, 404);
+    return json(result);
+  }
+
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ message: 'Eliminato' });
+  }
+  return json({ error: 'Richiesta non valida' }, 400);
+}
+
+// ==================== VOUCHERS ====================
+async function handleVouchers(method, id, body, action, sp) {
+  const db = await getDb();
+  const col = db.collection('vouchers');
+
+  if ((action === 'validate' || id === 'validate') && method === 'POST') {
+    const voucher = await col.findOne({ code: body.code?.toUpperCase(), is_active: true });
+    if (!voucher) return json({ valid: false, error: 'Codice non valido' });
+    if (voucher.uses_count >= voucher.max_uses) return json({ valid: false, error: 'Voucher esaurito' });
+    const now = new Date().toISOString();
+    if (voucher.valid_until && voucher.valid_until < now) return json({ valid: false, error: 'Voucher scaduto' });
+    return json({ valid: true, voucher });
+  }
+
+  if (method === 'GET' && !id) {
+    const items = await col.find({}).sort({ created_at: -1 }).toArray();
+    return json(items);
+  }
+
+  if (method === 'POST' && !action) {
+    const item = {
+      id: uuidv4(),
+      code: (body.code || uuidv4().slice(0, 8)).toUpperCase(),
+      type: body.type || 'PERCENTAGE',
+      value: Number(body.value) || 10,
+      min_amount: body.min_amount ? Number(body.min_amount) : null,
+      valid_from: body.valid_from || new Date().toISOString(),
+      valid_until: body.valid_until || null,
+      max_uses: Number(body.max_uses) || 100,
+      uses_count: 0,
+      applicable_to: body.applicable_to || 'ALL',
+      created_for: body.created_for || null,
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+    await col.insertOne(item);
+    return json(item, 201);
+  }
+
+  if (method === 'PUT' && id) {
+    const result = await col.findOneAndUpdate(
+      { id }, { $set: body }, { returnDocument: 'after' }
+    );
+    if (!result) return json({ error: 'Non trovato' }, 404);
+    return json(result);
+  }
+
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ message: 'Eliminato' });
+  }
+  return json({ error: 'Richiesta non valida' }, 400);
+}
+
+// ==================== STATS ====================
+async function handleStats() {
+  const db = await getDb();
+  const totalBookings = await db.collection('bookings').countDocuments({ status: { $ne: 'CANCELLED' } });
+  const totalExperiences = await db.collection('experiences').countDocuments();
+  const totalResources = await db.collection('resources').countDocuments();
+  const totalSlots = await db.collection('slots').countDocuments();
+
+  const revenueAgg = await db.collection('bookings').aggregate([
+    { $match: { status: 'CONFIRMED' } },
+    { $group: { _id: null, total: { $sum: '$total_amount' }, seats: { $sum: '$seats' } } }
+  ]).toArray();
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const todayBookings = await db.collection('bookings').countDocuments({
+    created_at: { $gte: todayStart.toISOString(), $lte: todayEnd.toISOString() },
+    status: 'CONFIRMED'
+  });
+
+  const recentBookings = await db.collection('bookings')
+    .find({}).sort({ created_at: -1 }).limit(10).toArray();
+
+  return json({
+    total_bookings: totalBookings,
+    total_experiences: totalExperiences,
+    total_resources: totalResources,
+    total_slots: totalSlots,
+    total_revenue: revenueAgg[0]?.total || 0,
+    total_seats_sold: revenueAgg[0]?.seats || 0,
+    today_bookings: todayBookings,
+    recent_bookings: recentBookings,
+  });
+}
+
+// ==================== SEED DATA ====================
+async function handleSeed() {
+  const db = await getDb();
+
+  await Promise.all([
+    db.collection('experiences').deleteMany({}),
+    db.collection('resources').deleteMany({}),
+    db.collection('slots').deleteMany({}),
+    db.collection('bookings').deleteMany({}),
+    db.collection('vouchers').deleteMany({}),
+    db.collection('seat_blocks').deleteMany({}),
+  ]);
+
+  // Resources
+  const guideMarco = { id: uuidv4(), name: 'Marco Ferraro', type: 'GUIDE', boat_type: null, capacity: null, bio: 'Guida turistica abilitata con 15 anni di esperienza. Esperto di archeologia sarda e biologia marina.', languages: ['IT', 'EN'], certifications: ['Guida Turistica Abilitata', 'Primo Soccorso'], phone: '+39 333 1234567', email: 'marco@maretrek.it', is_available: true, created_at: new Date().toISOString() };
+  const guideGiulia = { id: uuidv4(), name: 'Giulia Sanna', type: 'GUIDE', boat_type: null, capacity: null, bio: 'Biologa marina e istruttrice di snorkeling. Appassionata della tradizione sarda.', languages: ['IT', 'FR', 'EN'], certifications: ['Guida Turistica Abilitata', 'Snorkeling Instructor SSI'], phone: '+39 333 2345678', email: 'giulia@maretrek.it', is_available: true, created_at: new Date().toISOString() };
+  const guideAlex = { id: uuidv4(), name: 'Alessandro Mura', type: 'GUIDE', boat_type: null, capacity: null, bio: 'Ex pescatore locale, conosce ogni angolo della costa. Specializzato in tour enogastronomici.', languages: ['IT', 'DE', 'EN'], certifications: ['Guida Turistica Abilitata', 'Patente Nautica'], phone: '+39 333 3456789', email: 'alessandro@maretrek.it', is_available: true, created_at: new Date().toISOString() };
+  const boatZefiro = { id: uuidv4(), name: 'Zefiro', type: 'BOAT', boat_type: 'GOMMONE', capacity: 12, bio: 'Gommone BWA 7.5m con motore Yamaha 250cv. Tendalino, scaletta, doccia.', languages: [], certifications: ['Registro Navale', 'Assicurazione RC'], phone: null, email: null, is_available: true, created_at: new Date().toISOString() };
+  const boatMaestrale = { id: uuidv4(), name: 'Maestrale', type: 'BOAT', boat_type: 'GOMMONE', capacity: 8, bio: 'Gommone Nuova Jolly 6.5m con motore Honda 200cv. Ideale per piccoli gruppi.', languages: [], certifications: ['Registro Navale', 'Assicurazione RC'], phone: null, email: null, is_available: true, created_at: new Date().toISOString() };
+  const boatPoseidon = { id: uuidv4(), name: 'Poseidon', type: 'BOAT', boat_type: 'MOTONAVE', capacity: 50, bio: 'Motonave 18m con ponte panoramico. Bar a bordo, servizi igienici, area prendisole.', languages: [], certifications: ['Registro Navale', 'Certificato Passeggeri'], phone: null, email: null, is_available: true, created_at: new Date().toISOString() };
+  const boatLibeccio = { id: uuidv4(), name: 'Libeccio', type: 'BOAT', boat_type: 'GOMMONE', capacity: 6, bio: 'Gommone Zodiac 5.5m con motore Mercury 150cv. Perfetto per snorkeling.', languages: [], certifications: ['Registro Navale', 'Assicurazione RC'], phone: null, email: null, is_available: true, created_at: new Date().toISOString() };
+  const boatScirocco = { id: uuidv4(), name: 'Scirocco', type: 'BOAT', boat_type: 'BARCA_A_VELA', capacity: 8, bio: 'Barca a vela Bavaria 37 Cruiser. 3 cabine, cucina, bagno.', languages: [], certifications: ['Registro Navale', 'Navigazione Altura'], phone: null, email: null, is_available: true, created_at: new Date().toISOString() };
+
+  const resources = [guideMarco, guideGiulia, guideAlex, boatZefiro, boatMaestrale, boatPoseidon, boatLibeccio, boatScirocco];
+
+  // Experiences
+  const experiences = [
+    {
+      id: uuidv4(), name: 'Arcipelago della Maddalena in Gommone', type: 'BOAT_EXCURSION',
+      description: 'Una giornata indimenticabile alla scoperta delle isole piu belle del Mediterraneo. Navigheremo tra le acque cristalline dell\'arcipelago, con soste per il bagno a Budelli (Spiaggia Rosa), Spargi e Santa Maria. Pranzo al sacco e bevande incluse.',
+      duration_minutes: 480, max_capacity: 12, price_b2c: 85, price_b2b: 65,
+      languages: ['IT', 'EN'], meeting_point: 'Porto di Palau', weather_dependent: true, is_active: true,
+      cancellation_policy: 'Cancellazione gratuita fino a 48h prima della partenza',
+      itinerary_name: 'Tour Completo Arcipelago', itinerary_description: 'Tour delle isole principali',
+      itinerary_stops: ['Porto di Palau', 'Spargi - Cala Corsara', 'Budelli - Spiaggia Rosa', 'Santa Maria', 'La Maddalena - Cala Spalmatore', 'Rientro Palau'],
+      image_url: 'https://images.unsplash.com/photo-1557207773-caf19e055e40?w=800&q=80',
+      resource_ids: [boatZefiro.id, guideMarco.id],
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    },
+    {
+      id: uuidv4(), name: 'Tour Guidato Centro Storico di Alghero', type: 'GUIDED_TOUR',
+      description: 'Passeggiata nel cuore della Riviera del Corallo. Scopri i bastioni catalani, la cattedrale gotica, i vicoli medievali e il porto antico con le sue storie millenarie. La guida vi portera nei luoghi piu autentici della citta.',
+      duration_minutes: 180, max_capacity: 20, price_b2c: 35, price_b2b: 25,
+      languages: ['IT', 'EN', 'FR'], meeting_point: 'Torre di Porta Terra, Alghero', weather_dependent: false, is_active: true,
+      cancellation_policy: 'Cancellazione gratuita fino a 24h prima',
+      itinerary_name: 'Alghero Storica', itinerary_description: 'A piedi tra storia e tradizione',
+      itinerary_stops: ['Torre Porta Terra', 'Bastioni Marco Polo', 'Cattedrale Santa Maria', 'Chiesa San Francesco', 'Porto Antico'],
+      image_url: 'https://images.unsplash.com/photo-1561416387-1504e27baeb4?w=800&q=80',
+      resource_ids: [guideGiulia.id],
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    },
+    {
+      id: uuidv4(), name: 'Grotte di Nettuno in Motonave', type: 'BOAT_EXCURSION',
+      description: 'Navigazione lungo la costa fino a Capo Caccia per visitare le spettacolari Grotte di Nettuno, una delle meraviglie naturali della Sardegna. Vista panoramica dalla motonave e visita guidata all\'interno delle grotte.',
+      duration_minutes: 240, max_capacity: 50, price_b2c: 55, price_b2b: 40,
+      languages: ['IT', 'EN', 'DE'], meeting_point: 'Porto di Alghero', weather_dependent: true, is_active: true,
+      cancellation_policy: 'Cancellazione gratuita fino a 48h prima',
+      itinerary_name: 'Grotte di Nettuno', itinerary_description: 'Da Alghero a Capo Caccia via mare',
+      itinerary_stops: ['Porto di Alghero', 'Costa di Alghero', 'Capo Caccia', 'Grotte di Nettuno', 'Rientro'],
+      image_url: 'https://images.unsplash.com/photo-1700572697203-8f165cab7504?w=800&q=80',
+      resource_ids: [boatPoseidon.id, guideAlex.id],
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    },
+    {
+      id: uuidv4(), name: 'Noleggio Gommone Costa Smeralda', type: 'BOAT_RENTAL',
+      description: 'Noleggia un gommone con conducente e scopri la Costa Smeralda al tuo ritmo. Il nostro skipper vi portera nelle cale piu belle: Liscia Ruja, Cala di Volpe, Romazzino, Pevero. Itinerario personalizzabile.',
+      duration_minutes: 480, max_capacity: 8, price_b2c: 180, price_b2b: 150,
+      languages: ['IT', 'EN'], meeting_point: 'Porto Cervo Marina', weather_dependent: true, is_active: true,
+      cancellation_policy: 'Cancellazione gratuita fino a 72h prima',
+      itinerary_name: 'Costa Smeralda Libera', itinerary_description: 'Itinerario personalizzabile',
+      itinerary_stops: ['Porto Cervo', 'Liscia Ruja', 'Cala di Volpe', 'Romazzino', 'Pevero', 'Rientro'],
+      image_url: 'https://images.unsplash.com/photo-1546451182-b55213a7e0b6?w=800&q=80',
+      resource_ids: [boatMaestrale.id, guideMarco.id],
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    },
+    {
+      id: uuidv4(), name: 'Snorkeling a Tavolara', type: 'BOAT_EXCURSION',
+      description: 'Escursione snorkeling nell\'Area Marina Protetta di Tavolara. Acque cristalline, fondali ricchi di posidonia e fauna marina. Attrezzatura completa inclusa. Adatto a tutti i livelli.',
+      duration_minutes: 300, max_capacity: 6, price_b2c: 65, price_b2b: 50,
+      languages: ['IT', 'EN', 'FR'], meeting_point: 'Porto San Paolo', weather_dependent: true, is_active: true,
+      cancellation_policy: 'Cancellazione gratuita fino a 48h prima',
+      itinerary_name: 'Tavolara Snorkeling', itinerary_description: 'Area Marina Protetta',
+      itinerary_stops: ['Porto San Paolo', 'Isola di Tavolara - Spalmatore', 'Molara', 'Rientro'],
+      image_url: 'https://images.unsplash.com/photo-1700572697090-74bc3f0c8390?w=800&q=80',
+      resource_ids: [boatLibeccio.id, guideGiulia.id],
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    },
+    {
+      id: uuidv4(), name: 'Tramonto in Barca a Vela', type: 'BOAT_EXCURSION',
+      description: 'Navigazione al tramonto lungo la costa nord-occidentale della Sardegna. Aperitivo a bordo con prodotti tipici sardi: vermentino, formaggi, salumi. Un\'esperienza romantica e indimenticabile.',
+      duration_minutes: 180, max_capacity: 8, price_b2c: 75, price_b2b: 55,
+      languages: ['IT', 'EN'], meeting_point: 'Porto di Alghero', weather_dependent: true, is_active: true,
+      cancellation_policy: 'Cancellazione gratuita fino a 48h prima',
+      itinerary_name: 'Sunset Sailing', itinerary_description: 'Navigazione al tramonto con aperitivo',
+      itinerary_stops: ['Porto di Alghero', 'Costa verso Capo Caccia', 'Sosta aperitivo', 'Rientro al tramonto'],
+      image_url: 'https://images.unsplash.com/photo-1540946485063-a40da27545f8?w=800&q=80',
+      resource_ids: [boatScirocco.id, guideAlex.id],
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    },
+  ];
+
+  // Generate slots for next 14 days
+  const slots = [];
+  const today = new Date();
+  for (let day = 1; day <= 14; day++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + day);
+    const dateStr = date.toISOString().split('T')[0];
+
+    for (const exp of experiences) {
+      // Morning slot
+      if (day % 2 === 0 || exp.type !== 'GUIDED_TOUR') {
+        const startH = exp.type === 'GUIDED_TOUR' ? '10:00' : '08:30';
+        const start = new Date(`${dateStr}T${startH}:00`);
+        const end = new Date(start.getTime() + exp.duration_minutes * 60000);
+        const maxSeats = exp.max_capacity;
+        const booked = Math.floor(Math.random() * Math.min(5, maxSeats));
+        slots.push({
+          id: uuidv4(), experience_id: exp.id, resource_ids: exp.resource_ids,
+          start_datetime: start.toISOString(), end_datetime: end.toISOString(),
+          max_seats: maxSeats, booked_seats: booked,
+          status: booked >= maxSeats ? 'FULL' : 'OPEN',
+          price_override: null, notes: '', created_at: new Date().toISOString(),
+        });
+      }
+      // Afternoon slot for some
+      if (exp.duration_minutes <= 300 && day % 3 !== 0) {
+        const start = new Date(`${dateStr}T14:30:00`);
+        const end = new Date(start.getTime() + exp.duration_minutes * 60000);
+        const maxSeats = exp.max_capacity;
+        const booked = Math.floor(Math.random() * Math.min(3, maxSeats));
+        slots.push({
+          id: uuidv4(), experience_id: exp.id, resource_ids: exp.resource_ids,
+          start_datetime: start.toISOString(), end_datetime: end.toISOString(),
+          max_seats: maxSeats, booked_seats: booked,
+          status: booked >= maxSeats ? 'FULL' : 'OPEN',
+          price_override: null, notes: '', created_at: new Date().toISOString(),
+        });
+      }
+    }
+  }
+
+  // Vouchers
+  const vouchers = [
+    { id: uuidv4(), code: 'BENVENUTO10', type: 'PERCENTAGE', value: 10, min_amount: 50, valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 90 * 86400000).toISOString(), max_uses: 100, uses_count: 0, applicable_to: 'ALL', created_for: null, is_active: true, created_at: new Date().toISOString() },
+    { id: uuidv4(), code: 'ESTATE2025', type: 'FIXED', value: 15, min_amount: 60, valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 60 * 86400000).toISOString(), max_uses: 50, uses_count: 0, applicable_to: 'ALL', created_for: null, is_active: true, created_at: new Date().toISOString() },
+    { id: uuidv4(), code: 'SARDEGNA20', type: 'PERCENTAGE', value: 20, min_amount: 100, valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 30 * 86400000).toISOString(), max_uses: 25, uses_count: 0, applicable_to: 'BOAT_ONLY', created_for: null, is_active: true, created_at: new Date().toISOString() },
+  ];
+
+  await Promise.all([
+    db.collection('resources').insertMany(resources),
+    db.collection('experiences').insertMany(experiences),
+    db.collection('slots').insertMany(slots),
+    db.collection('vouchers').insertMany(vouchers),
+  ]);
+
+  return json({
+    message: 'Dati demo caricati con successo!',
+    counts: { experiences: experiences.length, resources: resources.length, slots: slots.length, vouchers: vouchers.length }
+  });
+}
+
+// ==================== ROUTE DISPATCHER ====================
+async function handleRoute(request, resolvedParams, method) {
+  try {
+    const pathSegments = resolvedParams?.path || [];
+    const { searchParams } = new URL(request.url);
+    let body = null;
+    if (['POST', 'PUT'].includes(method)) {
+      try { body = await request.json(); } catch (e) { body = {}; }
+    }
+    const entity = pathSegments[0];
+    const id = pathSegments[1];
+    const action = pathSegments[2];
+
+    switch (entity) {
+      case 'experiences': return await handleExperiences(method, id, body, searchParams);
+      case 'resources': return await handleResources(method, id, body, searchParams);
+      case 'slots': return await handleSlots(method, id, body, action, searchParams);
+      case 'bookings': return await handleBookings(method, id, body, action, searchParams);
+      case 'vouchers': return await handleVouchers(method, id, body, action, searchParams);
+      case 'stats': return await handleStats();
+      case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
+      case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
+      default: return json({ error: 'Endpoint non trovato' }, 404);
+    }
+  } catch (error) {
+    console.error('API Error:', error);
+    return json({ error: error.message || 'Errore interno del server' }, 500);
+  }
+}
+
+export async function GET(request, { params }) {
+  const p = await params;
+  return handleRoute(request, p, 'GET');
+}
+export async function POST(request, { params }) {
+  const p = await params;
+  return handleRoute(request, p, 'POST');
+}
+export async function PUT(request, { params }) {
+  const p = await params;
+  return handleRoute(request, p, 'PUT');
+}
+export async function DELETE(request, { params }) {
+  const p = await params;
+  return handleRoute(request, p, 'DELETE');
+}
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: cors });
+}
