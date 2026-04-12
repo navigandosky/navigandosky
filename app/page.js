@@ -1075,9 +1075,9 @@ function AdminDashboard() {
 
         {/* Slots */}
         <TabsContent value="slots" className="space-y-4">
-          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Slot ({slots.length})</h2><Button onClick={()=>{setFormData({});setShowDialog('slot');}}><Plus className="w-4 h-4 mr-2"/>Nuovo Slot</Button></div>
+          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Slot ({slots.length})</h2><Button onClick={()=>{setFormData({status:'OPEN'});setShowDialog('slot');}}><Plus className="w-4 h-4 mr-2"/>Nuovo Slot</Button></div>
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Ora</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Disp.</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {slots.slice(0,50).map(s=>(<tr key={s.id} className="border-b hover:bg-muted/30"><td className="p-3">{getExpName(s.experience_id)}</td><td className="p-3 capitalize">{fmtDate(s.start_datetime)}</td><td className="p-3">{fmtTime(s.start_datetime)}</td><td className="p-3">{s.booked_seats}/{s.max_seats}</td><td className="p-3 w-32"><AvailabilityBar booked={s.booked_seats} max={s.max_seats}/></td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3"><Button variant="ghost" size="icon" onClick={()=>deleteItem('slots',s.id)}><Trash2 className="w-4 h-4 text-red-500"/></Button></td></tr>))}
+            {slots.slice(0,50).map(s=>(<tr key={s.id} className="border-b hover:bg-muted/30"><td className="p-3">{getExpName(s.experience_id)}</td><td className="p-3 capitalize">{fmtDate(s.start_datetime)}</td><td className="p-3">{fmtTime(s.start_datetime)}</td><td className="p-3">{s.booked_seats}/{s.max_seats}</td><td className="p-3 w-32"><AvailabilityBar booked={s.booked_seats} max={s.max_seats}/></td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3"><div className="flex gap-1"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{const exp=experiences.find(e=>e.id===s.experience_id);setFormData({...s,experience_name:exp?.name,resource_names:resources.filter(r=>s.resource_ids?.includes(r.id)).map(r=>r.name).join(', ')});setShowDialog('view_slot');}}><Eye className="w-3 h-3 mr-1"/>Visualizza</Button><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{setFormData({...s});setShowDialog('edit_slot');}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button><Button variant={s.status==='OPEN'?"ghost":"outline"} size="sm" className="h-7 text-xs" onClick={async ()=>{await api(`slots/${s.id}`,{method:'PUT',body:{status:s.status==='OPEN'?'CLOSED':'OPEN'}});toast.success(s.status==='OPEN'?'Slot sospeso':'Slot attivato');await load();}}>{s.status==='OPEN'?'Sospendi':'Attiva'}</Button><Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={()=>deleteItem('slots',s.id)}><Trash2 className="w-3 h-3"/>Elimina</Button></div></td></tr>))}
           </tbody></table></div>
         </TabsContent>
 
@@ -1118,14 +1118,35 @@ function AdminDashboard() {
 
         {/* Agencies */}
         <TabsContent value="agencies" className="space-y-4">
-          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Agenzie B2B ({agencies.length})</h2><Button onClick={()=>{setFormData({discount_percentage:15,payment_terms:'30_70'});setShowDialog('agency');}}><Plus className="w-4 h-4 mr-2"/>Nuova Agenzia</Button></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {agencies.map(a=>(
-              <Card key={a.id}><CardContent className="pt-4">
-                <div className="flex items-start justify-between"><div><h3 className="font-semibold">{a.name}</h3><p className="text-xs text-muted-foreground">{a.email}</p></div><Button variant="ghost" size="icon" className="h-7 w-7" onClick={()=>deleteItem('agencies',a.id)}><Trash2 className="w-3.5 h-3.5 text-red-500"/></Button></div>
-                <div className="mt-3 space-y-1 text-sm"><p><span className="text-muted-foreground">P.IVA:</span> {a.vat_number}</p><p><span className="text-muted-foreground">Sconto:</span> <span className="font-bold text-green-600">{a.discount_percentage}%</span></p><p><span className="text-muted-foreground">Telefono:</span> {a.phone}</p></div>
-              </CardContent></Card>
-            ))}
+          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Agenzie B2B ({agencies.length})</h2><Button onClick={()=>{setFormData({discount_percentage:15,payment_terms:'30_70',logo:''});setShowDialog('agency');}}><Plus className="w-4 h-4 mr-2"/>Nuova Agenzia</Button></div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Nome</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">P.IVA</th><th className="p-3 font-medium">Telefono</th><th className="p-3 font-medium">Sconto</th><th className="p-3 font-medium">Azioni</th></tr></thead>
+              <tbody>
+                {agencies.map(a=>(
+                  <tr key={a.id} className="border-b hover:bg-muted/30">
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        {a.logo && <img src={a.logo} alt={a.name} className="w-8 h-8 rounded object-cover" />}
+                        <span className="font-medium">{a.name}</span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-xs">{a.email}</td>
+                    <td className="p-3">{a.vat_number}</td>
+                    <td className="p-3">{a.phone}</td>
+                    <td className="p-3"><Badge className="bg-green-100 text-green-800">{a.discount_percentage}%</Badge></td>
+                    <td className="p-3">
+                      <div className="flex gap-1">
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{setFormData(a);setShowDialog('view_agency');}}><Eye className="w-3 h-3 mr-1"/>Visualizza</Button>
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{setFormData({...a});setShowDialog('edit_agency');}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={()=>deleteItem('agencies',a.id)}><Trash2 className="w-3 h-3"/>Elimina</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {agencies.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna agenzia. Crea la prima!</p>}
           </div>
         </TabsContent>
       </Tabs>
@@ -1206,14 +1227,54 @@ function AdminDashboard() {
       </Dialog>
 
       <Dialog open={showDialog==='agency'} onOpenChange={v=>!v&&setShowDialog(null)}>
-        <DialogContent><DialogHeader><DialogTitle>Nuova Agenzia B2B</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nuova Agenzia B2B</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Nome Agenzia</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Email</Label><Input value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})}/></div><div><Label>Password</Label><Input value={formData.password||'agency2025'} onChange={e=>setFormData({...formData,password:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Telefono</Label><Input value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})}/></div><div><Label>P.IVA</Label><Input value={formData.vat_number||''} onChange={e=>setFormData({...formData,vat_number:e.target.value})}/></div></div>
             <div><Label>Indirizzo</Label><Input value={formData.address||''} onChange={e=>setFormData({...formData,address:e.target.value})}/></div>
             <div><Label>Sconto %</Label><Input type="number" value={formData.discount_percentage||''} onChange={e=>setFormData({...formData,discount_percentage:e.target.value})}/></div>
+            <Separator />
+            <ImageUploader images={formData.logo ? [formData.logo] : []} onChange={imgs=>setFormData({...formData,logo:imgs[0]||''})} maxImages={1} />
             <Button className="w-full" onClick={()=>createItem('agencies',formData)}>Crea Agenzia</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Agency Dialog */}
+      <Dialog open={showDialog==='view_agency'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Dettagli Agenzia</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {formData.logo && (
+              <div className="flex justify-center">
+                <img src={formData.logo} alt={formData.name} className="h-20 w-auto object-contain rounded border" />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label className="text-muted-foreground">Nome Agenzia</Label><p className="font-semibold text-lg">{formData.name}</p></div>
+              <div><Label className="text-muted-foreground">Sconto</Label><Badge className="bg-green-100 text-green-800 text-lg">{formData.discount_percentage}%</Badge></div>
+              <div><Label className="text-muted-foreground">Email</Label><p>{formData.email}</p></div>
+              <div><Label className="text-muted-foreground">Telefono</Label><p>{formData.phone}</p></div>
+              <div><Label className="text-muted-foreground">P.IVA</Label><p>{formData.vat_number}</p></div>
+              <div><Label className="text-muted-foreground">Termini Pagamento</Label><p>{formData.payment_terms}</p></div>
+              <div className="col-span-2"><Label className="text-muted-foreground">Indirizzo</Label><p>{formData.address}</p></div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Agency Dialog */}
+      <Dialog open={showDialog==='edit_agency'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Modifica Agenzia</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Nome Agenzia</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Email</Label><Input value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})}/></div><div><Label>Password</Label><Input value={formData.password||''} onChange={e=>setFormData({...formData,password:e.target.value})} placeholder="Lascia vuoto per non modificare"/></div></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Telefono</Label><Input value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})}/></div><div><Label>P.IVA</Label><Input value={formData.vat_number||''} onChange={e=>setFormData({...formData,vat_number:e.target.value})}/></div></div>
+            <div><Label>Indirizzo</Label><Input value={formData.address||''} onChange={e=>setFormData({...formData,address:e.target.value})}/></div>
+            <div><Label>Sconto %</Label><Input type="number" value={formData.discount_percentage||''} onChange={e=>setFormData({...formData,discount_percentage:e.target.value})}/></div>
+            <Separator />
+            <ImageUploader images={formData.logo ? [formData.logo] : []} onChange={imgs=>setFormData({...formData,logo:imgs[0]||''})} maxImages={1} />
+            <Button className="w-full" onClick={async ()=>{const {id,...data}=formData;if(!data.password)delete data.password;await api(`agencies/${id}`,{method:'PUT',body:data});toast.success('Agenzia aggiornata!');setShowDialog(null);setFormData({});await load();}}>Salva Modifiche</Button>
           </div>
         </DialogContent>
       </Dialog>

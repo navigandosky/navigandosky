@@ -594,6 +594,7 @@ async function handleAgencies(method, id, body, action, sp) {
       phone: body.phone || '',
       vat_number: body.vat_number || '',
       address: body.address || '',
+      logo: body.logo || '', // Logo agenzia
       discount_percentage: Number(body.discount_percentage) || 0,
       credit_limit: Number(body.credit_limit) || 0,
       payment_terms: body.payment_terms || '30_70',
