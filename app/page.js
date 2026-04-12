@@ -433,7 +433,7 @@ function HomePage({ setView, experiences }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {featured.map(exp => (
             <Card key={exp.id} className="card-hover overflow-hidden cursor-pointer border-0 shadow-lg" onClick={() => setView('detail', { experience: exp })}>
-              <div className="relative h-48"><img src={exp.image_url} alt={exp.name} className="w-full h-full object-cover" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div><div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-primary">{fmtPrice(exp.price_b2c)}</div></div>
+              <div className="relative h-48"><img src={(exp.images && exp.images[0]) || exp.image_url || '/uploads/placeholder.jpg'} alt={exp.name} className="w-full h-full object-cover" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div><div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-primary">{fmtPrice(exp.price_b2c)}</div></div>
               <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle></CardHeader>
               <CardContent className="pb-4"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex items-center gap-4 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span></div></CardContent>
             </Card>
@@ -476,7 +476,7 @@ function CatalogPage({ setView, experiences }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map(exp => (
             <Card key={exp.id} className="card-hover overflow-hidden border shadow-sm cursor-pointer group" onClick={() => setView('detail', { experience: exp })}>
-              <div className="relative h-52 overflow-hidden"><img src={exp.image_url} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div></div>
+              <div className="relative h-52 overflow-hidden"><img src={(exp.images && exp.images[0]) || exp.image_url || '/uploads/placeholder.jpg'} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div></div>
               <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle><CardDescription className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" />{exp.meeting_point}</CardDescription></CardHeader>
               <CardContent className="pb-2"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span><span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span></div></CardContent>
               <CardFooter className="pt-0 flex justify-between items-center"><div className="text-2xl font-bold text-primary">{fmtPrice(exp.price_b2c)}<span className="text-xs font-normal text-muted-foreground">/persona</span></div><Button size="sm">Scopri <ChevronRight className="w-4 h-4 ml-1" /></Button></CardFooter>
@@ -1082,18 +1082,18 @@ function MappaFlotta() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [selectedDevice, setSelectedDevice] = useState(null);
-  const [mapReady, setMapReady] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     loadFleet();
     const interval = setInterval(loadFleet, 30000); // refresh ogni 30s
     return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    // Leaflet carica solo client-side
-    setMapReady(typeof window !== 'undefined');
-  }, []);
+  }, [mounted]);
 
   const loadFleet = async () => {
     try {
@@ -1168,7 +1168,7 @@ function MappaFlotta() {
             </div>
           )}
           
-          {!loading && mapReady && filteredDevices.length > 0 && (
+          {!loading && mounted && filteredDevices.length > 0 && (
             <MapContainer 
               center={mapCenter} 
               zoom={10}
@@ -1449,6 +1449,33 @@ function AdminDashboard() {
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (min)</Label><Input type="number" value={formData.duration_minutes||''} onChange={e=>setFormData({...formData,duration_minutes:e.target.value})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
+            <div>
+              <Label>Risorse Assegnate</Label>
+              <div className="space-y-2 mt-2">
+                {resources.map(r => (
+                  <div key={r.id} className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      id={`res-${r.id}`}
+                      checked={(formData.resource_ids||[]).includes(r.id)}
+                      onChange={e => {
+                        const current = formData.resource_ids || [];
+                        const updated = e.target.checked 
+                          ? [...current, r.id]
+                          : current.filter(id => id !== r.id);
+                        setFormData({...formData, resource_ids: updated});
+                      }}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor={`res-${r.id}`} className="text-sm flex items-center gap-2">
+                      <Badge variant="outline">{r.type === 'GUIDE' ? 'Guida' : 'Barca'}</Badge>
+                      {r.name} {r.capacity && `(${r.capacity} posti)`}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">Seleziona le risorse da utilizzare per questa esperienza</p>
+            </div>
             <Separator />
             <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
             <Separator />
@@ -1798,7 +1825,7 @@ function B2BPortal({ setView, allExperiences }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {experiences.map(exp => (
                 <Card key={exp.id} className="cursor-pointer card-hover" onClick={() => loadSlots(exp)}>
-                  <div className="relative h-40"><img src={exp.image_url} alt="" className="w-full h-full object-cover rounded-t-lg" /><div className="absolute top-2 left-2"><TypeBadge type={exp.type} /></div></div>
+                  <div className="relative h-40"><img src={(exp.images && exp.images[0]) || exp.image_url || '/uploads/placeholder.jpg'} alt={exp.name} className="w-full h-full object-cover rounded-t-lg" /><div className="absolute top-2 left-2"><TypeBadge type={exp.type} /></div></div>
                   <CardContent className="pt-3">
                     <h3 className="font-semibold mb-1">{exp.name}</h3>
                     <div className="flex justify-between items-center">
