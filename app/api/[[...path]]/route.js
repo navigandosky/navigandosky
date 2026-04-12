@@ -916,6 +916,46 @@ async function handlePDFUpload(method, body) {
   }
 }
 
+// ==================== CONTACT FORM ====================
+async function handleContact(method, body) {
+  if (method !== 'POST') return json({ error: 'Use POST' }, 405);
+  
+  try {
+    const { name, email, phone, company, message } = body;
+    
+    if (!name || !email || !message) {
+      return json({ error: 'Nome, email e messaggio sono obbligatori' }, 400);
+    }
+    
+    // Salva il contatto nel database
+    const db = await getDb();
+    const col = db.collection('contacts');
+    
+    const contact = {
+      id: uuidv4(),
+      name,
+      email,
+      phone: phone || '',
+      company: company || '',
+      message,
+      type: 'WORK_WITH_US',
+      status: 'NEW',
+      created_at: new Date().toISOString(),
+    };
+    
+    await col.insertOne(contact);
+    
+    // In produzione: qui invieresti l'email a trivorsrl@gmail.com
+    // Per ora salviamo solo nel database
+    console.log(`[CONTACT FORM] Nuovo contatto da ${name} (${email}): ${message}`);
+    
+    return json({ success: true, message: 'Richiesta inviata con successo!' });
+  } catch (error) {
+    console.error('Contact form error:', error);
+    return json({ error: 'Errore durante l\'invio del messaggio' }, 500);
+  }
+}
+
 // ==================== ROUTE DISPATCHER ====================
 async function handleRoute(request, resolvedParams, method) {
   try {
@@ -939,6 +979,7 @@ async function handleRoute(request, resolvedParams, method) {
       case 'agencies': return await handleAgencies(method, id, body, action, searchParams);
       case 'upload': return await handleImageUpload(method, body);
       case 'upload-pdf': return await handlePDFUpload(method, body);
+      case 'contact': return await handleContact(method, body);
       case 'stats': return await handleStats();
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });

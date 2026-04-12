@@ -323,18 +323,86 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen }) {
 
 // ============ FOOTER ============
 function Footer() {
+  const [showWorkWithUs, setShowWorkWithUs] = useState(false);
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', company: '', message: '' });
+  const [sending, setSending] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.email || !formData.message) {
+      toast.error('Compila almeno Nome, Email e Messaggio');
+      return;
+    }
+
+    setSending(true);
+    const res = await api('contact', { method: 'POST', body: formData });
+    setSending(false);
+
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success('Richiesta inviata con successo! Ti contatteremo presto.');
+      setShowWorkWithUs(false);
+      setFormData({ name: '', email: '', phone: '', company: '', message: '' });
+    }
+  };
+
   return (
-    <footer className="wave-bg text-white mt-20">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div><img src={LOGO_URL} alt="Maretrek" className="h-12 mb-4 rounded" /><p className="text-white/70 text-sm">Esperienze marine indimenticabili in Sardegna.</p></div>
-          <div><h4 className="font-semibold mb-3">Contatti</h4><div className="space-y-2 text-sm text-white/70"><p className="flex items-center gap-2"><Phone className="w-4 h-4" /> +39 079 123 456</p><p className="flex items-center gap-2"><Mail className="w-4 h-4" /> info@maretrek.it</p><p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Porto di Alghero, Sardegna</p></div></div>
-          <div><h4 className="font-semibold mb-3">Info</h4><p className="text-sm text-white/70">Operatore turistico specializzato in esperienze marine nel nord Sardegna.</p></div>
+    <>
+      <footer className="wave-bg text-white mt-20">
+        <div className="container mx-auto px-4 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div><img src={LOGO_URL} alt="Maretrek" className="h-12 mb-4 rounded" /><p className="text-white/70 text-sm">Esperienze marine indimenticabili in Sardegna.</p></div>
+            <div><h4 className="font-semibold mb-3">Contatti</h4><div className="space-y-2 text-sm text-white/70"><p className="flex items-center gap-2"><Phone className="w-4 h-4" /> +39 079 123 456</p><p className="flex items-center gap-2"><Mail className="w-4 h-4" /> info@maretrek.it</p><p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Porto di Alghero, Sardegna</p></div></div>
+            <div><h4 className="font-semibold mb-3">Info</h4><p className="text-sm text-white/70">Operatore turistico specializzato in esperienze marine nel nord Sardegna.</p></div>
+            <div>
+              <h4 className="font-semibold mb-3">Diventa Partner</h4>
+              <p className="text-sm text-white/70 mb-3">Sei un'agenzia viaggi? Entra nella nostra rete B2B.</p>
+              <Button variant="outline" className="w-full text-white border-white hover:bg-white hover:text-primary" onClick={() => setShowWorkWithUs(true)}>
+                <Building2 className="w-4 h-4 mr-2" />
+                Lavora con noi
+              </Button>
+            </div>
+          </div>
+          <Separator className="my-8 bg-white/20" />
+          <p className="text-center text-sm text-white/50">&copy; 2025 Maretrek S.r.l. - P.IVA 01234567890</p>
         </div>
-        <Separator className="my-8 bg-white/20" />
-        <p className="text-center text-sm text-white/50">&copy; 2025 Maretrek S.r.l. - P.IVA 01234567890</p>
-      </div>
-    </footer>
+      </footer>
+
+      {/* Work With Us Dialog */}
+      <Dialog open={showWorkWithUs} onOpenChange={setShowWorkWithUs}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Lavora con Noi</DialogTitle>
+            <p className="text-sm text-muted-foreground">Compila il form per diventare nostro partner B2B. Ti ricontatteremo entro 24-48 ore.</p>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome e Cognome *</Label>
+              <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Mario Rossi" />
+            </div>
+            <div>
+              <Label>Email *</Label>
+              <Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="mario@agenzia.it" />
+            </div>
+            <div>
+              <Label>Telefono</Label>
+              <Input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="+39 333 123 4567" />
+            </div>
+            <div>
+              <Label>Nome Agenzia</Label>
+              <Input value={formData.company} onChange={e => setFormData({ ...formData, company: e.target.value })} placeholder="Travel Agency S.r.l." />
+            </div>
+            <div>
+              <Label>Messaggio *</Label>
+              <Textarea value={formData.message} onChange={e => setFormData({ ...formData, message: e.target.value })} placeholder="Ciao, sono interessato a collaborare con voi..." rows={4} />
+            </div>
+            <Button className="w-full" onClick={handleSubmit} disabled={sending}>
+              {sending ? <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Invio in corso...</> : <>Invia Richiesta</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
