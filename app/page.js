@@ -669,52 +669,63 @@ function GanttCalendar({ resources, allSlots, allBookings, experiences, onRefres
       </div>
 
       <div className="overflow-x-auto border rounded-xl shadow-sm bg-white">
-        <div className="min-w-[900px]">
-          <div className="grid border-b" style={{ gridTemplateColumns: '160px repeat(7, 1fr)' }}>
-            <div className="p-2.5 font-semibold bg-muted/50 text-sm border-r">Risorsa</div>
+        <div style={{ minWidth: '1400px' }}>
+          <div className="grid border-b" style={{ gridTemplateColumns: '200px repeat(7, 1fr)' }}>
+            <div className="p-3 font-semibold bg-muted/50 text-sm border-r sticky left-0 z-10 bg-white">Risorsa</div>
             {weekDays.map((day, i) => (
-              <div key={i} className={`p-2 text-center border-r last:border-r-0 text-sm ${isSameDay(day, new Date()) ? 'bg-primary/10 font-bold' : 'bg-muted/30'}`}>
-                <div className="capitalize text-xs text-muted-foreground">{format(day, 'EEE', { locale: it })}</div>
-                <div className="text-lg font-bold">{format(day, 'd')}</div>
+              <div key={i} className={`p-3 text-center border-r last:border-r-0 ${isSameDay(day, new Date()) ? 'bg-primary/10 font-bold' : 'bg-muted/30'}`}>
+                <div className="capitalize text-sm text-muted-foreground font-medium">{format(day, 'EEEE', { locale: it })}</div>
+                <div className="text-2xl font-bold mt-1">{format(day, 'd')}</div>
+                <div className="text-xs text-muted-foreground">{format(day, 'MMM', { locale: it })}</div>
               </div>
             ))}
           </div>
           {(resources || []).map(res => (
-            <div key={res.id} className="grid border-b last:border-b-0 hover:bg-muted/10" style={{ gridTemplateColumns: '160px repeat(7, 1fr)' }}>
-              <div className="p-2 border-r flex items-center gap-2 bg-white">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${res.type === 'GUIDE' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>{res.type === 'GUIDE' ? 'G' : 'B'}</div>
-                <div className="min-w-0"><p className="font-medium text-xs truncate">{res.name}</p><p className="text-[10px] text-muted-foreground">{res.type === 'GUIDE' ? 'Guida' : (BOAT_TYPE_LABELS[res.boat_type] || 'Barca')}{res.capacity ? ` ${res.capacity}p` : ''}</p></div>
+            <div key={res.id} className="grid border-b last:border-b-0 hover:bg-muted/10" style={{ gridTemplateColumns: '200px repeat(7, 1fr)' }}>
+              <div className="p-3 border-r flex items-center gap-3 bg-white sticky left-0 z-10">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${res.type === 'GUIDE' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>{res.type === 'GUIDE' ? 'G' : 'B'}</div>
+                <div className="min-w-0"><p className="font-semibold text-sm truncate">{res.name}</p><p className="text-xs text-muted-foreground">{res.type === 'GUIDE' ? 'Guida' : (BOAT_TYPE_LABELS[res.boat_type] || 'Barca')}{res.capacity ? ` - ${res.capacity} posti` : ''}</p></div>
               </div>
               {weekDays.map((day, di) => {
                 const daySlots = getResourceDaySlots(res.id, day);
                 return (
-                  <div key={di} className={`p-0.5 border-r last:border-r-0 min-h-[65px] transition-colors ${isSameDay(day, new Date()) ? 'bg-primary/5' : ''} ${dragInfo ? 'hover:bg-blue-50 hover:ring-1 hover:ring-blue-300 hover:ring-inset' : ''}`}
+                  <div key={di} className={`p-2 border-r last:border-r-0 min-h-[120px] transition-colors ${isSameDay(day, new Date()) ? 'bg-primary/5' : ''} ${dragInfo ? 'hover:bg-blue-50 hover:ring-2 hover:ring-blue-400 hover:ring-inset' : ''}`}
                     onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                     onDrop={(e) => handleDrop(e, day, res.id)}>
-                    {daySlots.map(slot => {
-                      const sb = getSlotBookings(slot.id);
-                      const expType = getExpType(slot.experience_id);
-                      const gc = GANTT_COLORS[expType] || 'bg-gray-50 border-gray-300';
-                      return (
-                        <div key={slot.id} className={`p-1 m-0.5 rounded border text-[10px] cursor-pointer ${gc} hover:shadow transition-shadow relative group`} onClick={() => openSlotDetail(slot)}>
-                          <p className="font-semibold truncate leading-tight">{getExpName(slot.experience_id)}</p>
-                          <p className="text-muted-foreground">{fmtTime(slot.start_datetime)}-{fmtTime(slot.end_datetime)}</p>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <div className="flex-1 h-1 bg-white/60 rounded-full"><div className={`h-full rounded-full ${slot.booked_seats >= slot.max_seats ? 'bg-red-500' : slot.booked_seats > 0 ? 'bg-emerald-500' : 'bg-gray-300'}`} style={{ width: `${Math.min((slot.booked_seats / slot.max_seats) * 100, 100)}%` }} /></div>
-                            <span className="font-bold">{slot.booked_seats}/{slot.max_seats}</span>
-                          </div>
-                          {sb.length > 0 && (
-                            <div className="hidden group-hover:block absolute top-0 right-0 p-0.5"><GripVertical className="w-3 h-3 text-muted-foreground" /></div>
-                          )}
-                          {/* Draggable booking indicators */}
-                          {sb.map(bk => (
-                            <div key={bk.id} draggable onDragStart={(e) => handleDragStart(e, bk, slot)} className="mt-0.5 px-1 py-0.5 bg-white/80 rounded text-[9px] cursor-grab active:cursor-grabbing hover:bg-white border border-transparent hover:border-primary/30 truncate">
-                              <GripVertical className="w-2.5 h-2.5 inline mr-0.5 text-muted-foreground" />{bk.customer_name} ({bk.seats}p)
+                    <div className="space-y-2">
+                      {daySlots.map(slot => {
+                        const sb = getSlotBookings(slot.id);
+                        const expType = getExpType(slot.experience_id);
+                        const gc = GANTT_COLORS[expType] || 'bg-gray-50 border-gray-300';
+                        return (
+                          <div key={slot.id} className={`p-2 rounded-lg border-2 text-xs cursor-pointer ${gc} hover:shadow-lg transition-all relative group`} onClick={() => openSlotDetail(slot)}>
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <p className="font-bold text-sm leading-tight flex-1">{getExpName(slot.experience_id)}</p>
+                              {sb.length > 0 && (
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <GripVertical className="w-4 h-4 text-muted-foreground" />
+                                </div>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      );
-                    })}
+                            <p className="text-muted-foreground font-medium mb-2">{fmtTime(slot.start_datetime)} - {fmtTime(slot.end_datetime)}</p>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex-1 h-2 bg-white/60 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full transition-all ${slot.booked_seats >= slot.max_seats ? 'bg-red-500' : slot.booked_seats > 0 ? 'bg-emerald-500' : 'bg-gray-300'}`} style={{ width: `${Math.min((slot.booked_seats / slot.max_seats) * 100, 100)}%` }} />
+                              </div>
+                              <span className="font-bold text-sm whitespace-nowrap">{slot.booked_seats}/{slot.max_seats}</span>
+                            </div>
+                            {/* Draggable booking indicators */}
+                            {sb.map(bk => (
+                              <div key={bk.id} draggable onDragStart={(e) => handleDragStart(e, bk, slot)} className="mt-1 px-2 py-1 bg-white/90 rounded-md text-[10px] cursor-grab active:cursor-grabbing hover:bg-white border border-transparent hover:border-primary/40 hover:shadow-sm transition-all flex items-center gap-1">
+                                <GripVertical className="w-3 h-3 text-muted-foreground shrink-0" />
+                                <span className="font-medium truncate">{bk.customer_name}</span>
+                                <span className="text-muted-foreground">({bk.seats}p)</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
@@ -722,11 +733,11 @@ function GanttCalendar({ resources, allSlots, allBookings, experiences, onRefres
           ))}
         </div>
       </div>
-      <div className="flex gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-sky-100 border border-sky-300" />Escursione</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300" />Visita Guidata</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-300" />Noleggio</span>
-        <span className="flex items-center gap-1"><GripVertical className="w-3 h-3" />Trascina per riassegnare</span>
+      <div className="flex gap-4 text-sm text-muted-foreground flex-wrap">
+        <span className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-sky-100 border-2 border-sky-300" />Escursione in Barca</span>
+        <span className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-emerald-100 border-2 border-emerald-300" />Visita Guidata</span>
+        <span className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-amber-100 border-2 border-amber-300" />Noleggio Gommone</span>
+        <span className="flex items-center gap-2"><GripVertical className="w-4 h-4" />Trascina per riassegnare</span>
       </div>
 
       {/* Slot Detail Dialog */}
