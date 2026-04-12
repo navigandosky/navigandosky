@@ -1418,6 +1418,12 @@ function AdminDashboard() {
     customer_name: ''
   });
   const [filteredBookings, setFilteredBookings] = useState([]);
+  
+  // Filtri Bookings Tab
+  const [bookingSearch, setBookingSearch] = useState('');
+  
+  // Filtri Panoramica
+  const [overviewDateFilter, setOverviewDateFilter] = useState('');
 
   const load = useCallback(async () => {
     const [s, e, r, sl, b, v, ag] = await Promise.all([
@@ -1454,6 +1460,45 @@ function AdminDashboard() {
     const resSlotIds = slots.filter(s => (s.resource_ids || []).includes(resId)).map(s => s.id);
     return bookings.filter(b => resSlotIds.includes(b.slot_id) && b.status !== 'CANCELLED');
   };
+
+  // Filtro bookings per ricerca
+  const filteredBookingsTab = useMemo(() => {
+    if (!bookingSearch) return bookings;
+    
+    const search = bookingSearch.toLowerCase();
+    return bookings.filter(b => {
+      const matchCode = (b.booking_ref || '').toLowerCase().includes(search);
+      const matchName = (b.customer_name || '').toLowerCase().includes(search);
+      const slot = slots.find(s => s.id === b.slot_id);
+      const matchDate = slot?.start_datetime?.includes(bookingSearch);
+      
+      return matchCode || matchName || matchDate;
+    });
+  }, [bookings, bookingSearch, slots]);
+  
+  // Panoramica ordinata e filtrata
+  const sortedOverviewBookings = useMemo(() => {
+    let result = [...bookings];
+    
+    // Filtra per data se specificato
+    if (overviewDateFilter) {
+      result = result.filter(b => b.created_at?.startsWith(overviewDateFilter));
+    }
+    
+    // Ordina per created_at decrescente
+    result.sort((a, b) => {
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+      return dateB - dateA; // Decrescente
+    });
+    
+    return result;
+  }, [bookings, overviewDateFilter]);
+  
+  // Totale economico
+  const totalRevenue = useMemo(() => {
+    return sortedOverviewBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+  }, [sortedOverviewBookings]);
 
   // Funzioni filtri report
   const applyFilters = () => {
@@ -1639,11 +1684,41 @@ function AdminDashboard() {
               <Card key={i}><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-2xl font-bold mt-1">{s.v}</p></div><div className={`w-12 h-12 rounded-full flex items-center justify-center ${s.c}`}><s.i className="w-6 h-6"/></div></div></CardContent></Card>
             ))}
           </div>
-          <Card><CardHeader><CardTitle className="text-lg">Prenotazioni Recenti</CardTitle></CardHeader><CardContent>
-            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="pb-2 font-medium">Rif.</th><th className="pb-2 font-medium">Cliente</th><th className="pb-2 font-medium">Esperienza</th><th className="pb-2 font-medium">Posti</th><th className="pb-2 font-medium">Totale</th><th className="pb-2 font-medium">Stato</th></tr></thead><tbody>
-              {(stats.recent_bookings||[]).slice(0,8).map(b=>(<tr key={b.id} className="border-b last:border-0"><td className="py-2.5 font-mono text-xs">{b.booking_ref}</td><td className="py-2.5">{b.customer_name}</td><td className="py-2.5">{b.experience_name||getExpName(b.experience_id)}</td><td className="py-2.5">{b.seats}</td><td className="py-2.5 font-medium">{fmtPrice(b.total_amount)}</td><td className="py-2.5"><StatusBadge status={b.status}/></td></tr>))}
-            </tbody></table>{(!stats.recent_bookings||stats.recent_bookings.length===0)&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione. Carica i dati demo!</p>}</div>
-          </CardContent></Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Prenotazioni per Data Acquisto</CardTitle>
+                <p className="text-sm text-muted-foreground">Ordinate dalla più recente</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <CalIcon className="w-4 h-4 text-muted-foreground" />
+                  <Input 
+                    type="date"
+                    className="w-40"
+                    value={overviewDateFilter}
+                    onChange={(e) => setOverviewDateFilter(e.target.value)}
+                    placeholder="Filtra per data"
+                  />
+                  {overviewDateFilter && (
+                    <Button variant="ghost" size="sm" onClick={() => setOverviewDateFilter('')}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-muted-foreground">Totale Valore</p>
+                  <p className="text-xl font-bold text-green-600">{fmtPrice(totalRevenue)}</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="pb-2 font-medium">Data/Ora Acquisto</th><th className="pb-2 font-medium">Rif.</th><th className="pb-2 font-medium">Cliente</th><th className="pb-2 font-medium">Esperienza</th><th className="pb-2 font-medium">Posti</th><th className="pb-2 font-medium">Totale</th><th className="pb-2 font-medium">Stato</th></tr></thead><tbody>
+                {sortedOverviewBookings.slice(0,15).map(b=>(<tr key={b.id} className="border-b last:border-0"><td className="py-2.5 text-xs">{b.created_at ? new Date(b.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</td><td className="py-2.5 font-mono text-xs">{b.booking_ref}</td><td className="py-2.5">{b.customer_name}</td><td className="py-2.5">{b.experience_name||getExpName(b.experience_id)}</td><td className="py-2.5">{b.seats}</td><td className="py-2.5 font-medium">{fmtPrice(b.total_amount)}</td><td className="py-2.5"><StatusBadge status={b.status}/></td></tr>))}
+              </tbody></table>{sortedOverviewBookings.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione{overviewDateFilter ? ' per questa data' : ''}. Carica i dati demo!</p>}</div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Gantt Calendar */}
@@ -1706,9 +1781,24 @@ function AdminDashboard() {
 
         {/* Bookings */}
         <TabsContent value="bookings" className="space-y-4">
-          <h2 className="text-xl font-semibold">Prenotazioni ({bookings.length})</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Prenotazioni ({filteredBookingsTab.length})</h2>
+            <div className="flex items-center gap-2">
+              <Input 
+                placeholder="🔍 Cerca: codice, nominativo, data..."
+                className="w-80"
+                value={bookingSearch}
+                onChange={(e) => setBookingSearch(e.target.value)}
+              />
+              {bookingSearch && (
+                <Button variant="ghost" size="sm" onClick={() => setBookingSearch('')}>
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {bookings.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td><td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
+            {filteredBookingsTab.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td><td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
               <td className="p-3"><div className="flex gap-1">
                 {(b.status==='CONFIRMED'&&!b.checked_in_at)&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}
@@ -1716,7 +1806,7 @@ function AdminDashboard() {
                 {b.checked_in_at&&<Badge className="bg-green-100 text-green-800 text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/>OK</Badge>}
               </div></td>
             </tr>))}
-          </tbody></table>{bookings.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione.</p>}</div>
+          </tbody></table>{filteredBookingsTab.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione trovata.</p>}</div>
         </TabsContent>
 
         {/* Vouchers */}
