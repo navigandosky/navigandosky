@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -470,7 +470,7 @@ function BookingWizard({ experience, slot, setView }) {
 }
 
 // ============ RESOURCE BOOKINGS WITH SEAT ASSIGNMENT ============
-function ResourceBookingsList({ resource, bookings, onUpdate }) {
+const ResourceBookingsList = memo(function ResourceBookingsList({ resource, bookings, onUpdate }) {
   const [seatEdits, setSeatEdits] = useState({});
   
   useEffect(() => {
@@ -591,10 +591,10 @@ function ResourceBookingsList({ resource, bookings, onUpdate }) {
       )}
     </div>
   );
-}
+});
 
 // ============ GANTT CALENDAR ============
-function GanttCalendar({ resources, allSlots, allBookings, experiences, onRefresh }) {
+const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBookings, experiences, onRefresh }) {
   const [weekOff, setWeekOff] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [slotBookings, setSlotBookings] = useState([]);
@@ -819,7 +819,7 @@ function GanttCalendar({ resources, allSlots, allBookings, experiences, onRefres
       </Dialog>
     </div>
   );
-}
+});
 
 // ============ ADMIN DASHBOARD ============
 function AdminDashboard() {

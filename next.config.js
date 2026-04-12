@@ -6,8 +6,9 @@ const nextConfig = {
   experimental: {
     // Remove if not using Server Components
     serverComponentsExternalPackages: ['mongodb'],
+    optimizePackageImports: ['lucide-react', 'date-fns'],
   },
-  webpack(config, { dev }) {
+  webpack(config, { dev, isServer }) {
     if (dev) {
       // Reduce CPU/memory from file watching
       config.watchOptions = {
@@ -16,11 +17,41 @@ const nextConfig = {
         ignored: ['**/node_modules'],
       };
     }
+    
+    // Optimize chunk sizes
+    if (!isServer) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: 'all',
+          cacheGroups: {
+            default: false,
+            vendors: false,
+            commons: {
+              name: 'commons',
+              chunks: 'all',
+              minChunks: 2,
+            },
+            lib: {
+              test: /[\\/]node_modules[\\/]/,
+              name(module) {
+                const packageName = module.context.match(
+                  /[\\/]node_modules[\\/](.*?)([\\/]|$)/
+                )?.[1];
+                return `npm.${packageName?.replace('@', '')}`;
+              },
+              priority: 10,
+            },
+          },
+        },
+      };
+    }
+    
     return config;
   },
   onDemandEntries: {
-    maxInactiveAge: 10000,
-    pagesBufferLength: 2,
+    maxInactiveAge: 25000,
+    pagesBufferLength: 5,
   },
   async headers() {
     return [
