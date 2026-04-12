@@ -2199,6 +2199,7 @@ function AdminDashboard() {
 
 // ============ B2B PORTAL ============
 function B2BPortal({ setView, allExperiences }) {
+  const { t } = useLanguage();
   const [agency, setAgency] = useState(null);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
@@ -2208,15 +2209,35 @@ function B2BPortal({ setView, allExperiences }) {
   const [slots, setSlots] = useState([]);
   const [bookingSlot, setBookingSlot] = useState(null);
   const [bkForm, setBkForm] = useState({ name: '', email: '', phone: '', seats: 1 });
+  const [resources, setResources] = useState([]);
+  
+  // Filtri Report B2B
+  const [filters, setFilters] = useState({
+    code: '',
+    date: '',
+    resource_id: '',
+    experience_id: '',
+    customer_name: ''
+  });
+  const [filteredBookings, setFilteredBookings] = useState([]);
 
   const handleLogin = async () => {
     setLoading(true);
     const res = await api('agencies/login', { method: 'POST', body: loginForm });
     if (res.error) { toast.error(res.error); setLoading(false); return; }
     setAgency(res.agency);
-    const [exps, bks] = await Promise.all([api('experiences'), api('bookings')]);
+    const [exps, bks, res_data, sl] = await Promise.all([
+      api('experiences'), 
+      api('bookings'),
+      api('resources'),
+      api('slots')
+    ]);
     setExperiences(Array.isArray(exps) ? exps : []);
-    setMyBookings(Array.isArray(bks) ? bks.filter(b => b.customer_email === res.agency.email) : []);
+    const agencyBookings = Array.isArray(bks) ? bks.filter(b => b.customer_email === res.agency.email) : [];
+    setMyBookings(agencyBookings);
+    setFilteredBookings(agencyBookings);
+    setResources(Array.isArray(res_data) ? res_data : []);
+    setSlots(Array.isArray(sl) ? sl : []);
     setLoading(false);
     toast.success(`Benvenuto ${res.agency.name}!`);
   };
@@ -2236,6 +2257,140 @@ function B2BPortal({ setView, allExperiences }) {
     const res = await api('bookings', { method: 'POST', body: { slot_id: bookingSlot.id, experience_id: exp.id, customer_name: bkForm.name || agency.name, customer_email: agency.email, customer_phone: bkForm.phone || agency.phone, seats: bkForm.seats, total_amount: discountedPrice * bkForm.seats } });
     if (res.error) { toast.error(res.error); } else { toast.success(`Prenotazione ${res.booking_ref} confermata!`); setBookingSlot(null); setBkForm({ name: '', email: '', phone: '', seats: 1 }); }
     setLoading(false);
+  };
+
+  // Filtri Report B2B
+  const applyFilters = () => {
+    let result = [...myBookings];
+    
+    if (filters.code) {
+      result = result.filter(b => 
+        (b.booking_ref || '').toLowerCase().includes(filters.code.toLowerCase())
+      );
+    }
+    
+    if (filters.date) {
+      result = result.filter(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        if (!slot) return false;
+        return slot.start_datetime?.startsWith(filters.date);
+      });
+    }
+    
+    if (filters.resource_id) {
+      const resSlotIds = slots.filter(s => 
+        (s.resource_ids || []).includes(filters.resource_id)
+      ).map(s => s.id);
+      result = result.filter(b => resSlotIds.includes(b.slot_id));
+    }
+    
+    if (filters.experience_id) {
+      const expSlotIds = slots.filter(s => 
+        s.experience_id === filters.experience_id
+      ).map(s => s.id);
+      result = result.filter(b => expSlotIds.includes(b.slot_id));
+    }
+    
+    if (filters.customer_name) {
+      result = result.filter(b =>
+        (b.customer_name || '').toLowerCase().includes(filters.customer_name.toLowerCase())
+      );
+    }
+    
+    setFilteredBookings(result);
+  };
+  
+  const clearFilters = () => {
+    setFilters({ code: '', date: '', resource_id: '', experience_id: '', customer_name: '' });
+    setFilteredBookings(myBookings);
+  };
+  
+  const exportPDF = () => {
+    import('jspdf').then((jsPDFModule) => {
+      import('jspdf-autotable').then(() => {
+        const { jsPDF } = jsPDFModule;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text(`Report Vendite - ${agency.name}`, 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Generato: ${new Date().toLocaleDateString('it-IT')}`, 14, 30);
+        doc.text(`Totale Vendite: ${filteredBookings.length}`, 14, 36);
+        
+        const tableData = filteredBookings.map(b => {
+          const slot = slots.find(s => s.id === b.slot_id);
+          const exp = experiences.find(e => e.id === slot?.experience_id);
+          const resourceIds = slot?.resource_ids || [];
+          const resourceNames = resourceIds.map(rid => resources.find(r => r.id === rid)?.name || '').filter(Boolean).join(', ');
+          
+          return [
+            b.booking_ref,
+            b.customer_name,
+            slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-',
+            exp?.name || '-',
+            resourceNames || '-',
+            b.seats,
+            b.status,
+            `€ ${(b.total_amount || 0).toFixed(2)}`
+          ];
+        });
+        
+        doc.autoTable({
+          startY: 42,
+          head: [['Codice', 'Cliente', 'Data', 'Esperienza', 'Risorsa', 'Posti', 'Stato', 'Totale']],
+          body: tableData,
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [41, 128, 185] }
+        });
+        
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.text(`Pagina ${i} di ${pageCount}`, doc.internal.pageSize.getWidth() - 30, doc.internal.pageSize.getHeight() - 10);
+        }
+        
+        doc.save(`${agency.name}-vendite-${new Date().toISOString().split('T')[0]}.pdf`);
+        toast.success('✅ PDF esportato!');
+      });
+    });
+  };
+  
+  const exportExcel = () => {
+    import('xlsx').then((XLSX) => {
+      const tableData = filteredBookings.map(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        const exp = experiences.find(e => e.id === slot?.experience_id);
+        const resourceIds = slot?.resource_ids || [];
+        const resourceNames = resourceIds.map(rid => resources.find(r => r.id === rid)?.name || '').filter(Boolean).join(', ');
+        
+        return {
+          'Codice': b.booking_ref,
+          'Cliente': b.customer_name,
+          'Email': b.customer_email,
+          'Telefono': b.customer_phone || '-',
+          'Data': slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-',
+          'Esperienza': exp?.name || '-',
+          'Risorsa': resourceNames || '-',
+          'Posti Venduti': b.seats,
+          'Stato': b.status,
+          'Totale': `€ ${(b.total_amount || 0).toFixed(2)}`
+        };
+      });
+      
+      const ws = XLSX.default.utils.json_to_sheet(tableData);
+      const wb = XLSX.default.utils.book_new();
+      XLSX.default.utils.book_append_sheet(wb, ws, 'Vendite');
+      
+      const wscols = [
+        { wch: 12 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, 
+        { wch: 30 }, { wch: 25 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
+      ];
+      ws['!cols'] = wscols;
+      
+      XLSX.default.writeFile(wb, `${agency.name}-vendite-${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('✅ Excel esportato!');
+    });
   };
 
   if (!agency) {
@@ -2268,7 +2423,11 @@ function B2BPortal({ setView, allExperiences }) {
       </div>
 
       <Tabs defaultValue="catalog">
-        <TabsList><TabsTrigger value="catalog">Catalogo B2B</TabsTrigger><TabsTrigger value="mybookings">Le Mie Prenotazioni</TabsTrigger></TabsList>
+        <TabsList>
+          <TabsTrigger value="catalog">Catalogo B2B</TabsTrigger>
+          <TabsTrigger value="mybookings">Le Mie Prenotazioni</TabsTrigger>
+          <TabsTrigger value="reports"><BarChart3 className="w-4 h-4 mr-1.5" />Report Vendite</TabsTrigger>
+        </TabsList>
         <TabsContent value="catalog" className="space-y-4 mt-4">
           {selectedExp ? (
             <div>
@@ -2313,6 +2472,70 @@ function B2BPortal({ setView, allExperiences }) {
               <div key={b.id} className="flex items-center justify-between p-4 rounded-lg border"><div><p className="font-semibold">{b.booking_ref} - {b.experience_name}</p><p className="text-sm text-muted-foreground">{fmtDate(b.slot_datetime)} | {b.seats} posti | {fmtPrice(b.total_amount)}</p></div><StatusBadge status={b.status} /></div>
             ))}</div>
           )}
+        </TabsContent>
+        
+        <TabsContent value="reports" className="space-y-6 mt-4">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Report Vendite - {agency.name}</h2>
+            <p className="text-muted-foreground">Analizza le tue vendite e esporta i report</p>
+          </div>
+
+          {/* Filtri */}
+          <Card>
+            <CardHeader><CardTitle>Filtri Ricerca</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div><Label>Codice Prenotazione</Label><Input placeholder="MRT12345" value={filters.code} onChange={(e) => setFilters({...filters, code: e.target.value})} /></div>
+                <div><Label>Data</Label><Input type="date" value={filters.date} onChange={(e) => setFilters({...filters, date: e.target.value})} /></div>
+                <div><Label>Cliente</Label><Input placeholder="Nome cliente" value={filters.customer_name} onChange={(e) => setFilters({...filters, customer_name: e.target.value})} /></div>
+                <div><Label>Risorsa</Label><Select value={filters.resource_id || 'all'} onValueChange={(v) => setFilters({...filters, resource_id: v === 'all' ? '' : v})}><SelectTrigger><SelectValue placeholder="Tutte" /></SelectTrigger><SelectContent><SelectItem value="all">Tutte</SelectItem>{resources.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>Esperienza</Label><Select value={filters.experience_id || 'all'} onValueChange={(v) => setFilters({...filters, experience_id: v === 'all' ? '' : v})}><SelectTrigger><SelectValue placeholder="Tutte" /></SelectTrigger><SelectContent><SelectItem value="all">Tutte</SelectItem>{experiences.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent></Select></div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={clearFilters}>Pulisci</Button>
+                <Button onClick={applyFilters}><Search className="w-4 h-4 mr-2" />Applica Filtri</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Risultati */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div><CardTitle>Le Tue Vendite - Totale: {filteredBookings.length}</CardTitle></div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={exportPDF}><Download className="w-4 h-4 mr-2" />PDF</Button>
+                <Button variant="outline" size="sm" onClick={exportExcel}><Download className="w-4 h-4 mr-2" />Excel</Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b text-left bg-muted/50"><th className="p-3">Codice</th><th className="p-3">Cliente</th><th className="p-3">Data</th><th className="p-3">Esperienza</th><th className="p-3">Risorsa</th><th className="p-3">Posti</th><th className="p-3">Stato</th><th className="p-3">Totale</th></tr></thead>
+                  <tbody>
+                    {filteredBookings.map(b => {
+                      const slot = slots.find(s => s.id === b.slot_id);
+                      const exp = experiences.find(e => e.id === slot?.experience_id);
+                      const resourceIds = slot?.resource_ids || [];
+                      const resourceNames = resourceIds.map(rid => resources.find(r => r.id === rid)?.name || '').filter(Boolean).join(', ');
+                      return (
+                        <tr key={b.id} className="border-b hover:bg-muted/30">
+                          <td className="p-3 font-mono text-xs">{b.booking_ref}</td>
+                          <td className="p-3">{b.customer_name}</td>
+                          <td className="p-3 text-xs">{slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-'}</td>
+                          <td className="p-3">{exp?.name || '-'}</td>
+                          <td className="p-3">{resourceNames ? <div className="flex items-center gap-2"><Ship className="w-4 h-4 text-primary" /><span className="text-xs">{resourceNames}</span></div> : '-'}</td>
+                          <td className="p-3 font-semibold">{b.seats}</td>
+                          <td className="p-3"><StatusBadge status={b.status} /></td>
+                          <td className="p-3 font-semibold">{fmtPrice(b.total_amount)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {filteredBookings.length === 0 && <p className="text-center py-12 text-muted-foreground">Nessun risultato trovato</p>}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
