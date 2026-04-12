@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+
+// Import componente Mappa Flotta
+const MappaFlottaWrapper = dynamic(() => import('./components/MappaFlottaWrapper'), { ssr: false });import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -20,12 +22,6 @@ import {
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
-
-// Dynamic import per FleetMap (Leaflet - solo client-side)
-const FleetMap = dynamic(() => import('./components/FleetMap'), { 
-  ssr: false,
-  loading: () => <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">Caricamento mappa...</p></div>
-});
 
 // ============ CONSTANTS ============
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_7d8a5623-84c4-4dc5-8737-98643d255bb4/artifacts/cdzklcx8_logo%20maretrek_1.jpg';
@@ -1002,80 +998,6 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
   );
 });
 
-// ============ MAPPA FLOTTA GPS ============
-function DevicePopup({ device }) {
-  if (!device) return null;
-  const lastUpdate = device.timestamp_position ? new Date(device.timestamp_position).toLocaleString('it-IT') : 'N/A';
-  
-  return (
-    <div className="p-2 min-w-[200px]">
-      <h4 className="font-bold mb-2">{device.resource?.name || device.name}</h4>
-      <div className="space-y-1 text-sm">
-        <p><strong>Velocità:</strong> {device.speed || 0} km/h</p>
-        <p><strong>Direzione:</strong> {device.heading || 0}°</p>
-        <p><strong>Stato:</strong> {device.moving ? '🟢 In movimento' : '🔴 Fermo'}</p>
-        <p><strong>Satelliti:</strong> {device.satellites || 0}</p>
-        <p><strong>Ultima pos:</strong> {lastUpdate}</p>
-        {device.resource && (
-          <p className="text-xs text-muted-foreground mt-2">
-            {device.resource.boat_type} - {device.resource.capacity} posti
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DevicesList({ devices, filter, onFilterChange, onSelectDevice, selectedDevice }) {
-  return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Flotta ({devices.length})</h3>
-        <Button variant="ghost" size="sm" onClick={() => window.location.reload()}>
-          <RefreshCw className="w-4 h-4" />
-        </Button>
-      </div>
-      
-      {/* Filtri */}
-      <div className="flex gap-2">
-        <Button variant={filter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => onFilterChange('all')} className="flex-1">Tutti</Button>
-        <Button variant={filter === 'moving' ? 'default' : 'outline'} size="sm" onClick={() => onFilterChange('moving')} className="flex-1">In moto</Button>
-        <Button variant={filter === 'stopped' ? 'default' : 'outline'} size="sm" onClick={() => onFilterChange('stopped')} className="flex-1">Fermi</Button>
-      </div>
-      
-      {/* Lista */}
-      <div className="space-y-2">
-        {devices.length === 0 && (
-          <p className="text-center text-sm text-muted-foreground py-8">Nessun dispositivo GPS configurato</p>
-        )}
-        {devices.map(d => (
-          <Card key={d.imei} className={`cursor-pointer hover:bg-muted/50 transition-colors ${selectedDevice?.imei === d.imei ? 'border-primary border-2' : ''}`} onClick={() => onSelectDevice(d)}>
-            <CardContent className="p-3">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate">{d.resource?.name || d.name}</p>
-                  <p className="text-xs text-muted-foreground">IMEI: {d.imei?.slice(-6)}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <Badge className={d.moving ? 'bg-green-500' : 'bg-gray-500'}>
-                    {d.moving ? 'In moto' : 'Fermo'}
-                  </Badge>
-                  <span className="text-xs font-medium">{d.speed || 0} km/h</span>
-                </div>
-              </div>
-              <div className="mt-2 flex gap-2 text-xs flex-wrap">
-                {d.has_GPS && <Badge variant="outline" className="text-green-600 border-green-600">GPS</Badge>}
-                {d.is_power_on && <Badge variant="outline" className="text-blue-600 border-blue-600">PWR</Badge>}
-                {d.is_connected && <Badge variant="outline" className="text-purple-600 border-purple-600">NET</Badge>}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ============ SETUP GPS ============
 function SetupGPS() {
   const [config, setConfig] = useState({ email: '', api_token: '', configured: false });
@@ -1389,122 +1311,6 @@ function SetupGPS() {
   );
 }
 
-function MappaFlotta() {
-  const [devices, setDevices] = useState([]);
-  const [resources, setResources] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [selectedDevice, setSelectedDevice] = useState(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    loadFleet();
-    const interval = setInterval(loadFleet, 30000); // refresh ogni 30s
-    return () => clearInterval(interval);
-  }, [mounted]);
-
-  const loadFleet = async () => {
-    try {
-      const [gpsData, resData] = await Promise.all([
-        api('gps/devices').catch(() => []),
-        api('resources').catch(() => [])
-      ]);
-      
-      // Merge GPS devices con risorse
-      const enriched = (Array.isArray(gpsData) ? gpsData : []).map(device => {
-        const resource = (resData || []).find(r => r.gps_imei === device.imei);
-        return { ...device, resource };
-      });
-      
-      setDevices(enriched);
-      setResources(resData || []);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error loading fleet:', error);
-      setLoading(false);
-      toast.error('Errore caricamento flotta GPS');
-    }
-  };
-
-  const filteredDevices = useMemo(() => {
-    if (filter === 'moving') return devices.filter(d => d.moving);
-    if (filter === 'stopped') return devices.filter(d => !d.moving);
-    return devices;
-  }, [devices, filter]);
-
-  // Centro mappa su Sardegna
-  const mapCenter = useMemo(() => {
-    if (filteredDevices.length > 0 && filteredDevices[0].lat && filteredDevices[0].lng) {
-      return [filteredDevices[0].lat, filteredDevices[0].lng];
-    }
-    return [40.9, 9.5]; // Sardegna centro
-  }, [filteredDevices]);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Mappa Flotta GPS</h2>
-          <p className="text-sm text-muted-foreground">Tracking real-time delle imbarcazioni tramite Balin.app</p>
-        </div>
-        <Button onClick={loadFleet} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Aggiorna
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-4 gap-4 h-[600px]">
-        {/* Panel Sinistro - Lista */}
-        <div className="col-span-1 overflow-y-auto border rounded-lg bg-white">
-          <DevicesList 
-            devices={filteredDevices} 
-            filter={filter}
-            onFilterChange={setFilter}
-            onSelectDevice={setSelectedDevice}
-            selectedDevice={selectedDevice}
-          />
-        </div>
-        
-        {/* Mappa */}
-        <div className="col-span-3 border rounded-lg overflow-hidden bg-gray-100 relative">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-              <div className="text-center">
-                <RefreshCw className="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Caricamento mappa GPS...</p>
-              </div>
-            </div>
-          )}
-          
-          {!loading && mounted && filteredDevices.length > 0 && (
-            <FleetMap 
-              devices={filteredDevices}
-              center={mapCenter}
-              zoom={10}
-            />
-          )}
-          
-          {!loading && filteredDevices.length === 0 && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <Map className="w-16 h-16 text-muted-foreground mb-4" />
-              <p className="text-lg font-semibold mb-2">Nessun Dispositivo GPS</p>
-              <p className="text-sm text-muted-foreground mb-4">Configura il campo "GPS IMEI" nelle risorse tipo Imbarcazione</p>
-              <Button variant="outline" onClick={loadFleet}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Ricarica
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ============ ADMIN DASHBOARD ============
 function AdminDashboard() {
@@ -1733,7 +1539,7 @@ function AdminDashboard() {
 
         {/* Mappa Flotta GPS */}
         <TabsContent value="fleet">
-          <MappaFlotta />
+          <MappaFlottaWrapper />
         </TabsContent>
 
         {/* Setup GPS */}
