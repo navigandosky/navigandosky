@@ -15,7 +15,7 @@ import {
   Anchor, Ship, MapPin, Calendar as CalIcon, Clock, Users, Star, ChevronRight, ArrowLeft,
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
-  ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell
+  ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -63,6 +63,131 @@ function fmtDate(d) { try { return format(parseISO(d), 'EEE d MMM yyyy', { local
 function fmtTime(d) { try { return format(parseISO(d), 'HH:mm'); } catch { return ''; } }
 function fmtDateTime(d) { try { return format(parseISO(d), "EEE d MMM yyyy 'alle' HH:mm", { locale: it }); } catch { return d || ''; } }
 function fmtPrice(p) { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(p || 0); }
+
+// ============ IMAGE UPLOADER ============
+function ImageUploader({ images = [], onChange, maxImages = 3 }) {
+  const [previews, setPreviews] = useState(images);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    const remaining = maxImages - previews.length;
+    if (files.length > remaining) {
+      toast.error(`Puoi caricare massimo ${maxImages} immagini. Spazio disponibile: ${remaining}`);
+      return;
+    }
+
+    setUploading(true);
+    const newPreviews = [];
+    const base64Images = [];
+
+    for (const file of files) {
+      // Validazione dimensione (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} è troppo grande. Massimo 5MB`);
+        continue;
+      }
+
+      // Validazione tipo
+      if (!file.type.startsWith('image/')) {
+        toast.error(`${file.name} non è un'immagine valida`);
+        continue;
+      }
+
+      // Leggi come base64
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve) => {
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+
+      newPreviews.push(base64);
+      base64Images.push(base64);
+    }
+
+    try {
+      // Carica le immagini al server
+      const res = await api('upload', { method: 'POST', body: { images: base64Images } });
+      
+      if (res.error) {
+        toast.error(res.error);
+        setUploading(false);
+        return;
+      }
+
+      const updatedImages = [...previews, ...res.urls];
+      setPreviews(updatedImages);
+      onChange(updatedImages);
+      toast.success(`${res.count} ${res.count === 1 ? 'immagine caricata' : 'immagini caricate'}!`);
+    } catch (err) {
+      toast.error('Errore durante l\'upload');
+    }
+    
+    setUploading(false);
+  };
+
+  const removeImage = (index) => {
+    const updated = previews.filter((_, i) => i !== index);
+    setPreviews(updated);
+    onChange(updated);
+    toast.success('Immagine rimossa');
+  };
+
+  return (
+    <div className="space-y-3">
+      <Label className="flex items-center gap-2">
+        <ImageIcon className="w-4 h-4" />
+        Immagini (max {maxImages})
+      </Label>
+      
+      <div className="grid grid-cols-3 gap-3">
+        {previews.map((img, idx) => (
+          <div key={idx} className="relative group">
+            <img
+              src={img.startsWith('data:') ? img : img}
+              alt={`Preview ${idx + 1}`}
+              className="w-full h-24 object-cover rounded-lg border"
+            />
+            <button
+              type="button"
+              onClick={() => removeImage(idx)}
+              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+        
+        {previews.length < maxImages && (
+          <label className="w-full h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
+              disabled={uploading}
+            />
+            {uploading ? (
+              <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+                <span className="text-xs text-muted-foreground">Carica</span>
+              </>
+            )}
+          </label>
+        )}
+      </div>
+      
+      <p className="text-xs text-muted-foreground">
+        Formati supportati: JPG, PNG, WebP. Massimo 5MB per immagine.
+      </p>
+    </div>
+  );
+}
 
 // ============ NAVBAR ============
 function NavBar({ view, setView, mobileOpen, setMobileOpen }) {
@@ -885,14 +1010,14 @@ function AdminDashboard() {
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (min)</Label><Input type="number" value={formData.duration_minutes||''} onChange={e=>setFormData({...formData,duration_minutes:e.target.value})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
-            <div><Label>URL Immagine</Label><Input value={formData.image_url||''} onChange={e=>setFormData({...formData,image_url:e.target.value})}/></div>
+            <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
             <Button className="w-full" onClick={()=>createItem('experiences',formData)}>Crea Esperienza</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showDialog==='resource'} onOpenChange={v=>!v&&setShowDialog(null)}>
-        <DialogContent><DialogHeader><DialogTitle>Nuova Risorsa</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nuova Risorsa</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
             <div><Label>Tipo</Label><Select value={formData.type||'GUIDE'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GUIDE">Guida</SelectItem><SelectItem value="BOAT">Imbarcazione</SelectItem></SelectContent></Select></div>
@@ -900,6 +1025,7 @@ function AdminDashboard() {
             <div><Label>Descrizione</Label><Textarea value={formData.bio||''} onChange={e=>setFormData({...formData,bio:e.target.value})}/></div>
             <div><Label>Email</Label><Input value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})}/></div>
             <div><Label>Telefono</Label><Input value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})}/></div>
+            <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
             <Button className="w-full" onClick={()=>createItem('resources',formData)}>Crea Risorsa</Button>
           </div>
         </DialogContent>

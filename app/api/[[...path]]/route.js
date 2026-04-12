@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
+import { writeFile, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
+import path from 'path';
 
 let cachedDb = null;
 
@@ -61,6 +64,7 @@ async function handleExperiences(method, id, body, sp) {
       itinerary_description: body.itinerary_description || '',
       itinerary_stops: body.itinerary_stops || [],
       image_url: body.image_url || '',
+      images: body.images || [], // Array di URL immagini (max 3)
       resource_ids: body.resource_ids || [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -121,6 +125,7 @@ async function handleResources(method, id, body, sp) {
       certifications: body.certifications || [],
       phone: body.phone || '',
       email: body.email || '',
+      images: body.images || [], // Array di URL immagini (max 3)
       is_available: true,
       created_at: new Date().toISOString(),
     };
@@ -827,6 +832,51 @@ async function handleSeed() {
   });
 }
 
+// ==================== IMAGE UPLOAD ====================
+async function handleImageUpload(method, body) {
+  if (method !== 'POST') return json({ error: 'Use POST' }, 405);
+  
+  try {
+    const { images } = body; // Array di immagini in base64
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return json({ error: 'Nessuna immagine fornita' }, 400);
+    }
+    
+    if (images.length > 3) {
+      return json({ error: 'Massimo 3 immagini consentite' }, 400);
+    }
+    
+    // Crea directory public/uploads se non esiste
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true });
+    }
+    
+    const uploadedUrls = [];
+    
+    for (const imageData of images) {
+      // Rimuovi il prefisso data:image/...;base64,
+      const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      // Genera nome file unico
+      const fileName = `${uuidv4()}.jpg`;
+      const filePath = path.join(uploadDir, fileName);
+      
+      // Salva il file
+      await writeFile(filePath, buffer);
+      
+      // URL pubblico
+      uploadedUrls.push(`/uploads/${fileName}`);
+    }
+    
+    return json({ urls: uploadedUrls, count: uploadedUrls.length });
+  } catch (error) {
+    console.error('Upload error:', error);
+    return json({ error: 'Errore durante l\'upload delle immagini' }, 500);
+  }
+}
+
 // ==================== ROUTE DISPATCHER ====================
 async function handleRoute(request, resolvedParams, method) {
   try {
@@ -848,6 +898,7 @@ async function handleRoute(request, resolvedParams, method) {
       case 'vouchers': return await handleVouchers(method, id, body, action, searchParams);
       case 'waitlist': return await handleWaitlist(method, id, body, action, searchParams);
       case 'agencies': return await handleAgencies(method, id, body, action, searchParams);
+      case 'upload': return await handleImageUpload(method, body);
       case 'stats': return await handleStats();
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
