@@ -21,11 +21,11 @@ import {
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
 
-// Dynamic import per Leaflet (solo client-side)
-const MapContainer = dynamic(() => import('react-leaflet').then(m => m.MapContainer), { ssr: false });
-const TileLayer = dynamic(() => import('react-leaflet').then(m => m.TileLayer), { ssr: false });
-const Marker = dynamic(() => import('react-leaflet').then(m => m.Marker), { ssr: false });
-const Popup = dynamic(() => import('react-leaflet').then(m => m.Popup), { ssr: false });
+// Dynamic import per FleetMap (Leaflet - solo client-side)
+const FleetMap = dynamic(() => import('./components/FleetMap'), { 
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-full"><p className="text-muted-foreground">Caricamento mappa...</p></div>
+});
 
 // ============ CONSTANTS ============
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_7d8a5623-84c4-4dc5-8737-98643d255bb4/artifacts/cdzklcx8_logo%20maretrek_1.jpg';
@@ -1076,6 +1076,319 @@ function DevicesList({ devices, filter, onFilterChange, onSelectDevice, selected
   );
 }
 
+// ============ SETUP GPS ============
+function SetupGPS() {
+  const [config, setConfig] = useState({ email: '', api_token: '', configured: false });
+  const [formData, setFormData] = useState({ email: '', api_token: '' });
+  const [loading, setLoading] = useState(true);
+  const [testing, setTesting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [devices, setDevices] = useState([]);
+  const [resources, setResources] = useState([]);
+
+  useEffect(() => {
+    loadConfig();
+    loadResources();
+  }, []);
+
+  const loadConfig = async () => {
+    try {
+      const data = await api('gps-config');
+      setConfig(data);
+      setFormData({ email: data.email || '', api_token: data.api_token || '' });
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading config:', error);
+      setLoading(false);
+    }
+  };
+
+  const loadResources = async () => {
+    try {
+      const data = await api('resources');
+      setResources(Array.isArray(data) ? data.filter(r => r.type === 'BOAT') : []);
+    } catch (error) {
+      console.error('Error loading resources:', error);
+    }
+  };
+
+  const saveConfig = async () => {
+    if (!formData.email || !formData.api_token) {
+      toast.error('Inserisci email e API token');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api('gps-config', { method: 'POST', body: formData });
+      toast.success('✅ Configurazione GPS salvata!');
+      await loadConfig();
+    } catch (error) {
+      toast.error('Errore salvataggio configurazione');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const testConnection = async () => {
+    if (!formData.email || !formData.api_token) {
+      toast.error('Salva prima la configurazione');
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      // Prima salva
+      await api('gps-config', { method: 'POST', body: formData });
+      
+      // Poi testa
+      const result = await api('gps/test', { method: 'POST' });
+      setTestResult(result);
+      
+      if (result.success) {
+        toast.success(`✅ Connessione riuscita! ${result.device_count} dispositivi trovati`);
+        setDevices(result.devices || []);
+      } else {
+        toast.error(`❌ ${result.error}`);
+      }
+      
+      await loadConfig();
+    } catch (error) {
+      toast.error('Errore test connessione');
+      setTestResult({ success: false, error: error.message });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const updateResourceGPS = async (resourceId, imei) => {
+    try {
+      await api(`resources/${resourceId}`, { 
+        method: 'PUT', 
+        body: { gps_imei: imei } 
+      });
+      toast.success('IMEI associato alla risorsa');
+      await loadResources();
+    } catch (error) {
+      toast.error('Errore aggiornamento risorsa');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Navigation className="w-6 h-6 text-primary" />
+          Configurazione GPS Balin.app
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configura le credenziali API per il tracking GPS della flotta
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Credenziali */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Credenziali API</CardTitle>
+            <CardDescription>
+              Inserisci email e API token del tuo account Balin.app
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="gps-email">Email Account Balin.app</Label>
+              <Input
+                id="gps-email"
+                type="email"
+                placeholder="esempio@email.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="gps-token">API Token</Label>
+              <Input
+                id="gps-token"
+                type="password"
+                placeholder="inserisci il token API"
+                value={formData.api_token}
+                onChange={(e) => setFormData({ ...formData, api_token: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                💡 Trova il token in: Balin.app → Impostazioni → API
+              </p>
+            </div>
+            
+            <div className="flex gap-2 pt-2">
+              <Button onClick={saveConfig} disabled={saving} className="flex-1">
+                {saving ? 'Salvataggio...' : '💾 Salva Configurazione'}
+              </Button>
+              <Button 
+                onClick={testConnection} 
+                disabled={testing || !config.configured}
+                variant="outline"
+                className="flex-1"
+              >
+                {testing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Testing...
+                  </>
+                ) : (
+                  <>🔍 Test Connessione</>
+                )}
+              </Button>
+            </div>
+
+            {/* Stato */}
+            {config.configured && (
+              <div className="mt-4 p-3 rounded-lg bg-green-50 border border-green-200">
+                <p className="text-sm font-medium text-green-800">✅ Configurazione Attiva</p>
+                <p className="text-xs text-green-700 mt-1">Email: {config.email}</p>
+                {config.last_test && (
+                  <p className="text-xs text-green-700">
+                    Ultimo test: {new Date(config.last_test).toLocaleString('it-IT')} - 
+                    {config.last_test_status === 'success' ? ' ✅ OK' : ' ❌ Failed'}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {testResult && !testResult.success && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                <p className="text-sm font-medium text-red-800">❌ Test Fallito</p>
+                <p className="text-xs text-red-700 mt-1">{testResult.error}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Dispositivi & Associazioni */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Dispositivi GPS Disponibili</CardTitle>
+            <CardDescription>
+              {testResult?.success 
+                ? `${devices.length} dispositivi trovati su Balin.app`
+                : 'Testa la connessione per vedere i dispositivi'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {devices.length > 0 ? (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {devices.map((device, idx) => (
+                  <div key={idx} className="p-3 rounded-lg border bg-white">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="font-medium text-sm">Dispositivo {idx + 1}</p>
+                        <p className="text-xs font-mono text-muted-foreground">
+                          IMEI: {device.imei || device.id || 'N/A'}
+                        </p>
+                      </div>
+                      {device.moving ? (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          🟢 Movimento
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-gray-50">⚪ Fermo</Badge>
+                      )}
+                    </div>
+                    
+                    {device.lat && device.lng && (
+                      <p className="text-xs text-muted-foreground mb-2">
+                        📍 {device.lat.toFixed(4)}, {device.lng.toFixed(4)}
+                      </p>
+                    )}
+                    
+                    <div className="flex items-center gap-2 mt-2">
+                      <Select 
+                        onValueChange={(val) => updateResourceGPS(val, device.imei || device.id)}
+                        value={resources.find(r => r.gps_imei === (device.imei || device.id))?.id || ''}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Associa a risorsa..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Nessuna associazione</SelectItem>
+                          {resources.map(r => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.name} ({r.boat_type || 'BOAT'})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <Navigation className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                <p className="text-sm">Nessun dispositivo caricato</p>
+                <p className="text-xs mt-1">Clicca "Test Connessione" per vedere i dispositivi</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Risorse Configurate */}
+      {resources.filter(r => r.gps_imei).length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Risorse con GPS Configurato</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {resources.filter(r => r.gps_imei).map(r => (
+                <div key={r.id} className="p-3 rounded-lg border bg-white">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{r.name}</p>
+                      <p className="text-xs text-muted-foreground">{r.boat_type || 'Imbarcazione'}</p>
+                      <p className="text-xs font-mono text-primary mt-1">IMEI: {r.gps_imei}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-red-500"
+                      onClick={() => updateResourceGPS(r.id, '')}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Istruzioni */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2 text-blue-900">
+            <AlertCircle className="w-5 h-5" />
+            Come Configurare
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-blue-800 space-y-2">
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Accedi al tuo account su <strong>balin.app</strong></li>
+            <li>Vai in <strong>Impostazioni → API</strong> e copia email e token</li>
+            <li>Incolla le credenziali nei campi sopra e clicca <strong>"Salva Configurazione"</strong></li>
+            <li>Clicca <strong>"Test Connessione"</strong> per verificare e caricare i dispositivi</li>
+            <li>Associa ogni dispositivo GPS a una risorsa (imbarcazione) dal menu a tendina</li>
+            <li>Vai su <strong>"Mappa Flotta"</strong> per visualizzare la posizione real-time</li>
+          </ol>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function MappaFlotta() {
   const [devices, setDevices] = useState([]);
   const [resources, setResources] = useState([]);
@@ -1169,27 +1482,11 @@ function MappaFlotta() {
           )}
           
           {!loading && mounted && filteredDevices.length > 0 && (
-            <MapContainer 
-              center={mapCenter} 
+            <FleetMap 
+              devices={filteredDevices}
+              center={mapCenter}
               zoom={10}
-              style={{ height: '100%', width: '100%' }}
-              className="z-0"
-            >
-              <TileLayer 
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              />
-              {filteredDevices.map(d => {
-                if (!d.lat || !d.lng) return null;
-                return (
-                  <Marker key={d.imei} position={[d.lat, d.lng]}>
-                    <Popup>
-                      <DevicePopup device={d} />
-                    </Popup>
-                  </Marker>
-                );
-              })}
-            </MapContainer>
+            />
           )}
           
           {!loading && filteredDevices.length === 0 && (
@@ -1290,6 +1587,7 @@ function AdminDashboard() {
           <TabsTrigger value="waitlist"><ListOrdered className="w-4 h-4 mr-1.5" />Lista Attesa</TabsTrigger>
           <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />Agenzie</TabsTrigger>
           <TabsTrigger value="fleet"><Map className="w-4 h-4 mr-1.5" />Mappa Flotta</TabsTrigger>
+          <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />Setup GPS</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -1436,6 +1734,11 @@ function AdminDashboard() {
         {/* Mappa Flotta GPS */}
         <TabsContent value="fleet">
           <MappaFlotta />
+        </TabsContent>
+
+        {/* Setup GPS */}
+        <TabsContent value="gps-setup">
+          <SetupGPS />
         </TabsContent>
       </Tabs>
 

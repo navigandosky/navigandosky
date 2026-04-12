@@ -959,13 +959,68 @@ async function handleContact(method, body) {
   }
 }
 
+// ==================== GPS CONFIG ====================
+async function handleGPSConfig(method, body) {
+  const db = await getDb();
+  const col = db.collection('gps_config');
+  
+  if (method === 'GET') {
+    const config = await col.findOne({ type: 'balin' });
+    if (!config) {
+      return json({ 
+        configured: false,
+        email: '',
+        api_token: '',
+        message: 'Configurazione GPS non trovata. Inserisci le credenziali Balin.app'
+      });
+    }
+    return json({
+      configured: true,
+      email: config.email,
+      api_token: config.api_token,
+      last_test: config.last_test,
+      last_test_status: config.last_test_status
+    });
+  }
+  
+  if (method === 'POST') {
+    const config = {
+      type: 'balin',
+      email: body.email,
+      api_token: body.api_token,
+      updated_at: new Date().toISOString()
+    };
+    
+    await col.updateOne(
+      { type: 'balin' },
+      { $set: config },
+      { upsert: true }
+    );
+    
+    return json({ success: true, message: 'Configurazione GPS salvata' });
+  }
+  
+  return json({ error: 'Metodo non supportato' }, 405);
+}
+
 // ==================== GPS BALIN.APP PROXY ====================
 async function handleGPS(method, pathParts) {
   if (method !== 'GET') return json({ error: 'Use GET' }, 405);
   
   try {
-    const email = 'navigandosky@yahoo.it';
-    const apiToken = '961cbc6379f2cd38f3e672f3990baa8e';
+    // Recupera credenziali da DB
+    const db = await getDb();
+    const config = await db.collection('gps_config').findOne({ type: 'balin' });
+    
+    if (!config || !config.email || !config.api_token) {
+      return json({ 
+        error: 'Configurazione GPS non trovata',
+        message: 'Configura le credenziali Balin.app nella Dashboard Admin > Setup GPS'
+      }, 400);
+    }
+    
+    const email = config.email;
+    const apiToken = config.api_token;
     
     // Crea Basic Auth header
     const authString = `${email}:${apiToken}`;
@@ -1008,6 +1063,72 @@ async function handleGPS(method, pathParts) {
   }
 }
 
+// ==================== GPS TEST CONNECTION ====================
+async function handleGPSTest(method) {
+  if (method !== 'POST') return json({ error: 'Use POST' }, 405);
+  
+  try {
+    const db = await getDb();
+    const config = await db.collection('gps_config').findOne({ type: 'balin' });
+    
+    if (!config || !config.email || !config.api_token) {
+      return json({ 
+        success: false,
+        error: 'Credenziali non configurate'
+      }, 400);
+    }
+    
+    // Test connessione
+    const authString = `${config.email}:${config.api_token}`;
+    const base64Auth = Buffer.from(authString).toString('base64');
+    
+    const response = await fetch('https://api.balin.app/external_api/v1/devices', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${base64Auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    const testResult = {
+      last_test: new Date().toISOString(),
+      last_test_status: response.ok ? 'success' : 'failed'
+    };
+    
+    // Salva risultato test
+    await db.collection('gps_config').updateOne(
+      { type: 'balin' },
+      { $set: testResult }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      return json({
+        success: false,
+        error: `Connessione fallita (${response.status})`,
+        details: errorText
+      }, 400);
+    }
+    
+    const devices = await response.json();
+    
+    return json({
+      success: true,
+      message: 'Connessione riuscita!',
+      devices: devices,
+      device_count: Array.isArray(devices) ? devices.length : 0
+    });
+    
+  } catch (error) {
+    console.error('[GPS Test] Error:', error);
+    return json({ 
+      success: false,
+      error: 'Errore test connessione',
+      details: error.message 
+    }, 500);
+  }
+}
+
 // ==================== ROUTE DISPATCHER ====================
 async function handleRoute(request, resolvedParams, method) {
   try {
@@ -1023,6 +1144,10 @@ async function handleRoute(request, resolvedParams, method) {
 
     // Route GPS speciale
     if (entity === 'gps') {
+      // gps/test -> test connessione
+      if (pathSegments[1] === 'test') {
+        return await handleGPSTest(method);
+      }
       return await handleGPS(method, pathSegments);
     }
 
@@ -1034,6 +1159,7 @@ async function handleRoute(request, resolvedParams, method) {
       case 'vouchers': return await handleVouchers(method, id, body, action, searchParams);
       case 'waitlist': return await handleWaitlist(method, id, body, action, searchParams);
       case 'agencies': return await handleAgencies(method, id, body, action, searchParams);
+      case 'gps-config': return await handleGPSConfig(method, body);
       case 'upload': return await handleImageUpload(method, body);
       case 'upload-pdf': return await handlePDFUpload(method, body);
       case 'contact': return await handleContact(method, body);
