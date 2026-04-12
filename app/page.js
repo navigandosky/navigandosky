@@ -189,6 +189,112 @@ function ImageUploader({ images = [], onChange, maxImages = 3 }) {
   );
 }
 
+// ============ PDF UPLOADER ============
+function PDFUploader({ pdfUrl = '', onChange }) {
+  const [uploading, setUploading] = useState(false);
+  const [currentPdf, setCurrentPdf] = useState(pdfUrl);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validazione tipo
+    if (file.type !== 'application/pdf') {
+      toast.error('Solo file PDF sono accettati');
+      return;
+    }
+
+    // Validazione dimensione (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File troppo grande. Massimo 10MB');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Leggi come base64
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve) => {
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+
+      // Carica il PDF al server
+      const res = await api('upload-pdf', { method: 'POST', body: { pdf: base64, filename: file.name } });
+      
+      if (res.error) {
+        toast.error(res.error);
+        setUploading(false);
+        return;
+      }
+
+      setCurrentPdf(res.url);
+      onChange(res.url);
+      toast.success('PDF caricato con successo!');
+    } catch (err) {
+      toast.error('Errore durante l\'upload del PDF');
+    }
+    
+    setUploading(false);
+  };
+
+  const removePdf = () => {
+    setCurrentPdf('');
+    onChange('');
+    toast.success('PDF rimosso');
+  };
+
+  return (
+    <div className="space-y-3">
+      <Label className="flex items-center gap-2">
+        <Download className="w-4 h-4" />
+        Condizioni di Servizio (PDF)
+      </Label>
+      
+      {currentPdf ? (
+        <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+          <div className="flex-1 flex items-center gap-2">
+            <Download className="w-5 h-5 text-red-500" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">Condizioni_servizio.pdf</p>
+              <p className="text-xs text-muted-foreground">PDF caricato</p>
+            </div>
+          </div>
+          <Button type="button" variant="ghost" size="sm" onClick={removePdf}>
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </Button>
+        </div>
+      ) : (
+        <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={handleFileChange}
+            className="hidden"
+            disabled={uploading}
+          />
+          {uploading ? (
+            <>
+              <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Caricamento...</span>
+            </>
+          ) : (
+            <>
+              <Upload className="w-5 h-5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Clicca per caricare PDF</span>
+            </>
+          )}
+        </label>
+      )}
+      
+      <p className="text-xs text-muted-foreground">
+        Carica un file PDF con le condizioni e descrizione del servizio. Massimo 10MB.
+      </p>
+    </div>
+  );
+}
+
 // ============ NAVBAR ============
 function NavBar({ view, setView, mobileOpen, setMobileOpen }) {
   return (
@@ -1026,7 +1132,7 @@ function AdminDashboard() {
 
       {/* Create Dialogs */}
       <Dialog open={showDialog==='experience'} onOpenChange={v=>!v&&setShowDialog(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nuova Esperienza</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nuova Esperienza</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
             <div><Label>Tipo</Label><Select value={formData.type||'BOAT_EXCURSION'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="BOAT_EXCURSION">Escursione in Barca</SelectItem><SelectItem value="GUIDED_TOUR">Visita Guidata</SelectItem><SelectItem value="BOAT_RENTAL">Noleggio</SelectItem></SelectContent></Select></div>
@@ -1034,7 +1140,10 @@ function AdminDashboard() {
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (min)</Label><Input type="number" value={formData.duration_minutes||''} onChange={e=>setFormData({...formData,duration_minutes:e.target.value})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
+            <Separator />
             <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
+            <Separator />
+            <PDFUploader pdfUrl={formData.terms_pdf_url||''} onChange={url=>setFormData({...formData,terms_pdf_url:url})} />
             <Button className="w-full" onClick={()=>createItem('experiences',formData)}>Crea Esperienza</Button>
           </div>
         </DialogContent>
@@ -1042,7 +1151,7 @@ function AdminDashboard() {
 
       {/* Edit Experience Dialog */}
       <Dialog open={showDialog==='edit_experience'} onOpenChange={v=>!v&&setShowDialog(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Modifica Esperienza</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Modifica Esperienza</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
             <div><Label>Tipo</Label><Select value={formData.type||'BOAT_EXCURSION'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="BOAT_EXCURSION">Escursione in Barca</SelectItem><SelectItem value="GUIDED_TOUR">Visita Guidata</SelectItem><SelectItem value="BOAT_RENTAL">Noleggio</SelectItem></SelectContent></Select></div>
@@ -1050,6 +1159,10 @@ function AdminDashboard() {
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (ore)</Label><Input type="number" value={formData.duration_hours||''} onChange={e=>setFormData({...formData,duration_hours:e.target.value,duration_minutes:e.target.value*60})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
+            <Separator />
+            <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
+            <Separator />
+            <PDFUploader pdfUrl={formData.terms_pdf_url||''} onChange={url=>setFormData({...formData,terms_pdf_url:url})} />
             <Button className="w-full" onClick={async ()=>{const {id,duration_hours,...data}=formData;await api(`experiences/${id}`,{method:'PUT',body:data});toast.success('Esperienza aggiornata!');setShowDialog(null);setFormData({});await load();}}>Salva Modifiche</Button>
           </div>
         </DialogContent>

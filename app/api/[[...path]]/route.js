@@ -65,6 +65,7 @@ async function handleExperiences(method, id, body, sp) {
       itinerary_stops: body.itinerary_stops || [],
       image_url: body.image_url || '',
       images: body.images || [], // Array di URL immagini (max 3)
+      terms_pdf_url: body.terms_pdf_url || '', // PDF condizioni servizio
       resource_ids: body.resource_ids || [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -877,6 +878,43 @@ async function handleImageUpload(method, body) {
   }
 }
 
+// ==================== PDF UPLOAD ====================
+async function handlePDFUpload(method, body) {
+  if (method !== 'POST') return json({ error: 'Use POST' }, 405);
+  
+  try {
+    const { pdf, filename } = body;
+    if (!pdf) {
+      return json({ error: 'Nessun PDF fornito' }, 400);
+    }
+    
+    // Crea directory public/uploads se non esiste
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true });
+    }
+    
+    // Rimuovi il prefisso data:application/pdf;base64,
+    const base64Data = pdf.replace(/^data:application\/pdf;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // Genera nome file unico mantenendo estensione .pdf
+    const fileName = `${uuidv4()}.pdf`;
+    const filePath = path.join(uploadDir, fileName);
+    
+    // Salva il file
+    await writeFile(filePath, buffer);
+    
+    // URL pubblico
+    const url = `/uploads/${fileName}`;
+    
+    return json({ url, filename: filename || 'documento.pdf' });
+  } catch (error) {
+    console.error('PDF Upload error:', error);
+    return json({ error: 'Errore durante l\'upload del PDF' }, 500);
+  }
+}
+
 // ==================== ROUTE DISPATCHER ====================
 async function handleRoute(request, resolvedParams, method) {
   try {
@@ -899,6 +937,7 @@ async function handleRoute(request, resolvedParams, method) {
       case 'waitlist': return await handleWaitlist(method, id, body, action, searchParams);
       case 'agencies': return await handleAgencies(method, id, body, action, searchParams);
       case 'upload': return await handleImageUpload(method, body);
+      case 'upload-pdf': return await handlePDFUpload(method, body);
       case 'stats': return await handleStats();
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
