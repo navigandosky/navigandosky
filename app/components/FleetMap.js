@@ -1,38 +1,26 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
 
-let MapContainer, TileLayer, Marker, Popup, L;
+// Fix icone Leaflet per Next.js
+if (typeof window !== 'undefined') {
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  });
+}
 
 export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10 }) {
-  const [isReady, setIsReady] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // Carica leaflet solo client-side
-    if (typeof window !== 'undefined') {
-      Promise.all([
-        import('react-leaflet'),
-        import('leaflet')
-      ]).then(([reactLeaflet, leaflet]) => {
-        MapContainer = reactLeaflet.MapContainer;
-        TileLayer = reactLeaflet.TileLayer;
-        Marker = reactLeaflet.Marker;
-        Popup = reactLeaflet.Popup;
-        L = leaflet.default;
-
-        // Fix icone
-        delete L.Icon.Default.prototype._getIconUrl;
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-        });
-
-        setIsReady(true);
-      });
-    }
+    setIsMounted(true);
   }, []);
 
-  if (!isReady || typeof window === 'undefined') {
+  if (!isMounted) {
     return (
       <div className="flex items-center justify-center h-full bg-gray-50">
         <div className="text-center">
@@ -49,10 +37,11 @@ export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10
       zoom={zoom}
       style={{ height: '100%', width: '100%' }}
       className="z-0"
+      scrollWheelZoom={true}
     >
       <TileLayer 
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
       {devices.map(device => {
         if (!device.lat || !device.lng) return null;
@@ -61,7 +50,7 @@ export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10
             <Popup>
               <div className="p-2 min-w-[200px]">
                 <h3 className="font-bold text-sm mb-2">
-                  {device.resource?.name || `Dispositivo ${device.imei}`}
+                  {device.resource?.name || device.name || `Dispositivo ${device.imei}`}
                 </h3>
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
@@ -84,6 +73,11 @@ export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10
                     <div className="flex justify-between">
                       <span className="text-gray-600">Aggiornato:</span>
                       <span>{new Date(device.timestamp_position).toLocaleTimeString('it-IT')}</span>
+                    </div>
+                  )}
+                  {device.resource && (
+                    <div className="mt-2 pt-2 border-t text-gray-600">
+                      {device.resource.boat_type} - {device.resource.capacity} posti
                     </div>
                   )}
                 </div>

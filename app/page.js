@@ -1085,14 +1085,25 @@ function SetupGPS() {
 
   const updateResourceGPS = async (resourceId, imei) => {
     try {
+      // Pulisci IMEI: se vuoto o "undefined", passa null
+      const cleanImei = imei && imei !== '' && imei !== 'undefined' ? imei : null;
+      
       await api(`resources/${resourceId}`, { 
         method: 'PUT', 
-        body: { gps_imei: imei } 
+        body: { gps_imei: cleanImei } 
       });
-      toast.success('IMEI associato alla risorsa');
+      
+      if (cleanImei) {
+        toast.success(`✅ IMEI ${cleanImei.slice(-6)} associato!`);
+      } else {
+        toast.success('✅ IMEI rimosso dalla risorsa');
+      }
+      
       await loadResources();
+      await loadConfig(); // Ricarica anche config per aggiornare lo stato
     } catch (error) {
-      toast.error('Errore aggiornamento risorsa');
+      console.error('Errore update IMEI:', error);
+      toast.error('❌ Errore aggiornamento risorsa');
     }
   };
 
