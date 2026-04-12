@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,9 +14,10 @@ import { toast } from 'sonner';
 import {
   Anchor, Ship, MapPin, Calendar as CalIcon, Clock, Users, Star, ChevronRight, ArrowLeft,
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
-  Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User
+  Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
+  ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 // ============ CONSTANTS ============
@@ -25,6 +26,7 @@ const HERO_IMG = 'https://images.unsplash.com/photo-1557207773-caf19e055e40?w=19
 const TYPE_LABELS = { BOAT_EXCURSION: 'Escursione in Barca', GUIDED_TOUR: 'Visita Guidata', BOAT_RENTAL: 'Noleggio Gommone' };
 const TYPE_ICONS = { BOAT_EXCURSION: Ship, GUIDED_TOUR: Compass, BOAT_RENTAL: Anchor };
 const TYPE_COLORS = { BOAT_EXCURSION: 'bg-sky-100 text-sky-800 border-sky-200', GUIDED_TOUR: 'bg-emerald-100 text-emerald-800 border-emerald-200', BOAT_RENTAL: 'bg-amber-100 text-amber-800 border-amber-200' };
+const GANTT_COLORS = { BOAT_EXCURSION: 'bg-sky-50 border-sky-300 text-sky-900', GUIDED_TOUR: 'bg-emerald-50 border-emerald-300 text-emerald-900', BOAT_RENTAL: 'bg-amber-50 border-amber-300 text-amber-900' };
 const LANG_MAP = { IT: 'Italiano', EN: 'English', FR: 'Francais', DE: 'Deutsch' };
 const BOAT_TYPE_LABELS = { GOMMONE: 'Gommone', MOTONAVE: 'Motonave', BARCA_A_VELA: 'Barca a Vela' };
 
@@ -40,36 +42,27 @@ const api = async (path, opts = {}) => {
 // ============ UTILITY COMPONENTS ============
 function TypeBadge({ type }) {
   const Icon = TYPE_ICONS[type] || Ship;
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${TYPE_COLORS[type] || 'bg-gray-100 text-gray-800'}`}>
-      <Icon className="w-3 h-3" />{TYPE_LABELS[type] || type}
-    </span>
-  );
+  return <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${TYPE_COLORS[type] || 'bg-gray-100'}`}><Icon className="w-3 h-3" />{TYPE_LABELS[type] || type}</span>;
 }
-
 function StatusBadge({ status }) {
-  const colors = { OPEN: 'bg-green-100 text-green-800', FULL: 'bg-red-100 text-red-800', CANCELLED: 'bg-gray-100 text-gray-600', WEATHER_HOLD: 'bg-yellow-100 text-yellow-800', CONFIRMED: 'bg-green-100 text-green-800', PENDING: 'bg-yellow-100 text-yellow-800', REFUNDED: 'bg-gray-100 text-gray-600' };
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[status] || 'bg-gray-100'}`}>{status}</span>;
+  const c = { OPEN: 'bg-green-100 text-green-800', FULL: 'bg-red-100 text-red-800', CANCELLED: 'bg-gray-100 text-gray-600', CONFIRMED: 'bg-green-100 text-green-800', PENDING: 'bg-yellow-100 text-yellow-800', REFUNDED: 'bg-gray-100 text-gray-600', WAITING: 'bg-blue-100 text-blue-800', NOTIFIED: 'bg-amber-100 text-amber-800', CONVERTED: 'bg-green-100 text-green-800', EXPIRED: 'bg-gray-100 text-gray-600' };
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c[status] || 'bg-gray-100'}`}>{status}</span>;
 }
-
 function AvailabilityBar({ booked, max }) {
   const pct = max > 0 ? (booked / max) * 100 : 0;
   const avail = max - booked;
   const color = pct >= 100 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500';
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
-      </div>
+      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} /></div>
       <span className="text-xs text-muted-foreground whitespace-nowrap">{avail} posti</span>
     </div>
   );
 }
-
-function formatDate(d) { try { return format(parseISO(d), 'EEE d MMM yyyy', { locale: it }); } catch { return d; } }
-function formatTime(d) { try { return format(parseISO(d), 'HH:mm'); } catch { return ''; } }
-function formatDateTime(d) { try { return format(parseISO(d), "EEE d MMM yyyy 'alle' HH:mm", { locale: it }); } catch { return d; } }
-function formatPrice(p) { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(p); }
+function fmtDate(d) { try { return format(parseISO(d), 'EEE d MMM yyyy', { locale: it }); } catch { return d || ''; } }
+function fmtTime(d) { try { return format(parseISO(d), 'HH:mm'); } catch { return ''; } }
+function fmtDateTime(d) { try { return format(parseISO(d), "EEE d MMM yyyy 'alle' HH:mm", { locale: it }); } catch { return d || ''; } }
+function fmtPrice(p) { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(p || 0); }
 
 // ============ NAVBAR ============
 function NavBar({ view, setView, mobileOpen, setMobileOpen }) {
@@ -80,22 +73,16 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen }) {
           <img src={LOGO_URL} alt="Maretrek" style={{ height: '40px', width: 'auto' }} className="rounded" />
         </button>
         <nav className="hidden md:flex items-center gap-1">
-          {[['home', 'Home'], ['catalog', 'Esperienze'], ['admin', 'Admin']].map(([v, label]) => (
-            <button key={v} onClick={() => setView(v)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                view === v ? 'bg-primary text-primary-foreground' : 'text-foreground/70 hover:bg-muted hover:text-foreground'
-              }`}>{label}</button>
+          {[['home','Home'],['catalog','Esperienze'],['b2b','B2B Agenzie'],['admin','Admin']].map(([v,l]) => (
+            <button key={v} onClick={() => setView(v)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === v ? 'bg-primary text-primary-foreground' : 'text-foreground/70 hover:bg-muted hover:text-foreground'}`}>{l}</button>
           ))}
         </nav>
-        <button className="md:hidden p-2" onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        <button className="md:hidden p-2" onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
       </div>
       {mobileOpen && (
         <div className="md:hidden border-t bg-white p-4 space-y-2">
-          {[['home', 'Home'], ['catalog', 'Esperienze'], ['admin', 'Admin']].map(([v, label]) => (
-            <button key={v} onClick={() => { setView(v); setMobileOpen(false); }}
-              className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium ${view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>{label}</button>
+          {[['home','Home'],['catalog','Esperienze'],['b2b','B2B Agenzie'],['admin','Admin']].map(([v,l]) => (
+            <button key={v} onClick={() => { setView(v); setMobileOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium ${view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>{l}</button>
           ))}
         </div>
       )}
@@ -109,25 +96,12 @@ function Footer() {
     <footer className="wave-bg text-white mt-20">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <img src={LOGO_URL} alt="Maretrek" className="h-12 mb-4 rounded" />
-            <p className="text-white/70 text-sm">Esperienze marine indimenticabili in Sardegna. Scopri il mare piu bello del Mediterraneo con le nostre guide esperte.</p>
-          </div>
-          <div>
-            <h4 className="font-semibold mb-3">Contatti</h4>
-            <div className="space-y-2 text-sm text-white/70">
-              <p className="flex items-center gap-2"><Phone className="w-4 h-4" /> +39 079 123 456</p>
-              <p className="flex items-center gap-2"><Mail className="w-4 h-4" /> info@maretrek.it</p>
-              <p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Porto di Alghero, Sardegna</p>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-semibold mb-3">Seguici</h4>
-            <p className="text-sm text-white/70">Seguici sui social per offerte esclusive e aggiornamenti sulle nostre esperienze.</p>
-          </div>
+          <div><img src={LOGO_URL} alt="Maretrek" className="h-12 mb-4 rounded" /><p className="text-white/70 text-sm">Esperienze marine indimenticabili in Sardegna.</p></div>
+          <div><h4 className="font-semibold mb-3">Contatti</h4><div className="space-y-2 text-sm text-white/70"><p className="flex items-center gap-2"><Phone className="w-4 h-4" /> +39 079 123 456</p><p className="flex items-center gap-2"><Mail className="w-4 h-4" /> info@maretrek.it</p><p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Porto di Alghero, Sardegna</p></div></div>
+          <div><h4 className="font-semibold mb-3">Info</h4><p className="text-sm text-white/70">Operatore turistico specializzato in esperienze marine nel nord Sardegna.</p></div>
         </div>
         <Separator className="my-8 bg-white/20" />
-        <p className="text-center text-sm text-white/50">&copy; 2025 Maretrek S.r.l. - P.IVA 01234567890 - Tutti i diritti riservati</p>
+        <p className="text-center text-sm text-white/50">&copy; 2025 Maretrek S.r.l. - P.IVA 01234567890</p>
       </div>
     </footer>
   );
@@ -138,162 +112,68 @@ function HomePage({ setView, experiences }) {
   const featured = experiences.slice(0, 3);
   return (
     <div>
-      {/* Hero */}
       <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center overflow-hidden">
         <img src={HERO_IMG} alt="Sardegna" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 hero-gradient" />
         <div className="relative z-10 text-center text-white px-4 max-w-4xl">
-          <div className="mb-6">
-            <img src={LOGO_URL} alt="Maretrek" className="h-20 md:h-28 mx-auto rounded-lg shadow-2xl" />
-          </div>
+          <div className="mb-6"><img src={LOGO_URL} alt="Maretrek" className="h-20 md:h-28 mx-auto rounded-lg shadow-2xl" /></div>
           <h1 className="text-4xl md:text-6xl font-bold mb-4 drop-shadow-lg">Scopri la Sardegna dal Mare</h1>
-          <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">Escursioni in barca, visite guidate, noleggio gommoni. Vivi il Mediterraneo con guide esperte e imbarcazioni di qualita.</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold text-base px-8 shadow-lg" onClick={() => setView('catalog')}>
-              <Compass className="w-5 h-5 mr-2" />Esplora le Esperienze
-            </Button>
-          </div>
+          <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">Escursioni in barca, visite guidate, noleggio gommoni. Vivi il Mediterraneo con guide esperte.</p>
+          <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold text-base px-8 shadow-lg" onClick={() => setView('catalog')}><Compass className="w-5 h-5 mr-2" />Esplora le Esperienze</Button>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
       </section>
-
-      {/* Featured */}
       <section className="container mx-auto px-4 -mt-16 relative z-20 mb-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {featured.map(exp => (
             <Card key={exp.id} className="card-hover overflow-hidden cursor-pointer border-0 shadow-lg" onClick={() => setView('detail', { experience: exp })}>
-              <div className="relative h-48">
-                <img src={exp.image_url} alt={exp.name} className="w-full h-full object-cover" />
-                <div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div>
-                <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-primary">{formatPrice(exp.price_b2c)}</div>
-              </div>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg leading-tight">{exp.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="pb-4">
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h{exp.duration_minutes%60>0?` ${exp.duration_minutes%60}m`:''}</span>
-                  <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span>
-                  <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span>
-                </div>
-              </CardContent>
+              <div className="relative h-48"><img src={exp.image_url} alt={exp.name} className="w-full h-full object-cover" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div><div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-primary">{fmtPrice(exp.price_b2c)}</div></div>
+              <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle></CardHeader>
+              <CardContent className="pb-4"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex items-center gap-4 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span></div></CardContent>
             </Card>
           ))}
         </div>
       </section>
-
-      {/* Benefits */}
       <section className="container mx-auto px-4 py-16">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Perche Scegliere Maretrek</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            { icon: Star, title: 'Guide Esperte Certificate', desc: 'Le nostre guide sono professionisti abilitati con anni di esperienza e profonda conoscenza del territorio sardo.' },
-            { icon: Ship, title: 'Imbarcazioni di Qualita', desc: 'Flotta moderna e ben mantenuta: gommoni, motonavi e barche a vela per ogni tipo di esperienza.' },
-            { icon: Sun, title: 'Esperienze Uniche', desc: 'Itinerari esclusivi che combinano natura, storia e gastronomia per un ricordo indimenticabile.' },
-          ].map((b, i) => (
-            <div key={i} className="text-center p-6">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <b.icon className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">{b.title}</h3>
-              <p className="text-muted-foreground">{b.desc}</p>
-            </div>
+          {[{ icon: Star, title: 'Guide Esperte', desc: 'Professionisti abilitati con anni di esperienza.' },{ icon: Ship, title: 'Imbarcazioni di Qualita', desc: 'Flotta moderna e sicura per ogni avventura.' },{ icon: Sun, title: 'Esperienze Uniche', desc: 'Itinerari esclusivi per ricordi indimenticabili.' }].map((b,i) => (
+            <div key={i} className="text-center p-6"><div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4"><b.icon className="w-8 h-8 text-primary" /></div><h3 className="text-xl font-semibold mb-2">{b.title}</h3><p className="text-muted-foreground">{b.desc}</p></div>
           ))}
         </div>
       </section>
-
-      {/* CTA */}
-      <section className="wave-bg py-16">
-        <div className="container mx-auto px-4 text-center text-white">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Pronto per la Tua Avventura?</h2>
-          <p className="text-lg text-white/80 mb-8 max-w-xl mx-auto">Prenota ora la tua esperienza e scopri la bellezza autentica della Sardegna dal mare.</p>
-          <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold" onClick={() => setView('catalog')}>
-            Vedi Tutte le Esperienze <ChevronRight className="w-5 h-5 ml-1" />
-          </Button>
-        </div>
-      </section>
+      <section className="wave-bg py-16"><div className="container mx-auto px-4 text-center text-white"><h2 className="text-3xl md:text-4xl font-bold mb-4">Pronto per la Tua Avventura?</h2><p className="text-lg text-white/80 mb-8">Prenota ora la tua esperienza in Sardegna.</p><Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold" onClick={() => setView('catalog')}>Vedi Tutte le Esperienze <ChevronRight className="w-5 h-5 ml-1" /></Button></div></section>
     </div>
   );
 }
 
-// ============ CATALOG PAGE ============
+// ============ CATALOG ============
 function CatalogPage({ setView, experiences }) {
-  const [typeFilter, setTypeFilter] = useState('ALL');
-  const [langFilter, setLangFilter] = useState('ALL');
-  const [searchQ, setSearchQ] = useState('');
-
-  const filtered = experiences.filter(exp => {
-    if (typeFilter !== 'ALL' && exp.type !== typeFilter) return false;
-    if (langFilter !== 'ALL' && !(exp.languages || []).includes(langFilter)) return false;
-    if (searchQ && !exp.name.toLowerCase().includes(searchQ.toLowerCase())) return false;
+  const [typeF, setTypeF] = useState('ALL');
+  const [langF, setLangF] = useState('ALL');
+  const [q, setQ] = useState('');
+  const filtered = experiences.filter(e => {
+    if (typeF !== 'ALL' && e.type !== typeF) return false;
+    if (langF !== 'ALL' && !(e.languages||[]).includes(langF)) return false;
+    if (q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
-
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">Le Nostre Esperienze</h1>
-        <p className="text-muted-foreground">Scopri tutte le attivita disponibili e prenota la tua prossima avventura in Sardegna.</p>
-      </div>
-
-      {/* Filters */}
+      <div className="mb-8"><h1 className="text-3xl md:text-4xl font-bold mb-2">Le Nostre Esperienze</h1><p className="text-muted-foreground">Scopri tutte le attivita disponibili.</p></div>
       <div className="flex flex-wrap gap-3 mb-8 p-4 bg-white rounded-xl shadow-sm border">
-        <div className="flex-1 min-w-[200px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Cerca esperienza..." value={searchQ} onChange={e => setSearchQ(e.target.value)} className="pl-9" />
-          </div>
-        </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Tipo" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Tutti i tipi</SelectItem>
-            <SelectItem value="BOAT_EXCURSION">Escursione in Barca</SelectItem>
-            <SelectItem value="GUIDED_TOUR">Visita Guidata</SelectItem>
-            <SelectItem value="BOAT_RENTAL">Noleggio Gommone</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={langFilter} onValueChange={setLangFilter}>
-          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Lingua" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Tutte le lingue</SelectItem>
-            <SelectItem value="IT">Italiano</SelectItem>
-            <SelectItem value="EN">English</SelectItem>
-            <SelectItem value="FR">Francais</SelectItem>
-            <SelectItem value="DE">Deutsch</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex-1 min-w-[200px]"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Cerca..." value={q} onChange={e=>setQ(e.target.value)} className="pl-9" /></div></div>
+        <Select value={typeF} onValueChange={setTypeF}><SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tutti i tipi</SelectItem><SelectItem value="BOAT_EXCURSION">Escursione in Barca</SelectItem><SelectItem value="GUIDED_TOUR">Visita Guidata</SelectItem><SelectItem value="BOAT_RENTAL">Noleggio</SelectItem></SelectContent></Select>
+        <Select value={langF} onValueChange={setLangF}><SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tutte le lingue</SelectItem><SelectItem value="IT">Italiano</SelectItem><SelectItem value="EN">English</SelectItem><SelectItem value="FR">Francais</SelectItem><SelectItem value="DE">Deutsch</SelectItem></SelectContent></Select>
       </div>
-
-      {/* Grid */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-20"><Waves className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" /><p className="text-muted-foreground">Nessuna esperienza trovata.</p></div>
-      ) : (
+      {filtered.length === 0 ? <div className="text-center py-20"><Waves className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" /><p className="text-muted-foreground">Nessuna esperienza trovata.</p></div> : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map(exp => (
             <Card key={exp.id} className="card-hover overflow-hidden border shadow-sm cursor-pointer group" onClick={() => setView('detail', { experience: exp })}>
-              <div className="relative h-52 overflow-hidden">
-                <img src={exp.image_url} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div>
-                {exp.weather_dependent && <div className="absolute top-3 right-3 bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs"><Sun className="w-3 h-3 inline mr-1" />Meteo</div>}
-              </div>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg leading-tight">{exp.name}</CardTitle>
-                <CardDescription className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" />{exp.meeting_point}</CardDescription>
-              </CardHeader>
-              <CardContent className="pb-2">
-                <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-3">
-                  <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h{exp.duration_minutes%60>0?` ${exp.duration_minutes%60}m`:''}</span>
-                  <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span>
-                  <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span>
-                </div>
-              </CardContent>
-              <CardFooter className="pt-0 flex justify-between items-center">
-                <div className="text-2xl font-bold text-primary">{formatPrice(exp.price_b2c)}<span className="text-xs font-normal text-muted-foreground">/persona</span></div>
-                <Button variant="default" size="sm">Scopri <ChevronRight className="w-4 h-4 ml-1" /></Button>
-              </CardFooter>
+              <div className="relative h-52 overflow-hidden"><img src={exp.image_url} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div></div>
+              <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle><CardDescription className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" />{exp.meeting_point}</CardDescription></CardHeader>
+              <CardContent className="pb-2"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span><span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span></div></CardContent>
+              <CardFooter className="pt-0 flex justify-between items-center"><div className="text-2xl font-bold text-primary">{fmtPrice(exp.price_b2c)}<span className="text-xs font-normal text-muted-foreground">/persona</span></div><Button size="sm">Scopri <ChevronRight className="w-4 h-4 ml-1" /></Button></CardFooter>
             </Card>
           ))}
         </div>
@@ -302,133 +182,94 @@ function CatalogPage({ setView, experiences }) {
   );
 }
 
-// ============ EXPERIENCE DETAIL ============
+// ============ EXPERIENCE DETAIL (with waitlist) ============
 function ExperienceDetail({ experience, setView }) {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resources, setResources] = useState([]);
+  const [showWaitlist, setShowWaitlist] = useState(null);
+  const [wlForm, setWlForm] = useState({ name: '', email: '', phone: '', seats: 1 });
 
   useEffect(() => {
     if (!experience) return;
     setLoading(true);
-    Promise.all([
-      api(`slots?experience_id=${experience.id}&date_from=${new Date().toISOString()}`),
-      api('resources'),
-    ]).then(([s, r]) => {
+    Promise.all([api(`slots?experience_id=${experience.id}&date_from=${new Date().toISOString()}`), api('resources')]).then(([s, r]) => {
       setSlots(Array.isArray(s) ? s.filter(sl => sl.status !== 'CANCELLED' && new Date(sl.start_datetime) > new Date()) : []);
       setResources(Array.isArray(r) ? r : []);
       setLoading(false);
     });
   }, [experience]);
 
+  const joinWaitlist = async (slotId) => {
+    const res = await api('waitlist', { method: 'POST', body: { slot_id: slotId, experience_id: experience.id, experience_name: experience.name, customer_name: wlForm.name, customer_email: wlForm.email, customer_phone: wlForm.phone, seats_requested: wlForm.seats } });
+    if (res.error) { toast.error(res.error); return; }
+    toast.success('Aggiunto alla lista d\'attesa! Ti contatteremo quando si libera un posto.');
+    setShowWaitlist(null);
+    setWlForm({ name: '', email: '', phone: '', seats: 1 });
+  };
+
   if (!experience) return null;
-  const assignedResources = resources.filter(r => (experience.resource_ids || []).includes(r.id));
+  const assigned = resources.filter(r => (experience.resource_ids||[]).includes(r.id));
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <button onClick={() => setView('catalog')} className="flex items-center gap-2 text-primary hover:underline mb-6 font-medium">
-        <ArrowLeft className="w-4 h-4" />Torna alle Esperienze
-      </button>
+      <button onClick={() => setView('catalog')} className="flex items-center gap-2 text-primary hover:underline mb-6 font-medium"><ArrowLeft className="w-4 h-4" />Torna alle Esperienze</button>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="relative rounded-2xl overflow-hidden h-[400px]">
-            <img src={experience.image_url} alt={experience.name} className="w-full h-full object-cover" />
-            <div className="absolute top-4 left-4"><TypeBadge type={experience.type} /></div>
-          </div>
+          <div className="relative rounded-2xl overflow-hidden h-[400px]"><img src={experience.image_url} alt={experience.name} className="w-full h-full object-cover" /><div className="absolute top-4 left-4"><TypeBadge type={experience.type} /></div></div>
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-3">{experience.name}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
               <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary" />{experience.meeting_point}</span>
               <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-primary" />{Math.floor(experience.duration_minutes/60)}h{experience.duration_minutes%60>0?` ${experience.duration_minutes%60}m`:''}</span>
-              <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-primary" />Max {experience.max_capacity} persone</span>
-              <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-primary" />{(experience.languages||[]).map(l => LANG_MAP[l]||l).join(', ')}</span>
+              <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-primary" />Max {experience.max_capacity}</span>
+              <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-primary" />{(experience.languages||[]).map(l=>LANG_MAP[l]||l).join(', ')}</span>
             </div>
             <p className="text-foreground/80 leading-relaxed mb-6">{experience.description}</p>
-
-            {/* Itinerary */}
             {experience.itinerary_stops?.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><Navigation className="w-5 h-5 text-primary" />Itinerario</h3>
-                <div className="relative pl-6">
-                  <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-primary/20" />
-                  {experience.itinerary_stops.map((stop, i) => (
-                    <div key={i} className="relative mb-3 last:mb-0">
-                      <div className={`absolute -left-3.5 w-3 h-3 rounded-full border-2 ${i===0||i===experience.itinerary_stops.length-1 ? 'bg-primary border-primary' : 'bg-white border-primary/50'}`} />
-                      <p className="text-sm ml-2">{stop}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="mb-6"><h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><Navigation className="w-5 h-5 text-primary" />Itinerario</h3>
+                <div className="relative pl-6"><div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-primary/20" />{experience.itinerary_stops.map((s,i)=>(<div key={i} className="relative mb-3 last:mb-0"><div className={`absolute -left-3.5 w-3 h-3 rounded-full border-2 ${i===0||i===experience.itinerary_stops.length-1?'bg-primary border-primary':'bg-white border-primary/50'}`}/><p className="text-sm ml-2">{s}</p></div>))}</div>
               </div>
             )}
-
-            {/* Resources */}
-            {assignedResources.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold mb-3">Risorse Assegnate</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {assignedResources.map(r => (
-                    <div key={r.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${r.type === 'GUIDE' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
-                        {r.type === 'GUIDE' ? <User className="w-5 h-5" /> : <Ship className="w-5 h-5" />}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{r.name}</p>
-                        <p className="text-xs text-muted-foreground">{r.type === 'GUIDE' ? 'Guida' : (BOAT_TYPE_LABELS[r.boat_type]||'Imbarcazione')}{r.capacity ? ` - ${r.capacity} posti` : ''}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {assigned.length > 0 && (
+              <div className="mb-6"><h3 className="text-xl font-semibold mb-3">Risorse Assegnate</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{assigned.map(r=>(<div key={r.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg"><div className={`w-10 h-10 rounded-full flex items-center justify-center ${r.type==='GUIDE'?'bg-emerald-100 text-emerald-700':'bg-sky-100 text-sky-700'}`}>{r.type==='GUIDE'?<User className="w-5 h-5"/>:<Ship className="w-5 h-5"/>}</div><div><p className="font-medium text-sm">{r.name}</p><p className="text-xs text-muted-foreground">{r.type==='GUIDE'?'Guida':(BOAT_TYPE_LABELS[r.boat_type]||'Imbarcazione')}{r.capacity?` - ${r.capacity} posti`:''}</p></div></div>))}</div>
               </div>
             )}
-
-            {/* Cancellation */}
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-medium text-sm mb-1">Politica di Cancellazione</h4>
-              <p className="text-sm text-muted-foreground">{experience.cancellation_policy}</p>
-            </div>
           </div>
         </div>
-
-        {/* Sidebar - Slots */}
         <div className="space-y-4">
           <Card className="sticky top-20">
-            <CardHeader>
-              <div className="flex items-baseline justify-between">
-                <CardTitle className="text-2xl">{formatPrice(experience.price_b2c)}</CardTitle>
-                <span className="text-sm text-muted-foreground">per persona</span>
-              </div>
-              <CardDescription>Scegli una data disponibile</CardDescription>
-            </CardHeader>
+            <CardHeader><div className="flex items-baseline justify-between"><CardTitle className="text-2xl">{fmtPrice(experience.price_b2c)}</CardTitle><span className="text-sm text-muted-foreground">per persona</span></div><CardDescription>Scegli una data disponibile</CardDescription></CardHeader>
             <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
-              {loading ? (
-                <div className="text-center py-8"><RefreshCw className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>
-              ) : slots.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Nessuna data disponibile al momento.</p>
-              ) : (
-                slots.map(slot => {
-                  const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats || 0);
-                  const isFull = avail <= 0;
-                  return (
-                    <div key={slot.id} className={`p-3 rounded-lg border ${isFull ? 'bg-red-50/50 border-red-100' : 'hover:border-primary/50 hover:bg-primary/5 cursor-pointer'} transition`}
-                      onClick={() => !isFull && setView('booking', { experience, slot })}>
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-medium text-sm capitalize">{formatDate(slot.start_datetime)}</p>
-                          <p className="text-xs text-muted-foreground">{formatTime(slot.start_datetime)} - {formatTime(slot.end_datetime)}</p>
-                        </div>
-                        {isFull ? <Badge variant="destructive" className="text-xs">Completo</Badge> : <Badge variant="secondary" className="text-xs">{avail} posti</Badge>}
-                      </div>
-                      <AvailabilityBar booked={slot.booked_seats + (slot.blocked_seats || 0)} max={slot.max_seats} />
-                      {!isFull && <Button size="sm" className="w-full mt-2">Prenota Ora</Button>}
-                    </div>
-                  );
-                })
-              )}
+              {loading ? <div className="text-center py-8"><RefreshCw className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div> : slots.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">Nessuna data disponibile.</p> : slots.map(slot => {
+                const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats||0);
+                const isFull = avail <= 0;
+                return (
+                  <div key={slot.id} className={`p-3 rounded-lg border ${isFull ? 'bg-red-50/50 border-red-100' : 'hover:border-primary/50 hover:bg-primary/5 cursor-pointer'} transition`} onClick={() => !isFull && setView('booking', { experience, slot })}>
+                    <div className="flex justify-between items-start mb-2"><div><p className="font-medium text-sm capitalize">{fmtDate(slot.start_datetime)}</p><p className="text-xs text-muted-foreground">{fmtTime(slot.start_datetime)} - {fmtTime(slot.end_datetime)}</p></div>{isFull ? <Badge variant="destructive" className="text-xs">Completo</Badge> : <Badge variant="secondary" className="text-xs">{avail} posti</Badge>}</div>
+                    <AvailabilityBar booked={slot.booked_seats+(slot.blocked_seats||0)} max={slot.max_seats} />
+                    {isFull ? <Button size="sm" variant="outline" className="w-full mt-2 text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100" onClick={(e) => { e.stopPropagation(); setShowWaitlist(slot.id); }}><Bell className="w-4 h-4 mr-1" />Lista d'Attesa</Button> : <Button size="sm" className="w-full mt-2">Prenota Ora</Button>}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </div>
       </div>
+      {/* Waitlist Dialog */}
+      <Dialog open={!!showWaitlist} onOpenChange={() => setShowWaitlist(null)}>
+        <DialogContent><DialogHeader><DialogTitle>Lista d'Attesa</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground mb-4">Inserisci i tuoi dati. Ti contatteremo quando si libera un posto (hai 30 minuti per confermare).</p>
+          <div className="space-y-3">
+            <div><Label>Nome</Label><Input value={wlForm.name} onChange={e=>setWlForm({...wlForm,name:e.target.value})} placeholder="Mario Rossi" /></div>
+            <div><Label>Email</Label><Input type="email" value={wlForm.email} onChange={e=>setWlForm({...wlForm,email:e.target.value})} placeholder="mario@email.com" /></div>
+            <div><Label>Telefono</Label><Input value={wlForm.phone} onChange={e=>setWlForm({...wlForm,phone:e.target.value})} placeholder="+39 333 1234567" /></div>
+            <div><Label>Posti richiesti</Label><Input type="number" min="1" max="10" value={wlForm.seats} onChange={e=>setWlForm({...wlForm,seats:parseInt(e.target.value)||1})} /></div>
+            <Button className="w-full" onClick={() => joinWaitlist(showWaitlist)}><Bell className="w-4 h-4 mr-2" />Iscriviti alla Lista d'Attesa</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -445,76 +286,34 @@ function BookingWizard({ experience, slot, setView }) {
   const [bookingResult, setBookingResult] = useState(null);
 
   if (!experience || !slot) return null;
-  const maxAvail = slot.max_seats - slot.booked_seats - (slot.blocked_seats || 0);
+  const maxAvail = slot.max_seats - slot.booked_seats - (slot.blocked_seats||0);
   const pricePerSeat = slot.price_override || experience.price_b2c;
   const subtotal = pricePerSeat * seats;
   const discount = voucherResult?.valid ? (voucherResult.voucher.type === 'PERCENTAGE' ? (subtotal * voucherResult.voucher.value / 100) : Math.min(voucherResult.voucher.value, subtotal)) : 0;
   const total = subtotal - discount;
 
-  const validateVoucher = async () => {
-    if (!voucherCode.trim()) return;
-    const res = await api('vouchers/validate', { method: 'POST', body: { code: voucherCode } });
-    setVoucherResult(res);
-    if (res.valid) toast.success('Voucher applicato!');
-    else toast.error(res.error || 'Voucher non valido');
-  };
+  const validateVoucher = async () => { if (!voucherCode.trim()) return; const res = await api('vouchers/validate', { method: 'POST', body: { code: voucherCode } }); setVoucherResult(res); if (res.valid) toast.success('Voucher applicato!'); else toast.error(res.error || 'Voucher non valido'); };
 
   const handleBook = async () => {
     setLoading(true);
     try {
-      const res = await api('bookings', {
-        method: 'POST',
-        body: {
-          slot_id: slot.id, experience_id: experience.id, customer_name: form.name,
-          customer_email: form.email, customer_phone: form.phone, seats,
-          total_amount: subtotal, voucher_code: voucherResult?.valid ? voucherCode : null,
-          special_requests: form.special_requests, participants,
-        }
-      });
+      const res = await api('bookings', { method: 'POST', body: { slot_id: slot.id, experience_id: experience.id, customer_name: form.name, customer_email: form.email, customer_phone: form.phone, seats, total_amount: subtotal, voucher_code: voucherResult?.valid ? voucherCode : null, special_requests: form.special_requests, participants } });
       if (res.error) { toast.error(res.error); setLoading(false); return; }
-      setBookingResult(res);
-      setStep(5);
-      toast.success('Prenotazione confermata!');
-    } catch (e) { toast.error('Errore nella prenotazione'); }
+      setBookingResult(res); setStep(5); toast.success('Prenotazione confermata!');
+    } catch { toast.error('Errore nella prenotazione'); }
     setLoading(false);
   };
 
-  // Step 5: Confirmation
   if (step === 5 && bookingResult) {
     return (
       <div className="container mx-auto px-4 py-12 max-w-2xl">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-10 h-10 text-green-600" />
-          </div>
-          <h1 className="text-3xl font-bold mb-2">Prenotazione Confermata!</h1>
-          <p className="text-muted-foreground">La tua avventura in Sardegna ti aspetta</p>
-        </div>
+        <div className="text-center mb-8"><div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle2 className="w-10 h-10 text-green-600" /></div><h1 className="text-3xl font-bold mb-2">Prenotazione Confermata!</h1></div>
         <Card className="shadow-lg">
-          <CardHeader className="bg-primary/5">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm text-muted-foreground">Codice prenotazione</p>
-                <p className="text-2xl font-bold font-mono text-primary">{bookingResult.booking_ref}</p>
-              </div>
-              <StatusBadge status={bookingResult.status} />
-            </div>
-          </CardHeader>
+          <CardHeader className="bg-primary/5"><div className="flex justify-between items-center"><div><p className="text-sm text-muted-foreground">Codice prenotazione</p><p className="text-2xl font-bold font-mono text-primary">{bookingResult.booking_ref}</p></div><StatusBadge status={bookingResult.status} /></div></CardHeader>
           <CardContent className="pt-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><p className="text-muted-foreground">Esperienza</p><p className="font-medium">{experience.name}</p></div>
-              <div><p className="text-muted-foreground">Data</p><p className="font-medium capitalize">{formatDateTime(slot.start_datetime)}</p></div>
-              <div><p className="text-muted-foreground">Posti</p><p className="font-medium">{bookingResult.seats} {bookingResult.seats === 1 ? 'persona' : 'persone'}</p></div>
-              <div><p className="text-muted-foreground">Totale Pagato</p><p className="font-medium text-primary">{formatPrice(bookingResult.total_amount)}</p></div>
-              <div><p className="text-muted-foreground">Punto d'incontro</p><p className="font-medium">{experience.meeting_point}</p></div>
-              <div><p className="text-muted-foreground">Pagamento</p><p className="font-medium">Confermato (MOCK)</p></div>
-            </div>
-            {bookingResult.discount > 0 && <p className="text-sm text-green-600">Sconto applicato: -{formatPrice(bookingResult.discount)}</p>}
+            <div className="grid grid-cols-2 gap-4 text-sm"><div><p className="text-muted-foreground">Esperienza</p><p className="font-medium">{experience.name}</p></div><div><p className="text-muted-foreground">Data</p><p className="font-medium capitalize">{fmtDateTime(slot.start_datetime)}</p></div><div><p className="text-muted-foreground">Posti</p><p className="font-medium">{bookingResult.seats}</p></div><div><p className="text-muted-foreground">Totale</p><p className="font-medium text-primary">{fmtPrice(bookingResult.total_amount)}</p></div></div>
           </CardContent>
-          <CardFooter className="flex gap-3">
-            <Button onClick={() => setView('catalog')} className="flex-1">Torna alle Esperienze</Button>
-            <Button variant="outline" onClick={() => setView('home')}>Home</Button>
-          </CardFooter>
+          <CardFooter className="flex gap-3"><Button onClick={() => setView('catalog')} className="flex-1">Torna alle Esperienze</Button><Button variant="outline" onClick={() => setView('home')}>Home</Button></CardFooter>
         </Card>
       </div>
     );
@@ -522,159 +321,366 @@ function BookingWizard({ experience, slot, setView }) {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <button onClick={() => setView('detail', { experience })} className="flex items-center gap-2 text-primary hover:underline mb-6 font-medium">
-        <ArrowLeft className="w-4 h-4" />Torna ai dettagli
-      </button>
-
-      {/* Stepper */}
+      <button onClick={() => setView('detail', { experience })} className="flex items-center gap-2 text-primary hover:underline mb-6 font-medium"><ArrowLeft className="w-4 h-4" />Torna ai dettagli</button>
       <div className="flex items-center mb-8">
-        {['Posti', 'Dati', 'Voucher', 'Pagamento'].map((label, i) => (
-          <div key={i} className="flex-1 flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-              step > i + 1 ? 'bg-green-500 text-white' : step === i + 1 ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
-            }`}>{step > i + 1 ? <CheckCircle2 className="w-4 h-4" /> : i + 1}</div>
-            <span className={`ml-2 text-sm hidden sm:inline ${step === i + 1 ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>{label}</span>
-            {i < 3 && <div className={`flex-1 h-0.5 mx-3 ${step > i + 1 ? 'bg-green-500' : 'bg-muted'}`} />}
-          </div>
+        {['Posti','Dati','Voucher','Pagamento'].map((label,i) => (
+          <div key={i} className="flex-1 flex items-center"><div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step>i+1?'bg-green-500 text-white':step===i+1?'bg-primary text-white':'bg-muted text-muted-foreground'}`}>{step>i+1?<CheckCircle2 className="w-4 h-4"/>:i+1}</div><span className={`ml-2 text-sm hidden sm:inline ${step===i+1?'font-semibold text-primary':'text-muted-foreground'}`}>{label}</span>{i<3&&<div className={`flex-1 h-0.5 mx-3 ${step>i+1?'bg-green-500':'bg-muted'}`}/>}</div>
         ))}
       </div>
-
       <Card className="shadow-lg">
-        {/* Booking summary header */}
-        <CardHeader className="bg-muted/50 border-b">
-          <div className="flex gap-4 items-center">
-            <img src={experience.image_url} alt="" className="w-16 h-16 rounded-lg object-cover" />
-            <div className="flex-1">
-              <CardTitle className="text-base">{experience.name}</CardTitle>
-              <p className="text-sm text-muted-foreground capitalize">{formatDateTime(slot.start_datetime)}</p>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-primary text-lg">{formatPrice(pricePerSeat)}</p>
-              <p className="text-xs text-muted-foreground">per persona</p>
-            </div>
-          </div>
-        </CardHeader>
-
+        <CardHeader className="bg-muted/50 border-b"><div className="flex gap-4 items-center"><img src={experience.image_url} alt="" className="w-16 h-16 rounded-lg object-cover" /><div className="flex-1"><CardTitle className="text-base">{experience.name}</CardTitle><p className="text-sm text-muted-foreground capitalize">{fmtDateTime(slot.start_datetime)}</p></div><div className="text-right"><p className="font-bold text-primary text-lg">{fmtPrice(pricePerSeat)}</p><p className="text-xs text-muted-foreground">per persona</p></div></div></CardHeader>
         <CardContent className="pt-6">
-          {/* Step 1: Seats */}
-          {step === 1 && (
-            <div className="space-y-6">
-              <div>
-                <Label className="text-base font-semibold">Numero di Partecipanti</Label>
-                <p className="text-sm text-muted-foreground mb-3">Massimo {maxAvail} posti disponibili</p>
-                <div className="flex items-center gap-4">
-                  <Button variant="outline" size="icon" onClick={() => setSeats(Math.max(1, seats - 1))} disabled={seats <= 1}>-</Button>
-                  <span className="text-2xl font-bold w-12 text-center">{seats}</span>
-                  <Button variant="outline" size="icon" onClick={() => setSeats(Math.min(maxAvail, seats + 1))} disabled={seats >= maxAvail}>+</Button>
-                </div>
-              </div>
-              <Separator />
-              <div className="flex justify-between text-lg">
-                <span>Totale provvisorio</span>
-                <span className="font-bold text-primary">{formatPrice(subtotal)}</span>
-              </div>
-            </div>
-          )}
+          {step===1&&(<div className="space-y-6"><div><Label className="text-base font-semibold">Numero di Partecipanti</Label><p className="text-sm text-muted-foreground mb-3">Max {maxAvail} posti</p><div className="flex items-center gap-4"><Button variant="outline" size="icon" onClick={()=>setSeats(Math.max(1,seats-1))} disabled={seats<=1}>-</Button><span className="text-2xl font-bold w-12 text-center">{seats}</span><Button variant="outline" size="icon" onClick={()=>setSeats(Math.min(maxAvail,seats+1))} disabled={seats>=maxAvail}>+</Button></div></div><Separator /><div className="flex justify-between text-lg"><span>Totale provvisorio</span><span className="font-bold text-primary">{fmtPrice(subtotal)}</span></div></div>)}
+          {step===2&&(<div className="space-y-6"><div><h3 className="font-semibold mb-4">Dati del Referente</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><Label>Nome *</Label><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Mario Rossi"/></div><div><Label>Email *</Label><Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="mario@email.com"/></div><div><Label>Telefono *</Label><Input type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="+39 333 1234567"/></div></div></div>{seats>1&&<div><h3 className="font-semibold mb-3">Altri Partecipanti</h3>{Array.from({length:seats-1}).map((_,i)=>(<Input key={i} className="mb-2" placeholder={`Partecipante ${i+2}`} value={participants[i]?.name||''} onChange={e=>{const p=[...participants];p[i]={...p[i],name:e.target.value};setParticipants(p);}}/>))}</div>}<div><Label>Richieste Speciali</Label><Textarea value={form.special_requests} onChange={e=>setForm({...form,special_requests:e.target.value})} placeholder="Allergie, esigenze..."/></div></div>)}
+          {step===3&&(<div className="space-y-6"><div><h3 className="font-semibold mb-2">Hai un Codice Sconto?</h3><div className="flex gap-3"><Input value={voucherCode} onChange={e=>setVoucherCode(e.target.value.toUpperCase())} placeholder="ES: BENVENUTO10" className="font-mono"/><Button onClick={validateVoucher} variant="secondary"><Tag className="w-4 h-4 mr-2"/>Applica</Button></div>{voucherResult&&<div className={`mt-3 p-3 rounded-lg text-sm ${voucherResult.valid?'bg-green-50 text-green-800 border border-green-200':'bg-red-50 text-red-800 border border-red-200'}`}>{voucherResult.valid?<p><CheckCircle2 className="w-4 h-4 inline mr-1"/>Risparmi {fmtPrice(discount)}</p>:<p>{voucherResult.error}</p>}</div>}</div><Separator /><div className="space-y-2"><div className="flex justify-between"><span>Subtotale ({seats} pers.)</span><span>{fmtPrice(subtotal)}</span></div>{discount>0&&<div className="flex justify-between text-green-600"><span>Sconto</span><span>-{fmtPrice(discount)}</span></div>}<Separator /><div className="flex justify-between text-lg font-bold"><span>Totale</span><span className="text-primary">{fmtPrice(total)}</span></div></div></div>)}
+          {step===4&&(<div className="space-y-6"><div className="p-4 bg-amber-50 border border-amber-200 rounded-lg"><p className="text-sm text-amber-800 font-medium"><CreditCard className="w-4 h-4 inline mr-2"/>Pagamento Simulato (MOCK)</p></div><div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg text-sm"><div><p className="text-muted-foreground">Esperienza</p><p className="font-medium">{experience.name}</p></div><div><p className="text-muted-foreground">Data</p><p className="font-medium capitalize">{fmtDateTime(slot.start_datetime)}</p></div><div><p className="text-muted-foreground">Partecipanti</p><p className="font-medium">{seats}</p></div><div><p className="text-muted-foreground">Referente</p><p className="font-medium">{form.name}</p></div></div><div className="space-y-1"><div className="flex justify-between"><span>Subtotale</span><span>{fmtPrice(subtotal)}</span></div>{discount>0&&<div className="flex justify-between text-green-600"><span>Sconto</span><span>-{fmtPrice(discount)}</span></div>}<div className="flex justify-between text-xl font-bold pt-2 border-t"><span>Totale</span><span className="text-primary">{fmtPrice(total)}</span></div></div></div>)}
+        </CardContent>
+        <CardFooter className="flex justify-between border-t pt-6">
+          <Button variant="outline" onClick={()=>step===1?setView('detail',{experience}):setStep(step-1)}><ArrowLeft className="w-4 h-4 mr-2"/>{step===1?'Indietro':'Precedente'}</Button>
+          {step<4?<Button onClick={()=>{if(step===2&&(!form.name||!form.email||!form.phone)){toast.error('Compila tutti i campi');return;}setStep(step+1);}}>Continua <ChevronRight className="w-4 h-4 ml-2"/></Button>:<Button onClick={handleBook} disabled={loading} className="bg-green-600 hover:bg-green-700">{loading?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:<CreditCard className="w-4 h-4 mr-2"/>}Conferma e Paga {fmtPrice(total)}</Button>}
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
 
-          {/* Step 2: Participant Data */}
-          {step === 2 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-semibold mb-4">Dati del Referente</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div><Label>Nome Completo *</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Mario Rossi" /></div>
-                  <div><Label>Email *</Label><Input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="mario@email.com" /></div>
-                  <div><Label>Telefono *</Label><Input type="tel" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="+39 333 1234567" /></div>
-                </div>
-              </div>
-              {seats > 1 && (
-                <div>
-                  <h3 className="font-semibold mb-3">Altri Partecipanti</h3>
-                  {Array.from({ length: seats - 1 }).map((_, i) => (
-                    <div key={i} className="flex gap-3 mb-2">
-                      <Input placeholder={`Nome partecipante ${i + 2}`} value={participants[i]?.name || ''}
-                        onChange={e => { const p = [...participants]; p[i] = { ...p[i], name: e.target.value }; setParticipants(p); }} />
+// ============ RESOURCE BOOKINGS WITH SEAT ASSIGNMENT ============
+function ResourceBookingsList({ resource, bookings, onUpdate }) {
+  const [seatEdits, setSeatEdits] = useState({});
+  
+  useEffect(() => {
+    const initial = {};
+    bookings.forEach(b => {
+      initial[b.id] = b.seat_assignments || [];
+    });
+    setSeatEdits(initial);
+  }, [bookings]);
+
+  const updateSeatAssignment = async (bookingId) => {
+    const assignments = seatEdits[bookingId] || [];
+    const res = await api(`bookings/${bookingId}`, { 
+      method: 'PUT', 
+      body: { action: 'update_details', seat_assignments: assignments } 
+    });
+    if (res.error) toast.error(res.error);
+    else { toast.success('Posti assegnati!'); onUpdate(); }
+  };
+
+  const handleSeatChange = (bookingId, index, value) => {
+    setSeatEdits(prev => {
+      const current = [...(prev[bookingId] || [])];
+      current[index] = value;
+      return { ...prev, [bookingId]: current };
+    });
+  };
+
+  const autoAssignSeats = (booking) => {
+    const assignments = [];
+    let nextSeat = 1;
+    // Find highest assigned seat number
+    Object.values(seatEdits).forEach(seats => {
+      seats.forEach(s => {
+        const num = parseInt(s);
+        if (!isNaN(num) && num >= nextSeat) nextSeat = num + 1;
+      });
+    });
+    for (let i = 0; i < booking.seats; i++) {
+      assignments.push(`Posto ${nextSeat + i}`);
+    }
+    setSeatEdits(prev => ({ ...prev, [booking.id]: assignments }));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <Ship className="w-5 h-5 text-blue-600" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-blue-900">Imbarcazione con Conducente</p>
+          <p className="text-xs text-blue-700">Assegna numeri di posto per ogni prenotazione su questa risorsa</p>
+        </div>
+      </div>
+      
+      {bookings.length === 0 ? (
+        <p className="text-center py-8 text-muted-foreground">Nessuna prenotazione attiva per questa risorsa.</p>
+      ) : (
+        <div className="space-y-3">
+          {bookings.map(b => (
+            <Card key={b.id} className="overflow-hidden">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold">{b.customer_name}</h4>
+                      <StatusBadge status={b.status} />
                     </div>
-                  ))}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {b.booking_ref} | {b.experience_name} | {fmtDateTime(b.slot_datetime || b.created_at)}
+                    </p>
+                    <p className="text-sm mt-1">
+                      <span className="font-medium">{b.seats} {b.seats === 1 ? 'posto' : 'posti'}</span> | {fmtPrice(b.total_amount)}
+                    </p>
+                  </div>
                 </div>
-              )}
-              <div><Label>Richieste Speciali</Label><Textarea value={form.special_requests} onChange={e => setForm({...form, special_requests: e.target.value})} placeholder="Allergie, esigenze particolari..." /></div>
-            </div>
-          )}
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Assegnazione Posti</Label>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-7 text-xs"
+                      onClick={() => autoAssignSeats(b)}
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      Auto-assegna
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Array.from({ length: b.seats }).map((_, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground w-16">Passeggero {idx + 1}</Label>
+                        <Input
+                          placeholder={`Posto ${idx + 1}`}
+                          value={(seatEdits[b.id] || [])[idx] || ''}
+                          onChange={(e) => handleSeatChange(b.id, idx, e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <Button 
+                    className="w-full mt-2" 
+                    size="sm"
+                    onClick={() => updateSeatAssignment(b.id)}
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                    Salva Assegnazioni
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
-          {/* Step 3: Voucher */}
-          {step === 3 && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-semibold mb-2">Hai un Codice Sconto?</h3>
-                <p className="text-sm text-muted-foreground mb-4">Inserisci il codice voucher o coupon per ottenere uno sconto.</p>
-                <div className="flex gap-3">
-                  <Input value={voucherCode} onChange={e => setVoucherCode(e.target.value.toUpperCase())} placeholder="ES: BENVENUTO10" className="font-mono" />
-                  <Button onClick={validateVoucher} variant="secondary"><Tag className="w-4 h-4 mr-2" />Applica</Button>
-                </div>
-                {voucherResult && (
-                  <div className={`mt-3 p-3 rounded-lg text-sm ${voucherResult.valid ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-                    {voucherResult.valid ? (
-                      <p><CheckCircle2 className="w-4 h-4 inline mr-1" />Sconto {voucherResult.voucher.type === 'PERCENTAGE' ? `${voucherResult.voucher.value}%` : formatPrice(voucherResult.voucher.value)} applicato! Risparmi {formatPrice(discount)}</p>
-                    ) : <p>{voucherResult.error}</p>}
+// ============ GANTT CALENDAR ============
+function GanttCalendar({ resources, allSlots, allBookings, experiences, onRefresh }) {
+  const [weekOff, setWeekOff] = useState(0);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [slotBookings, setSlotBookings] = useState([]);
+  const [editBk, setEditBk] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [dragInfo, setDragInfo] = useState(null);
+
+  const weekStart = useMemo(() => {
+    const s = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return addDays(s, weekOff * 7);
+  }, [weekOff]);
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+
+  const getResourceDaySlots = (resId, day) => {
+    const ds = format(day, 'yyyy-MM-dd');
+    return (allSlots || []).filter(s => {
+      const sd = (s.start_datetime || '').split('T')[0];
+      return sd === ds && (s.resource_ids || []).includes(resId);
+    });
+  };
+  const getSlotBookings = (slotId) => (allBookings || []).filter(b => b.slot_id === slotId && b.status !== 'CANCELLED');
+  const getExpName = (eid) => (experiences || []).find(e => e.id === eid)?.name || 'N/A';
+  const getExpType = (eid) => (experiences || []).find(e => e.id === eid)?.type || '';
+
+  const handleDragStart = (e, booking, slot) => {
+    const data = JSON.stringify({ bookingId: booking.id, slotId: slot.id, expId: slot.experience_id });
+    e.dataTransfer.setData('text/plain', data);
+    e.dataTransfer.effectAllowed = 'move';
+    setDragInfo({ bookingId: booking.id, slotId: slot.id });
+  };
+
+  const handleDrop = async (e, targetDay, targetResId) => {
+    e.preventDefault();
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const sourceSlot = allSlots.find(s => s.id === data.slotId);
+      if (!sourceSlot) return;
+      const targetDs = format(targetDay, 'yyyy-MM-dd');
+      let targetSlot = allSlots.find(s => {
+        const sd = (s.start_datetime || '').split('T')[0];
+        return sd === targetDs && s.experience_id === sourceSlot.experience_id && (s.resource_ids || []).includes(targetResId) && s.id !== data.slotId;
+      });
+      if (!targetSlot) {
+        const srcTime = (sourceSlot.start_datetime || '').split('T')[1];
+        const srcEndTime = (sourceSlot.end_datetime || '').split('T')[1];
+        const created = await api('slots', { method: 'POST', body: { experience_id: sourceSlot.experience_id, resource_ids: sourceSlot.resource_ids, start_datetime: `${targetDs}T${srcTime}`, end_datetime: `${targetDs}T${srcEndTime}`, max_seats: sourceSlot.max_seats } });
+        if (created.error) { toast.error(created.error); return; }
+        targetSlot = created;
+      }
+      const res = await api(`bookings/${data.bookingId}`, { method: 'PUT', body: { action: 'reassign', new_slot_id: targetSlot.id } });
+      if (res.error) toast.error(res.error);
+      else { toast.success('Prenotazione riassegnata!'); onRefresh(); }
+    } catch (err) { console.error(err); }
+    setDragInfo(null);
+  };
+
+  const openSlotDetail = (slot) => { setSlotBookings(getSlotBookings(slot.id)); setSelectedSlot(slot); };
+
+  const saveBookingEdit = async () => {
+    if (!editBk) return;
+    const res = await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'update_details', ...editForm } });
+    if (res.error) toast.error(res.error);
+    else { toast.success('Prenotazione aggiornata!'); setEditBk(null); onRefresh(); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Button variant="outline" size="sm" onClick={() => setWeekOff(w => w - 1)}><ChevronLeft className="w-4 h-4 mr-1" />Sett. Prec.</Button>
+        <div className="text-center"><h3 className="text-lg font-semibold capitalize">{format(weekDays[0], 'd MMM', { locale: it })} - {format(weekDays[6], 'd MMM yyyy', { locale: it })}</h3><button className="text-xs text-primary hover:underline" onClick={() => setWeekOff(0)}>Oggi</button></div>
+        <Button variant="outline" size="sm" onClick={() => setWeekOff(w => w + 1)}>Sett. Succ.<ChevronRight className="w-4 h-4 ml-1" /></Button>
+      </div>
+
+      <div className="overflow-x-auto border rounded-xl shadow-sm bg-white">
+        <div className="min-w-[900px]">
+          <div className="grid border-b" style={{ gridTemplateColumns: '160px repeat(7, 1fr)' }}>
+            <div className="p-2.5 font-semibold bg-muted/50 text-sm border-r">Risorsa</div>
+            {weekDays.map((day, i) => (
+              <div key={i} className={`p-2 text-center border-r last:border-r-0 text-sm ${isSameDay(day, new Date()) ? 'bg-primary/10 font-bold' : 'bg-muted/30'}`}>
+                <div className="capitalize text-xs text-muted-foreground">{format(day, 'EEE', { locale: it })}</div>
+                <div className="text-lg font-bold">{format(day, 'd')}</div>
+              </div>
+            ))}
+          </div>
+          {(resources || []).map(res => (
+            <div key={res.id} className="grid border-b last:border-b-0 hover:bg-muted/10" style={{ gridTemplateColumns: '160px repeat(7, 1fr)' }}>
+              <div className="p-2 border-r flex items-center gap-2 bg-white">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${res.type === 'GUIDE' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>{res.type === 'GUIDE' ? 'G' : 'B'}</div>
+                <div className="min-w-0"><p className="font-medium text-xs truncate">{res.name}</p><p className="text-[10px] text-muted-foreground">{res.type === 'GUIDE' ? 'Guida' : (BOAT_TYPE_LABELS[res.boat_type] || 'Barca')}{res.capacity ? ` ${res.capacity}p` : ''}</p></div>
+              </div>
+              {weekDays.map((day, di) => {
+                const daySlots = getResourceDaySlots(res.id, day);
+                return (
+                  <div key={di} className={`p-0.5 border-r last:border-r-0 min-h-[65px] transition-colors ${isSameDay(day, new Date()) ? 'bg-primary/5' : ''} ${dragInfo ? 'hover:bg-blue-50 hover:ring-1 hover:ring-blue-300 hover:ring-inset' : ''}`}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                    onDrop={(e) => handleDrop(e, day, res.id)}>
+                    {daySlots.map(slot => {
+                      const sb = getSlotBookings(slot.id);
+                      const expType = getExpType(slot.experience_id);
+                      const gc = GANTT_COLORS[expType] || 'bg-gray-50 border-gray-300';
+                      return (
+                        <div key={slot.id} className={`p-1 m-0.5 rounded border text-[10px] cursor-pointer ${gc} hover:shadow transition-shadow relative group`} onClick={() => openSlotDetail(slot)}>
+                          <p className="font-semibold truncate leading-tight">{getExpName(slot.experience_id)}</p>
+                          <p className="text-muted-foreground">{fmtTime(slot.start_datetime)}-{fmtTime(slot.end_datetime)}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <div className="flex-1 h-1 bg-white/60 rounded-full"><div className={`h-full rounded-full ${slot.booked_seats >= slot.max_seats ? 'bg-red-500' : slot.booked_seats > 0 ? 'bg-emerald-500' : 'bg-gray-300'}`} style={{ width: `${Math.min((slot.booked_seats / slot.max_seats) * 100, 100)}%` }} /></div>
+                            <span className="font-bold">{slot.booked_seats}/{slot.max_seats}</span>
+                          </div>
+                          {sb.length > 0 && (
+                            <div className="hidden group-hover:block absolute top-0 right-0 p-0.5"><GripVertical className="w-3 h-3 text-muted-foreground" /></div>
+                          )}
+                          {/* Draggable booking indicators */}
+                          {sb.map(bk => (
+                            <div key={bk.id} draggable onDragStart={(e) => handleDragStart(e, bk, slot)} className="mt-0.5 px-1 py-0.5 bg-white/80 rounded text-[9px] cursor-grab active:cursor-grabbing hover:bg-white border border-transparent hover:border-primary/30 truncate">
+                              <GripVertical className="w-2.5 h-2.5 inline mr-0.5 text-muted-foreground" />{bk.customer_name} ({bk.seats}p)
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-sky-100 border border-sky-300" />Escursione</span>
+        <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300" />Visita Guidata</span>
+        <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-100 border border-amber-300" />Noleggio</span>
+        <span className="flex items-center gap-1"><GripVertical className="w-3 h-3" />Trascina per riassegnare</span>
+      </div>
+
+      {/* Slot Detail Dialog */}
+      <Dialog open={!!selectedSlot} onOpenChange={() => setSelectedSlot(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {selectedSlot && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{getExpName(selectedSlot.experience_id)}</DialogTitle>
+                <p className="text-sm text-muted-foreground capitalize">{fmtDateTime(selectedSlot.start_datetime)} | {selectedSlot.booked_seats}/{selectedSlot.max_seats} posti</p>
+              </DialogHeader>
+              <div className="space-y-4">
+                <h4 className="font-semibold flex items-center gap-2"><Users className="w-4 h-4" />Prenotazioni ({slotBookings.length})</h4>
+                {slotBookings.length === 0 ? <p className="text-sm text-muted-foreground py-4 text-center">Nessuna prenotazione.</p> : (
+                  <div className="space-y-2">
+                    {slotBookings.map(b => (
+                      <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/30">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2"><p className="font-medium">{b.customer_name}</p><StatusBadge status={b.status} />{b.checked_in_at && <Badge className="bg-green-100 text-green-800 text-[10px]">Check-in</Badge>}</div>
+                          <p className="text-xs text-muted-foreground">{b.booking_ref} | {b.seats} posti | {fmtPrice(b.total_amount)} | {b.customer_email}</p>
+                          {b.seat_assignments && b.seat_assignments.length > 0 && (
+                            <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                              <Ship className="w-3 h-3" />
+                              Posti: {b.seat_assignments.join(', ')}
+                            </p>
+                          )}
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => { setEditBk(b); setEditForm({ customer_name: b.customer_name, customer_email: b.customer_email, customer_phone: b.customer_phone, special_requests: b.special_requests || '', seats: b.seats, seat_assignments: b.seat_assignments || [] }); }}><Edit className="w-3 h-3 mr-1" />Modifica</Button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-              <Separator />
-              <div className="space-y-2">
-                <div className="flex justify-between"><span>Subtotale ({seats} {seats===1?'persona':'persone'})</span><span>{formatPrice(subtotal)}</span></div>
-                {discount > 0 && <div className="flex justify-between text-green-600"><span>Sconto</span><span>-{formatPrice(discount)}</span></div>}
-                <Separator />
-                <div className="flex justify-between text-lg font-bold"><span>Totale</span><span className="text-primary">{formatPrice(total)}</span></div>
-              </div>
-            </div>
+            </>
           )}
+        </DialogContent>
+      </Dialog>
 
-          {/* Step 4: Payment */}
-          {step === 4 && (
-            <div className="space-y-6">
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800 font-medium"><CreditCard className="w-4 h-4 inline mr-2" />Pagamento Simulato (MOCK)</p>
-                <p className="text-xs text-amber-700 mt-1">In produzione verra integrato Stripe per pagamenti reali.</p>
-              </div>
-              <div className="space-y-3 text-sm">
-                <h3 className="font-semibold text-base">Riepilogo Prenotazione</h3>
-                <div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg">
-                  <div><p className="text-muted-foreground">Esperienza</p><p className="font-medium">{experience.name}</p></div>
-                  <div><p className="text-muted-foreground">Data e Ora</p><p className="font-medium capitalize">{formatDateTime(slot.start_datetime)}</p></div>
-                  <div><p className="text-muted-foreground">Partecipanti</p><p className="font-medium">{seats}</p></div>
-                  <div><p className="text-muted-foreground">Referente</p><p className="font-medium">{form.name}</p></div>
-                  <div><p className="text-muted-foreground">Email</p><p className="font-medium">{form.email}</p></div>
-                  <div><p className="text-muted-foreground">Telefono</p><p className="font-medium">{form.phone}</p></div>
+      {/* Edit Booking Dialog */}
+      <Dialog open={!!editBk} onOpenChange={() => setEditBk(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Modifica Prenotazione {editBk?.booking_ref}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Nome</Label><Input value={editForm.customer_name || ''} onChange={e => setEditForm({ ...editForm, customer_name: e.target.value })} /></div>
+            <div><Label>Email</Label><Input value={editForm.customer_email || ''} onChange={e => setEditForm({ ...editForm, customer_email: e.target.value })} /></div>
+            <div><Label>Telefono</Label><Input value={editForm.customer_phone || ''} onChange={e => setEditForm({ ...editForm, customer_phone: e.target.value })} /></div>
+            <div><Label>Richieste speciali</Label><Textarea value={editForm.special_requests || ''} onChange={e => setEditForm({ ...editForm, special_requests: e.target.value })} /></div>
+            
+            {editBk && editBk.seats > 0 && (
+              <div className="border-t pt-3 space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Ship className="w-4 h-4" />
+                  Assegnazione Posti ({editBk.seats} {editBk.seats === 1 ? 'posto' : 'posti'})
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {Array.from({ length: editBk.seats }).map((_, idx) => (
+                    <Input
+                      key={idx}
+                      placeholder={`Posto ${idx + 1}`}
+                      value={(editForm.seat_assignments || [])[idx] || ''}
+                      onChange={e => {
+                        const newAssignments = [...(editForm.seat_assignments || [])];
+                        newAssignments[idx] = e.target.value;
+                        setEditForm({ ...editForm, seat_assignments: newAssignments });
+                      }}
+                      className="h-8 text-sm"
+                    />
+                  ))}
                 </div>
-                <Separator />
-                <div className="space-y-1">
-                  <div className="flex justify-between"><span>Subtotale</span><span>{formatPrice(subtotal)}</span></div>
-                  {discount > 0 && <div className="flex justify-between text-green-600"><span>Sconto</span><span>-{formatPrice(discount)}</span></div>}
-                  <div className="flex justify-between text-xl font-bold pt-2 border-t"><span>Totale da Pagare</span><span className="text-primary">{formatPrice(total)}</span></div>
-                </div>
               </div>
+            )}
+            
+            <div className="flex gap-2 pt-2">
+              <Button className="flex-1" onClick={saveBookingEdit}>Salva Modifiche</Button>
+              <Button variant="destructive" onClick={async () => { await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'cancel' } }); toast.success('Cancellata'); setEditBk(null); onRefresh(); }}>Cancella</Button>
             </div>
-          )}
-        </CardContent>
-
-        <CardFooter className="flex justify-between border-t pt-6">
-          <Button variant="outline" onClick={() => step === 1 ? setView('detail', { experience }) : setStep(step - 1)}>
-            <ArrowLeft className="w-4 h-4 mr-2" />{step === 1 ? 'Indietro' : 'Precedente'}
-          </Button>
-          {step < 4 ? (
-            <Button onClick={() => {
-              if (step === 2 && (!form.name || !form.email || !form.phone)) { toast.error('Compila tutti i campi obbligatori'); return; }
-              setStep(step + 1);
-            }}>Continua <ChevronRight className="w-4 h-4 ml-2" /></Button>
-          ) : (
-            <Button onClick={handleBook} disabled={loading} className="bg-green-600 hover:bg-green-700">
-              {loading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
-              Conferma e Paga {formatPrice(total)}
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -687,362 +693,442 @@ function AdminDashboard() {
   const [slots, setSlots] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [vouchers, setVouchers] = useState([]);
+  const [agencies, setAgencies] = useState([]);
+  const [waitlist, setWaitlist] = useState([]);
   const [showDialog, setShowDialog] = useState(null);
   const [formData, setFormData] = useState({});
+  const [editRes, setEditRes] = useState(null);
+  const [editResForm, setEditResForm] = useState({});
   const [seeding, setSeeding] = useState(false);
+  const [resBookings, setResBookings] = useState(null);
 
   const load = useCallback(async () => {
-    const [s, e, r, sl, b, v] = await Promise.all([
-      api('stats'), api('experiences?all=true'), api('resources'), api('slots'), api('bookings'), api('vouchers')
+    const [s, e, r, sl, b, v, ag, wl] = await Promise.all([
+      api('stats'), api('experiences?all=true'), api('resources'), api('slots'), api('bookings'), api('vouchers'), api('agencies'), api('waitlist')
     ]);
-    setStats(s || {}); setExps(Array.isArray(e)?e:[]); setResources(Array.isArray(r)?r:[]);
+    setStats(s||{}); setExps(Array.isArray(e)?e:[]); setResources(Array.isArray(r)?r:[]);
     setSlots(Array.isArray(sl)?sl:[]); setBookings(Array.isArray(b)?b:[]); setVouchers(Array.isArray(v)?v:[]);
+    setAgencies(Array.isArray(ag)?ag:[]); setWaitlist(Array.isArray(wl)?wl:[]);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const seedData = async () => {
-    setSeeding(true);
-    await api('seed', { method: 'POST' });
-    toast.success('Dati demo caricati!');
-    await load();
-    setSeeding(false);
-  };
-
-  const createItem = async (endpoint, data) => {
-    await api(endpoint, { method: 'POST', body: data });
-    toast.success('Creato con successo!');
-    setShowDialog(null); setFormData({});
-    await load();
-  };
-
-  const deleteItem = async (endpoint, id) => {
-    if (!confirm('Sei sicuro di voler eliminare?')) return;
-    await api(`${endpoint}/${id}`, { method: 'DELETE' });
-    toast.success('Eliminato!'); await load();
-  };
-
-  const cancelBooking = async (id) => {
-    await api(`bookings/${id}`, { method: 'PUT', body: { action: 'cancel' } });
-    toast.success('Prenotazione cancellata'); await load();
-  };
-
-  const checkinBooking = async (id) => {
-    await api(`bookings/${id}`, { method: 'PUT', body: { action: 'checkin' } });
-    toast.success('Check-in effettuato!'); await load();
-  };
-
+  const seedData = async () => { setSeeding(true); await api('seed', { method: 'POST' }); toast.success('Dati demo caricati!'); await load(); setSeeding(false); };
+  const createItem = async (ep, data) => { await api(ep, { method: 'POST', body: data }); toast.success('Creato!'); setShowDialog(null); setFormData({}); await load(); };
+  const deleteItem = async (ep, id) => { if (!confirm('Eliminare?')) return; await api(`${ep}/${id}`, { method: 'DELETE' }); toast.success('Eliminato!'); await load(); };
+  const cancelBooking = async (id) => { await api(`bookings/${id}`, { method: 'PUT', body: { action: 'cancel' } }); toast.success('Cancellata'); await load(); };
+  const checkinBooking = async (id) => { await api(`bookings/${id}`, { method: 'PUT', body: { action: 'checkin' } }); toast.success('Check-in!'); await load(); };
   const getExpName = (id) => experiences.find(e => e.id === id)?.name || '-';
+
+  const saveResource = async () => {
+    if (!editRes) return;
+    const res = await api(`resources/${editRes.id}`, { method: 'PUT', body: editResForm });
+    if (res.error) toast.error(res.error); else { toast.success('Risorsa aggiornata!'); setEditRes(null); await load(); }
+  };
+
+  const getResourceBookings = (resId) => {
+    const resSlotIds = slots.filter(s => (s.resource_ids || []).includes(resId)).map(s => s.id);
+    return bookings.filter(b => resSlotIds.includes(b.slot_id) && b.status !== 'CANCELLED');
+  };
+
+  const notifyWaitlist = async (id) => {
+    await api(`waitlist/${id}`, { method: 'PUT', body: { action: 'notify' } });
+    toast.success('Notifica inviata!'); await load();
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard Admin</h1>
-          <p className="text-muted-foreground">Gestione completa del booking engine Maretrek</p>
-        </div>
+        <div><h1 className="text-3xl font-bold">Dashboard Admin</h1><p className="text-muted-foreground">Gestione completa del booking engine</p></div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
-          <Button onClick={seedData} disabled={seeding} variant="secondary">
-            {seeding ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}Carica Dati Demo
-          </Button>
+          <Button onClick={seedData} disabled={seeding} variant="secondary">{seeding?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:<Download className="w-4 h-4 mr-2"/>}Dati Demo</Button>
         </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />Panoramica</TabsTrigger>
+          <TabsTrigger value="gantt"><CalIcon className="w-4 h-4 mr-1.5" />Calendario</TabsTrigger>
           <TabsTrigger value="experiences"><Compass className="w-4 h-4 mr-1.5" />Esperienze</TabsTrigger>
           <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />Risorse</TabsTrigger>
           <TabsTrigger value="slots"><CalIcon className="w-4 h-4 mr-1.5" />Slot</TabsTrigger>
           <TabsTrigger value="bookings"><CreditCard className="w-4 h-4 mr-1.5" />Prenotazioni</TabsTrigger>
           <TabsTrigger value="vouchers"><Tag className="w-4 h-4 mr-1.5" />Voucher</TabsTrigger>
+          <TabsTrigger value="waitlist"><ListOrdered className="w-4 h-4 mr-1.5" />Lista Attesa</TabsTrigger>
+          <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />Agenzie</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Prenotazioni', value: stats.total_bookings || 0, icon: CreditCard, color: 'text-blue-600 bg-blue-100' },
-              { label: 'Fatturato', value: formatPrice(stats.total_revenue || 0), icon: BarChart3, color: 'text-green-600 bg-green-100' },
-              { label: 'Esperienze', value: stats.total_experiences || 0, icon: Compass, color: 'text-purple-600 bg-purple-100' },
-              { label: 'Risorse', value: stats.total_resources || 0, icon: Ship, color: 'text-amber-600 bg-amber-100' },
-            ].map((s, i) => (
-              <Card key={i}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{s.label}</p>
-                      <p className="text-2xl font-bold mt-1">{s.value}</p>
-                    </div>
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${s.color}`}>
-                      <s.icon className="w-6 h-6" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            {[{l:'Prenotazioni',v:stats.total_bookings||0,i:CreditCard,c:'text-blue-600 bg-blue-100'},{l:'Fatturato',v:fmtPrice(stats.total_revenue||0),i:BarChart3,c:'text-green-600 bg-green-100'},{l:'Esperienze',v:stats.total_experiences||0,i:Compass,c:'text-purple-600 bg-purple-100'},{l:'Risorse',v:stats.total_resources||0,i:Ship,c:'text-amber-600 bg-amber-100'}].map((s,i)=>(
+              <Card key={i}><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-2xl font-bold mt-1">{s.v}</p></div><div className={`w-12 h-12 rounded-full flex items-center justify-center ${s.c}`}><s.i className="w-6 h-6"/></div></div></CardContent></Card>
             ))}
           </div>
-          {/* Recent bookings */}
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Prenotazioni Recenti</CardTitle></CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b text-left"><th className="pb-2 font-medium">Rif.</th><th className="pb-2 font-medium">Cliente</th><th className="pb-2 font-medium">Esperienza</th><th className="pb-2 font-medium">Posti</th><th className="pb-2 font-medium">Totale</th><th className="pb-2 font-medium">Stato</th></tr></thead>
-                  <tbody>
-                    {(stats.recent_bookings || []).slice(0, 8).map(b => (
-                      <tr key={b.id} className="border-b last:border-0">
-                        <td className="py-2.5 font-mono text-xs">{b.booking_ref}</td>
-                        <td className="py-2.5">{b.customer_name}</td>
-                        <td className="py-2.5">{b.experience_name || getExpName(b.experience_id)}</td>
-                        <td className="py-2.5">{b.seats}</td>
-                        <td className="py-2.5 font-medium">{formatPrice(b.total_amount)}</td>
-                        <td className="py-2.5"><StatusBadge status={b.status} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {(!stats.recent_bookings || stats.recent_bookings.length === 0) && <p className="text-center py-8 text-muted-foreground">Nessuna prenotazione. Carica i dati demo per iniziare!</p>}
-              </div>
-            </CardContent>
-          </Card>
+          <Card><CardHeader><CardTitle className="text-lg">Prenotazioni Recenti</CardTitle></CardHeader><CardContent>
+            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="pb-2 font-medium">Rif.</th><th className="pb-2 font-medium">Cliente</th><th className="pb-2 font-medium">Esperienza</th><th className="pb-2 font-medium">Posti</th><th className="pb-2 font-medium">Totale</th><th className="pb-2 font-medium">Stato</th></tr></thead><tbody>
+              {(stats.recent_bookings||[]).slice(0,8).map(b=>(<tr key={b.id} className="border-b last:border-0"><td className="py-2.5 font-mono text-xs">{b.booking_ref}</td><td className="py-2.5">{b.customer_name}</td><td className="py-2.5">{b.experience_name||getExpName(b.experience_id)}</td><td className="py-2.5">{b.seats}</td><td className="py-2.5 font-medium">{fmtPrice(b.total_amount)}</td><td className="py-2.5"><StatusBadge status={b.status}/></td></tr>))}
+            </tbody></table>{(!stats.recent_bookings||stats.recent_bookings.length===0)&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione. Carica i dati demo!</p>}</div>
+          </CardContent></Card>
         </TabsContent>
 
-        {/* Experiences Tab */}
+        {/* Gantt Calendar */}
+        <TabsContent value="gantt">
+          <GanttCalendar resources={resources} allSlots={slots} allBookings={bookings} experiences={experiences} onRefresh={load} />
+        </TabsContent>
+
+        {/* Experiences */}
         <TabsContent value="experiences" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Esperienze ({experiences.length})</h2>
-            <Button onClick={() => { setFormData({ type: 'BOAT_EXCURSION', languages: ['IT'] }); setShowDialog('experience'); }}><Plus className="w-4 h-4 mr-2" />Nuova Esperienza</Button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Nome</th><th className="p-3 font-medium">Tipo</th><th className="p-3 font-medium">Prezzo B2C</th><th className="p-3 font-medium">Prezzo B2B</th><th className="p-3 font-medium">Durata</th><th className="p-3 font-medium">Capacita</th><th className="p-3 font-medium">Azioni</th></tr></thead>
-              <tbody>
-                {experiences.map(e => (
-                  <tr key={e.id} className="border-b hover:bg-muted/30">
-                    <td className="p-3 font-medium">{e.name}</td>
-                    <td className="p-3"><TypeBadge type={e.type} /></td>
-                    <td className="p-3">{formatPrice(e.price_b2c)}</td>
-                    <td className="p-3">{formatPrice(e.price_b2b)}</td>
-                    <td className="p-3">{Math.floor(e.duration_minutes/60)}h{e.duration_minutes%60>0?`${e.duration_minutes%60}m`:''}</td>
-                    <td className="p-3">{e.max_capacity}</td>
-                    <td className="p-3"><Button variant="ghost" size="icon" onClick={() => deleteItem('experiences', e.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Esperienze ({experiences.length})</h2><Button onClick={()=>{setFormData({type:'BOAT_EXCURSION',languages:['IT']});setShowDialog('experience');}}><Plus className="w-4 h-4 mr-2"/>Nuova</Button></div>
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Nome</th><th className="p-3 font-medium">Tipo</th><th className="p-3 font-medium">B2C</th><th className="p-3 font-medium">B2B</th><th className="p-3 font-medium">Durata</th><th className="p-3 font-medium">Cap.</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
+            {experiences.map(e=>(<tr key={e.id} className="border-b hover:bg-muted/30"><td className="p-3 font-medium">{e.name}</td><td className="p-3"><TypeBadge type={e.type}/></td><td className="p-3">{fmtPrice(e.price_b2c)}</td><td className="p-3">{fmtPrice(e.price_b2b)}</td><td className="p-3">{Math.floor(e.duration_minutes/60)}h</td><td className="p-3">{e.max_capacity}</td><td className="p-3"><Button variant="ghost" size="icon" onClick={()=>deleteItem('experiences',e.id)}><Trash2 className="w-4 h-4 text-red-500"/></Button></td></tr>))}
+          </tbody></table></div>
         </TabsContent>
 
-        {/* Resources Tab */}
+        {/* Resources */}
         <TabsContent value="resources" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Risorse ({resources.length})</h2>
-            <Button onClick={() => { setFormData({ type: 'GUIDE' }); setShowDialog('resource'); }}><Plus className="w-4 h-4 mr-2" />Nuova Risorsa</Button>
-          </div>
+          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Risorse ({resources.length})</h2><Button onClick={()=>{setFormData({type:'GUIDE'});setShowDialog('resource');}}><Plus className="w-4 h-4 mr-2"/>Nuova Risorsa</Button></div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {resources.map(r => (
-              <Card key={r.id} className="overflow-hidden">
-                <CardContent className="pt-4">
-                  <div className="flex items-start gap-3">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${r.type === 'GUIDE' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
-                      {r.type === 'GUIDE' ? <User className="w-6 h-6" /> : <Ship className="w-6 h-6" />}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <h3 className="font-semibold">{r.name}</h3>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteItem('resources', r.id)}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
+            {resources.map(r => {
+              const rb = getResourceBookings(r.id);
+              return (
+                <Card key={r.id} className="overflow-hidden">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${r.type==='GUIDE'?'bg-emerald-100 text-emerald-700':'bg-sky-100 text-sky-700'}`}>{r.type==='GUIDE'?<User className="w-6 h-6"/>:<Ship className="w-6 h-6"/>}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold">{r.name}</h3>
+                            <p className="text-xs text-muted-foreground">{r.type==='GUIDE'?'Guida':(BOAT_TYPE_LABELS[r.boat_type]||'Imbarcazione')}{r.capacity?` - ${r.capacity} posti`:''}</p>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={()=>{setEditRes(r);setEditResForm({name:r.name,type:r.type,boat_type:r.boat_type||'GOMMONE',capacity:r.capacity||0,bio:r.bio||'',email:r.email||'',phone:r.phone||'',languages:r.languages||[],is_available:r.is_available});}}><Edit className="w-3.5 h-3.5"/></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={()=>deleteItem('resources',r.id)}><Trash2 className="w-3.5 h-3.5 text-red-500"/></Button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{r.bio}</p>
+                        {r.languages?.length>0&&<div className="mt-2 flex gap-1">{r.languages.map(l=><Badge key={l} variant="secondary" className="text-xs">{l}</Badge>)}</div>}
+                        <div className="mt-2 flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">{rb.length} prenotazioni</Badge>
+                          {rb.length>0&&<Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={()=>setResBookings({resource:r,bookings:rb})}>Vedi lista</Button>}
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mb-1">{r.type === 'GUIDE' ? 'Guida' : (BOAT_TYPE_LABELS[r.boat_type] || 'Imbarcazione')}{r.capacity ? ` - ${r.capacity} posti` : ''}</p>
-                      <p className="text-sm text-muted-foreground">{r.bio}</p>
-                      {r.languages?.length > 0 && <div className="mt-2 flex gap-1">{r.languages.map(l => <Badge key={l} variant="secondary" className="text-xs">{l}</Badge>)}</div>}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
 
-        {/* Slots Tab */}
+        {/* Slots */}
         <TabsContent value="slots" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Slot Disponibilita ({slots.length})</h2>
-            <Button onClick={() => { setFormData({}); setShowDialog('slot'); }}><Plus className="w-4 h-4 mr-2" />Nuovo Slot</Button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Ora</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Disponibilita</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead>
-              <tbody>
-                {slots.slice(0, 50).map(s => (
-                  <tr key={s.id} className="border-b hover:bg-muted/30">
-                    <td className="p-3">{getExpName(s.experience_id)}</td>
-                    <td className="p-3 capitalize">{formatDate(s.start_datetime)}</td>
-                    <td className="p-3">{formatTime(s.start_datetime)}</td>
-                    <td className="p-3">{s.booked_seats}/{s.max_seats}</td>
-                    <td className="p-3 w-32"><AvailabilityBar booked={s.booked_seats} max={s.max_seats} /></td>
-                    <td className="p-3"><StatusBadge status={s.status} /></td>
-                    <td className="p-3"><Button variant="ghost" size="icon" onClick={() => deleteItem('slots', s.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Slot ({slots.length})</h2><Button onClick={()=>{setFormData({});setShowDialog('slot');}}><Plus className="w-4 h-4 mr-2"/>Nuovo Slot</Button></div>
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Ora</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Disp.</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
+            {slots.slice(0,50).map(s=>(<tr key={s.id} className="border-b hover:bg-muted/30"><td className="p-3">{getExpName(s.experience_id)}</td><td className="p-3 capitalize">{fmtDate(s.start_datetime)}</td><td className="p-3">{fmtTime(s.start_datetime)}</td><td className="p-3">{s.booked_seats}/{s.max_seats}</td><td className="p-3 w-32"><AvailabilityBar booked={s.booked_seats} max={s.max_seats}/></td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3"><Button variant="ghost" size="icon" onClick={()=>deleteItem('slots',s.id)}><Trash2 className="w-4 h-4 text-red-500"/></Button></td></tr>))}
+          </tbody></table></div>
         </TabsContent>
 
-        {/* Bookings Tab */}
+        {/* Bookings */}
         <TabsContent value="bookings" className="space-y-4">
           <h2 className="text-xl font-semibold">Prenotazioni ({bookings.length})</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead>
-              <tbody>
-                {bookings.map(b => (
-                  <tr key={b.id} className="border-b hover:bg-muted/30">
-                    <td className="p-3 font-mono text-xs">{b.booking_ref}</td>
-                    <td className="p-3">{b.customer_name}</td>
-                    <td className="p-3 text-xs">{b.customer_email}</td>
-                    <td className="p-3">{b.experience_name || getExpName(b.experience_id)}</td>
-                    <td className="p-3 text-xs capitalize">{formatDate(b.slot_datetime || b.created_at)}</td>
-                    <td className="p-3">{b.seats}</td>
-                    <td className="p-3 font-medium">{formatPrice(b.total_amount)}</td>
-                    <td className="p-3"><StatusBadge status={b.status} /></td>
-                    <td className="p-3">
-                      <div className="flex gap-1">
-                        {b.status === 'CONFIRMED' && !b.checked_in_at && <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => checkinBooking(b.id)}>Check-in</Button>}
-                        {b.status === 'CONFIRMED' && <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={() => cancelBooking(b.id)}>Cancella</Button>}
-                        {b.checked_in_at && <Badge variant="secondary" className="text-xs bg-green-100"><CheckCircle2 className="w-3 h-3 mr-1" />Check-in</Badge>}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {bookings.length === 0 && <p className="text-center py-8 text-muted-foreground">Nessuna prenotazione.</p>}
-          </div>
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
+            {bookings.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td><td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
+              <td className="p-3"><div className="flex gap-1">{b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}{b.status==='CONFIRMED'&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id)}>Cancella</Button>}{b.checked_in_at&&<Badge className="bg-green-100 text-green-800 text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/>OK</Badge>}</div></td>
+            </tr>))}
+          </tbody></table>{bookings.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione.</p>}</div>
         </TabsContent>
 
-        {/* Vouchers Tab */}
+        {/* Vouchers */}
         <TabsContent value="vouchers" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Voucher e Coupon ({vouchers.length})</h2>
-            <Button onClick={() => { setFormData({ type: 'PERCENTAGE', value: 10, max_uses: 100 }); setShowDialog('voucher'); }}><Plus className="w-4 h-4 mr-2" />Nuovo Voucher</Button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Codice</th><th className="p-3 font-medium">Tipo</th><th className="p-3 font-medium">Valore</th><th className="p-3 font-medium">Utilizzi</th><th className="p-3 font-medium">Valido fino</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead>
-              <tbody>
-                {vouchers.map(v => (
-                  <tr key={v.id} className="border-b hover:bg-muted/30">
-                    <td className="p-3 font-mono font-bold">{v.code}</td>
-                    <td className="p-3">{v.type === 'PERCENTAGE' ? 'Percentuale' : v.type === 'FIXED' ? 'Fisso' : 'Regalo'}</td>
-                    <td className="p-3 font-medium">{v.type === 'PERCENTAGE' ? `${v.value}%` : formatPrice(v.value)}</td>
-                    <td className="p-3">{v.uses_count}/{v.max_uses}</td>
-                    <td className="p-3 text-xs">{v.valid_until ? formatDate(v.valid_until) : 'Illimitato'}</td>
-                    <td className="p-3">{v.is_active ? <Badge className="bg-green-100 text-green-800 text-xs">Attivo</Badge> : <Badge variant="secondary" className="text-xs">Inattivo</Badge>}</td>
-                    <td className="p-3"><Button variant="ghost" size="icon" onClick={() => deleteItem('vouchers', v.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Voucher ({vouchers.length})</h2><Button onClick={()=>{setFormData({type:'PERCENTAGE',value:10,max_uses:100});setShowDialog('voucher');}}><Plus className="w-4 h-4 mr-2"/>Nuovo</Button></div>
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Codice</th><th className="p-3 font-medium">Tipo</th><th className="p-3 font-medium">Valore</th><th className="p-3 font-medium">Utilizzi</th><th className="p-3 font-medium">Scadenza</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
+            {vouchers.map(v=>(<tr key={v.id} className="border-b"><td className="p-3 font-mono font-bold">{v.code}</td><td className="p-3">{v.type==='PERCENTAGE'?'%':v.type==='FIXED'?'Fisso':'Regalo'}</td><td className="p-3 font-medium">{v.type==='PERCENTAGE'?`${v.value}%`:fmtPrice(v.value)}</td><td className="p-3">{v.uses_count}/{v.max_uses}</td><td className="p-3 text-xs">{v.valid_until?fmtDate(v.valid_until):'Illimitato'}</td><td className="p-3"><Button variant="ghost" size="icon" onClick={()=>deleteItem('vouchers',v.id)}><Trash2 className="w-4 h-4 text-red-500"/></Button></td></tr>))}
+          </tbody></table></div>
+        </TabsContent>
+
+        {/* Waitlist */}
+        <TabsContent value="waitlist" className="space-y-4">
+          <h2 className="text-xl font-semibold">Lista d'Attesa ({waitlist.length})</h2>
+          {waitlist.length === 0 ? <p className="text-center py-8 text-muted-foreground">Nessun iscritto alla lista d'attesa.</p> : (
+            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Pos.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
+              {waitlist.map(w=>(<tr key={w.id} className="border-b hover:bg-muted/30"><td className="p-3 font-bold">#{w.position}</td><td className="p-3">{w.customer_name}</td><td className="p-3 text-xs">{w.customer_email}</td><td className="p-3">{w.experience_name||getExpName(w.experience_id)}</td><td className="p-3">{w.seats_requested}</td><td className="p-3"><StatusBadge status={w.status}/></td>
+                <td className="p-3"><div className="flex gap-1">{w.status==='WAITING'&&<Button size="sm" variant="outline" className="text-xs h-7" onClick={()=>notifyWaitlist(w.id)}><Bell className="w-3 h-3 mr-1"/>Notifica</Button>}<Button variant="ghost" size="icon" className="h-7 w-7" onClick={()=>deleteItem('waitlist',w.id)}><Trash2 className="w-3 h-3 text-red-500"/></Button></div></td>
+              </tr>))}
+            </tbody></table></div>
+          )}
+        </TabsContent>
+
+        {/* Agencies */}
+        <TabsContent value="agencies" className="space-y-4">
+          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Agenzie B2B ({agencies.length})</h2><Button onClick={()=>{setFormData({discount_percentage:15,payment_terms:'30_70'});setShowDialog('agency');}}><Plus className="w-4 h-4 mr-2"/>Nuova Agenzia</Button></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {agencies.map(a=>(
+              <Card key={a.id}><CardContent className="pt-4">
+                <div className="flex items-start justify-between"><div><h3 className="font-semibold">{a.name}</h3><p className="text-xs text-muted-foreground">{a.email}</p></div><Button variant="ghost" size="icon" className="h-7 w-7" onClick={()=>deleteItem('agencies',a.id)}><Trash2 className="w-3.5 h-3.5 text-red-500"/></Button></div>
+                <div className="mt-3 space-y-1 text-sm"><p><span className="text-muted-foreground">P.IVA:</span> {a.vat_number}</p><p><span className="text-muted-foreground">Sconto:</span> <span className="font-bold text-green-600">{a.discount_percentage}%</span></p><p><span className="text-muted-foreground">Telefono:</span> {a.phone}</p></div>
+              </CardContent></Card>
+            ))}
           </div>
         </TabsContent>
       </Tabs>
 
       {/* Create Dialogs */}
-      <Dialog open={showDialog === 'experience'} onOpenChange={v => !v && setShowDialog(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Nuova Esperienza</DialogTitle></DialogHeader>
+      <Dialog open={showDialog==='experience'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nuova Esperienza</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})} /></div>
-            <div><Label>Tipo</Label>
-              <Select value={formData.type||'BOAT_EXCURSION'} onValueChange={v=>setFormData({...formData,type:v})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="BOAT_EXCURSION">Escursione in Barca</SelectItem><SelectItem value="GUIDED_TOUR">Visita Guidata</SelectItem><SelectItem value="BOAT_RENTAL">Noleggio Gommone</SelectItem></SelectContent>
-              </Select>
-            </div>
-            <div><Label>Descrizione</Label><Textarea value={formData.description||''} onChange={e=>setFormData({...formData,description:e.target.value})} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Durata (min)</Label><Input type="number" value={formData.duration_minutes||''} onChange={e=>setFormData({...formData,duration_minutes:e.target.value})} /></div>
-              <div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})} /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})} /></div>
-              <div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})} /></div>
-            </div>
-            <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})} /></div>
-            <div><Label>URL Immagine</Label><Input value={formData.image_url||''} onChange={e=>setFormData({...formData,image_url:e.target.value})} /></div>
+            <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
+            <div><Label>Tipo</Label><Select value={formData.type||'BOAT_EXCURSION'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="BOAT_EXCURSION">Escursione in Barca</SelectItem><SelectItem value="GUIDED_TOUR">Visita Guidata</SelectItem><SelectItem value="BOAT_RENTAL">Noleggio</SelectItem></SelectContent></Select></div>
+            <div><Label>Descrizione</Label><Textarea value={formData.description||''} onChange={e=>setFormData({...formData,description:e.target.value})}/></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Durata (min)</Label><Input type="number" value={formData.duration_minutes||''} onChange={e=>setFormData({...formData,duration_minutes:e.target.value})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
+            <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
+            <div><Label>URL Immagine</Label><Input value={formData.image_url||''} onChange={e=>setFormData({...formData,image_url:e.target.value})}/></div>
             <Button className="w-full" onClick={()=>createItem('experiences',formData)}>Crea Esperienza</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDialog === 'resource'} onOpenChange={v => !v && setShowDialog(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nuova Risorsa</DialogTitle></DialogHeader>
+      <Dialog open={showDialog==='resource'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent><DialogHeader><DialogTitle>Nuova Risorsa</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})} /></div>
-            <div><Label>Tipo</Label>
-              <Select value={formData.type||'GUIDE'} onValueChange={v=>setFormData({...formData,type:v})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="GUIDE">Guida</SelectItem><SelectItem value="BOAT">Imbarcazione</SelectItem></SelectContent>
-              </Select>
-            </div>
-            {formData.type === 'BOAT' && <>
-              <div><Label>Tipo Imbarcazione</Label>
-                <Select value={formData.boat_type||'GOMMONE'} onValueChange={v=>setFormData({...formData,boat_type:v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="GOMMONE">Gommone</SelectItem><SelectItem value="MOTONAVE">Motonave</SelectItem><SelectItem value="BARCA_A_VELA">Barca a Vela</SelectItem></SelectContent>
-                </Select>
-              </div>
-              <div><Label>Capacita (posti)</Label><Input type="number" value={formData.capacity||''} onChange={e=>setFormData({...formData,capacity:e.target.value})} /></div>
-            </>}
-            <div><Label>Bio/Descrizione</Label><Textarea value={formData.bio||''} onChange={e=>setFormData({...formData,bio:e.target.value})} /></div>
-            <div><Label>Email</Label><Input value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})} /></div>
-            <div><Label>Telefono</Label><Input value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})} /></div>
+            <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
+            <div><Label>Tipo</Label><Select value={formData.type||'GUIDE'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GUIDE">Guida</SelectItem><SelectItem value="BOAT">Imbarcazione</SelectItem></SelectContent></Select></div>
+            {formData.type==='BOAT'&&<><div><Label>Tipo Imbarcazione</Label><Select value={formData.boat_type||'GOMMONE'} onValueChange={v=>setFormData({...formData,boat_type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GOMMONE">Gommone</SelectItem><SelectItem value="MOTONAVE">Motonave</SelectItem><SelectItem value="BARCA_A_VELA">Barca a Vela</SelectItem></SelectContent></Select></div><div><Label>Capacita (posti)</Label><Input type="number" value={formData.capacity||''} onChange={e=>setFormData({...formData,capacity:e.target.value})}/></div></>}
+            <div><Label>Descrizione</Label><Textarea value={formData.bio||''} onChange={e=>setFormData({...formData,bio:e.target.value})}/></div>
+            <div><Label>Email</Label><Input value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})}/></div>
+            <div><Label>Telefono</Label><Input value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})}/></div>
             <Button className="w-full" onClick={()=>createItem('resources',formData)}>Crea Risorsa</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDialog === 'slot'} onOpenChange={v => !v && setShowDialog(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nuovo Slot</DialogTitle></DialogHeader>
+      <Dialog open={showDialog==='slot'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent><DialogHeader><DialogTitle>Nuovo Slot</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Esperienza</Label>
-              <Select value={formData.experience_id||''} onValueChange={v=>setFormData({...formData,experience_id:v})}>
-                <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
-                <SelectContent>{experiences.map(e=><SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Data Inizio</Label><Input type="datetime-local" value={formData.start_datetime||''} onChange={e=>setFormData({...formData,start_datetime:new Date(e.target.value).toISOString()})} /></div>
-              <div><Label>Data Fine</Label><Input type="datetime-local" value={formData.end_datetime||''} onChange={e=>setFormData({...formData,end_datetime:new Date(e.target.value).toISOString()})} /></div>
-            </div>
-            <div><Label>Posti Massimi</Label><Input type="number" value={formData.max_seats||''} onChange={e=>setFormData({...formData,max_seats:e.target.value})} /></div>
-            <div><Label>Note</Label><Textarea value={formData.notes||''} onChange={e=>setFormData({...formData,notes:e.target.value})} /></div>
+            <div><Label>Esperienza</Label><Select value={formData.experience_id||''} onValueChange={v=>setFormData({...formData,experience_id:v})}><SelectTrigger><SelectValue placeholder="Seleziona..."/></SelectTrigger><SelectContent>{experiences.map(e=><SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Inizio</Label><Input type="datetime-local" value={formData.start_datetime_local||''} onChange={e=>setFormData({...formData,start_datetime_local:e.target.value,start_datetime:new Date(e.target.value).toISOString()})}/></div><div><Label>Fine</Label><Input type="datetime-local" value={formData.end_datetime_local||''} onChange={e=>setFormData({...formData,end_datetime_local:e.target.value,end_datetime:new Date(e.target.value).toISOString()})}/></div></div>
+            <div><Label>Posti Max</Label><Input type="number" value={formData.max_seats||''} onChange={e=>setFormData({...formData,max_seats:e.target.value})}/></div>
             <Button className="w-full" onClick={()=>createItem('slots',formData)}>Crea Slot</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDialog === 'voucher'} onOpenChange={v => !v && setShowDialog(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nuovo Voucher</DialogTitle></DialogHeader>
+      <Dialog open={showDialog==='voucher'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent><DialogHeader><DialogTitle>Nuovo Voucher</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Codice</Label><Input value={formData.code||''} onChange={e=>setFormData({...formData,code:e.target.value.toUpperCase()})} placeholder="SUMMER2025" className="font-mono" /></div>
-            <div><Label>Tipo</Label>
-              <Select value={formData.type||'PERCENTAGE'} onValueChange={v=>setFormData({...formData,type:v})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="PERCENTAGE">Percentuale (%)</SelectItem><SelectItem value="FIXED">Fisso (EUR)</SelectItem><SelectItem value="GIFT">Regalo</SelectItem></SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Valore</Label><Input type="number" value={formData.value||''} onChange={e=>setFormData({...formData,value:e.target.value})} /></div>
-              <div><Label>Utilizzi Max</Label><Input type="number" value={formData.max_uses||''} onChange={e=>setFormData({...formData,max_uses:e.target.value})} /></div>
-            </div>
+            <div><Label>Codice</Label><Input value={formData.code||''} onChange={e=>setFormData({...formData,code:e.target.value.toUpperCase()})} className="font-mono"/></div>
+            <div><Label>Tipo</Label><Select value={formData.type||'PERCENTAGE'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="PERCENTAGE">Percentuale</SelectItem><SelectItem value="FIXED">Fisso (EUR)</SelectItem><SelectItem value="GIFT">Regalo</SelectItem></SelectContent></Select></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Valore</Label><Input type="number" value={formData.value||''} onChange={e=>setFormData({...formData,value:e.target.value})}/></div><div><Label>Utilizzi Max</Label><Input type="number" value={formData.max_uses||''} onChange={e=>setFormData({...formData,max_uses:e.target.value})}/></div></div>
             <Button className="w-full" onClick={()=>createItem('vouchers',formData)}>Crea Voucher</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDialog==='agency'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent><DialogHeader><DialogTitle>Nuova Agenzia B2B</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Nome Agenzia</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Email</Label><Input value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})}/></div><div><Label>Password</Label><Input value={formData.password||'agency2025'} onChange={e=>setFormData({...formData,password:e.target.value})}/></div></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Telefono</Label><Input value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})}/></div><div><Label>P.IVA</Label><Input value={formData.vat_number||''} onChange={e=>setFormData({...formData,vat_number:e.target.value})}/></div></div>
+            <div><Label>Indirizzo</Label><Input value={formData.address||''} onChange={e=>setFormData({...formData,address:e.target.value})}/></div>
+            <div><Label>Sconto %</Label><Input type="number" value={formData.discount_percentage||''} onChange={e=>setFormData({...formData,discount_percentage:e.target.value})}/></div>
+            <Button className="w-full" onClick={()=>createItem('agencies',formData)}>Crea Agenzia</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Resource Dialog */}
+      <Dialog open={!!editRes} onOpenChange={() => setEditRes(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Modifica Risorsa: {editRes?.name}</DialogTitle></DialogHeader>
+          <Tabs defaultValue="details">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="details">Dettagli</TabsTrigger>
+              <TabsTrigger value="bookings">Prenotazioni ({editRes ? getResourceBookings(editRes.id).length : 0})</TabsTrigger>
+            </TabsList>
+            <TabsContent value="details" className="space-y-4 mt-4">
+              <div><Label>Nome</Label><Input value={editResForm.name||''} onChange={e=>setEditResForm({...editResForm,name:e.target.value})}/></div>
+              <div><Label>Tipo</Label><Select value={editResForm.type||'GUIDE'} onValueChange={v=>setEditResForm({...editResForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GUIDE">Guida</SelectItem><SelectItem value="BOAT">Imbarcazione</SelectItem></SelectContent></Select></div>
+              {editResForm.type==='BOAT'&&<><div><Label>Tipo Imbarcazione</Label><Select value={editResForm.boat_type||'GOMMONE'} onValueChange={v=>setEditResForm({...editResForm,boat_type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GOMMONE">Gommone</SelectItem><SelectItem value="MOTONAVE">Motonave</SelectItem><SelectItem value="BARCA_A_VELA">Barca a Vela</SelectItem></SelectContent></Select></div><div><Label>Capacita (posti vendibili)</Label><Input type="number" value={editResForm.capacity||''} onChange={e=>setEditResForm({...editResForm,capacity:parseInt(e.target.value)||0})}/></div></>}
+              <div><Label>Descrizione</Label><Textarea value={editResForm.bio||''} onChange={e=>setEditResForm({...editResForm,bio:e.target.value})}/></div>
+              <div className="grid grid-cols-2 gap-3"><div><Label>Email</Label><Input value={editResForm.email||''} onChange={e=>setEditResForm({...editResForm,email:e.target.value})}/></div><div><Label>Telefono</Label><Input value={editResForm.phone||''} onChange={e=>setEditResForm({...editResForm,phone:e.target.value})}/></div></div>
+              <Button className="w-full" onClick={saveResource}>Salva Modifiche</Button>
+            </TabsContent>
+            <TabsContent value="bookings" className="mt-4">
+              {editRes && editRes.type === 'BOAT' ? (
+                <ResourceBookingsList resource={editRes} bookings={getResourceBookings(editRes.id)} onUpdate={load} />
+              ) : (
+                <div className="space-y-2">
+                  {editRes && getResourceBookings(editRes.id).map(b => (
+                    <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{b.customer_name} <span className="text-muted-foreground font-normal">({b.booking_ref})</span></p>
+                        <p className="text-xs text-muted-foreground">{b.experience_name||getExpName(b.experience_id)} | {fmtDate(b.slot_datetime||b.created_at)} | {b.seats} posti</p>
+                      </div>
+                      <StatusBadge status={b.status}/>
+                    </div>
+                  ))}
+                  {editRes && getResourceBookings(editRes.id).length === 0 && <p className="text-center py-8 text-muted-foreground">Nessuna prenotazione.</p>}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resource Bookings Dialog */}
+      <Dialog open={!!resBookings} onOpenChange={() => setResBookings(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          {resBookings && (
+            <>
+              <DialogHeader><DialogTitle>Prenotazioni - {resBookings.resource.name}</DialogTitle><p className="text-sm text-muted-foreground">{resBookings.bookings.length} prenotazioni attive</p></DialogHeader>
+              <div className="space-y-2">
+                {resBookings.bookings.map(b => (
+                  <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border">
+                    <div><p className="font-medium text-sm">{b.customer_name} <span className="text-muted-foreground font-normal">({b.booking_ref})</span></p><p className="text-xs text-muted-foreground">{b.experience_name||getExpName(b.experience_id)} | {fmtDate(b.slot_datetime||b.created_at)} | {b.seats} posti | {fmtPrice(b.total_amount)}</p></div>
+                    <div className="flex gap-1 items-center"><StatusBadge status={b.status}/>{b.status==='CONFIRMED'&&<Button variant="ghost" size="sm" className="text-xs text-red-500 h-7" onClick={()=>cancelBooking(b.id)}>Cancella</Button>}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ B2B PORTAL ============
+function B2BPortal({ setView, allExperiences }) {
+  const [agency, setAgency] = useState(null);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  const [experiences, setExperiences] = useState([]);
+  const [myBookings, setMyBookings] = useState([]);
+  const [selectedExp, setSelectedExp] = useState(null);
+  const [slots, setSlots] = useState([]);
+  const [bookingSlot, setBookingSlot] = useState(null);
+  const [bkForm, setBkForm] = useState({ name: '', email: '', phone: '', seats: 1 });
+
+  const handleLogin = async () => {
+    setLoading(true);
+    const res = await api('agencies/login', { method: 'POST', body: loginForm });
+    if (res.error) { toast.error(res.error); setLoading(false); return; }
+    setAgency(res.agency);
+    const [exps, bks] = await Promise.all([api('experiences'), api('bookings')]);
+    setExperiences(Array.isArray(exps) ? exps : []);
+    setMyBookings(Array.isArray(bks) ? bks.filter(b => b.customer_email === res.agency.email) : []);
+    setLoading(false);
+    toast.success(`Benvenuto ${res.agency.name}!`);
+  };
+
+  const loadSlots = async (exp) => {
+    setSelectedExp(exp);
+    const s = await api(`slots?experience_id=${exp.id}&date_from=${new Date().toISOString()}`);
+    setSlots(Array.isArray(s) ? s.filter(sl => sl.status !== 'CANCELLED' && new Date(sl.start_datetime) > new Date()) : []);
+  };
+
+  const handleB2BBook = async () => {
+    if (!bookingSlot || !agency) return;
+    setLoading(true);
+    const exp = selectedExp;
+    const b2bPrice = exp.price_b2b || exp.price_b2c;
+    const discountedPrice = b2bPrice * (1 - (agency.discount_percentage || 0) / 100);
+    const res = await api('bookings', { method: 'POST', body: { slot_id: bookingSlot.id, experience_id: exp.id, customer_name: bkForm.name || agency.name, customer_email: agency.email, customer_phone: bkForm.phone || agency.phone, seats: bkForm.seats, total_amount: discountedPrice * bkForm.seats } });
+    if (res.error) { toast.error(res.error); } else { toast.success(`Prenotazione ${res.booking_ref} confermata!`); setBookingSlot(null); setBkForm({ name: '', email: '', phone: '', seats: 1 }); }
+    setLoading(false);
+  };
+
+  if (!agency) {
+    return (
+      <div className="container mx-auto px-4 py-20 max-w-md">
+        <Card className="shadow-lg">
+          <CardHeader className="text-center"><div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4"><Building2 className="w-8 h-8 text-primary" /></div><CardTitle className="text-2xl">Portale B2B Agenzie</CardTitle><CardDescription>Accedi con le credenziali della tua agenzia</CardDescription></CardHeader>
+          <CardContent className="space-y-4">
+            <div><Label>Email</Label><Input type="email" value={loginForm.email} onChange={e => setLoginForm({ ...loginForm, email: e.target.value })} placeholder="info@agenzia.it" /></div>
+            <div><Label>Password</Label><Input type="password" value={loginForm.password} onChange={e => setLoginForm({ ...loginForm, password: e.target.value })} placeholder="Password" /></div>
+            <Button className="w-full" onClick={handleLogin} disabled={loading}>{loading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <LogIn className="w-4 h-4 mr-2" />}Accedi</Button>
+          </CardContent>
+          <CardFooter className="justify-center text-xs text-muted-foreground">Demo: info@sardiniatours.it / agency2025</CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-8">
+        <div><h1 className="text-3xl font-bold">Portale B2B</h1><p className="text-muted-foreground">{agency.name} - Sconto {agency.discount_percentage}%</p></div>
+        <Button variant="outline" onClick={() => setAgency(null)}><LogIn className="w-4 h-4 mr-2" />Esci</Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <Card><CardContent className="pt-4 text-center"><p className="text-sm text-muted-foreground">Sconto Dedicato</p><p className="text-3xl font-bold text-green-600">{agency.discount_percentage}%</p></CardContent></Card>
+        <Card><CardContent className="pt-4 text-center"><p className="text-sm text-muted-foreground">Esperienze Disponibili</p><p className="text-3xl font-bold">{experiences.length}</p></CardContent></Card>
+        <Card><CardContent className="pt-4 text-center"><p className="text-sm text-muted-foreground">Le Tue Prenotazioni</p><p className="text-3xl font-bold">{myBookings.length}</p></CardContent></Card>
+      </div>
+
+      <Tabs defaultValue="catalog">
+        <TabsList><TabsTrigger value="catalog">Catalogo B2B</TabsTrigger><TabsTrigger value="mybookings">Le Mie Prenotazioni</TabsTrigger></TabsList>
+        <TabsContent value="catalog" className="space-y-4 mt-4">
+          {selectedExp ? (
+            <div>
+              <button onClick={() => setSelectedExp(null)} className="flex items-center gap-2 text-primary hover:underline mb-4"><ArrowLeft className="w-4 h-4" />Torna al catalogo</button>
+              <Card className="mb-4"><CardContent className="pt-4">
+                <div className="flex gap-4"><img src={selectedExp.image_url} alt="" className="w-24 h-24 rounded-lg object-cover" /><div><h2 className="text-xl font-bold">{selectedExp.name}</h2><TypeBadge type={selectedExp.type} /><div className="mt-2 flex gap-4"><div><span className="text-sm text-muted-foreground">Prezzo Listino:</span> <span className="line-through text-muted-foreground">{fmtPrice(selectedExp.price_b2c)}</span></div><div><span className="text-sm text-muted-foreground">Prezzo B2B:</span> <span className="font-bold text-green-600">{fmtPrice(selectedExp.price_b2b * (1 - agency.discount_percentage/100))}</span></div></div></div></div>
+              </CardContent></Card>
+              <h3 className="font-semibold mb-3">Disponibilita</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {slots.map(slot => {
+                  const avail = slot.max_seats - slot.booked_seats;
+                  return (
+                    <div key={slot.id} className={`p-3 rounded-lg border ${avail <= 0 ? 'bg-red-50' : 'hover:border-primary cursor-pointer'}`} onClick={() => avail > 0 && setBookingSlot(slot)}>
+                      <p className="font-medium text-sm capitalize">{fmtDate(slot.start_datetime)}</p>
+                      <p className="text-xs text-muted-foreground">{fmtTime(slot.start_datetime)} - {fmtTime(slot.end_datetime)}</p>
+                      <AvailabilityBar booked={slot.booked_seats} max={slot.max_seats} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {experiences.map(exp => (
+                <Card key={exp.id} className="cursor-pointer card-hover" onClick={() => loadSlots(exp)}>
+                  <div className="relative h-40"><img src={exp.image_url} alt="" className="w-full h-full object-cover rounded-t-lg" /><div className="absolute top-2 left-2"><TypeBadge type={exp.type} /></div></div>
+                  <CardContent className="pt-3">
+                    <h3 className="font-semibold mb-1">{exp.name}</h3>
+                    <div className="flex justify-between items-center">
+                      <div><span className="text-xs text-muted-foreground line-through">{fmtPrice(exp.price_b2c)}</span><span className="ml-2 font-bold text-green-600">{fmtPrice(exp.price_b2b * (1 - agency.discount_percentage/100))}</span></div>
+                      <Badge variant="secondary" className="text-xs">-{agency.discount_percentage}%</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="mybookings" className="mt-4">
+          {myBookings.length === 0 ? <p className="text-center py-8 text-muted-foreground">Nessuna prenotazione.</p> : (
+            <div className="space-y-3">{myBookings.map(b => (
+              <div key={b.id} className="flex items-center justify-between p-4 rounded-lg border"><div><p className="font-semibold">{b.booking_ref} - {b.experience_name}</p><p className="text-sm text-muted-foreground">{fmtDate(b.slot_datetime)} | {b.seats} posti | {fmtPrice(b.total_amount)}</p></div><StatusBadge status={b.status} /></div>
+            ))}</div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* B2B Booking Dialog */}
+      <Dialog open={!!bookingSlot} onOpenChange={() => setBookingSlot(null)}>
+        <DialogContent><DialogHeader><DialogTitle>Prenota per Agenzia</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {bookingSlot && selectedExp && <div className="p-3 bg-muted/50 rounded-lg text-sm"><p className="font-medium">{selectedExp.name}</p><p className="text-muted-foreground capitalize">{fmtDateTime(bookingSlot.start_datetime)}</p><p className="text-green-600 font-bold">Prezzo B2B: {fmtPrice(selectedExp.price_b2b * (1 - agency.discount_percentage/100))}/persona</p></div>}
+            <div><Label>Nome Cliente</Label><Input value={bkForm.name} onChange={e=>setBkForm({...bkForm,name:e.target.value})} placeholder="Nome gruppo/cliente" /></div>
+            <div><Label>Telefono</Label><Input value={bkForm.phone} onChange={e=>setBkForm({...bkForm,phone:e.target.value})} /></div>
+            <div><Label>Posti</Label><Input type="number" min="1" value={bkForm.seats} onChange={e=>setBkForm({...bkForm,seats:parseInt(e.target.value)||1})} /></div>
+            <Button className="w-full" onClick={handleB2BBook} disabled={loading}>{loading?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:null}Conferma Prenotazione B2B</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1057,13 +1143,9 @@ export default function App() {
   const [selectedExperience, setSelectedExperience] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    api('experiences').then(data => {
-      if (Array.isArray(data)) setExperiences(data);
-      setLoaded(true);
-    }).catch(() => setLoaded(true));
+    api('experiences').then(data => { if (Array.isArray(data)) setExperiences(data); }).catch(() => {});
   }, [view]);
 
   const navigate = (newView, data = {}) => {
@@ -1083,6 +1165,7 @@ export default function App() {
         {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
         {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}
         {view === 'admin' && <AdminDashboard />}
+        {view === 'b2b' && <B2BPortal setView={navigate} allExperiences={experiences} />}
       </main>
       <Footer />
     </div>

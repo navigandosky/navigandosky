@@ -319,6 +319,7 @@ async function handleBookings(method, id, body, action, sp) {
       payment_status: 'PAID',
       special_requests: body.special_requests || '',
       participants: body.participants || [],
+      seat_assignments: body.seat_assignments || [],
       slot_datetime: slot.start_datetime,
       checked_in_at: null,
       created_at: new Date().toISOString(),
@@ -365,6 +366,54 @@ async function handleBookings(method, id, body, action, sp) {
         { $set: { checked_in_at: new Date().toISOString() } },
         { returnDocument: 'after' }
       );
+      return json(result);
+    }
+    if (body.action === 'reassign') {
+      const booking = await col.findOne({ id });
+      if (!booking) return json({ error: 'Non trovato' }, 404);
+      const newSlot = await db.collection('slots').findOne({ id: body.new_slot_id });
+      if (!newSlot) return json({ error: 'Nuovo slot non trovato' }, 404);
+      const available = newSlot.max_seats - newSlot.booked_seats;
+      if (booking.seats > available) return json({ error: 'Posti insufficienti nel nuovo slot' }, 400);
+      // Remove from old slot
+      await db.collection('slots').updateOne({ id: booking.slot_id }, { $inc: { booked_seats: -booking.seats } });
+      const oldSlot = await db.collection('slots').findOne({ id: booking.slot_id });
+      if (oldSlot && oldSlot.booked_seats < oldSlot.max_seats && oldSlot.status === 'FULL') {
+        await db.collection('slots').updateOne({ id: booking.slot_id }, { $set: { status: 'OPEN' } });
+      }
+      // Add to new slot
+      await db.collection('slots').updateOne({ id: body.new_slot_id }, { $inc: { booked_seats: booking.seats } });
+      const updNewSlot = await db.collection('slots').findOne({ id: body.new_slot_id });
+      if (updNewSlot && updNewSlot.booked_seats >= updNewSlot.max_seats) {
+        await db.collection('slots').updateOne({ id: body.new_slot_id }, { $set: { status: 'FULL' } });
+      }
+      const exp = await db.collection('experiences').findOne({ id: newSlot.experience_id || booking.experience_id });
+      const result = await col.findOneAndUpdate(
+        { id },
+        { $set: { slot_id: body.new_slot_id, slot_datetime: newSlot.start_datetime, experience_id: newSlot.experience_id || booking.experience_id, experience_name: exp ? exp.name : booking.experience_name } },
+        { returnDocument: 'after' }
+      );
+      // Check waitlist on old slot (seats freed)
+      if (oldSlot) {
+        const waiters = await db.collection('waitlist').find({ slot_id: booking.slot_id, status: 'WAITING' }).sort({ position: 1 }).limit(1).toArray();
+        if (waiters.length > 0) {
+          const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+          await db.collection('waitlist').updateOne({ id: waiters[0].id }, { $set: { status: 'NOTIFIED', notified_at: new Date().toISOString(), expires_at: expiresAt } });
+        }
+      }
+      return json(result);
+    }
+    if (body.action === 'update_details') {
+      const updates = {};
+      if (body.customer_name) updates.customer_name = body.customer_name;
+      if (body.customer_email) updates.customer_email = body.customer_email;
+      if (body.customer_phone) updates.customer_phone = body.customer_phone;
+      if (body.special_requests !== undefined) updates.special_requests = body.special_requests;
+      if (body.participants) updates.participants = body.participants;
+      if (body.seats) updates.seats = Number(body.seats);
+      if (body.seat_assignments !== undefined) updates.seat_assignments = body.seat_assignments;
+      const result = await col.findOneAndUpdate({ id }, { $set: updates }, { returnDocument: 'after' });
+      if (!result) return json({ error: 'Non trovato' }, 404);
       return json(result);
     }
     const result = await col.findOneAndUpdate(
@@ -435,6 +484,139 @@ async function handleVouchers(method, id, body, action, sp) {
   return json({ error: 'Richiesta non valida' }, 400);
 }
 
+// ==================== WAITLIST ====================
+async function handleWaitlist(method, id, body, action, sp) {
+  const db = await getDb();
+  const col = db.collection('waitlist');
+
+  if (method === 'GET') {
+    const filter = {};
+    if (sp.get('slot_id')) filter.slot_id = sp.get('slot_id');
+    if (sp.get('experience_id')) filter.experience_id = sp.get('experience_id');
+    if (sp.get('status')) filter.status = sp.get('status');
+    const items = await col.find(filter).sort({ position: 1 }).toArray();
+    return json(items);
+  }
+
+  if (method === 'POST' && !id) {
+    const count = await col.countDocuments({ slot_id: body.slot_id });
+    const item = {
+      id: uuidv4(),
+      slot_id: body.slot_id,
+      experience_id: body.experience_id || '',
+      experience_name: body.experience_name || '',
+      customer_name: body.customer_name || '',
+      customer_email: body.customer_email || '',
+      customer_phone: body.customer_phone || '',
+      seats_requested: Number(body.seats_requested) || 1,
+      position: count + 1,
+      status: 'WAITING',
+      notified_at: null,
+      expires_at: null,
+      created_at: new Date().toISOString(),
+    };
+    await col.insertOne(item);
+    return json(item, 201);
+  }
+
+  if (method === 'PUT' && id) {
+    if (body.action === 'notify') {
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const result = await col.findOneAndUpdate(
+        { id },
+        { $set: { status: 'NOTIFIED', notified_at: new Date().toISOString(), expires_at: expiresAt } },
+        { returnDocument: 'after' }
+      );
+      return json(result);
+    }
+    if (body.action === 'convert') {
+      const entry = await col.findOne({ id });
+      if (!entry) return json({ error: 'Non trovato' }, 404);
+      await col.updateOne({ id }, { $set: { status: 'CONVERTED' } });
+      return json({ ...entry, status: 'CONVERTED' });
+    }
+    if (body.action === 'expire') {
+      await col.updateOne({ id }, { $set: { status: 'EXPIRED' } });
+      return json({ message: 'Scaduto' });
+    }
+    const result = await col.findOneAndUpdate({ id }, { $set: body }, { returnDocument: 'after' });
+    return json(result);
+  }
+
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ message: 'Eliminato' });
+  }
+  return json({ error: 'Richiesta non valida' }, 400);
+}
+
+// ==================== AGENCIES (B2B) ====================
+async function handleAgencies(method, id, body, action, sp) {
+  const db = await getDb();
+  const col = db.collection('agencies');
+
+  if ((id === 'login' || action === 'login') && method === 'POST') {
+    const agency = await col.findOne({ email: body.email, is_active: true });
+    if (!agency || agency.password !== body.password) {
+      return json({ error: 'Credenziali non valide' }, 401);
+    }
+    const token = uuidv4();
+    await col.updateOne({ id: agency.id }, { $set: { last_login: new Date().toISOString(), token } });
+    const { password, ...agencyData } = agency;
+    return json({ agency: agencyData, token });
+  }
+
+  if (method === 'GET' && !id) {
+    const items = await col.find({}).sort({ name: 1 }).toArray();
+    const safe = items.map(({ password, ...rest }) => rest);
+    return json(safe);
+  }
+
+  if (method === 'GET' && id && id !== 'login') {
+    const item = await col.findOne({ id });
+    if (!item) return json({ error: 'Non trovato' }, 404);
+    const { password, ...safe } = item;
+    return json(safe);
+  }
+
+  if (method === 'POST' && !id) {
+    const item = {
+      id: uuidv4(),
+      name: body.name || '',
+      email: body.email || '',
+      password: body.password || 'agency2025',
+      phone: body.phone || '',
+      vat_number: body.vat_number || '',
+      address: body.address || '',
+      discount_percentage: Number(body.discount_percentage) || 0,
+      credit_limit: Number(body.credit_limit) || 0,
+      payment_terms: body.payment_terms || '30_70',
+      is_active: true,
+      total_bookings: 0,
+      total_revenue: 0,
+      created_at: new Date().toISOString(),
+    };
+    await col.insertOne(item);
+    const { password, ...safe } = item;
+    return json(safe, 201);
+  }
+
+  if (method === 'PUT' && id) {
+    const result = await col.findOneAndUpdate(
+      { id }, { $set: { ...body, updated_at: new Date().toISOString() } }, { returnDocument: 'after' }
+    );
+    if (!result) return json({ error: 'Non trovato' }, 404);
+    const { password, ...safe } = result;
+    return json(safe);
+  }
+
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ message: 'Eliminato' });
+  }
+  return json({ error: 'Richiesta non valida' }, 400);
+}
+
 // ==================== STATS ====================
 async function handleStats() {
   const db = await getDb();
@@ -484,6 +666,8 @@ async function handleSeed() {
     db.collection('bookings').deleteMany({}),
     db.collection('vouchers').deleteMany({}),
     db.collection('seat_blocks').deleteMany({}),
+    db.collection('waitlist').deleteMany({}),
+    db.collection('agencies').deleteMany({}),
   ]);
 
   // Resources
@@ -622,16 +806,24 @@ async function handleSeed() {
     { id: uuidv4(), code: 'SARDEGNA20', type: 'PERCENTAGE', value: 20, min_amount: 100, valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 30 * 86400000).toISOString(), max_uses: 25, uses_count: 0, applicable_to: 'BOAT_ONLY', created_for: null, is_active: true, created_at: new Date().toISOString() },
   ];
 
+  // Agencies (B2B)
+  const agencies = [
+    { id: uuidv4(), name: 'Sardinia Tours S.r.l.', email: 'info@sardiniatours.it', password: 'agency2025', phone: '+39 070 1234567', vat_number: 'IT12345678901', address: 'Via Roma 42, Cagliari', discount_percentage: 25, credit_limit: 10000, payment_terms: '30_70', is_active: true, total_bookings: 0, total_revenue: 0, created_at: new Date().toISOString() },
+    { id: uuidv4(), name: 'Viaggi Mare Blu', email: 'info@viaggimareblu.it', password: 'agency2025', phone: '+39 070 9876543', vat_number: 'IT98765432109', address: 'Corso Umberto 15, Olbia', discount_percentage: 20, credit_limit: 5000, payment_terms: '30_70', is_active: true, total_bookings: 0, total_revenue: 0, created_at: new Date().toISOString() },
+    { id: uuidv4(), name: 'Costa Smeralda Travel', email: 'booking@costasmeraldatravel.it', password: 'agency2025', phone: '+39 0789 123456', vat_number: 'IT55566677788', address: 'Porto Cervo, Arzachena', discount_percentage: 15, credit_limit: 8000, payment_terms: '30_70', is_active: true, total_bookings: 0, total_revenue: 0, created_at: new Date().toISOString() },
+  ];
+
   await Promise.all([
     db.collection('resources').insertMany(resources),
     db.collection('experiences').insertMany(experiences),
     db.collection('slots').insertMany(slots),
     db.collection('vouchers').insertMany(vouchers),
+    db.collection('agencies').insertMany(agencies),
   ]);
 
   return json({
     message: 'Dati demo caricati con successo!',
-    counts: { experiences: experiences.length, resources: resources.length, slots: slots.length, vouchers: vouchers.length }
+    counts: { experiences: experiences.length, resources: resources.length, slots: slots.length, vouchers: vouchers.length, agencies: agencies.length }
   });
 }
 
@@ -654,6 +846,8 @@ async function handleRoute(request, resolvedParams, method) {
       case 'slots': return await handleSlots(method, id, body, action, searchParams);
       case 'bookings': return await handleBookings(method, id, body, action, searchParams);
       case 'vouchers': return await handleVouchers(method, id, body, action, searchParams);
+      case 'waitlist': return await handleWaitlist(method, id, body, action, searchParams);
+      case 'agencies': return await handleAgencies(method, id, body, action, searchParams);
       case 'stats': return await handleStats();
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });

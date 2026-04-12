@@ -164,6 +164,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "Full booking flow tested: POST booking (created MK-2026-0001), seat count increased correctly (0→2), GET bookings, check-in functionality, cancellation with seat count decrease (2→0). Seat management working perfectly."
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE SEAT ASSIGNMENTS & DRAG-DROP TESTING COMPLETED (13/13 tests passed): ✅ Seat assignments (NEW FUNCTIONALITY) - PUT /api/bookings/{id} with action:'update_details' and seat_assignments array working perfectly. ✅ Drag & drop reassignment - PUT /api/bookings/{id} with action:'reassign' preserves seat_assignments correctly. ✅ Multiple booking modifications working. ✅ Query bookings by slot_id working. ✅ Edge cases (single seat bookings) handled correctly. All requested functionality working as specified."
 
   - task: "Voucher validation and application"
     implemented: true
@@ -231,3 +234,5 @@ agent_communication:
     message: "MVP implementation complete. All backend APIs implemented in route.js. MongoDB used with UUID for IDs. The base URL is https://sardinia-tours-hub.preview.emergentagent.com. All API routes are under /api/. First call POST /api/seed to populate demo data, then test all CRUD operations. Key voucher codes: BENVENUTO10 (10% off), ESTATE2025 (15€ off), SARDEGNA20 (20% boat only). Payment is MOCK (no Stripe integration)."
   - agent: "testing"
     message: "✅ COMPREHENSIVE BACKEND TESTING COMPLETED - All 32 tests passed (100% success rate). Tested: Seed data (6 experiences, 8 resources, 117 slots, 3 vouchers), Experiences CRUD (all operations + filtering), Resources CRUD (guides & boats), Slots CRUD (with availability calculation), Bookings with seat management (booking increases seats, cancellation decreases), Voucher validation (all 3 codes working + discount application), Stats API (all required fields). Critical business logic verified: seat management, voucher discounts, booking flow. Backend APIs are production-ready."
+  - agent: "testing"
+    message: "✅ MARETREK SEAT ASSIGNMENTS & DRAG-DROP TESTING COMPLETED - All 13 specialized tests passed (100% success rate). NEW FUNCTIONALITY VERIFIED: ✅ Seat assignments (PUT /api/bookings/{id} with action:'update_details' + seat_assignments array) ✅ Drag & drop reassignment (PUT /api/bookings/{id} with action:'reassign' + new_slot_id) preserves seat_assignments ✅ Multiple booking modifications ✅ Query bookings by slot_id ✅ Edge cases (single seat bookings). All requested functionality working perfectly as specified in the user requirements."
