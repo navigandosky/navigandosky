@@ -8,9 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // Import componente Mappa Flotta
-const MappaFlottaWrapper = dynamic(() => import('./components/MappaFlottaWrapper'), { ssr: false });import { Separator } from '@/components/ui/separator';
+const MappaFlottaWrapper = dynamic(() => import('./components/MappaFlottaWrapper'), { ssr: false });
+import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -18,10 +20,12 @@ import {
   Anchor, Ship, MapPin, Calendar as CalIcon, Clock, Users, Star, ChevronRight, ArrowLeft,
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
-  ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map
+  ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
+import { languageFlags, languageNames } from './i18n/translations';
 
 // ============ CONSTANTS ============
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_7d8a5623-84c4-4dc5-8737-98643d255bb4/artifacts/cdzklcx8_logo%20maretrek_1.jpg';
@@ -300,24 +304,69 @@ function PDFUploader({ pdfUrl = '', onChange }) {
 
 // ============ NAVBAR ============
 function NavBar({ view, setView, mobileOpen, setMobileOpen }) {
+  const { language, changeLanguage, t } = useLanguage();
+  
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border shadow-sm">
       <div className="container mx-auto px-4 flex items-center justify-between h-16">
         <button onClick={() => setView('home')} className="flex items-center gap-2 hover:opacity-80 transition">
           <img src={LOGO_URL} alt="Maretrek" style={{ height: '40px', width: 'auto' }} className="rounded" />
         </button>
+        
         <nav className="hidden md:flex items-center gap-1">
-          {[['home','Home'],['catalog','Esperienze'],['b2b','B2B Agenzie'],['admin','Admin']].map(([v,l]) => (
+          {[['home', t('home')], ['catalog', t('experiences')], ['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
             <button key={v} onClick={() => setView(v)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === v ? 'bg-primary text-primary-foreground' : 'text-foreground/70 hover:bg-muted hover:text-foreground'}`}>{l}</button>
           ))}
+          
+          {/* Language Selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="ml-2 gap-2">
+                <span className="text-xl">{languageFlags[language]}</span>
+                <Languages className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[160px]">
+              {Object.keys(languageFlags).map((lang) => (
+                <DropdownMenuItem 
+                  key={lang}
+                  onClick={() => changeLanguage(lang)}
+                  className={`gap-2 cursor-pointer ${language === lang ? 'bg-primary/10' : ''}`}
+                >
+                  <span className="text-xl">{languageFlags[lang]}</span>
+                  <span>{languageNames[lang]}</span>
+                  {language === lang && <CheckCircle2 className="w-4 h-4 ml-auto text-primary" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
+        
         <button className="md:hidden p-2" onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}</button>
       </div>
+      
       {mobileOpen && (
         <div className="md:hidden border-t bg-white p-4 space-y-2">
-          {[['home','Home'],['catalog','Esperienze'],['b2b','B2B Agenzie'],['admin','Admin']].map(([v,l]) => (
+          {[['home', t('home')], ['catalog', t('experiences')], ['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
             <button key={v} onClick={() => { setView(v); setMobileOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium ${view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>{l}</button>
           ))}
+          
+          {/* Mobile Language Selector */}
+          <div className="pt-2 border-t">
+            <p className="text-xs text-muted-foreground mb-2 px-4">Lingua / Language</p>
+            <div className="grid grid-cols-5 gap-2">
+              {Object.keys(languageFlags).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => changeLanguage(lang)}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${language === lang ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                >
+                  <span className="text-2xl">{languageFlags[lang]}</span>
+                  <span className="text-[10px] font-medium">{lang.toUpperCase()}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </header>
@@ -367,7 +416,25 @@ function Footer() {
             </div>
           </div>
           <Separator className="my-8 bg-white/20" />
-          <p className="text-center text-sm text-white/50">&copy; 2025 Maretrek S.r.l. - P.IVA 01234567890</p>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <p className="text-sm text-white/50">&copy; 2025 Maretrek S.r.l. - P.IVA 01234567890</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-white/40">Created by</p>
+              <a 
+                href="https://trivorsrl.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                  <span className="text-xs font-bold text-primary">T</span>
+                </div>
+                <span className="text-sm font-semibold text-white">Trivor SRL</span>
+                <span className="text-xs text-white/60">®</span>
+              </a>
+              <p className="text-xs text-white/40">© 2026</p>
+            </div>
+          </div>
         </div>
       </footer>
 
@@ -2004,17 +2071,19 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <NavBar view={view} setView={navigate} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-      <main className="flex-1">
-        {view === 'home' && <HomePage setView={navigate} experiences={experiences} />}
-        {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} />}
-        {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
-        {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}
-        {view === 'admin' && <AdminDashboard />}
-        {view === 'b2b' && <B2BPortal setView={navigate} allExperiences={experiences} />}
-      </main>
-      <Footer />
-    </div>
+    <LanguageProvider>
+      <div className="min-h-screen flex flex-col">
+        <NavBar view={view} setView={navigate} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+        <main className="flex-1">
+          {view === 'home' && <HomePage setView={navigate} experiences={experiences} />}
+          {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} />}
+          {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
+          {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}
+          {view === 'admin' && <AdminDashboard />}
+          {view === 'b2b' && <B2BPortal setView={navigate} allExperiences={experiences} />}
+        </main>
+        <Footer />
+      </div>
+    </LanguageProvider>
   );
 }
