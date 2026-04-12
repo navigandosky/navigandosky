@@ -75,7 +75,8 @@ async function handleExperiences(method, id, body, sp) {
   }
 
   if (method === 'PUT' && id) {
-    const updates = { ...body, updated_at: new Date().toISOString() };
+    const { _id, id: removeId, ...bodyData } = body;
+    const updates = { ...bodyData, updated_at: new Date().toISOString() };
     if (updates.duration_minutes) updates.duration_minutes = Number(updates.duration_minutes);
     if (updates.max_capacity) updates.max_capacity = Number(updates.max_capacity);
     if (updates.price_b2c) updates.price_b2c = Number(updates.price_b2c);
@@ -224,7 +225,7 @@ async function handleSlots(method, id, body, action, sp) {
   }
 
   if (method === 'PUT' && id) {
-    const updates = { ...body };
+    const { _id, id: removeId, ...updates } = body;
     if (updates.max_seats) updates.max_seats = Number(updates.max_seats);
     const result = await col.findOneAndUpdate(
       { id }, { $set: updates }, { returnDocument: 'after' }

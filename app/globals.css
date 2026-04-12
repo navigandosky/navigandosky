@@ -68,3 +68,18 @@
 .wave-bg {
   background: linear-gradient(180deg, hsl(200, 72%, 22%) 0%, hsl(190, 60%, 35%) 100%);
 }
+
+/* Leaflet Map Styles */
+@import 'leaflet/dist/leaflet.css';
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+}
