@@ -1347,6 +1347,37 @@ function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* View Slot Dialog */}
+      <Dialog open={showDialog==='view_slot'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Dettagli Slot</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label className="text-muted-foreground">Esperienza</Label><p className="font-semibold text-lg">{formData.experience_name}</p></div>
+              <div><Label className="text-muted-foreground">Stato</Label><StatusBadge status={formData.status}/></div>
+              <div><Label className="text-muted-foreground">Data</Label><p className="capitalize">{fmtDate(formData.start_datetime)}</p></div>
+              <div><Label className="text-muted-foreground">Orario</Label><p>{fmtTime(formData.start_datetime)} - {fmtTime(formData.end_datetime)}</p></div>
+              <div><Label className="text-muted-foreground">Posti Totali</Label><p>{formData.max_seats}</p></div>
+              <div><Label className="text-muted-foreground">Posti Prenotati</Label><p className="font-bold text-primary">{formData.booked_seats}</p></div>
+              <div className="col-span-2"><Label className="text-muted-foreground">Disponibilità</Label><AvailabilityBar booked={formData.booked_seats||0} max={formData.max_seats||0}/></div>
+              <div className="col-span-2"><Label className="text-muted-foreground">Risorse Abbinate</Label><p>{formData.resource_names || 'Nessuna risorsa'}</p></div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Slot Dialog */}
+      <Dialog open={showDialog==='edit_slot'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Modifica Slot</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Data Inizio</Label><Input type="datetime-local" value={formData.start_datetime?.slice(0,16)||''} onChange={e=>setFormData({...formData,start_datetime:e.target.value})}/></div>
+            <div><Label>Data Fine</Label><Input type="datetime-local" value={formData.end_datetime?.slice(0,16)||''} onChange={e=>setFormData({...formData,end_datetime:e.target.value})}/></div>
+            <div><Label>Posti Massimi</Label><Input type="number" value={formData.max_seats||''} onChange={e=>setFormData({...formData,max_seats:e.target.value})}/></div>
+            <div><Label>Stato</Label><Select value={formData.status||'OPEN'} onValueChange={v=>setFormData({...formData,status:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="OPEN">Aperto</SelectItem><SelectItem value="CLOSED">Chiuso</SelectItem><SelectItem value="FULL">Completo</SelectItem></SelectContent></Select></div>
+            <Button className="w-full" onClick={async ()=>{const {id,experience_name,resource_names,...data}=formData;await api(`slots/${id}`,{method:'PUT',body:data});toast.success('Slot aggiornato!');setShowDialog(null);setFormData({});await load();}}>Salva Modifiche</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Resource Dialog */}
       <Dialog open={!!editRes} onOpenChange={() => setEditRes(null)}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">

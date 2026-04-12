@@ -609,8 +609,9 @@ async function handleAgencies(method, id, body, action, sp) {
   }
 
   if (method === 'PUT' && id) {
+    const { _id, id: removeId, ...updateData } = body;
     const result = await col.findOneAndUpdate(
-      { id }, { $set: { ...body, updated_at: new Date().toISOString() } }, { returnDocument: 'after' }
+      { id }, { $set: { ...updateData, updated_at: new Date().toISOString() } }, { returnDocument: 'after' }
     );
     if (!result) return json({ error: 'Non trovato' }, 404);
     const { password, ...safe } = result;
@@ -956,6 +957,55 @@ async function handleContact(method, body) {
   }
 }
 
+// ==================== GPS BALIN.APP PROXY ====================
+async function handleGPS(method, pathParts) {
+  if (method !== 'GET') return json({ error: 'Use GET' }, 405);
+  
+  try {
+    const email = 'navigandosky@yahoo.it';
+    const apiToken = '961cbc6379f2cd38f3e672f3990baa8e';
+    
+    // Crea Basic Auth header
+    const authString = `${email}:${apiToken}`;
+    const base64Auth = Buffer.from(authString).toString('base64');
+    
+    // Costruisci URL API Balin
+    let apiPath = 'devices'; // default
+    if (pathParts.length > 1) {
+      // gps/device/IMEI -> device/IMEI
+      apiPath = pathParts.slice(1).join('/');
+    }
+    
+    const apiUrl = `https://api.balin.app/external_api/v1/${apiPath}`;
+    
+    console.log(`[GPS] Calling Balin API: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${base64Auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[GPS] Balin API error ${response.status}:`, errorText);
+      return json({ 
+        error: `Errore API Balin (${response.status})`,
+        details: errorText 
+      }, response.status);
+    }
+    
+    const data = await response.json();
+    return json(data);
+    
+  } catch (error) {
+    console.error('[GPS] Error:', error);
+    return json({ error: 'Errore durante la chiamata GPS', details: error.message }, 500);
+  }
+}
+
 // ==================== ROUTE DISPATCHER ====================
 async function handleRoute(request, resolvedParams, method) {
   try {
@@ -968,6 +1018,11 @@ async function handleRoute(request, resolvedParams, method) {
     const entity = pathSegments[0];
     const id = pathSegments[1];
     const action = pathSegments[2];
+
+    // Route GPS speciale
+    if (entity === 'gps') {
+      return await handleGPS(method, pathSegments);
+    }
 
     switch (entity) {
       case 'experiences': return await handleExperiences(method, id, body, searchParams);
