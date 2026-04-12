@@ -1546,65 +1546,72 @@ function AdminDashboard() {
     setFilteredBookings(bookings);
   };
   
-  const exportPDF = () => {
-    import('jspdf').then((jsPDFModule) => {
-      import('jspdf-autotable').then(() => {
-        const { jsPDF } = jsPDFModule;
-        const doc = new jsPDF();
+  const exportPDF = async () => {
+    try {
+      const [jsPDFModule, autoTableModule] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable')
+      ]);
+      const { jsPDF } = jsPDFModule;
+      const autoTable = autoTableModule.default || autoTableModule;
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(18);
+      doc.text('Report Prenotazioni - Maretrek', 14, 22);
+      doc.setFontSize(11);
+      doc.text(`Generato: ${new Date().toLocaleDateString('it-IT')}`, 14, 30);
+      doc.text(`Risultati: ${filteredBookings.length}`, 14, 36);
+      
+      // Tabella
+      const tableData = filteredBookings.map(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        const exp = experiences.find(e => e.id === slot?.experience_id);
+        const resourceIds = slot?.resource_ids || [];
+        const resourceNames = resourceIds.map(rid => {
+          const res = resources.find(r => r.id === rid);
+          return res?.name || '';
+        }).filter(Boolean).join(', ');
         
-        // Header
-        doc.setFontSize(18);
-        doc.text('Report Prenotazioni - Maretrek', 14, 22);
-        doc.setFontSize(11);
-        doc.text(`Generato: ${new Date().toLocaleDateString('it-IT')}`, 14, 30);
-        doc.text(`Risultati: ${filteredBookings.length}`, 14, 36);
-        
-        // Tabella
-        const tableData = filteredBookings.map(b => {
-          const slot = slots.find(s => s.id === b.slot_id);
-          const exp = experiences.find(e => e.id === slot?.experience_id);
-          const resourceIds = slot?.resource_ids || [];
-          const resourceNames = resourceIds.map(rid => {
-            const res = resources.find(r => r.id === rid);
-            return res?.name || '';
-          }).filter(Boolean).join(', ');
-          
-          return [
-            b.booking_ref,
-            b.customer_name,
-            slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-',
-            exp?.name || '-',
-            resourceNames || '-',
-            b.seats,
-            b.status,
-            `€ ${(b.total_amount || 0).toFixed(2)}`
-          ];
-        });
-        
-        doc.autoTable({
-          startY: 42,
-          head: [['Codice', 'Cliente', 'Data', 'Esperienza', 'Risorsa', 'Posti', 'Stato', 'Totale']],
-          body: tableData,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [41, 128, 185] }
-        });
-        
-        // Footer
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-          doc.setPage(i);
-          doc.setFontSize(8);
-          doc.text(`Pagina ${i} di ${pageCount}`, doc.internal.pageSize.getWidth() - 30, doc.internal.pageSize.getHeight() - 10);
-        }
-        
-        doc.save(`maretrek-report-${new Date().toISOString().split('T')[0]}.pdf`);
-        toast.success('✅ PDF esportato con successo!');
+        return [
+          b.booking_ref,
+          b.customer_name,
+          slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-',
+          exp?.name || '-',
+          resourceNames || '-',
+          b.seats,
+          b.status,
+          `€ ${(b.total_amount || 0).toFixed(2)}`
+        ];
       });
-    });
+      
+      autoTable(doc, {
+        startY: 42,
+        head: [['Codice', 'Cliente', 'Data', 'Esperienza', 'Risorsa', 'Posti', 'Stato', 'Totale']],
+        body: tableData,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      
+      // Footer
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.text(`Pagina ${i} di ${pageCount}`, doc.internal.pageSize.getWidth() - 30, doc.internal.pageSize.getHeight() - 10);
+      }
+      
+      doc.save(`maretrek-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('✅ PDF esportato con successo!');
+    } catch (error) {
+      console.error('Errore export PDF:', error);
+      toast.error('❌ Errore durante l\'esportazione PDF');
+    }
   };
   
-  const exportExcel = () => {
-    import('xlsx').then((XLSX) => {
+  const exportExcel = async () => {
+    try {
+      const XLSX = await import('xlsx');
       const tableData = filteredBookings.map(b => {
         const slot = slots.find(s => s.id === b.slot_id);
         const exp = experiences.find(e => e.id === slot?.experience_id);
@@ -1628,9 +1635,9 @@ function AdminDashboard() {
         };
       });
       
-      const ws = XLSX.default.utils.json_to_sheet(tableData);
-      const wb = XLSX.default.utils.book_new();
-      XLSX.default.utils.book_append_sheet(wb, ws, 'Prenotazioni');
+      const ws = XLSX.utils.json_to_sheet(tableData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Prenotazioni');
       
       // Imposta larghezza colonne
       const wscols = [
@@ -1647,9 +1654,12 @@ function AdminDashboard() {
       ];
       ws['!cols'] = wscols;
       
-      XLSX.default.writeFile(wb, `maretrek-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(wb, `maretrek-report-${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('✅ Excel esportato con successo!');
-    });
+    } catch (error) {
+      console.error('Errore export Excel:', error);
+      toast.error('❌ Errore durante l\'esportazione Excel');
+    }
   };
 
   return (
@@ -2395,59 +2405,66 @@ function B2BPortal({ setView, allExperiences }) {
     setFilteredBookings(myBookings);
   };
   
-  const exportPDF = () => {
-    import('jspdf').then((jsPDFModule) => {
-      import('jspdf-autotable').then(() => {
-        const { jsPDF } = jsPDFModule;
-        const doc = new jsPDF();
+  const exportPDF = async () => {
+    try {
+      const [jsPDFModule, autoTableModule] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable')
+      ]);
+      const { jsPDF } = jsPDFModule;
+      const autoTable = autoTableModule.default || autoTableModule;
+      const doc = new jsPDF();
+      
+      doc.setFontSize(18);
+      doc.text(`Report Vendite - ${agency.name}`, 14, 22);
+      doc.setFontSize(11);
+      doc.text(`Generato: ${new Date().toLocaleDateString('it-IT')}`, 14, 30);
+      doc.text(`Totale Vendite: ${filteredBookings.length}`, 14, 36);
+      
+      const tableData = filteredBookings.map(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        const exp = experiences.find(e => e.id === slot?.experience_id);
+        const resourceIds = slot?.resource_ids || [];
+        const resourceNames = resourceIds.map(rid => resources.find(r => r.id === rid)?.name || '').filter(Boolean).join(', ');
         
-        doc.setFontSize(18);
-        doc.text(`Report Vendite - ${agency.name}`, 14, 22);
-        doc.setFontSize(11);
-        doc.text(`Generato: ${new Date().toLocaleDateString('it-IT')}`, 14, 30);
-        doc.text(`Totale Vendite: ${filteredBookings.length}`, 14, 36);
-        
-        const tableData = filteredBookings.map(b => {
-          const slot = slots.find(s => s.id === b.slot_id);
-          const exp = experiences.find(e => e.id === slot?.experience_id);
-          const resourceIds = slot?.resource_ids || [];
-          const resourceNames = resourceIds.map(rid => resources.find(r => r.id === rid)?.name || '').filter(Boolean).join(', ');
-          
-          return [
-            b.booking_ref,
-            b.customer_name,
-            slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-',
-            exp?.name || '-',
-            resourceNames || '-',
-            b.seats,
-            b.status,
-            `€ ${(b.total_amount || 0).toFixed(2)}`
-          ];
-        });
-        
-        doc.autoTable({
-          startY: 42,
-          head: [['Codice', 'Cliente', 'Data', 'Esperienza', 'Risorsa', 'Posti', 'Stato', 'Totale']],
-          body: tableData,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [41, 128, 185] }
-        });
-        
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-          doc.setPage(i);
-          doc.setFontSize(8);
-          doc.text(`Pagina ${i} di ${pageCount}`, doc.internal.pageSize.getWidth() - 30, doc.internal.pageSize.getHeight() - 10);
-        }
-        
-        doc.save(`${agency.name}-vendite-${new Date().toISOString().split('T')[0]}.pdf`);
-        toast.success('✅ PDF esportato!');
+        return [
+          b.booking_ref,
+          b.customer_name,
+          slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-',
+          exp?.name || '-',
+          resourceNames || '-',
+          b.seats,
+          b.status,
+          `€ ${(b.total_amount || 0).toFixed(2)}`
+        ];
       });
-    });
+      
+      autoTable(doc, {
+        startY: 42,
+        head: [['Codice', 'Cliente', 'Data', 'Esperienza', 'Risorsa', 'Posti', 'Stato', 'Totale']],
+        body: tableData,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [41, 128, 185] }
+      });
+      
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.text(`Pagina ${i} di ${pageCount}`, doc.internal.pageSize.getWidth() - 30, doc.internal.pageSize.getHeight() - 10);
+      }
+      
+      doc.save(`${agency.name}-vendite-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('✅ PDF esportato!');
+    } catch (error) {
+      console.error('Errore export PDF:', error);
+      toast.error('❌ Errore durante l\'esportazione PDF');
+    }
   };
   
-  const exportExcel = () => {
-    import('xlsx').then((XLSX) => {
+  const exportExcel = async () => {
+    try {
+      const XLSX = await import('xlsx');
       const tableData = filteredBookings.map(b => {
         const slot = slots.find(s => s.id === b.slot_id);
         const exp = experiences.find(e => e.id === slot?.experience_id);
@@ -2468,9 +2485,9 @@ function B2BPortal({ setView, allExperiences }) {
         };
       });
       
-      const ws = XLSX.default.utils.json_to_sheet(tableData);
-      const wb = XLSX.default.utils.book_new();
-      XLSX.default.utils.book_append_sheet(wb, ws, 'Vendite');
+      const ws = XLSX.utils.json_to_sheet(tableData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Vendite');
       
       const wscols = [
         { wch: 12 }, { wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, 
@@ -2478,9 +2495,12 @@ function B2BPortal({ setView, allExperiences }) {
       ];
       ws['!cols'] = wscols;
       
-      XLSX.default.writeFile(wb, `${agency.name}-vendite-${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(wb, `${agency.name}-vendite-${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('✅ Excel esportato!');
-    });
+    } catch (error) {
+      console.error('Errore export Excel:', error);
+      toast.error('❌ Errore durante l\'esportazione Excel');
+    }
   };
 
   if (!agency) {
