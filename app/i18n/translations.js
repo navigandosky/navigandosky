@@ -28,6 +28,31 @@ export const translations = {
     total: 'Totale',
     confirm_booking: 'Conferma Prenotazione',
     
+    // Admin Dashboard
+    overview: 'Panoramica',
+    calendar: 'Calendario',
+    resources: 'Risorse',
+    slots: 'Slot',
+    bookings: 'Prenotazioni',
+    vouchers: 'Voucher',
+    agencies: 'Agenzie',
+    fleet_map: 'Mappa Flotta',
+    gps_setup: 'Setup GPS',
+    reports: 'Report & Filtri',
+    
+    // Reports
+    advanced_filters: 'Filtri Avanzati Prenotazioni',
+    search_by_code: 'Cerca per Codice',
+    search_by_date: 'Cerca per Data',
+    search_by_resource: 'Cerca per Risorsa',
+    search_by_experience: 'Cerca per Esperienza',
+    search_by_name: 'Cerca per Nominativo',
+    export_pdf: 'Esporta PDF',
+    export_excel: 'Esporta Excel',
+    apply_filters: 'Applica Filtri',
+    clear_filters: 'Pulisci Filtri',
+    total_results: 'Risultati Totali',
+    
     // Footer
     contacts: 'Contatti',
     info: 'Info',
@@ -45,6 +70,13 @@ export const translations = {
     edit: 'Modifica',
     search: 'Cerca',
     filter: 'Filtra',
+    name: 'Nome',
+    email: 'Email',
+    phone: 'Telefono',
+    status: 'Stato',
+    date: 'Data',
+    actions: 'Azioni',
+    details: 'Dettagli',
   },
   
   en: {

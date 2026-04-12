@@ -1392,6 +1392,7 @@ function SetupGPS() {
 
 // ============ ADMIN DASHBOARD ============
 function AdminDashboard() {
+  const { t } = useLanguage();
   const [stats, setStats] = useState({});
   const [experiences, setExps] = useState([]);
   const [resources, setResources] = useState([]);
@@ -1399,7 +1400,6 @@ function AdminDashboard() {
   const [bookings, setBookings] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [agencies, setAgencies] = useState([]);
-  const [waitlist, setWaitlist] = useState([]);
   const [showDialog, setShowDialog] = useState(null);
   const [formData, setFormData] = useState({});
   const [editRes, setEditRes] = useState(null);
@@ -1408,14 +1408,25 @@ function AdminDashboard() {
   const [editForm, setEditForm] = useState({});
   const [seeding, setSeeding] = useState(false);
   const [resBookings, setResBookings] = useState(null);
+  
+  // Filtri Report
+  const [filters, setFilters] = useState({
+    code: '',
+    date: '',
+    resource_id: '',
+    experience_id: '',
+    customer_name: ''
+  });
+  const [filteredBookings, setFilteredBookings] = useState([]);
 
   const load = useCallback(async () => {
-    const [s, e, r, sl, b, v, ag, wl] = await Promise.all([
-      api('stats'), api('experiences?all=true'), api('resources'), api('slots'), api('bookings'), api('vouchers'), api('agencies'), api('waitlist')
+    const [s, e, r, sl, b, v, ag] = await Promise.all([
+      api('stats'), api('experiences?all=true'), api('resources'), api('slots'), api('bookings'), api('vouchers'), api('agencies')
     ]);
     setStats(s||{}); setExps(Array.isArray(e)?e:[]); setResources(Array.isArray(r)?r:[]);
     setSlots(Array.isArray(sl)?sl:[]); setBookings(Array.isArray(b)?b:[]); setVouchers(Array.isArray(v)?v:[]);
-    setAgencies(Array.isArray(ag)?ag:[]); setWaitlist(Array.isArray(wl)?wl:[]);
+    setAgencies(Array.isArray(ag)?ag:[]);
+    setFilteredBookings(Array.isArray(b)?b:[]); // Inizializza filtri
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -1444,9 +1455,60 @@ function AdminDashboard() {
     return bookings.filter(b => resSlotIds.includes(b.slot_id) && b.status !== 'CANCELLED');
   };
 
-  const notifyWaitlist = async (id) => {
-    await api(`waitlist/${id}`, { method: 'PUT', body: { action: 'notify' } });
-    toast.success('Notifica inviata!'); await load();
+  // Funzioni filtri report
+  const applyFilters = () => {
+    let result = [...bookings];
+    
+    if (filters.code) {
+      result = result.filter(b => 
+        (b.booking_ref || '').toLowerCase().includes(filters.code.toLowerCase())
+      );
+    }
+    
+    if (filters.date) {
+      result = result.filter(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        if (!slot) return false;
+        return slot.start_datetime?.startsWith(filters.date);
+      });
+    }
+    
+    if (filters.resource_id) {
+      const resSlotIds = slots.filter(s => 
+        (s.resource_ids || []).includes(filters.resource_id)
+      ).map(s => s.id);
+      result = result.filter(b => resSlotIds.includes(b.slot_id));
+    }
+    
+    if (filters.experience_id) {
+      const expSlotIds = slots.filter(s => 
+        s.experience_id === filters.experience_id
+      ).map(s => s.id);
+      result = result.filter(b => expSlotIds.includes(b.slot_id));
+    }
+    
+    if (filters.customer_name) {
+      result = result.filter(b =>
+        (b.customer_name || '').toLowerCase().includes(filters.customer_name.toLowerCase())
+      );
+    }
+    
+    setFilteredBookings(result);
+  };
+  
+  const clearFilters = () => {
+    setFilters({ code: '', date: '', resource_id: '', experience_id: '', customer_name: '' });
+    setFilteredBookings(bookings);
+  };
+  
+  const exportPDF = () => {
+    toast.info('Export PDF in sviluppo...');
+    // TODO: implementare jsPDF
+  };
+  
+  const exportExcel = () => {
+    toast.info('Export Excel in sviluppo...');
+    // TODO: implementare xlsx
   };
 
   return (
@@ -1461,17 +1523,17 @@ function AdminDashboard() {
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />Panoramica</TabsTrigger>
-          <TabsTrigger value="gantt"><CalIcon className="w-4 h-4 mr-1.5" />Calendario</TabsTrigger>
-          <TabsTrigger value="experiences"><Compass className="w-4 h-4 mr-1.5" />Esperienze</TabsTrigger>
-          <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />Risorse</TabsTrigger>
-          <TabsTrigger value="slots"><CalIcon className="w-4 h-4 mr-1.5" />Slot</TabsTrigger>
-          <TabsTrigger value="bookings"><CreditCard className="w-4 h-4 mr-1.5" />Prenotazioni</TabsTrigger>
-          <TabsTrigger value="vouchers"><Tag className="w-4 h-4 mr-1.5" />Voucher</TabsTrigger>
-          <TabsTrigger value="waitlist"><ListOrdered className="w-4 h-4 mr-1.5" />Lista Attesa</TabsTrigger>
-          <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />Agenzie</TabsTrigger>
-          <TabsTrigger value="fleet"><Map className="w-4 h-4 mr-1.5" />Mappa Flotta</TabsTrigger>
-          <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />Setup GPS</TabsTrigger>
+          <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
+          <TabsTrigger value="gantt"><CalIcon className="w-4 h-4 mr-1.5" />{t('calendar')}</TabsTrigger>
+          <TabsTrigger value="experiences"><Compass className="w-4 h-4 mr-1.5" />{t('experiences')}</TabsTrigger>
+          <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
+          <TabsTrigger value="slots"><CalIcon className="w-4 h-4 mr-1.5" />{t('slots')}</TabsTrigger>
+          <TabsTrigger value="bookings"><CreditCard className="w-4 h-4 mr-1.5" />{t('bookings')}</TabsTrigger>
+          <TabsTrigger value="vouchers"><Tag className="w-4 h-4 mr-1.5" />{t('vouchers')}</TabsTrigger>
+          <TabsTrigger value="reports"><BarChart3 className="w-4 h-4 mr-1.5" />{t('reports')}</TabsTrigger>
+          <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
+          <TabsTrigger value="fleet"><Map className="w-4 h-4 mr-1.5" />{t('fleet_map')}</TabsTrigger>
+          <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -1570,15 +1632,122 @@ function AdminDashboard() {
         </TabsContent>
 
         {/* Waitlist */}
-        <TabsContent value="waitlist" className="space-y-4">
-          <h2 className="text-xl font-semibold">Lista d'Attesa ({waitlist.length})</h2>
-          {waitlist.length === 0 ? <p className="text-center py-8 text-muted-foreground">Nessun iscritto alla lista d'attesa.</p> : (
-            <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Pos.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-              {waitlist.map(w=>(<tr key={w.id} className="border-b hover:bg-muted/30"><td className="p-3 font-bold">#{w.position}</td><td className="p-3">{w.customer_name}</td><td className="p-3 text-xs">{w.customer_email}</td><td className="p-3">{w.experience_name||getExpName(w.experience_id)}</td><td className="p-3">{w.seats_requested}</td><td className="p-3"><StatusBadge status={w.status}/></td>
-                <td className="p-3"><div className="flex gap-1">{w.status==='WAITING'&&<Button size="sm" variant="outline" className="text-xs h-7" onClick={()=>notifyWaitlist(w.id)}><Bell className="w-3 h-3 mr-1"/>Notifica</Button>}<Button variant="ghost" size="icon" className="h-7 w-7" onClick={()=>deleteItem('waitlist',w.id)}><Trash2 className="w-3 h-3 text-red-500"/></Button></div></td>
-              </tr>))}
-            </tbody></table></div>
-          )}
+        {/* Report & Filtri Prenotazioni */}
+        <TabsContent value="reports" className="space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold mb-2">{t('reports')}</h2>
+            <p className="text-muted-foreground">{t('advanced_filters')}</p>
+          </div>
+
+          {/* Filtri */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('search')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>{t('search_by_code')}</Label>
+                  <Input 
+                    placeholder="MRT12345"
+                    value={filters.code}
+                    onChange={(e) => setFilters({...filters, code: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label>{t('search_by_date')}</Label>
+                  <Input 
+                    type="date"
+                    value={filters.date}
+                    onChange={(e) => setFilters({...filters, date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label>{t('search_by_name')}</Label>
+                  <Input 
+                    placeholder={t('name')}
+                    value={filters.customer_name}
+                    onChange={(e) => setFilters({...filters, customer_name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label>{t('search_by_resource')}</Label>
+                  <Select value={filters.resource_id || 'all'} onValueChange={(v) => setFilters({...filters, resource_id: v === 'all' ? '' : v})}>
+                    <SelectTrigger><SelectValue placeholder={t('resources')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutte</SelectItem>
+                      {resources.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>{t('search_by_experience')}</Label>
+                  <Select value={filters.experience_id || 'all'} onValueChange={(v) => setFilters({...filters, experience_id: v === 'all' ? '' : v})}>
+                    <SelectTrigger><SelectValue placeholder={t('experiences')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutte</SelectItem>
+                      {experiences.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={clearFilters}>{t('clear_filters')}</Button>
+                <Button onClick={applyFilters}><Search className="w-4 h-4 mr-2" />{t('apply_filters')}</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Risultati */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>{t('bookings')} - {t('total_results')}: {filteredBookings.length}</CardTitle>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={exportPDF}><Download className="w-4 h-4 mr-2" />{t('export_pdf')}</Button>
+                <Button variant="outline" size="sm" onClick={exportExcel}><Download className="w-4 h-4 mr-2" />{t('export_excel')}</Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left bg-muted/50">
+                      <th className="p-3">Codice</th>
+                      <th className="p-3">Cliente</th>
+                      <th className="p-3">{t('date')}</th>
+                      <th className="p-3">Esperienza</th>
+                      <th className="p-3">Posti</th>
+                      <th className="p-3">{t('status')}</th>
+                      <th className="p-3">Totale</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredBookings.map(b => {
+                      const slot = slots.find(s => s.id === b.slot_id);
+                      const exp = experiences.find(e => e.id === slot?.experience_id);
+                      return (
+                        <tr key={b.id} className="border-b hover:bg-muted/30">
+                          <td className="p-3 font-mono text-xs">{b.booking_ref}</td>
+                          <td className="p-3">{b.customer_name}</td>
+                          <td className="p-3 text-xs">{slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-'}</td>
+                          <td className="p-3">{exp?.name || '-'}</td>
+                          <td className="p-3">{b.seats}</td>
+                          <td className="p-3"><StatusBadge status={b.status} /></td>
+                          <td className="p-3 font-semibold">{fmtPrice(b.total_amount)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {filteredBookings.length === 0 && (
+                  <p className="text-center py-12 text-muted-foreground">Nessun risultato trovato</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Agencies */}
