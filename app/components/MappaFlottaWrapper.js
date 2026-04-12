@@ -2,8 +2,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Map as MapIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { RefreshCw, Map as MapIcon, Calendar, TrendingUp, Route } from 'lucide-react';
 import { toast } from 'sonner';
+import GPSAnalyticsDashboard from './GPSAnalyticsDashboard';
+import SpeedChart from './SpeedChart';
 
 // Import dinamico del componente mappa
 const FleetMap = dynamic(() => import('./FleetMap'), {
@@ -33,6 +38,12 @@ export default function MappaFlottaWrapper() {
   const [filter, setFilter] = useState('all');
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [isMounted, setIsMounted] = useState(false);
+  
+  // Nuove funzionalità
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showRoute, setShowRoute] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -43,7 +54,13 @@ export default function MappaFlottaWrapper() {
     loadFleet();
     const interval = setInterval(loadFleet, 30000);
     return () => clearInterval(interval);
-  }, [isMounted]);
+  }, [isMounted, selectedDate]);
+
+  useEffect(() => {
+    if (selectedDevice && selectedDevice.imei) {
+      loadAnalytics(selectedDevice.imei);
+    }
+  }, [selectedDevice, selectedDate]);
 
   const loadFleet = async () => {
     try {
@@ -64,6 +81,19 @@ export default function MappaFlottaWrapper() {
       console.error('Error loading fleet:', error);
       setLoading(false);
       toast.error('Errore caricamento flotta GPS');
+    }
+  };
+
+  const loadAnalytics = async (imei) => {
+    setLoadingAnalytics(true);
+    try {
+      const data = await api(`gps/analytics/${imei}?date=${selectedDate}`);
+      setAnalytics(data);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      setAnalytics(null);
+    } finally {
+      setLoadingAnalytics(false);
     }
   };
 
@@ -89,18 +119,68 @@ export default function MappaFlottaWrapper() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Header con controlli */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-2xl font-bold">Mappa Flotta GPS</h2>
-          <p className="text-sm text-muted-foreground">Tracking real-time delle imbarcazioni tramite Balin.app</p>
+          <h2 className="text-2xl font-bold">Mappa Flotta GPS Real-Time</h2>
+          <p className="text-sm text-muted-foreground">Tracking equipaggio, passeggeri e analytics avanzate</p>
         </div>
-        <Button onClick={loadFleet} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Aggiorna
-        </Button>
+        
+        <div className="flex items-center gap-3">
+          {/* Date picker */}
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+              className="w-[150px]"
+            />
+          </div>
+
+          {/* Toggle rotta */}
+          <div className="flex items-center gap-2 px-3 py-2 border rounded-lg bg-white">
+            <Route className="w-4 h-4 text-muted-foreground" />
+            <Label htmlFor="show-route" className="text-sm cursor-pointer">Mostra Rotta</Label>
+            <Switch 
+              id="show-route"
+              checked={showRoute}
+              onCheckedChange={setShowRoute}
+            />
+          </div>
+
+          {/* Refresh */}
+          <Button onClick={loadFleet} disabled={loading} variant="outline">
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Aggiorna
+          </Button>
+        </div>
       </div>
 
+      {/* Analytics Dashboard */}
+      {selectedDevice && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold">
+              Analytics: {selectedDevice.resource?.name || selectedDevice.name}
+            </h3>
+            <span className="text-sm text-muted-foreground">
+              {new Date(selectedDate).toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </span>
+          </div>
+          
+          <GPSAnalyticsDashboard analytics={analytics} loading={loadingAnalytics} />
+          
+          {analytics && analytics.route && analytics.route.length > 0 && (
+            <SpeedChart route={analytics.route} />
+          )}
+        </div>
+      )}
+
+      {/* Mappa */}
       <div className="grid grid-cols-4 gap-4 h-[600px]">
         <div className="col-span-1 overflow-y-auto border rounded-lg bg-white">
           <DevicesList 
@@ -127,6 +207,8 @@ export default function MappaFlottaWrapper() {
               devices={filteredDevices}
               center={mapCenter}
               zoom={10}
+              selectedDate={selectedDate}
+              showRoute={showRoute}
             />
           )}
           

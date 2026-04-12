@@ -1129,6 +1129,225 @@ async function handleGPSTest(method) {
   }
 }
 
+// ==================== GPS HISTORY ====================
+async function handleGPSHistory(method, pathParts, searchParams) {
+  if (method !== 'GET') return json({ error: 'Use GET' }, 405);
+  
+  const imei = pathParts[2]; // gps/history/{imei}
+  if (!imei) return json({ error: 'IMEI richiesto' }, 400);
+  
+  try {
+    const db = await getDb();
+    const config = await db.collection('gps_config').findOne({ type: 'balin' });
+    
+    if (!config || !config.email || !config.api_token) {
+      return json({ error: 'Configurazione GPS non trovata' }, 400);
+    }
+    
+    const authString = `${config.email}:${config.api_token}`;
+    const base64Auth = Buffer.from(authString).toString('base64');
+    
+    // Parametri data (default: oggi)
+    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const dateFrom = searchParams.get('date_from') || `${date}T00:00:00Z`;
+    const dateTo = searchParams.get('date_to') || `${date}T23:59:59Z`;
+    
+    // Chiama API Balin per storico
+    const apiUrl = `https://api.balin.app/external_api/v1/device/${imei}/history?from=${dateFrom}&to=${dateTo}`;
+    
+    console.log(`[GPS History] Calling: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${base64Auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[GPS History] API error ${response.status}:`, errorText);
+      return json({ error: `Errore API Balin (${response.status})`, details: errorText }, response.status);
+    }
+    
+    const history = await response.json();
+    
+    return json({
+      imei,
+      date,
+      history: Array.isArray(history) ? history : [],
+      count: Array.isArray(history) ? history.length : 0
+    });
+    
+  } catch (error) {
+    console.error('[GPS History] Error:', error);
+    return json({ error: 'Errore recupero storico GPS', details: error.message }, 500);
+  }
+}
+
+// ==================== GPS ANALYTICS ====================
+async function handleGPSAnalytics(method, pathParts, searchParams) {
+  if (method !== 'GET') return json({ error: 'Use GET' }, 405);
+  
+  const imei = pathParts[2]; // gps/analytics/{imei}
+  if (!imei) return json({ error: 'IMEI richiesto' }, 400);
+  
+  try {
+    const db = await getDb();
+    const config = await db.collection('gps_config').findOne({ type: 'balin' });
+    
+    if (!config) return json({ error: 'Configurazione GPS non trovata' }, 400);
+    
+    const authString = `${config.email}:${config.api_token}`;
+    const base64Auth = Buffer.from(authString).toString('base64');
+    
+    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const dateFrom = `${date}T00:00:00Z`;
+    const dateTo = `${date}T23:59:59Z`;
+    
+    // Recupera storico posizioni
+    const apiUrl = `https://api.balin.app/external_api/v1/device/${imei}/history?from=${dateFrom}&to=${dateTo}`;
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${base64Auth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      return json({ error: 'Errore recupero dati' }, response.status);
+    }
+    
+    const history = await response.json();
+    
+    if (!Array.isArray(history) || history.length === 0) {
+      return json({
+        imei,
+        date,
+        total_distance: 0,
+        max_speed: 0,
+        avg_speed: 0,
+        total_time: 0,
+        stops: 0,
+        route: []
+      });
+    }
+    
+    // Calcola analytics
+    let totalDistance = 0;
+    let maxSpeed = 0;
+    let totalSpeed = 0;
+    let stops = 0;
+    let movingTime = 0;
+    
+    const route = history.map((point, i) => {
+      if (point.speed > maxSpeed) maxSpeed = point.speed;
+      totalSpeed += point.speed || 0;
+      
+      if (point.speed === 0) stops++;
+      else if (point.speed > 0) movingTime += 1;
+      
+      // Calcola distanza dal punto precedente (formula di Haversine semplificata)
+      if (i > 0) {
+        const prev = history[i - 1];
+        const R = 6371; // Raggio Terra in km
+        const dLat = (point.lat - prev.lat) * Math.PI / 180;
+        const dLon = (point.lng - prev.lng) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(prev.lat * Math.PI / 180) * Math.cos(point.lat * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        totalDistance += R * c;
+      }
+      
+      return {
+        lat: point.lat,
+        lng: point.lng,
+        speed: point.speed || 0,
+        timestamp: point.timestamp || point.timestamp_position
+      };
+    });
+    
+    return json({
+      imei,
+      date,
+      total_distance: parseFloat(totalDistance.toFixed(2)),
+      max_speed: maxSpeed,
+      avg_speed: history.length > 0 ? parseFloat((totalSpeed / history.length).toFixed(2)) : 0,
+      total_time: movingTime,
+      stops,
+      route,
+      points_count: history.length
+    });
+    
+  } catch (error) {
+    console.error('[GPS Analytics] Error:', error);
+    return json({ error: 'Errore calcolo analytics', details: error.message }, 500);
+  }
+}
+
+// ==================== BOOKINGS BY RESOURCE & DATE ====================
+async function handleBookingsByResource(method, searchParams) {
+  if (method !== 'GET') return json({ error: 'Use GET' }, 405);
+  
+  try {
+    const db = await getDb();
+    const resourceId = searchParams.get('resource_id');
+    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    
+    if (!resourceId) return json({ error: 'resource_id richiesto' }, 400);
+    
+    // Trova slots della risorsa per la data
+    const slots = await db.collection('slots').find({
+      resource_ids: resourceId,
+      start_datetime: {
+        $gte: `${date}T00:00:00Z`,
+        $lte: `${date}T23:59:59Z`
+      }
+    }).toArray();
+    
+    if (slots.length === 0) {
+      return json({ resource_id: resourceId, date, bookings: [], total: 0 });
+    }
+    
+    const slotIds = slots.map(s => s.id);
+    
+    // Trova prenotazioni per questi slot
+    const bookings = await db.collection('bookings').find({
+      slot_id: { $in: slotIds },
+      status: { $in: ['CONFIRMED', 'PENDING'] }
+    }).toArray();
+    
+    // Enriched con info esperienza e slot
+    const enriched = await Promise.all(bookings.map(async (booking) => {
+      const slot = slots.find(s => s.id === booking.slot_id);
+      const experience = slot ? await db.collection('experiences').findOne({ id: slot.experience_id }) : null;
+      
+      return {
+        ...booking,
+        slot_time: slot ? slot.start_datetime : null,
+        experience_name: experience ? experience.name : 'N/A',
+        experience_type: experience ? experience.type : null
+      };
+    }));
+    
+    return json({
+      resource_id: resourceId,
+      date,
+      bookings: enriched,
+      total: enriched.length,
+      total_passengers: enriched.reduce((sum, b) => sum + (b.seats || 0), 0)
+    });
+    
+  } catch (error) {
+    console.error('[Bookings by Resource] Error:', error);
+    return json({ error: 'Errore recupero prenotazioni', details: error.message }, 500);
+  }
+}
+
 // ==================== ROUTE DISPATCHER ====================
 async function handleRoute(request, resolvedParams, method) {
   try {
@@ -1148,6 +1367,15 @@ async function handleRoute(request, resolvedParams, method) {
       if (pathSegments[1] === 'test') {
         return await handleGPSTest(method);
       }
+      // gps/history/{imei} -> storico GPS
+      if (pathSegments[1] === 'history') {
+        return await handleGPSHistory(method, pathSegments, searchParams);
+      }
+      // gps/analytics/{imei} -> analytics GPS
+      if (pathSegments[1] === 'analytics') {
+        return await handleGPSAnalytics(method, pathSegments, searchParams);
+      }
+      // gps/devices -> dispositivi real-time
       return await handleGPS(method, pathSegments);
     }
 
@@ -1155,7 +1383,12 @@ async function handleRoute(request, resolvedParams, method) {
       case 'experiences': return await handleExperiences(method, id, body, searchParams);
       case 'resources': return await handleResources(method, id, body, searchParams);
       case 'slots': return await handleSlots(method, id, body, action, searchParams);
-      case 'bookings': return await handleBookings(method, id, body, action, searchParams);
+      case 'bookings': 
+        // bookings/by-resource -> prenotazioni per risorsa e data
+        if (id === 'by-resource') {
+          return await handleBookingsByResource(method, searchParams);
+        }
+        return await handleBookings(method, id, body, action, searchParams);
       case 'vouchers': return await handleVouchers(method, id, body, action, searchParams);
       case 'waitlist': return await handleWaitlist(method, id, body, action, searchParams);
       case 'agencies': return await handleAgencies(method, id, body, action, searchParams);

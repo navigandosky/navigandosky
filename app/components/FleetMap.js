@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
+import ParticipantsPopup from './ParticipantsPopup';
 
 // Fix icone Leaflet per Next.js
 if (typeof window !== 'undefined') {
@@ -13,12 +14,74 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10 }) {
+const api = async (path, opts = {}) => {
+  const { method = 'GET', body } = opts;
+  const cfg = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) cfg.body = JSON.stringify(body);
+  const res = await fetch(`/api/${path}`, cfg);
+  return res.json();
+};
+
+export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10, selectedDate, showRoute = false }) {
   const [isMounted, setIsMounted] = useState(false);
+  const [deviceBookings, setDeviceBookings] = useState({});
+  const [loadingBookings, setLoadingBookings] = useState({});
+  const [routes, setRoutes] = useState({});
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Carica prenotazioni per ogni dispositivo
+  useEffect(() => {
+    if (!isMounted || devices.length === 0) return;
+
+    devices.forEach(device => {
+      if (device.resource?.id && !deviceBookings[device.imei]) {
+        loadBookingsForDevice(device);
+      }
+    });
+  }, [devices, isMounted, selectedDate]);
+
+  // Carica rotta storica se richiesto
+  useEffect(() => {
+    if (!isMounted || !showRoute) return;
+
+    devices.forEach(device => {
+      if (device.imei && !routes[device.imei]) {
+        loadRouteForDevice(device);
+      }
+    });
+  }, [devices, isMounted, showRoute, selectedDate]);
+
+  const loadBookingsForDevice = async (device) => {
+    if (!device.resource?.id) return;
+
+    setLoadingBookings(prev => ({ ...prev, [device.imei]: true }));
+
+    try {
+      const date = selectedDate || new Date().toISOString().split('T')[0];
+      const data = await api(`bookings/by-resource?resource_id=${device.resource.id}&date=${date}`);
+      setDeviceBookings(prev => ({ ...prev, [device.imei]: data }));
+    } catch (error) {
+      console.error('Error loading bookings:', error);
+    } finally {
+      setLoadingBookings(prev => ({ ...prev, [device.imei]: false }));
+    }
+  };
+
+  const loadRouteForDevice = async (device) => {
+    try {
+      const date = selectedDate || new Date().toISOString().split('T')[0];
+      const data = await api(`gps/analytics/${device.imei}?date=${date}`);
+      
+      if (data.route && data.route.length > 0) {
+        setRoutes(prev => ({ ...prev, [device.imei]: data.route }));
+      }
+    } catch (error) {
+      console.error('Error loading route:', error);
+    }
+  };
 
   if (!isMounted) {
     return (
@@ -43,45 +106,42 @@ export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
+
+      {/* Rotte storiche */}
+      {showRoute && Object.entries(routes).map(([imei, route]) => {
+        if (!route || route.length < 2) return null;
+        
+        const positions = route.map(p => [p.lat, p.lng]);
+        
+        return (
+          <Polyline
+            key={`route-${imei}`}
+            positions={positions}
+            pathOptions={{
+              color: '#3b82f6',
+              weight: 3,
+              opacity: 0.7,
+              smoothFactor: 1
+            }}
+          />
+        );
+      })}
+
+      {/* Marker dispositivi */}
       {devices.map(device => {
         if (!device.lat || !device.lng) return null;
+
+        const bookings = deviceBookings[device.imei];
+        const loading = loadingBookings[device.imei];
+
         return (
           <Marker key={device.imei} position={[device.lat, device.lng]}>
-            <Popup>
-              <div className="p-2 min-w-[200px]">
-                <h3 className="font-bold text-sm mb-2">
-                  {device.resource?.name || device.name || `Dispositivo ${device.imei}`}
-                </h3>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">IMEI:</span>
-                    <span className="font-mono">{device.imei}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Stato:</span>
-                    <span className={device.moving ? 'text-green-600 font-semibold' : 'text-gray-500'}>
-                      {device.moving ? '🟢 In Movimento' : '⚪ Fermo'}
-                    </span>
-                  </div>
-                  {device.speed !== undefined && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Velocità:</span>
-                      <span>{device.speed} km/h</span>
-                    </div>
-                  )}
-                  {device.timestamp_position && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Aggiornato:</span>
-                      <span>{new Date(device.timestamp_position).toLocaleTimeString('it-IT')}</span>
-                    </div>
-                  )}
-                  {device.resource && (
-                    <div className="mt-2 pt-2 border-t text-gray-600">
-                      {device.resource.boat_type} - {device.resource.capacity} posti
-                    </div>
-                  )}
-                </div>
-              </div>
+            <Popup maxWidth={450} className="custom-popup">
+              <ParticipantsPopup 
+                device={device}
+                bookings={bookings}
+                loading={loading}
+              />
             </Popup>
           </Marker>
         );
