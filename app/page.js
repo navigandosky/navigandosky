@@ -835,6 +835,8 @@ function AdminDashboard() {
   const [formData, setFormData] = useState({});
   const [editRes, setEditRes] = useState(null);
   const [editResForm, setEditResForm] = useState({});
+  const [editBk, setEditBk] = useState(null);
+  const [editForm, setEditForm] = useState({});
   const [seeding, setSeeding] = useState(false);
   const [resBookings, setResBookings] = useState(null);
 
@@ -860,6 +862,12 @@ function AdminDashboard() {
     if (!editRes) return;
     const res = await api(`resources/${editRes.id}`, { method: 'PUT', body: editResForm });
     if (res.error) toast.error(res.error); else { toast.success('Risorsa aggiornata!'); setEditRes(null); await load(); }
+  };
+
+  const saveBookingEdit = async () => {
+    if (!editBk) return;
+    const res = await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'update_details', ...editForm } });
+    if (res.error) toast.error(res.error); else { toast.success('Prenotazione aggiornata!'); setEditBk(null); await load(); }
   };
 
   const getResourceBookings = (resId) => {
@@ -916,9 +924,9 @@ function AdminDashboard() {
 
         {/* Experiences */}
         <TabsContent value="experiences" className="space-y-4">
-          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Esperienze ({experiences.length})</h2><Button onClick={()=>{setFormData({type:'BOAT_EXCURSION',languages:['IT']});setShowDialog('experience');}}><Plus className="w-4 h-4 mr-2"/>Nuova</Button></div>
-          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Nome</th><th className="p-3 font-medium">Tipo</th><th className="p-3 font-medium">B2C</th><th className="p-3 font-medium">B2B</th><th className="p-3 font-medium">Durata</th><th className="p-3 font-medium">Cap.</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {experiences.map(e=>(<tr key={e.id} className="border-b hover:bg-muted/30"><td className="p-3 font-medium">{e.name}</td><td className="p-3"><TypeBadge type={e.type}/></td><td className="p-3">{fmtPrice(e.price_b2c)}</td><td className="p-3">{fmtPrice(e.price_b2b)}</td><td className="p-3">{Math.floor(e.duration_minutes/60)}h</td><td className="p-3">{e.max_capacity}</td><td className="p-3"><Button variant="ghost" size="icon" onClick={()=>deleteItem('experiences',e.id)}><Trash2 className="w-4 h-4 text-red-500"/></Button></td></tr>))}
+          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Esperienze ({experiences.length})</h2><Button onClick={()=>{setFormData({type:'BOAT_EXCURSION',languages:['IT'],is_active:true});setShowDialog('experience');}}><Plus className="w-4 h-4 mr-2"/>Nuova</Button></div>
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Nome</th><th className="p-3 font-medium">Tipo</th><th className="p-3 font-medium">B2C</th><th className="p-3 font-medium">B2B</th><th className="p-3 font-medium">Durata</th><th className="p-3 font-medium">Cap.</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
+            {experiences.map(e=>(<tr key={e.id} className="border-b hover:bg-muted/30"><td className="p-3 font-medium">{e.name}</td><td className="p-3"><TypeBadge type={e.type}/></td><td className="p-3">{fmtPrice(e.price_b2c)}</td><td className="p-3">{fmtPrice(e.price_b2b)}</td><td className="p-3">{Math.floor(e.duration_minutes/60)}h</td><td className="p-3">{e.max_capacity}</td><td className="p-3">{e.is_active !== false ? <Badge className="bg-green-100 text-green-800">Attiva</Badge> : <Badge variant="outline" className="text-muted-foreground">Sospesa</Badge>}</td><td className="p-3"><div className="flex gap-1"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{setFormData({...e,duration_hours:Math.floor(e.duration_minutes/60)});setShowDialog('edit_experience');}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button><Button variant={e.is_active !== false ? "ghost" : "outline"} size="sm" className="h-7 text-xs" onClick={async ()=>{await api(`experiences/${e.id}`,{method:'PUT',body:{is_active:!(e.is_active !== false)}});toast.success(e.is_active !== false ? 'Esperienza sospesa':'Esperienza attivata');await load();}}>{e.is_active !== false ? 'Sospendi' : 'Attiva'}</Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={()=>deleteItem('experiences',e.id)}><Trash2 className="w-3.5 h-3.5 text-red-500"/></Button></div></td></tr>))}
           </tbody></table></div>
         </TabsContent>
 
@@ -972,7 +980,12 @@ function AdminDashboard() {
           <h2 className="text-xl font-semibold">Prenotazioni ({bookings.length})</h2>
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
             {bookings.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td><td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
-              <td className="p-3"><div className="flex gap-1">{b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}{b.status==='CONFIRMED'&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id)}>Cancella</Button>}{b.checked_in_at&&<Badge className="bg-green-100 text-green-800 text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/>OK</Badge>}</div></td>
+              <td className="p-3"><div className="flex gap-1">
+                {(b.status==='CONFIRMED'&&!b.checked_in_at)&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>}
+                {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}
+                {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id)}>Cancella</Button>}
+                {b.checked_in_at&&<Badge className="bg-green-100 text-green-800 text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/>OK</Badge>}
+              </div></td>
             </tr>))}
           </tbody></table>{bookings.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione.</p>}</div>
         </TabsContent>
@@ -1023,6 +1036,21 @@ function AdminDashboard() {
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
             <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
             <Button className="w-full" onClick={()=>createItem('experiences',formData)}>Crea Esperienza</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Experience Dialog */}
+      <Dialog open={showDialog==='edit_experience'} onOpenChange={v=>!v&&setShowDialog(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Modifica Esperienza</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
+            <div><Label>Tipo</Label><Select value={formData.type||'BOAT_EXCURSION'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="BOAT_EXCURSION">Escursione in Barca</SelectItem><SelectItem value="GUIDED_TOUR">Visita Guidata</SelectItem><SelectItem value="BOAT_RENTAL">Noleggio</SelectItem></SelectContent></Select></div>
+            <div><Label>Descrizione</Label><Textarea value={formData.description||''} onChange={e=>setFormData({...formData,description:e.target.value})}/></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Durata (ore)</Label><Input type="number" value={formData.duration_hours||''} onChange={e=>setFormData({...formData,duration_hours:e.target.value,duration_minutes:e.target.value*60})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
+            <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
+            <Button className="w-full" onClick={async ()=>{const {id,duration_hours,...data}=formData;await api(`experiences/${id}`,{method:'PUT',body:data});toast.success('Esperienza aggiornata!');setShowDialog(null);setFormData({});await load();}}>Salva Modifiche</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1132,6 +1160,48 @@ function AdminDashboard() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Booking Dialog */}
+      <Dialog open={!!editBk} onOpenChange={() => setEditBk(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Modifica Prenotazione {editBk?.booking_ref}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Nome</Label><Input value={editForm.customer_name || ''} onChange={e => setEditForm({ ...editForm, customer_name: e.target.value })} /></div>
+            <div><Label>Email</Label><Input value={editForm.customer_email || ''} onChange={e => setEditForm({ ...editForm, customer_email: e.target.value })} /></div>
+            <div><Label>Telefono</Label><Input value={editForm.customer_phone || ''} onChange={e => setEditForm({ ...editForm, customer_phone: e.target.value })} /></div>
+            <div><Label>Richieste speciali</Label><Textarea value={editForm.special_requests || ''} onChange={e => setEditForm({ ...editForm, special_requests: e.target.value })} /></div>
+            
+            {editBk && editBk.seats > 0 && (
+              <div className="border-t pt-3 space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Ship className="w-4 h-4" />
+                  Assegnazione Posti ({editBk.seats} {editBk.seats === 1 ? 'posto' : 'posti'})
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {Array.from({ length: editBk.seats }).map((_, idx) => (
+                    <Input
+                      key={idx}
+                      placeholder={`Posto ${idx + 1}`}
+                      value={(editForm.seat_assignments || [])[idx] || ''}
+                      onChange={e => {
+                        const newAssignments = [...(editForm.seat_assignments || [])];
+                        newAssignments[idx] = e.target.value;
+                        setEditForm({ ...editForm, seat_assignments: newAssignments });
+                      }}
+                      className="h-8 text-sm"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-2 pt-2">
+              <Button className="flex-1" onClick={saveBookingEdit}>Salva Modifiche</Button>
+              <Button variant="destructive" onClick={async () => { await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'cancel' } }); toast.success('Cancellata'); setEditBk(null); await load(); }}>Cancella</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
