@@ -1502,13 +1502,109 @@ function AdminDashboard() {
   };
   
   const exportPDF = () => {
-    toast.info('Export PDF in sviluppo...');
-    // TODO: implementare jsPDF
+    import('jspdf').then((jsPDFModule) => {
+      import('jspdf-autotable').then(() => {
+        const { jsPDF } = jsPDFModule;
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(18);
+        doc.text('Report Prenotazioni - Maretrek', 14, 22);
+        doc.setFontSize(11);
+        doc.text(`Generato: ${new Date().toLocaleDateString('it-IT')}`, 14, 30);
+        doc.text(`Risultati: ${filteredBookings.length}`, 14, 36);
+        
+        // Tabella
+        const tableData = filteredBookings.map(b => {
+          const slot = slots.find(s => s.id === b.slot_id);
+          const exp = experiences.find(e => e.id === slot?.experience_id);
+          const resourceIds = slot?.resource_ids || [];
+          const resourceNames = resourceIds.map(rid => {
+            const res = resources.find(r => r.id === rid);
+            return res?.name || '';
+          }).filter(Boolean).join(', ');
+          
+          return [
+            b.booking_ref,
+            b.customer_name,
+            slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-',
+            exp?.name || '-',
+            resourceNames || '-',
+            b.seats,
+            b.status,
+            `€ ${(b.total_amount || 0).toFixed(2)}`
+          ];
+        });
+        
+        doc.autoTable({
+          startY: 42,
+          head: [['Codice', 'Cliente', 'Data', 'Esperienza', 'Risorsa', 'Posti', 'Stato', 'Totale']],
+          body: tableData,
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [41, 128, 185] }
+        });
+        
+        // Footer
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.text(`Pagina ${i} di ${pageCount}`, doc.internal.pageSize.getWidth() - 30, doc.internal.pageSize.getHeight() - 10);
+        }
+        
+        doc.save(`maretrek-report-${new Date().toISOString().split('T')[0]}.pdf`);
+        toast.success('✅ PDF esportato con successo!');
+      });
+    });
   };
   
   const exportExcel = () => {
-    toast.info('Export Excel in sviluppo...');
-    // TODO: implementare xlsx
+    import('xlsx').then((XLSX) => {
+      const tableData = filteredBookings.map(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        const exp = experiences.find(e => e.id === slot?.experience_id);
+        const resourceIds = slot?.resource_ids || [];
+        const resourceNames = resourceIds.map(rid => {
+          const res = resources.find(r => r.id === rid);
+          return res?.name || '';
+        }).filter(Boolean).join(', ');
+        
+        return {
+          'Codice': b.booking_ref,
+          'Cliente': b.customer_name,
+          'Email': b.customer_email,
+          'Telefono': b.customer_phone || '-',
+          'Data': slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-',
+          'Esperienza': exp?.name || '-',
+          'Risorsa': resourceNames || '-',
+          'Posti Venduti': b.seats,
+          'Stato Venduto': b.status,
+          'Totale': `€ ${(b.total_amount || 0).toFixed(2)}`
+        };
+      });
+      
+      const ws = XLSX.default.utils.json_to_sheet(tableData);
+      const wb = XLSX.default.utils.book_new();
+      XLSX.default.utils.book_append_sheet(wb, ws, 'Prenotazioni');
+      
+      // Imposta larghezza colonne
+      const wscols = [
+        { wch: 12 }, // Codice
+        { wch: 20 }, // Cliente
+        { wch: 25 }, // Email
+        { wch: 15 }, // Telefono
+        { wch: 12 }, // Data
+        { wch: 30 }, // Esperienza
+        { wch: 25 }, // Risorsa
+        { wch: 12 }, // Posti
+        { wch: 12 }, // Stato
+        { wch: 12 }  // Totale
+      ];
+      ws['!cols'] = wscols;
+      
+      XLSX.default.writeFile(wb, `maretrek-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('✅ Excel esportato con successo!');
+    });
   };
 
   return (
@@ -1719,8 +1815,9 @@ function AdminDashboard() {
                       <th className="p-3">Cliente</th>
                       <th className="p-3">{t('date')}</th>
                       <th className="p-3">Esperienza</th>
-                      <th className="p-3">Posti</th>
-                      <th className="p-3">{t('status')}</th>
+                      <th className="p-3">Risorsa</th>
+                      <th className="p-3">Posti Venduti</th>
+                      <th className="p-3">Stato Venduto</th>
                       <th className="p-3">Totale</th>
                     </tr>
                   </thead>
@@ -1728,13 +1825,29 @@ function AdminDashboard() {
                     {filteredBookings.map(b => {
                       const slot = slots.find(s => s.id === b.slot_id);
                       const exp = experiences.find(e => e.id === slot?.experience_id);
+                      const resourceIds = slot?.resource_ids || [];
+                      const resourceNames = resourceIds.map(rid => {
+                        const res = resources.find(r => r.id === rid);
+                        return res?.name || '';
+                      }).filter(Boolean).join(', ');
+                      
                       return (
                         <tr key={b.id} className="border-b hover:bg-muted/30">
                           <td className="p-3 font-mono text-xs">{b.booking_ref}</td>
                           <td className="p-3">{b.customer_name}</td>
                           <td className="p-3 text-xs">{slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-'}</td>
                           <td className="p-3">{exp?.name || '-'}</td>
-                          <td className="p-3">{b.seats}</td>
+                          <td className="p-3">
+                            {resourceNames ? (
+                              <div className="flex items-center gap-2">
+                                <Ship className="w-4 h-4 text-primary" />
+                                <span className="text-xs">{resourceNames}</span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </td>
+                          <td className="p-3 font-semibold">{b.seats}</td>
                           <td className="p-3"><StatusBadge status={b.status} /></td>
                           <td className="p-3 font-semibold">{fmtPrice(b.total_amount)}</td>
                         </tr>
