@@ -127,6 +127,7 @@ async function handleResources(method, id, body, sp) {
       phone: body.phone || '',
       email: body.email || '',
       images: body.images || [], // Array di URL immagini (max 3)
+      gps_imei: body.gps_imei || '', // IMEI dispositivo GPS Balin.app
       is_available: true,
       created_at: new Date().toISOString(),
     };

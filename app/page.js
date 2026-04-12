@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo, lazy, Suspense, memo } from 'react';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,10 +16,16 @@ import {
   Anchor, Ship, MapPin, Calendar as CalIcon, Clock, Users, Star, ChevronRight, ArrowLeft,
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
-  ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon
+  ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
+
+// Dynamic import per Leaflet (solo client-side)
+const MapContainer = dynamic(() => import('react-leaflet').then(m => m.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(m => m.TileLayer), { ssr: false });
+const Marker = dynamic(() => import('react-leaflet').then(m => m.Marker), { ssr: false });
+const Popup = dynamic(() => import('react-leaflet').then(m => m.Popup), { ssr: false });
 
 // ============ CONSTANTS ============
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_7d8a5623-84c4-4dc5-8737-98643d255bb4/artifacts/cdzklcx8_logo%20maretrek_1.jpg';
@@ -1262,7 +1269,7 @@ function AdminDashboard() {
           <div className="space-y-4">
             <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
             <div><Label>Tipo</Label><Select value={formData.type||'GUIDE'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GUIDE">Guida</SelectItem><SelectItem value="BOAT">Imbarcazione</SelectItem></SelectContent></Select></div>
-            {formData.type==='BOAT'&&<><div><Label>Tipo Imbarcazione</Label><Select value={formData.boat_type||'GOMMONE'} onValueChange={v=>setFormData({...formData,boat_type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GOMMONE">Gommone</SelectItem><SelectItem value="MOTONAVE">Motonave</SelectItem><SelectItem value="BARCA_A_VELA">Barca a Vela</SelectItem></SelectContent></Select></div><div><Label>Capacita (posti)</Label><Input type="number" value={formData.capacity||''} onChange={e=>setFormData({...formData,capacity:e.target.value})}/></div></>}
+            {formData.type==='BOAT'&&<><div><Label>Tipo Imbarcazione</Label><Select value={formData.boat_type||'GOMMONE'} onValueChange={v=>setFormData({...formData,boat_type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GOMMONE">Gommone</SelectItem><SelectItem value="MOTONAVE">Motonave</SelectItem><SelectItem value="BARCA_A_VELA">Barca a Vela</SelectItem></SelectContent></Select></div><div><Label>Capacita (posti)</Label><Input type="number" value={formData.capacity||''} onChange={e=>setFormData({...formData,capacity:e.target.value})}/></div><div><Label>GPS IMEI (Balin.app)</Label><Input value={formData.gps_imei||''} onChange={e=>setFormData({...formData,gps_imei:e.target.value})} placeholder="359633109558000"/></div></>}
             <div><Label>Descrizione</Label><Textarea value={formData.bio||''} onChange={e=>setFormData({...formData,bio:e.target.value})}/></div>
             <div><Label>Email</Label><Input value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})}/></div>
             <div><Label>Telefono</Label><Input value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})}/></div>
@@ -1390,7 +1397,7 @@ function AdminDashboard() {
             <TabsContent value="details" className="space-y-4 mt-4">
               <div><Label>Nome</Label><Input value={editResForm.name||''} onChange={e=>setEditResForm({...editResForm,name:e.target.value})}/></div>
               <div><Label>Tipo</Label><Select value={editResForm.type||'GUIDE'} onValueChange={v=>setEditResForm({...editResForm,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GUIDE">Guida</SelectItem><SelectItem value="BOAT">Imbarcazione</SelectItem></SelectContent></Select></div>
-              {editResForm.type==='BOAT'&&<><div><Label>Tipo Imbarcazione</Label><Select value={editResForm.boat_type||'GOMMONE'} onValueChange={v=>setEditResForm({...editResForm,boat_type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GOMMONE">Gommone</SelectItem><SelectItem value="MOTONAVE">Motonave</SelectItem><SelectItem value="BARCA_A_VELA">Barca a Vela</SelectItem></SelectContent></Select></div><div><Label>Capacita (posti vendibili)</Label><Input type="number" value={editResForm.capacity||''} onChange={e=>setEditResForm({...editResForm,capacity:parseInt(e.target.value)||0})}/></div></>}
+              {editResForm.type==='BOAT'&&<><div><Label>Tipo Imbarcazione</Label><Select value={editResForm.boat_type||'GOMMONE'} onValueChange={v=>setEditResForm({...editResForm,boat_type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GOMMONE">Gommone</SelectItem><SelectItem value="MOTONAVE">Motonave</SelectItem><SelectItem value="BARCA_A_VELA">Barca a Vela</SelectItem></SelectContent></Select></div><div><Label>Capacita (posti vendibili)</Label><Input type="number" value={editResForm.capacity||''} onChange={e=>setEditResForm({...editResForm,capacity:parseInt(e.target.value)||0})}/></div><div><Label>GPS IMEI (Balin.app)</Label><Input value={editResForm.gps_imei||''} onChange={e=>setEditResForm({...editResForm,gps_imei:e.target.value})} placeholder="359633109558000"/><p className="text-xs text-muted-foreground mt-1">Codice IMEI del dispositivo GPS per tracking real-time</p></div></>}
               <div><Label>Descrizione</Label><Textarea value={editResForm.bio||''} onChange={e=>setEditResForm({...editResForm,bio:e.target.value})}/></div>
               <div className="grid grid-cols-2 gap-3"><div><Label>Email</Label><Input value={editResForm.email||''} onChange={e=>setEditResForm({...editResForm,email:e.target.value})}/></div><div><Label>Telefono</Label><Input value={editResForm.phone||''} onChange={e=>setEditResForm({...editResForm,phone:e.target.value})}/></div></div>
               <Button className="w-full" onClick={saveResource}>Salva Modifiche</Button>
