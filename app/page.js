@@ -408,10 +408,10 @@ function Footer() {
             <div><h4 className="font-semibold mb-3">Info</h4><p className="text-sm text-white/70">Operatore turistico specializzato in esperienze marine nel nord Sardegna.</p></div>
             <div>
               <h4 className="font-semibold mb-3">Diventa Partner</h4>
-              <p className="text-sm text-white/70 mb-3">Sei un'agenzia viaggi? Entra nella nostra rete B2B.</p>
+              <p className="text-sm text-white/90 mb-3 font-bold">Sei un'agenzia viaggi? Entra nella nostra rete B2B.</p>
               <Button variant="outline" className="w-full text-white border-white hover:bg-white hover:text-primary" onClick={() => setShowWorkWithUs(true)}>
                 <Building2 className="w-4 h-4 mr-2" />
-                Lavora con noi
+                <span className="font-bold">Lavora con noi</span>
               </Button>
             </div>
           </div>
@@ -913,9 +913,9 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
       </div>
 
       <div className="overflow-x-auto border rounded-xl shadow-sm bg-white">
-        <div style={{ minWidth: '1400px' }}>
-          <div className="grid border-b" style={{ gridTemplateColumns: '200px repeat(7, 1fr)' }}>
-            <div className="p-3 font-semibold bg-muted/50 text-sm border-r sticky left-0 z-10 bg-white">Risorsa</div>
+        <div style={{ minWidth: '1200px' }}>
+          <div className="grid border-b" style={{ gridTemplateColumns: '120px repeat(7, 1fr)' }}>
+            <div className="p-2 font-semibold bg-muted/50 text-xs border-r sticky left-0 z-10 bg-white">Risorsa</div>
             {weekDays.map((day, i) => (
               <div key={i} className={`p-3 text-center border-r last:border-r-0 ${isSameDay(day, new Date()) ? 'bg-primary/10 font-bold' : 'bg-muted/30'}`}>
                 <div className="capitalize text-sm text-muted-foreground font-medium">{format(day, 'EEEE', { locale: it })}</div>
@@ -925,10 +925,10 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
             ))}
           </div>
           {(resources || []).map(res => (
-            <div key={res.id} className="grid border-b last:border-b-0 hover:bg-muted/10" style={{ gridTemplateColumns: '200px repeat(7, 1fr)' }}>
-              <div className="p-3 border-r flex items-center gap-3 bg-white sticky left-0 z-10">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${res.type === 'GUIDE' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>{res.type === 'GUIDE' ? 'G' : 'B'}</div>
-                <div className="min-w-0"><p className="font-semibold text-sm truncate">{res.name}</p><p className="text-xs text-muted-foreground">{res.type === 'GUIDE' ? 'Guida' : (BOAT_TYPE_LABELS[res.boat_type] || 'Barca')}{res.capacity ? ` - ${res.capacity} posti` : ''}</p></div>
+            <div key={res.id} className="grid border-b last:border-b-0 hover:bg-muted/10" style={{ gridTemplateColumns: '120px repeat(7, 1fr)' }}>
+              <div className="p-2 border-r flex items-center gap-2 bg-white sticky left-0 z-10">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${res.type === 'GUIDE' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>{res.type === 'GUIDE' ? 'G' : 'B'}</div>
+                <div className="min-w-0"><p className="font-semibold text-xs truncate">{res.name}</p></div>
               </div>
               {weekDays.map((day, di) => {
                 const daySlots = getResourceDaySlots(res.id, day);
@@ -1311,7 +1311,7 @@ function SetupGPS() {
                           <SelectValue placeholder="Associa a risorsa..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Nessuna associazione</SelectItem>
+                          <SelectItem value="none">Nessuna associazione</SelectItem>
                           {resources.map(r => (
                             <SelectItem key={r.id} value={r.id}>
                               {r.name} ({r.boat_type || 'BOAT'})
