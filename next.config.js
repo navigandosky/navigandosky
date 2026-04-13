@@ -3,23 +3,44 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Faster dev startup
+  reactStrictMode: false,
+  swcMinify: true,
+  
   experimental: {
-    // Remove if not using Server Components
     serverComponentsExternalPackages: ['mongodb'],
-    optimizePackageImports: ['lucide-react', 'date-fns'],
+    optimizePackageImports: ['lucide-react', 'date-fns', 'recharts'],
+    // Faster rebuilds
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
   },
+  
   webpack(config, { dev, isServer }) {
     if (dev) {
-      // Reduce CPU/memory from file watching
+      // Faster file watching
       config.watchOptions = {
-        poll: 2000, // check every 2 seconds
-        aggregateTimeout: 300, // wait before rebuilding
-        ignored: ['**/node_modules'],
+        poll: 3000,
+        aggregateTimeout: 500,
+        ignored: ['**/node_modules', '**/.git', '**/.next'],
+      };
+      
+      // Reduce dev overhead
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: false,
+        removeEmptyChunks: false,
+        splitChunks: false,
       };
     }
     
-    // Optimize chunk sizes
-    if (!isServer) {
+    // Optimize chunk sizes for production
+    if (!dev && !isServer) {
       config.optimization = {
         ...config.optimization,
         splitChunks: {
@@ -49,10 +70,12 @@ const nextConfig = {
     
     return config;
   },
+  
   onDemandEntries: {
-    maxInactiveAge: 25000,
-    pagesBufferLength: 5,
+    maxInactiveAge: 60000,
+    pagesBufferLength: 2,
   },
+  
   async headers() {
     return [
       {
