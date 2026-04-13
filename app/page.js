@@ -2543,7 +2543,15 @@ function B2BPortal({ setView, allExperiences }) {
             <div>
               <button onClick={() => setSelectedExp(null)} className="flex items-center gap-2 text-primary hover:underline mb-4"><ArrowLeft className="w-4 h-4" />Torna al catalogo</button>
               <Card className="mb-4"><CardContent className="pt-4">
-                <div className="flex gap-4"><img src={selectedExp.image_url} alt="" className="w-24 h-24 rounded-lg object-cover" /><div><h2 className="text-xl font-bold">{selectedExp.name}</h2><TypeBadge type={selectedExp.type} /><div className="mt-2 flex gap-4"><div><span className="text-sm text-muted-foreground">Prezzo Listino:</span> <span className="line-through text-muted-foreground">{fmtPrice(selectedExp.price_b2c)}</span></div><div><span className="text-sm text-muted-foreground">Prezzo B2B:</span> <span className="font-bold text-green-600">{fmtPrice(selectedExp.price_b2b * (1 - agency.discount_percentage/100))}</span></div></div></div></div>
+                <div className="flex gap-4">
+                  {selectedExp.images && selectedExp.images[0] ? (
+                    <img src={selectedExp.images[0]} alt={selectedExp.name} className="w-24 h-24 rounded-lg object-cover" />
+                  ) : selectedExp.image_url ? (
+                    <img src={selectedExp.image_url} alt={selectedExp.name} className="w-24 h-24 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-24 h-24 rounded-lg bg-gray-200 flex items-center justify-center"><ImageIcon className="w-12 h-12 text-gray-400" /></div>
+                  )}
+                  <div><h2 className="text-xl font-bold">{selectedExp.name}</h2><TypeBadge type={selectedExp.type} /><div className="mt-2 flex gap-4"><div><span className="text-sm text-muted-foreground">Prezzo Listino:</span> <span className="line-through text-muted-foreground">{fmtPrice(selectedExp.price_b2c)}</span></div><div><span className="text-sm text-muted-foreground">Prezzo B2B:</span> <span className="font-bold text-green-600">{fmtPrice(selectedExp.price_b2b * (1 - agency.discount_percentage/100))}</span></div></div></div></div>
               </CardContent></Card>
               <h3 className="font-semibold mb-3">Disponibilita</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -2561,18 +2569,21 @@ function B2BPortal({ setView, allExperiences }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {experiences.map(exp => (
-                <Card key={exp.id} className="cursor-pointer card-hover" onClick={() => loadSlots(exp)}>
-                  <div className="relative h-40"><img src={(exp.images && exp.images[0]) || exp.image_url || '/uploads/placeholder.jpg'} alt={exp.name} className="w-full h-full object-cover rounded-t-lg" /><div className="absolute top-2 left-2"><TypeBadge type={exp.type} /></div></div>
-                  <CardContent className="pt-3">
-                    <h3 className="font-semibold mb-1">{exp.name}</h3>
-                    <div className="flex justify-between items-center">
-                      <div><span className="text-xs text-muted-foreground line-through">{fmtPrice(exp.price_b2c)}</span><span className="ml-2 font-bold text-green-600">{fmtPrice(exp.price_b2b * (1 - agency.discount_percentage/100))}</span></div>
-                      <Badge variant="secondary" className="text-xs">-{agency.discount_percentage}%</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {experiences.map(exp => {
+                const imgSrc = (exp.images && exp.images.length > 0) ? exp.images[0] : (exp.image_url || '/uploads/placeholder.jpg');
+                return (
+                  <Card key={exp.id} className="cursor-pointer card-hover" onClick={() => loadSlots(exp)}>
+                    <div className="relative h-40"><img src={imgSrc} alt={exp.name} className="w-full h-full object-cover rounded-t-lg" /><div className="absolute top-2 left-2"><TypeBadge type={exp.type} /></div></div>
+                    <CardContent className="pt-3">
+                      <h3 className="font-semibold mb-1">{exp.name}</h3>
+                      <div className="flex justify-between items-center">
+                        <div><span className="text-xs text-muted-foreground line-through">{fmtPrice(exp.price_b2c)}</span><span className="ml-2 font-bold text-green-600">{fmtPrice(exp.price_b2b * (1 - agency.discount_percentage/100))}</span></div>
+                        <Badge variant="secondary" className="text-xs">-{agency.discount_percentage}%</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>
