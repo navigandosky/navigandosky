@@ -209,6 +209,8 @@ export default function MappaFlottaWrapper() {
               zoom={10}
               selectedDate={selectedDate}
               showRoute={showRoute}
+              routeData={analytics?.route || []}
+              selectedDevice={selectedDevice}
             />
           )}
           

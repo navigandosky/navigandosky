@@ -22,7 +22,15 @@ const api = async (path, opts = {}) => {
   return res.json();
 };
 
-export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10, selectedDate, showRoute = false }) {
+export default function FleetMap({ 
+  devices = [], 
+  center = [40.9, 9.5], 
+  zoom = 10, 
+  selectedDate, 
+  showRoute = false,
+  routeData = [],
+  selectedDevice = null
+}) {
   const [isMounted, setIsMounted] = useState(false);
   const [deviceBookings, setDeviceBookings] = useState({});
   const [loadingBookings, setLoadingBookings] = useState({});
@@ -45,14 +53,24 @@ export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10
 
   // Carica rotta storica se richiesto
   useEffect(() => {
-    if (!isMounted || !showRoute) return;
+    if (!isMounted || !showRoute) {
+      setRoutes({});
+      return;
+    }
 
+    // Se abbiamo routeData dal parent (selectedDevice), usalo
+    if (routeData && routeData.length > 0 && selectedDevice?.imei) {
+      setRoutes({ [selectedDevice.imei]: routeData });
+      return;
+    }
+
+    // Altrimenti carica per tutti i dispositivi
     devices.forEach(device => {
       if (device.imei && !routes[device.imei]) {
         loadRouteForDevice(device);
       }
     });
-  }, [devices, isMounted, showRoute, selectedDate]);
+  }, [devices, isMounted, showRoute, selectedDate, routeData, selectedDevice]);
 
   const loadBookingsForDevice = async (device) => {
     if (!device.resource?.id) return;
@@ -118,10 +136,12 @@ export default function FleetMap({ devices = [], center = [40.9, 9.5], zoom = 10
             key={`route-${imei}`}
             positions={positions}
             pathOptions={{
-              color: '#3b82f6',
-              weight: 3,
-              opacity: 0.7,
-              smoothFactor: 1
+              color: '#10b981',
+              weight: 4,
+              opacity: 0.8,
+              smoothFactor: 1.5,
+              lineCap: 'round',
+              lineJoin: 'round'
             }}
           />
         );
