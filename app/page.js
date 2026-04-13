@@ -697,7 +697,27 @@ function BookingWizard({ experience, slot, setView }) {
         ))}
       </div>
       <Card className="shadow-lg">
-        <CardHeader className="bg-muted/50 border-b"><div className="flex gap-4 items-center"><img src={experience.image_url} alt="" className="w-16 h-16 rounded-lg object-cover" /><div className="flex-1"><CardTitle className="text-base">{experience.name}</CardTitle><p className="text-sm text-muted-foreground capitalize">{fmtDateTime(slot.start_datetime)}</p></div><div className="text-right"><p className="font-bold text-primary text-lg">{fmtPrice(pricePerSeat)}</p><p className="text-xs text-muted-foreground">per persona</p></div></div></CardHeader>
+        <CardHeader className="bg-muted/50 border-b">
+          <div className="flex gap-4 items-center">
+            {experience.images && experience.images.length > 0 ? (
+              <img src={experience.images[0]} alt={experience.name} className="w-16 h-16 rounded-lg object-cover" />
+            ) : experience.image_url ? (
+              <img src={experience.image_url} alt={experience.name} className="w-16 h-16 rounded-lg object-cover" />
+            ) : (
+              <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center">
+                <ImageIcon className="w-8 h-8 text-gray-400" />
+              </div>
+            )}
+            <div className="flex-1">
+              <CardTitle className="text-base">{experience.name}</CardTitle>
+              <p className="text-sm text-muted-foreground capitalize">{fmtDateTime(slot.start_datetime)}</p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-primary text-lg">{fmtPrice(pricePerSeat)}</p>
+              <p className="text-xs text-muted-foreground">per persona</p>
+            </div>
+          </div>
+        </CardHeader>
         <CardContent className="pt-6">
           {step===1&&(<div className="space-y-6"><div><Label className="text-base font-semibold">Numero di Partecipanti</Label><p className="text-sm text-muted-foreground mb-3">Max {maxAvail} posti</p><div className="flex items-center gap-4"><Button variant="outline" size="icon" onClick={()=>setSeats(Math.max(1,seats-1))} disabled={seats<=1}>-</Button><span className="text-2xl font-bold w-12 text-center">{seats}</span><Button variant="outline" size="icon" onClick={()=>setSeats(Math.min(maxAvail,seats+1))} disabled={seats>=maxAvail}>+</Button></div></div><Separator /><div className="flex justify-between text-lg"><span>Totale provvisorio</span><span className="font-bold text-primary">{fmtPrice(subtotal)}</span></div></div>)}
           {step===2&&(<div className="space-y-6"><div><h3 className="font-semibold mb-4">Dati del Referente</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><Label>Nome *</Label><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Mario Rossi"/></div><div><Label>Email *</Label><Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="mario@email.com"/></div><div><Label>Telefono *</Label><Input type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="+39 333 1234567"/></div></div></div>{seats>1&&<div><h3 className="font-semibold mb-3">Altri Partecipanti</h3>{Array.from({length:seats-1}).map((_,i)=>(<Input key={i} className="mb-2" placeholder={`Partecipante ${i+2}`} value={participants[i]?.name||''} onChange={e=>{const p=[...participants];p[i]={...p[i],name:e.target.value};setParticipants(p);}}/>))}</div>}<div><Label>Richieste Speciali</Label><Textarea value={form.special_requests} onChange={e=>setForm({...form,special_requests:e.target.value})} placeholder="Allergie, esigenze..."/></div></div>)}
