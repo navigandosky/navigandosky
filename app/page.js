@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
-  Anchor, Ship, MapPin, Calendar as CalIcon, Clock, Users, Star, ChevronRight, ChevronDown, ArrowLeft,
+  Anchor, Ship, MapPin, Calendar as CalIcon, Clock, Users, Star, ChevronRight, ChevronDown, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight,
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages
@@ -1805,6 +1805,8 @@ function AdminDashboard() {
   // Filtro Slot Tab
   const [slotExpFilter, setSlotExpFilter] = useState('ALL');
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [slotPage, setSlotPage] = useState(0);
+  const SLOTS_PER_PAGE = 10;
   
   // Filtri Panoramica
   const [overviewDateFilter, setOverviewDateFilter] = useState('');
@@ -2238,7 +2240,7 @@ function AdminDashboard() {
             </div>
           </div>
           
-          {/* Slot Raggruppati */}
+          {/* Slot Raggruppati con Paginazione */}
           <div className="space-y-2">
             {(() => {
               // Raggruppa slot per esperienza + data
@@ -2257,76 +2259,195 @@ function AdminDashboard() {
               });
               
               const groups = Object.values(grouped);
+              const totalPages = Math.ceil(groups.length / SLOTS_PER_PAGE);
+              const paginatedGroups = groups.slice(slotPage * SLOTS_PER_PAGE, (slotPage + 1) * SLOTS_PER_PAGE);
               
-              return groups.map((group, idx) => {
-                const totalSeats = group.slots.reduce((sum, s) => sum + s.max_seats, 0);
-                const bookedSeats = group.slots.reduce((sum, s) => sum + s.booked_seats, 0);
-                const availSeats = totalSeats - bookedSeats;
-                const allOpen = group.slots.every(s => s.status === 'OPEN');
-                const expanded = expandedGroups[`${group.experience_id}-${group.date}`];
-                
-                return (
-                  <Card key={idx} className="overflow-hidden">
-                    <div 
-                      className="p-4 cursor-pointer hover:bg-muted/50 transition flex items-center justify-between"
-                      onClick={() => {
-                        const key = `${group.experience_id}-${group.date}`;
-                        setExpandedGroups(prev => ({...prev, [key]: !prev[key]}));
-                      }}
-                    >
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="flex items-center gap-2">
-                          {expanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
-                          <div>
-                            <p className="font-semibold">{getExpName(group.experience_id)}</p>
-                            <p className="text-sm text-muted-foreground capitalize">{fmtDate(group.slots[0].start_datetime)} • {group.slots.length} slot</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-6 ml-auto">
-                          <div className="text-center">
-                            <p className="text-xs text-muted-foreground">Posti</p>
-                            <p className="font-semibold">{bookedSeats}/{totalSeats}</p>
-                          </div>
-                          
-                          <div className="w-32">
-                            <AvailabilityBar booked={bookedSeats} max={totalSeats} />
-                            <p className="text-xs text-muted-foreground mt-1 text-center">{availSeats} disponibili</p>
-                          </div>
-                          
-                          <StatusBadge status={allOpen ? 'OPEN' : 'CLOSED'} />
-                        </div>
-                      </div>
+              return (<>
+                {/* Controlli Paginazione Sopra */}
+                {groups.length > SLOTS_PER_PAGE && (
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg mb-3">
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSlotPage(0)}
+                        disabled={slotPage === 0}
+                      >
+                        <ChevronsLeft className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSlotPage(p => Math.max(0, p - 1))}
+                        disabled={slotPage === 0}
+                      >
+                        <ArrowLeft className="w-4 h-4 mr-1" />
+                        Indietro
+                      </Button>
                     </div>
                     
-                    {/* Dettagli Slot Espansi */}
-                    {expanded && (
-                      <div className="border-t bg-muted/20">
-                        <table className="w-full text-sm">
-                          <thead><tr className="border-b bg-muted/50"><th className="p-2 text-left font-medium">Ora</th><th className="p-2 text-left font-medium">Posti</th><th className="p-2 text-left font-medium">Disp.</th><th className="p-2 text-left font-medium">Stato</th><th className="p-2 text-left font-medium">Azioni</th></tr></thead>
-                          <tbody>
-                            {group.slots.map(s => (
-                              <tr key={s.id} className="border-b last:border-b-0 hover:bg-muted/30">
-                                <td className="p-2">{fmtTime(s.start_datetime)} - {fmtTime(s.end_datetime)}</td>
-                                <td className="p-2">{s.booked_seats}/{s.max_seats}</td>
-                                <td className="p-2 w-24"><AvailabilityBar booked={s.booked_seats} max={s.max_seats}/></td>
-                                <td className="p-2"><StatusBadge status={s.status}/></td>
-                                <td className="p-2">
-                                  <div className="flex gap-1">
-                                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={(e)=>{e.stopPropagation();const exp=experiences.find(e=>e.id===s.experience_id);setFormData({...s,experience_name:exp?.name,resource_names:resources.filter(r=>s.resource_ids?.includes(r.id)).map(r=>r.name).join(', ')});setShowDialog('view_slot');}}><Eye className="w-3 h-3 mr-1"/>Vedi</Button>
-                                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={(e)=>{e.stopPropagation();setFormData({...s});setShowDialog('edit_slot');}}><Edit className="w-3 h-3"/>Mod</Button>
-                                    <Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={(e)=>{e.stopPropagation();deleteItem('slots',s.id);}}><Trash2 className="w-3 h-3"/>Del</Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                    <span className="text-sm font-medium">
+                      Pagina {slotPage + 1} di {totalPages} ({groups.length} gruppi totali)
+                    </span>
+                    
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSlotPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={slotPage >= totalPages - 1}
+                      >
+                        Avanti
+                        <ArrowRight className="w-4 h-4 ml-1" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSlotPage(totalPages - 1)}
+                        disabled={slotPage >= totalPages - 1}
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              
+                {/* Card Gruppi */}
+                {paginatedGroups.map((group, idx) => {
+                  const totalSeats = group.slots.reduce((sum, s) => sum + s.max_seats, 0);
+                  const bookedSeats = group.slots.reduce((sum, s) => sum + s.booked_seats, 0);
+                  const availSeats = totalSeats - bookedSeats;
+                  const allOpen = group.slots.every(s => s.status === 'OPEN');
+                  const expanded = expandedGroups[`${group.experience_id}-${group.date}`];
+                  
+                  return (
+                    <Card key={idx} className="overflow-hidden">
+                      <div 
+                        className="p-4 cursor-pointer hover:bg-muted/50 transition flex items-center justify-between"
+                        onClick={() => {
+                          const key = `${group.experience_id}-${group.date}`;
+                          setExpandedGroups(prev => ({...prev, [key]: !prev[key]}));
+                        }}
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="flex items-center gap-2">
+                            {expanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
+                            <div>
+                              <p className="font-semibold">{getExpName(group.experience_id)}</p>
+                              <p className="text-sm text-muted-foreground capitalize">{fmtDate(group.slots[0].start_datetime)} • {group.slots.length} slot</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-6 ml-auto">
+                            <div className="text-center">
+                              <p className="text-xs text-muted-foreground">Posti</p>
+                              <p className="font-semibold">{bookedSeats}/{totalSeats}</p>
+                            </div>
+                            
+                            <div className="w-32">
+                              <AvailabilityBar booked={bookedSeats} max={totalSeats} />
+                              <p className="text-xs text-muted-foreground mt-1 text-center">{availSeats} disponibili</p>
+                            </div>
+                            
+                            <StatusBadge status={allOpen ? 'OPEN' : 'CLOSED'} />
+                            
+                            {/* Pulsante Elimina Gruppo */}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (confirm(`Eliminare tutti i ${group.slots.length} slot di "${getExpName(group.experience_id)}" per il ${fmtDate(group.slots[0].start_datetime)}?`)) {
+                                  for (const slot of group.slots) {
+                                    await api(`slots/${slot.id}`, { method: 'DELETE' });
+                                  }
+                                  toast.success(`${group.slots.length} slot eliminati!`);
+                                  await load();
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Elimina Data
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </Card>
-                );
-              });
+                      
+                      {/* Dettagli Slot Espansi */}
+                      {expanded && (
+                        <div className="border-t bg-muted/20">
+                          <table className="w-full text-sm">
+                            <thead><tr className="border-b bg-muted/50"><th className="p-2 text-left font-medium">Ora</th><th className="p-2 text-left font-medium">Posti</th><th className="p-2 text-left font-medium">Disp.</th><th className="p-2 text-left font-medium">Stato</th><th className="p-2 text-left font-medium">Azioni</th></tr></thead>
+                            <tbody>
+                              {group.slots.map(s => (
+                                <tr key={s.id} className="border-b last:border-b-0 hover:bg-muted/30">
+                                  <td className="p-2">{fmtTime(s.start_datetime)} - {fmtTime(s.end_datetime)}</td>
+                                  <td className="p-2">{s.booked_seats}/{s.max_seats}</td>
+                                  <td className="p-2 w-24"><AvailabilityBar booked={s.booked_seats} max={s.max_seats}/></td>
+                                  <td className="p-2"><StatusBadge status={s.status}/></td>
+                                  <td className="p-2">
+                                    <div className="flex gap-1">
+                                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={(e)=>{e.stopPropagation();const exp=experiences.find(e=>e.id===s.experience_id);setFormData({...s,experience_name:exp?.name,resource_names:resources.filter(r=>s.resource_ids?.includes(r.id)).map(r=>r.name).join(', ')});setShowDialog('view_slot');}}><Eye className="w-3 h-3 mr-1"/>Vedi</Button>
+                                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={(e)=>{e.stopPropagation();setFormData({...s});setShowDialog('edit_slot');}}><Edit className="w-3 h-3"/>Mod</Button>
+                                      <Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={(e)=>{e.stopPropagation();deleteItem('slots',s.id);}}><Trash2 className="w-3 h-3"/>Del</Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+                
+                {/* Controlli Paginazione Sotto */}
+                {groups.length > SLOTS_PER_PAGE && (
+                  <div className="flex items-center justify-center p-3 bg-muted/30 rounded-lg mt-3">
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSlotPage(0)}
+                        disabled={slotPage === 0}
+                      >
+                        <ChevronsLeft className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSlotPage(p => Math.max(0, p - 1))}
+                        disabled={slotPage === 0}
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                      </Button>
+                      
+                      <span className="text-sm font-medium px-4">
+                        Pagina {slotPage + 1} di {totalPages}
+                      </span>
+                      
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSlotPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={slotPage >= totalPages - 1}
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setSlotPage(totalPages - 1)}
+                        disabled={slotPage >= totalPages - 1}
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>);
             })()}
           </div>
         </TabsContent>
