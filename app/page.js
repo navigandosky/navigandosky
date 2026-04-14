@@ -2639,15 +2639,154 @@ function AdminDashboard() {
       </Dialog>
 
       <Dialog open={showDialog==='slot'} onOpenChange={v=>!v&&setShowDialog(null)}>
-        <DialogContent><DialogHeader><DialogTitle>Nuovo Slot</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Crea Slot Giornalieri con Tariffe Stagionali</DialogTitle>
+            <p className="text-sm text-muted-foreground">Il sistema creerà uno slot per ogni giorno nel periodo selezionato, applicando automaticamente la tariffa della fascia stagionale corretta.</p>
+          </DialogHeader>
           <div className="space-y-4">
-            <div><Label>Esperienza</Label><Select value={formData.experience_id||''} onValueChange={v=>setFormData({...formData,experience_id:v})}><SelectTrigger><SelectValue placeholder="Seleziona..."/></SelectTrigger><SelectContent>{experiences.map(e=><SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}</SelectContent></Select></div>
+            <div>
+              <Label>Esperienza</Label>
+              <Select value={formData.experience_id||''} onValueChange={v=>{
+                const exp = experiences.find(e => e.id === v);
+                setFormData({...formData, experience_id: v, selectedExperience: exp});
+              }}>
+                <SelectTrigger><SelectValue placeholder="Seleziona..."/></SelectTrigger>
+                <SelectContent>
+                  {experiences.map(e=><SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             
-            <div><Label>Risorse (Barche/Guide)</Label><Select value={(formData.resource_ids||[])[0]||'none'} onValueChange={v=>{if(v==='none'){setFormData({...formData,resource_ids:[],max_seats:12})}else{const res=resources.find(r=>r.id===v);setFormData({...formData,resource_ids:[v],max_seats:res?.capacity||12})}}}><SelectTrigger><SelectValue placeholder="Seleziona risorsa..."/></SelectTrigger><SelectContent><SelectItem value="none">Nessuna risorsa</SelectItem>{resources.map(r=><SelectItem key={r.id} value={r.id}>{r.name} - {r.capacity} posti ({r.type==='GUIDE'?'Guida':BOAT_TYPE_LABELS[r.boat_type]||'Barca'})</SelectItem>)}</SelectContent></Select></div>
+            <div>
+              <Label>Risorsa (Barca/Guida)</Label>
+              <Select value={(formData.resource_ids||[])[0]||'none'} onValueChange={v=>{
+                if(v==='none'){
+                  setFormData({...formData,resource_ids:[],max_seats:12})
+                }else{
+                  const res=resources.find(r=>r.id===v);
+                  setFormData({...formData,resource_ids:[v],max_seats:res?.capacity||12})
+                }
+              }}>
+                <SelectTrigger><SelectValue placeholder="Seleziona risorsa..."/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nessuna risorsa</SelectItem>
+                  {resources.map(r=><SelectItem key={r.id} value={r.id}>
+                    {r.name} - {r.capacity} posti ({r.type==='GUIDE'?'Guida':BOAT_TYPE_LABELS[r.boat_type]||'Barca'})
+                  </SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             
-            <div className="grid grid-cols-2 gap-3"><div><Label>Inizio</Label><Input type="datetime-local" value={formData.start_datetime_local||''} onChange={e=>setFormData({...formData,start_datetime_local:e.target.value,start_datetime:new Date(e.target.value).toISOString()})}/></div><div><Label>Fine</Label><Input type="datetime-local" value={formData.end_datetime_local||''} onChange={e=>setFormData({...formData,end_datetime_local:e.target.value,end_datetime:new Date(e.target.value).toISOString()})}/></div></div>
-            <div><Label>Posti Max</Label><Input type="number" value={formData.max_seats||''} onChange={e=>setFormData({...formData,max_seats:e.target.value})}/></div>
-            <Button className="w-full" onClick={()=>createItem('slots',formData)}>Crea Slot</Button>
+            <Separator />
+            
+            <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+              <Label className="text-base font-semibold">Periodo e Orari</Label>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Data Inizio Periodo</Label>
+                  <Input type="date" value={formData.period_start||''} onChange={e=>setFormData({...formData,period_start:e.target.value})}/>
+                </div>
+                <div>
+                  <Label className="text-xs">Data Fine Periodo</Label>
+                  <Input type="date" value={formData.period_end||''} onChange={e=>setFormData({...formData,period_end:e.target.value})}/>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Ora Inizio</Label>
+                  <Input type="time" value={formData.time_start||'09:00'} onChange={e=>setFormData({...formData,time_start:e.target.value})}/>
+                </div>
+                <div>
+                  <Label className="text-xs">Ora Fine</Label>
+                  <Input type="time" value={formData.time_end||'13:00'} onChange={e=>setFormData({...formData,time_end:e.target.value})}/>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <Label>Posti Massimi per Slot</Label>
+              <Input type="number" value={formData.max_seats||12} onChange={e=>setFormData({...formData,max_seats:parseInt(e.target.value)||12})}/>
+            </div>
+            
+            {/* Anteprima Fasce Stagionali */}
+            {formData.selectedExperience?.price_tiers && formData.selectedExperience.price_tiers.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                <Label className="text-xs font-semibold text-blue-900 mb-2 block">📊 Fasce Stagionali Configurate</Label>
+                <div className="space-y-1 text-xs">
+                  {formData.selectedExperience.price_tiers.map((tier, idx) => tier.tier_name && (
+                    <div key={idx} className="flex justify-between">
+                      <span className="font-medium">{tier.tier_name}:</span>
+                      <span>{tier.start_date} → {tier.end_date} (€{tier.price_b2c})</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-blue-700 mt-2">Il sistema applicherà automaticamente la tariffa corretta per ogni giorno.</p>
+              </div>
+            )}
+            
+            <Button className="w-full" onClick={async ()=>{
+              // Genera slot giornalieri con tariffe stagionali
+              if (!formData.experience_id || !formData.period_start || !formData.period_end) {
+                toast.error('Compila tutti i campi obbligatori');
+                return;
+              }
+              
+              const startDate = new Date(formData.period_start);
+              const endDate = new Date(formData.period_end);
+              const timeStart = formData.time_start || '09:00';
+              const timeEnd = formData.time_end || '13:00';
+              const experience = formData.selectedExperience;
+              
+              let created = 0;
+              let currentDate = new Date(startDate);
+              
+              while (currentDate <= endDate) {
+                const dateStr = currentDate.toISOString().split('T')[0];
+                const startDatetime = `${dateStr}T${timeStart}:00Z`;
+                const endDatetime = `${dateStr}T${timeEnd}:00Z`;
+                
+                // Calcola fascia di prezzo per questa data
+                let priceOverride = null;
+                if (experience?.price_tiers) {
+                  const tier = getPriceTierForDate(experience, dateStr);
+                  if (tier && tier.price_b2c) {
+                    priceOverride = tier.price_b2c;
+                  }
+                }
+                
+                // Crea lo slot
+                const slotData = {
+                  experience_id: formData.experience_id,
+                  resource_ids: formData.resource_ids || [],
+                  start_datetime: startDatetime,
+                  end_datetime: endDatetime,
+                  max_seats: formData.max_seats || 12,
+                  status: 'OPEN'
+                };
+                
+                // Aggiungi price_override solo se diverso dal prezzo base
+                if (priceOverride && priceOverride !== experience.price_b2c) {
+                  slotData.price_override = priceOverride;
+                }
+                
+                await api('slots', { method: 'POST', body: slotData });
+                created++;
+                
+                // Prossimo giorno
+                currentDate.setDate(currentDate.getDate() + 1);
+              }
+              
+              toast.success(`${created} slot creati con tariffe stagionali applicate!`);
+              setShowDialog(null);
+              setFormData({});
+              await load();
+            }}>
+              <CalIcon className="w-4 h-4 mr-2" />
+              Crea Slot Giornalieri Automatici
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
