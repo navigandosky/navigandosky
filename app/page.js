@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
-  Anchor, Ship, MapPin, Calendar as CalIcon, Clock, Users, Star, ChevronRight, ArrowLeft,
+  Anchor, Ship, MapPin, Calendar as CalIcon, Clock, Users, Star, ChevronRight, ChevronDown, ArrowLeft,
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages
@@ -1804,6 +1804,7 @@ function AdminDashboard() {
   
   // Filtro Slot Tab
   const [slotExpFilter, setSlotExpFilter] = useState('ALL');
+  const [expandedGroups, setExpandedGroups] = useState({});
   
   // Filtri Panoramica
   const [overviewDateFilter, setOverviewDateFilter] = useState('');
@@ -2236,9 +2237,98 @@ function AdminDashboard() {
               <Button onClick={()=>{setFormData({status:'OPEN'});setShowDialog('slot');}}><Plus className="w-4 h-4 mr-2"/>Nuovo Slot</Button>
             </div>
           </div>
-          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Ora</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Disp.</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {filteredSlots.slice(0,50).map(s=>(<tr key={s.id} className="border-b hover:bg-muted/30"><td className="p-3">{getExpName(s.experience_id)}</td><td className="p-3 capitalize">{fmtDate(s.start_datetime)}</td><td className="p-3">{fmtTime(s.start_datetime)}</td><td className="p-3">{s.booked_seats}/{s.max_seats}</td><td className="p-3 w-32"><AvailabilityBar booked={s.booked_seats} max={s.max_seats}/></td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3"><div className="flex gap-1"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{const exp=experiences.find(e=>e.id===s.experience_id);setFormData({...s,experience_name:exp?.name,resource_names:resources.filter(r=>s.resource_ids?.includes(r.id)).map(r=>r.name).join(', ')});setShowDialog('view_slot');}}><Eye className="w-3 h-3 mr-1"/>Visualizza</Button><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{setFormData({...s});setShowDialog('edit_slot');}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button><Button variant={s.status==='OPEN'?"ghost":"outline"} size="sm" className="h-7 text-xs" onClick={async ()=>{await api(`slots/${s.id}`,{method:'PUT',body:{status:s.status==='OPEN'?'CLOSED':'OPEN'}});toast.success(s.status==='OPEN'?'Slot sospeso':'Slot attivato');await load();}}>{s.status==='OPEN'?'Sospendi':'Attiva'}</Button><Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={()=>deleteItem('slots',s.id)}><Trash2 className="w-3 h-3"/>Elimina</Button></div></td></tr>))}
-          </tbody></table></div>
+          
+          {/* Slot Raggruppati */}
+          <div className="space-y-2">
+            {(() => {
+              // Raggruppa slot per esperienza + data
+              const grouped = {};
+              filteredSlots.forEach(slot => {
+                const date = slot.start_datetime.split('T')[0];
+                const key = `${slot.experience_id}-${date}`;
+                if (!grouped[key]) {
+                  grouped[key] = {
+                    experience_id: slot.experience_id,
+                    date: date,
+                    slots: []
+                  };
+                }
+                grouped[key].slots.push(slot);
+              });
+              
+              const groups = Object.values(grouped);
+              
+              return groups.map((group, idx) => {
+                const totalSeats = group.slots.reduce((sum, s) => sum + s.max_seats, 0);
+                const bookedSeats = group.slots.reduce((sum, s) => sum + s.booked_seats, 0);
+                const availSeats = totalSeats - bookedSeats;
+                const allOpen = group.slots.every(s => s.status === 'OPEN');
+                const expanded = expandedGroups[`${group.experience_id}-${group.date}`];
+                
+                return (
+                  <Card key={idx} className="overflow-hidden">
+                    <div 
+                      className="p-4 cursor-pointer hover:bg-muted/50 transition flex items-center justify-between"
+                      onClick={() => {
+                        const key = `${group.experience_id}-${group.date}`;
+                        setExpandedGroups(prev => ({...prev, [key]: !prev[key]}));
+                      }}
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="flex items-center gap-2">
+                          {expanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
+                          <div>
+                            <p className="font-semibold">{getExpName(group.experience_id)}</p>
+                            <p className="text-sm text-muted-foreground capitalize">{fmtDate(group.slots[0].start_datetime)} • {group.slots.length} slot</p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-6 ml-auto">
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground">Posti</p>
+                            <p className="font-semibold">{bookedSeats}/{totalSeats}</p>
+                          </div>
+                          
+                          <div className="w-32">
+                            <AvailabilityBar booked={bookedSeats} max={totalSeats} />
+                            <p className="text-xs text-muted-foreground mt-1 text-center">{availSeats} disponibili</p>
+                          </div>
+                          
+                          <StatusBadge status={allOpen ? 'OPEN' : 'CLOSED'} />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Dettagli Slot Espansi */}
+                    {expanded && (
+                      <div className="border-t bg-muted/20">
+                        <table className="w-full text-sm">
+                          <thead><tr className="border-b bg-muted/50"><th className="p-2 text-left font-medium">Ora</th><th className="p-2 text-left font-medium">Posti</th><th className="p-2 text-left font-medium">Disp.</th><th className="p-2 text-left font-medium">Stato</th><th className="p-2 text-left font-medium">Azioni</th></tr></thead>
+                          <tbody>
+                            {group.slots.map(s => (
+                              <tr key={s.id} className="border-b last:border-b-0 hover:bg-muted/30">
+                                <td className="p-2">{fmtTime(s.start_datetime)} - {fmtTime(s.end_datetime)}</td>
+                                <td className="p-2">{s.booked_seats}/{s.max_seats}</td>
+                                <td className="p-2 w-24"><AvailabilityBar booked={s.booked_seats} max={s.max_seats}/></td>
+                                <td className="p-2"><StatusBadge status={s.status}/></td>
+                                <td className="p-2">
+                                  <div className="flex gap-1">
+                                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={(e)=>{e.stopPropagation();const exp=experiences.find(e=>e.id===s.experience_id);setFormData({...s,experience_name:exp?.name,resource_names:resources.filter(r=>s.resource_ids?.includes(r.id)).map(r=>r.name).join(', ')});setShowDialog('view_slot');}}><Eye className="w-3 h-3 mr-1"/>Vedi</Button>
+                                    <Button variant="outline" size="sm" className="h-7 text-xs" onClick={(e)=>{e.stopPropagation();setFormData({...s});setShowDialog('edit_slot');}}><Edit className="w-3 h-3"/>Mod</Button>
+                                    <Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={(e)=>{e.stopPropagation();deleteItem('slots',s.id);}}><Trash2 className="w-3 h-3"/>Del</Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </Card>
+                );
+              });
+            })()}
+          </div>
         </TabsContent>
 
         {/* Bookings */}
