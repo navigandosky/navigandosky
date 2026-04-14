@@ -1206,8 +1206,8 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     const dateFrom = `${date}T00:00:00Z`;
     const dateTo = `${date}T23:59:59Z`;
     
-    // Recupera storico posizioni
-    const apiUrl = `https://api.balin.app/external_api/v1/device/${imei}/history?from=${dateFrom}&to=${dateTo}`;
+    // Recupera storico posizioni - prova senza /device/ prefix
+    const apiUrl = `https://api.balin.app/external_api/v1/trips?device_id=${imei}&start_date=${date}&end_date=${date}`;
     
     console.log(`🔍 [BALIN API CALL] URL: ${apiUrl}`);
     
