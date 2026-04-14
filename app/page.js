@@ -601,16 +601,28 @@ function ExperienceDetail({ experience, setView }) {
   // Filtra slot quando cambia la data selezionata
   useEffect(() => {
     const now = new Date();
+    const today = now.toISOString().split('T')[0]; // Solo data, senza ora
+    
     if (!selectedDate) {
       // Mostra solo slot futuri quando nessuna data è selezionata
-      const futureSlots = allSlots.filter(sl => new Date(sl.start_datetime) > now);
+      // Slot è futuro se la data di FINE è >= oggi
+      const futureSlots = allSlots.filter(sl => {
+        const slotEndDate = new Date(sl.end_datetime).toISOString().split('T')[0];
+        return slotEndDate >= today;
+      });
       setSlots(futureSlots);
     } else {
       const filtered = allSlots.filter(slot => {
-        const slotDate = new Date(slot.start_datetime).toISOString().split('T')[0];
-        const slotDateTime = new Date(slot.start_datetime);
-        // Include lo slot se corrisponde alla data E non è nel passato
-        return slotDate === selectedDate && slotDateTime > now;
+        const slotStartDate = new Date(slot.start_datetime).toISOString().split('T')[0];
+        const slotEndDate = new Date(slot.end_datetime).toISOString().split('T')[0];
+        
+        // Controlla se la data selezionata cade DENTRO il periodo dello slot
+        const isInRange = selectedDate >= slotStartDate && selectedDate <= slotEndDate;
+        
+        // La data selezionata deve essere >= oggi (non nel passato)
+        const isNotPast = selectedDate >= today;
+        
+        return isInRange && isNotPast;
       });
       setSlots(filtered);
     }
