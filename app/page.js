@@ -558,16 +558,33 @@ function ExperienceDetail({ experience, setView }) {
   const [resources, setResources] = useState([]);
   const [showWaitlist, setShowWaitlist] = useState(null);
   const [wlForm, setWlForm] = useState({ name: '', email: '', phone: '', seats: 1 });
+  const [selectedDate, setSelectedDate] = useState(''); // Date picker
+  const [allSlots, setAllSlots] = useState([]); // Tutti gli slot per filtraggio
 
   useEffect(() => {
     if (!experience) return;
     setLoading(true);
     Promise.all([api(`slots?experience_id=${experience.id}&date_from=${new Date().toISOString()}`), api('resources')]).then(([s, r]) => {
-      setSlots(Array.isArray(s) ? s.filter(sl => sl.status !== 'CANCELLED' && new Date(sl.start_datetime) > new Date()) : []);
+      const validSlots = Array.isArray(s) ? s.filter(sl => sl.status !== 'CANCELLED' && new Date(sl.start_datetime) > new Date()) : [];
+      setAllSlots(validSlots); // Salva tutti gli slot
+      setSlots(validSlots); // Inizialmente mostra tutti
       setResources(Array.isArray(r) ? r : []);
       setLoading(false);
     });
   }, [experience]);
+  
+  // Filtra slot quando cambia la data selezionata
+  useEffect(() => {
+    if (!selectedDate) {
+      setSlots(allSlots); // Mostra tutti se nessuna data selezionata
+    } else {
+      const filtered = allSlots.filter(slot => {
+        const slotDate = new Date(slot.start_datetime).toISOString().split('T')[0];
+        return slotDate === selectedDate;
+      });
+      setSlots(filtered);
+    }
+  }, [selectedDate, allSlots]);
 
   const joinWaitlist = async (slotId) => {
     const res = await api('waitlist', { method: 'POST', body: { slot_id: slotId, experience_id: experience.id, experience_name: experience.name, customer_name: wlForm.name, customer_email: wlForm.email, customer_phone: wlForm.phone, seats_requested: wlForm.seats } });
@@ -578,7 +595,10 @@ function ExperienceDetail({ experience, setView }) {
   };
 
   if (!experience) return null;
-  const assigned = resources.filter(r => (experience.resource_ids||[]).includes(r.id));
+  
+  // Aggrega TUTTE le risorse da TUTTI gli slot dell'esperienza (unificare risorse)
+  const allResourceIds = [...new Set(slots.flatMap(s => s.resource_ids || []))];
+  const assigned = resources.filter(r => allResourceIds.includes(r.id));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -609,9 +629,42 @@ function ExperienceDetail({ experience, setView }) {
         </div>
         <div className="space-y-4">
           <Card className="sticky top-20">
-            <CardHeader><div className="flex items-baseline justify-between"><CardTitle className="text-2xl">{fmtPrice(experience.price_b2c)}</CardTitle><span className="text-sm text-muted-foreground">per persona</span></div><CardDescription>Scegli una data disponibile</CardDescription></CardHeader>
-            <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
-              {loading ? <div className="text-center py-8"><RefreshCw className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div> : slots.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">Nessuna data disponibile.</p> : slots.map(slot => {
+            <CardHeader>
+              <div className="flex items-baseline justify-between">
+                <CardTitle className="text-2xl">{fmtPrice(experience.price_b2c)}</CardTitle>
+                <span className="text-sm text-muted-foreground">per persona</span>
+              </div>
+              <CardDescription>Scegli una data disponibile</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Date Picker per selezionare data custom */}
+              <div className="pb-3 border-b">
+                <Label htmlFor="date-picker" className="text-sm font-medium mb-2 block">📅 Cerca per data specifica</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    id="date-picker"
+                    type="date" 
+                    value={selectedDate} 
+                    onChange={e => setSelectedDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="flex-1"
+                  />
+                  {selectedDate && (
+                    <Button size="sm" variant="outline" onClick={() => setSelectedDate('')}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                {selectedDate && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Mostrando slot per {new Date(selectedDate).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                )}
+              </div>
+              
+              {/* Lista Slot */}
+              <div className="max-h-[400px] overflow-y-auto space-y-3">
+              {loading ? <div className="text-center py-8"><RefreshCw className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div> : slots.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">{selectedDate ? 'Nessuno slot disponibile per questa data.' : 'Nessuna data disponibile.'}</p> : slots.map(slot => {
                 const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats||0);
                 const isFull = avail <= 0;
                 return (
@@ -622,6 +675,7 @@ function ExperienceDetail({ experience, setView }) {
                   </div>
                 );
               })}
+              </div>
             </CardContent>
           </Card>
         </div>
