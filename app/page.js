@@ -600,12 +600,17 @@ function ExperienceDetail({ experience, setView }) {
   
   // Filtra slot quando cambia la data selezionata
   useEffect(() => {
+    const now = new Date();
     if (!selectedDate) {
-      setSlots(allSlots); // Mostra tutti se nessuna data selezionata
+      // Mostra solo slot futuri quando nessuna data è selezionata
+      const futureSlots = allSlots.filter(sl => new Date(sl.start_datetime) > now);
+      setSlots(futureSlots);
     } else {
       const filtered = allSlots.filter(slot => {
         const slotDate = new Date(slot.start_datetime).toISOString().split('T')[0];
-        return slotDate === selectedDate;
+        const slotDateTime = new Date(slot.start_datetime);
+        // Include lo slot se corrisponde alla data E non è nel passato
+        return slotDate === selectedDate && slotDateTime > now;
       });
       setSlots(filtered);
     }
@@ -730,49 +735,66 @@ function ExperienceDetail({ experience, setView }) {
                 )}
               </div>
               
-              {/* Badge con le prossime 5 date disponibili */}
-              {!selectedDate && allSlots.length > 0 && (() => {
-                // Raggruppa slot per data e prendi le prime 5 date con disponibilità
-                const slotsByDate = {};
-                allSlots.forEach(slot => {
-                  const dateKey = slot.start_datetime.split('T')[0];
-                  const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats || 0);
-                  if (avail > 0) {
-                    if (!slotsByDate[dateKey]) {
-                      slotsByDate[dateKey] = { date: dateKey, slots: [], totalAvail: 0 };
+              {/* Badge con i prossimi 5 GIORNI CONSECUTIVI dalla data odierna */}
+              {!selectedDate && (() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Genera i prossimi 5 giorni consecutivi
+                const next5Days = [];
+                for (let i = 0; i < 5; i++) {
+                  const day = new Date(today);
+                  day.setDate(today.getDate() + i);
+                  const dateKey = day.toISOString().split('T')[0];
+                  
+                  // Conta disponibilità per questo giorno
+                  let totalAvail = 0;
+                  let hasSlots = false;
+                  
+                  allSlots.forEach(slot => {
+                    const slotDate = slot.start_datetime.split('T')[0];
+                    if (slotDate === dateKey) {
+                      hasSlots = true;
+                      const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats || 0);
+                      if (avail > 0) {
+                        totalAvail += avail;
+                      }
                     }
-                    slotsByDate[dateKey].slots.push(slot);
-                    slotsByDate[dateKey].totalAvail += avail;
-                  }
-                });
-                
-                const nextDates = Object.values(slotsByDate)
-                  .sort((a, b) => a.date.localeCompare(b.date))
-                  .slice(0, 5);
-                
-                if (nextDates.length === 0) return null;
+                  });
+                  
+                  // Aggiungi il giorno anche se non ha slot (mostrerà 0)
+                  next5Days.push({ date: dateKey, totalAvail, hasSlots });
+                }
                 
                 return (
                   <div className="pb-3 border-b">
-                    <Label className="text-sm font-medium mb-2 block">🗓️ Prossime date disponibili</Label>
+                    <Label className="text-sm font-medium mb-2 block">🗓️ Prossimi 5 giorni</Label>
                     <div className="flex flex-wrap gap-2">
-                      {nextDates.map(({ date, totalAvail }) => {
+                      {next5Days.map(({ date, totalAvail, hasSlots }) => {
                         const dateObj = new Date(date + 'T12:00:00');
+                        const isDisabled = !hasSlots || totalAvail === 0;
+                        
                         return (
                           <Badge 
                             key={date}
-                            variant="outline" 
-                            className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition px-3 py-1.5"
-                            onClick={() => setSelectedDate(date)}
+                            variant={isDisabled ? "secondary" : "outline"}
+                            className={`px-3 py-1.5 ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-primary hover:text-primary-foreground transition'}`}
+                            onClick={() => !isDisabled && setSelectedDate(date)}
                           >
                             <CalIcon className="w-3 h-3 mr-1" />
                             {format(dateObj, 'd MMM', { locale: it })}
-                            <span className="ml-1 text-xs opacity-70">({totalAvail})</span>
+                            <span className="ml-1 text-xs opacity-70">
+                              ({totalAvail})
+                            </span>
                           </Badge>
                         );
                       })}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">Clicca su una data per vedere gli orari</p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {next5Days.some(d => d.hasSlots && d.totalAvail > 0) 
+                        ? 'Clicca su una data per vedere gli orari' 
+                        : 'Nessuna disponibilità nei prossimi 5 giorni'}
+                    </p>
                   </div>
                 );
               })()}
