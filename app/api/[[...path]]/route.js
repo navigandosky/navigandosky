@@ -1209,6 +1209,8 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     // Recupera storico posizioni
     const apiUrl = `https://api.balin.app/external_api/v1/device/${imei}/history?from=${dateFrom}&to=${dateTo}`;
     
+    console.log(`🔍 [BALIN API CALL] URL: ${apiUrl}`);
+    
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -1216,6 +1218,8 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
         'Content-Type': 'application/json',
       },
     });
+    
+    console.log(`📡 [BALIN HTTP] Status: ${response.status}, OK: ${response.ok}`);
     
     if (!response.ok) {
       // Se Balin ritorna 404, significa che non ci sono dati per quella data
@@ -1238,7 +1242,10 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     
     const history = await response.json();
     
+    console.log(`📊 [BALIN RESPONSE] Points: ${Array.isArray(history) ? history.length : typeof history}, First point:`, history[0]);
+    
     if (!Array.isArray(history) || history.length === 0) {
+      console.log(`❌ [NO DATA] IMEI ${imei} on ${date} - Empty response`);
       return json({
         imei,
         date,
