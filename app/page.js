@@ -560,14 +560,19 @@ function ExperienceDetail({ experience, setView }) {
   const [wlForm, setWlForm] = useState({ name: '', email: '', phone: '', seats: 1 });
   const [selectedDate, setSelectedDate] = useState(''); // Date picker
   const [allSlots, setAllSlots] = useState([]); // Tutti gli slot per filtraggio
+  const [assigned, setAssigned] = useState([]); // Risorse assegnate (calcolate in useEffect)
 
   useEffect(() => {
     if (!experience) return;
     setLoading(true);
-    Promise.all([api(`slots?experience_id=${experience.id}&date_from=${new Date().toISOString()}`), api('resources')]).then(([s, r]) => {
-      const validSlots = Array.isArray(s) ? s.filter(sl => sl.status !== 'CANCELLED' && new Date(sl.start_datetime) > new Date()) : [];
-      setAllSlots(validSlots); // Salva tutti gli slot
-      setSlots(validSlots); // Inizialmente mostra tutti
+    // IMPORTANTE: Non filtrare per data futura, altrimenti non vediamo tutte le risorse assegnate
+    Promise.all([api(`slots?experience_id=${experience.id}`), api('resources')]).then(([s, r]) => {
+      // Filtra solo slot non cancellati (ma include anche slot passati per mostrare tutte le risorse)
+      const validSlots = Array.isArray(s) ? s.filter(sl => sl.status !== 'CANCELLED') : [];
+      // Per la visualizzazione, mostra solo slot futuri
+      const futureSlots = validSlots.filter(sl => new Date(sl.start_datetime) > new Date());
+      setAllSlots(validSlots); // Salva TUTTI per calcolare risorse
+      setSlots(futureSlots); // Mostra solo futuri
       setResources(Array.isArray(r) ? r : []);
       setLoading(false);
     });
@@ -585,6 +590,18 @@ function ExperienceDetail({ experience, setView }) {
       setSlots(filtered);
     }
   }, [selectedDate, allSlots]);
+  
+  // Calcola risorse assegnate quando cambiano allSlots o resources
+  useEffect(() => {
+    console.log('[DEBUG] allSlots.length:', allSlots.length, 'resources.length:', resources.length);
+    if (allSlots.length > 0 && resources.length > 0) {
+      const allResourceIds = [...new Set(allSlots.flatMap(s => s.resource_ids || []))];
+      console.log('[DEBUG] allResourceIds:', allResourceIds);
+      const assignedResources = resources.filter(r => allResourceIds.includes(r.id));
+      console.log('[DEBUG] assignedResources:', assignedResources.map(r => r.name));
+      setAssigned(assignedResources);
+    }
+  }, [allSlots, resources]);
 
   const joinWaitlist = async (slotId) => {
     const res = await api('waitlist', { method: 'POST', body: { slot_id: slotId, experience_id: experience.id, experience_name: experience.name, customer_name: wlForm.name, customer_email: wlForm.email, customer_phone: wlForm.phone, seats_requested: wlForm.seats } });
@@ -595,11 +612,6 @@ function ExperienceDetail({ experience, setView }) {
   };
 
   if (!experience) return null;
-  
-  // Aggrega TUTTE le risorse da TUTTI gli slot dell'esperienza (unificare risorse)
-  // IMPORTANTE: usare allSlots, non slots (che può essere filtrato dal date picker)
-  const allResourceIds = [...new Set(allSlots.flatMap(s => s.resource_ids || []))];
-  const assigned = resources.filter(r => allResourceIds.includes(r.id));
 
   return (
     <div className="container mx-auto px-4 py-8">
