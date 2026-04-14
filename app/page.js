@@ -1176,7 +1176,7 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
             <div key={res.id} className="grid border-b last:border-b-0 hover:bg-muted/10" style={{ gridTemplateColumns: '120px repeat(7, 1fr)' }}>
               <div className="p-2 border-r flex items-center gap-2 bg-white sticky left-0 z-10">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${res.type === 'GUIDE' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>{res.type === 'GUIDE' ? 'G' : 'B'}</div>
-                <div className="min-w-0"><p className="font-semibold text-xs truncate">{res.name}</p></div>
+                <div className="min-w-0 flex-1"><p className="font-semibold text-xs leading-tight break-words">{res.name}</p></div>
               </div>
               {weekDays.map((day, di) => {
                 const daySlots = getResourceDaySlots(res.id, day);
