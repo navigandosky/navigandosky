@@ -1802,6 +1802,9 @@ function AdminDashboard() {
   const [bookingCustomerFilter, setBookingCustomerFilter] = useState('');
   const [bookingCodeFilter, setBookingCodeFilter] = useState('');
   
+  // Filtro Slot Tab
+  const [slotExpFilter, setSlotExpFilter] = useState('ALL');
+  
   // Filtri Panoramica
   const [overviewDateFilter, setOverviewDateFilter] = useState('');
 
@@ -1891,6 +1894,12 @@ function AdminDashboard() {
     
     return filtered;
   }, [bookings, bookingExpFilter, bookingDateFilter, bookingCustomerFilter, bookingCodeFilter, slots]);
+  
+  // Filtro slot per esperienza
+  const filteredSlots = useMemo(() => {
+    if (slotExpFilter === 'ALL') return slots;
+    return slots.filter(s => s.experience_id === slotExpFilter);
+  }, [slots, slotExpFilter]);
   
   // Panoramica ordinata e filtrata
   const sortedOverviewBookings = useMemo(() => {
@@ -2199,9 +2208,36 @@ function AdminDashboard() {
 
         {/* Slots */}
         <TabsContent value="slots" className="space-y-4">
-          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Slot ({slots.length})</h2><Button onClick={()=>{setFormData({status:'OPEN'});setShowDialog('slot');}}><Plus className="w-4 h-4 mr-2"/>Nuovo Slot</Button></div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Slot ({filteredSlots.length})</h2>
+            <div className="flex items-center gap-3">
+              {/* Filtro Esperienza */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm whitespace-nowrap">Esperienza:</Label>
+                <Select value={slotExpFilter} onValueChange={setSlotExpFilter}>
+                  <SelectTrigger className="w-[280px]">
+                    <SelectValue placeholder="Tutte le esperienze" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Tutte le esperienze</SelectItem>
+                    {experiences.map(exp => (
+                      <SelectItem key={exp.id} value={exp.id}>{exp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {slotExpFilter !== 'ALL' && (
+                <Button variant="ghost" size="sm" onClick={() => setSlotExpFilter('ALL')}>
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+              
+              <Button onClick={()=>{setFormData({status:'OPEN'});setShowDialog('slot');}}><Plus className="w-4 h-4 mr-2"/>Nuovo Slot</Button>
+            </div>
+          </div>
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Ora</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Disp.</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {slots.slice(0,50).map(s=>(<tr key={s.id} className="border-b hover:bg-muted/30"><td className="p-3">{getExpName(s.experience_id)}</td><td className="p-3 capitalize">{fmtDate(s.start_datetime)}</td><td className="p-3">{fmtTime(s.start_datetime)}</td><td className="p-3">{s.booked_seats}/{s.max_seats}</td><td className="p-3 w-32"><AvailabilityBar booked={s.booked_seats} max={s.max_seats}/></td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3"><div className="flex gap-1"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{const exp=experiences.find(e=>e.id===s.experience_id);setFormData({...s,experience_name:exp?.name,resource_names:resources.filter(r=>s.resource_ids?.includes(r.id)).map(r=>r.name).join(', ')});setShowDialog('view_slot');}}><Eye className="w-3 h-3 mr-1"/>Visualizza</Button><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{setFormData({...s});setShowDialog('edit_slot');}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button><Button variant={s.status==='OPEN'?"ghost":"outline"} size="sm" className="h-7 text-xs" onClick={async ()=>{await api(`slots/${s.id}`,{method:'PUT',body:{status:s.status==='OPEN'?'CLOSED':'OPEN'}});toast.success(s.status==='OPEN'?'Slot sospeso':'Slot attivato');await load();}}>{s.status==='OPEN'?'Sospendi':'Attiva'}</Button><Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={()=>deleteItem('slots',s.id)}><Trash2 className="w-3 h-3"/>Elimina</Button></div></td></tr>))}
+            {filteredSlots.slice(0,50).map(s=>(<tr key={s.id} className="border-b hover:bg-muted/30"><td className="p-3">{getExpName(s.experience_id)}</td><td className="p-3 capitalize">{fmtDate(s.start_datetime)}</td><td className="p-3">{fmtTime(s.start_datetime)}</td><td className="p-3">{s.booked_seats}/{s.max_seats}</td><td className="p-3 w-32"><AvailabilityBar booked={s.booked_seats} max={s.max_seats}/></td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3"><div className="flex gap-1"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{const exp=experiences.find(e=>e.id===s.experience_id);setFormData({...s,experience_name:exp?.name,resource_names:resources.filter(r=>s.resource_ids?.includes(r.id)).map(r=>r.name).join(', ')});setShowDialog('view_slot');}}><Eye className="w-3 h-3 mr-1"/>Visualizza</Button><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{setFormData({...s});setShowDialog('edit_slot');}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button><Button variant={s.status==='OPEN'?"ghost":"outline"} size="sm" className="h-7 text-xs" onClick={async ()=>{await api(`slots/${s.id}`,{method:'PUT',body:{status:s.status==='OPEN'?'CLOSED':'OPEN'}});toast.success(s.status==='OPEN'?'Slot sospeso':'Slot attivato');await load();}}>{s.status==='OPEN'?'Sospendi':'Attiva'}</Button><Button variant="ghost" size="sm" className="h-7 text-xs text-red-500" onClick={()=>deleteItem('slots',s.id)}><Trash2 className="w-3 h-3"/>Elimina</Button></div></td></tr>))}
           </tbody></table></div>
         </TabsContent>
 
