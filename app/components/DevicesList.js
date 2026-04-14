@@ -23,8 +23,14 @@ export default function DevicesList({ devices = [], filter = 'all', onFilterChan
       
       {/* Lista */}
       <div className="space-y-2">
-        {devices.length === 0 && (
+        {devices.length === 0 && filter === 'all' && (
           <p className="text-center text-sm text-muted-foreground py-8">Nessun dispositivo GPS configurato</p>
+        )}
+        {devices.length === 0 && filter === 'moving' && (
+          <p className="text-center text-sm text-muted-foreground py-8">Nessun dispositivo in movimento</p>
+        )}
+        {devices.length === 0 && filter === 'stopped' && (
+          <p className="text-center text-sm text-muted-foreground py-8">Nessun dispositivo fermo</p>
         )}
         {devices.map(d => (
           <Card key={d.imei} className={`cursor-pointer hover:bg-muted/50 transition-colors ${selectedDevice?.imei === d.imei ? 'border-primary border-2' : ''}`} onClick={() => onSelectDevice(d)}>
