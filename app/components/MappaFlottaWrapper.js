@@ -80,7 +80,7 @@ export default function MappaFlottaWrapper() {
     } catch (error) {
       console.error('Error loading fleet:', error);
       setLoading(false);
-      toast.error('Errore caricamento flotta GPS');
+      // Non mostrare toast per errori GPS - è una condizione normale se GPS non è configurato
     }
   };
 

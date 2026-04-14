@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 // Import componente Mappa Flotta
 const MappaFlottaWrapper = dynamic(() => import('./components/MappaFlottaWrapper'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -2102,16 +2103,15 @@ function AdminDashboard() {
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
-          <TabsTrigger value="gantt"><CalIcon className="w-4 h-4 mr-1.5" />{t('calendar')}</TabsTrigger>
           <TabsTrigger value="experiences"><Compass className="w-4 h-4 mr-1.5" />{t('experiences')}</TabsTrigger>
-          <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
-          <TabsTrigger value="slots"><CalIcon className="w-4 h-4 mr-1.5" />{t('slots')}</TabsTrigger>
           <TabsTrigger value="bookings"><CreditCard className="w-4 h-4 mr-1.5" />{t('bookings')}</TabsTrigger>
-          <TabsTrigger value="vouchers"><Tag className="w-4 h-4 mr-1.5" />{t('vouchers')}</TabsTrigger>
-          <TabsTrigger value="reports"><BarChart3 className="w-4 h-4 mr-1.5" />{t('reports')}</TabsTrigger>
-          <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
+          <TabsTrigger value="gantt"><CalIcon className="w-4 h-4 mr-1.5" />{t('calendar')}</TabsTrigger>
           <TabsTrigger value="fleet"><Map className="w-4 h-4 mr-1.5" />{t('fleet_map')}</TabsTrigger>
+          <TabsTrigger value="reports"><BarChart3 className="w-4 h-4 mr-1.5" />{t('reports')}</TabsTrigger>
+          <TabsTrigger value="slots"><CalIcon className="w-4 h-4 mr-1.5" />{t('slots')}</TabsTrigger>
+          <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
+          <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
+          <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
         </TabsList>
 
@@ -2765,6 +2765,17 @@ function AdminDashboard() {
             <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
             <Separator />
             <PDFUploader pdfUrl={formData.terms_pdf_url||''} onChange={url=>setFormData({...formData,terms_pdf_url:url})} />
+            <Separator />
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+              <div className="space-y-0.5">
+                <Label className="text-base font-medium">Visibile su Home page</Label>
+                <p className="text-xs text-muted-foreground">Mostra questa esperienza nel catalogo pubblico B2C</p>
+              </div>
+              <Switch 
+                checked={formData.is_visible_on_home !== false} 
+                onCheckedChange={v => setFormData({...formData, is_visible_on_home: v})}
+              />
+            </div>
             <Button className="w-full" onClick={()=>createItem('experiences',formData)}>Crea Esperienza</Button>
           </div>
         </DialogContent>
@@ -2865,6 +2876,17 @@ function AdminDashboard() {
             <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
             <Separator />
             <PDFUploader pdfUrl={formData.terms_pdf_url||''} onChange={url=>setFormData({...formData,terms_pdf_url:url})} />
+            <Separator />
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+              <div className="space-y-0.5">
+                <Label className="text-base font-medium">Visibile su Home page</Label>
+                <p className="text-xs text-muted-foreground">Mostra questa esperienza nel catalogo pubblico B2C</p>
+              </div>
+              <Switch 
+                checked={formData.is_visible_on_home !== false} 
+                onCheckedChange={v => setFormData({...formData, is_visible_on_home: v})}
+              />
+            </div>
             <Button className="w-full" onClick={async ()=>{const {id,duration_hours,...data}=formData;await api(`experiences/${id}`,{method:'PUT',body:data});toast.success('Esperienza aggiornata!');setShowDialog(null);setFormData({});await load();}}>Salva Modifiche</Button>
           </div>
         </DialogContent>

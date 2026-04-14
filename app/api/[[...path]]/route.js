@@ -34,7 +34,11 @@ async function handleExperiences(method, id, body, sp) {
     if (sp.get('type')) filter.type = sp.get('type');
     if (sp.get('language')) filter.languages = { $in: [sp.get('language')] };
     if (sp.get('active') === 'true') filter.is_active = true;
-    if (sp.get('all') !== 'true' && !sp.get('active')) filter.is_active = true;
+    if (sp.get('all') !== 'true' && !sp.get('active')) {
+      filter.is_active = true;
+      // Filtra solo esperienze visibili in home page per catalogo pubblico
+      filter.is_visible_on_home = { $ne: false };
+    }
     const items = await col.find(filter).sort({ created_at: -1 }).toArray();
     return json(items);
   }
@@ -59,6 +63,7 @@ async function handleExperiences(method, id, body, sp) {
       meeting_point: body.meeting_point || '',
       weather_dependent: body.weather_dependent || false,
       is_active: body.is_active !== undefined ? body.is_active : true,
+      is_visible_on_home: body.is_visible_on_home !== undefined ? body.is_visible_on_home : true,
       cancellation_policy: body.cancellation_policy || 'Cancellazione gratuita fino a 48h prima',
       itinerary_name: body.itinerary_name || '',
       itinerary_description: body.itinerary_description || '',
