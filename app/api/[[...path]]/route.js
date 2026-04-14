@@ -1203,11 +1203,11 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     const base64Auth = Buffer.from(authString).toString('base64');
     
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
-    const dateFrom = `${date}T00:00:00Z`;
-    const dateTo = `${date}T23:59:59Z`;
+    const dateFrom = `${date}T00:00:00`;
+    const dateTo = `${date}T23:59:59`;
     
-    // Recupera storico posizioni - prova senza /device/ prefix
-    const apiUrl = `https://api.balin.app/external_api/v1/trips?device_id=${imei}&start_date=${date}&end_date=${date}`;
+    // Recupera storico posizioni - ENDPOINT CORRETTO da smartdomo
+    const apiUrl = `https://api.balin.app/external_api/v1/positionsHistory/${imei}?from=${dateFrom}&to=${dateTo}`;
     
     console.log(`🔍 [BALIN API CALL] URL: ${apiUrl}`);
     
