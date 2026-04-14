@@ -730,6 +730,53 @@ function ExperienceDetail({ experience, setView }) {
                 )}
               </div>
               
+              {/* Badge con le prossime 5 date disponibili */}
+              {!selectedDate && allSlots.length > 0 && (() => {
+                // Raggruppa slot per data e prendi le prime 5 date con disponibilità
+                const slotsByDate = {};
+                allSlots.forEach(slot => {
+                  const dateKey = slot.start_datetime.split('T')[0];
+                  const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats || 0);
+                  if (avail > 0) {
+                    if (!slotsByDate[dateKey]) {
+                      slotsByDate[dateKey] = { date: dateKey, slots: [], totalAvail: 0 };
+                    }
+                    slotsByDate[dateKey].slots.push(slot);
+                    slotsByDate[dateKey].totalAvail += avail;
+                  }
+                });
+                
+                const nextDates = Object.values(slotsByDate)
+                  .sort((a, b) => a.date.localeCompare(b.date))
+                  .slice(0, 5);
+                
+                if (nextDates.length === 0) return null;
+                
+                return (
+                  <div className="pb-3 border-b">
+                    <Label className="text-sm font-medium mb-2 block">🗓️ Prossime date disponibili</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {nextDates.map(({ date, totalAvail }) => {
+                        const dateObj = new Date(date + 'T12:00:00');
+                        return (
+                          <Badge 
+                            key={date}
+                            variant="outline" 
+                            className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition px-3 py-1.5"
+                            onClick={() => setSelectedDate(date)}
+                          >
+                            <CalIcon className="w-3 h-3 mr-1" />
+                            {format(dateObj, 'd MMM', { locale: it })}
+                            <span className="ml-1 text-xs opacity-70">({totalAvail})</span>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Clicca su una data per vedere gli orari</p>
+                  </div>
+                );
+              })()}
+              
               {/* Lista Slot - Raggruppati per Data */}
               <div className="max-h-[400px] overflow-y-auto space-y-3">
               {loading ? (
