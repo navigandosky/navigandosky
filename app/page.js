@@ -1286,9 +1286,13 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
           </div>
           {(resources || []).map(res => (
             <div key={res.id} className="grid border-b last:border-b-0 hover:bg-muted/10" style={{ gridTemplateColumns: '120px repeat(7, 1fr)' }}>
-              <div className="p-2 border-r flex items-center gap-2 bg-white sticky left-0 z-10">
+              <div className="p-2 border-r flex items-center justify-center gap-2 bg-white sticky left-0 z-10">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${res.type === 'GUIDE' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>{res.type === 'GUIDE' ? 'G' : 'B'}</div>
-                <div className="min-w-0 flex-1"><p className="font-semibold text-xs leading-tight break-words">{res.name}</p></div>
+                <div className="flex items-center justify-center flex-1">
+                  <p className="font-semibold text-xs" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', whiteSpace: 'nowrap' }}>
+                    {res.name}
+                  </p>
+                </div>
               </div>
               {weekDays.map((day, di) => {
                 const daySlots = getResourceDaySlots(res.id, day);
@@ -1781,6 +1785,10 @@ function AdminDashboard() {
   
   // Filtri Bookings Tab
   const [bookingSearch, setBookingSearch] = useState('');
+  const [bookingExpFilter, setBookingExpFilter] = useState('ALL');
+  const [bookingDateFilter, setBookingDateFilter] = useState('');
+  const [bookingCustomerFilter, setBookingCustomerFilter] = useState('');
+  const [bookingCodeFilter, setBookingCodeFilter] = useState('');
   
   // Filtri Panoramica
   const [overviewDateFilter, setOverviewDateFilter] = useState('');
@@ -1821,20 +1829,43 @@ function AdminDashboard() {
     return bookings.filter(b => resSlotIds.includes(b.slot_id) && b.status !== 'CANCELLED');
   };
 
-  // Filtro bookings per ricerca
+  // Filtro bookings con filtri avanzati
   const filteredBookingsTab = useMemo(() => {
-    if (!bookingSearch) return bookings;
+    let filtered = bookings;
     
-    const search = bookingSearch.toLowerCase();
-    return bookings.filter(b => {
-      const matchCode = (b.booking_ref || '').toLowerCase().includes(search);
-      const matchName = (b.customer_name || '').toLowerCase().includes(search);
-      const slot = slots.find(s => s.id === b.slot_id);
-      const matchDate = slot?.start_datetime?.includes(bookingSearch);
-      
-      return matchCode || matchName || matchDate;
-    });
-  }, [bookings, bookingSearch, slots]);
+    // Filtro per Esperienza
+    if (bookingExpFilter && bookingExpFilter !== 'ALL') {
+      filtered = filtered.filter(b => b.experience_id === bookingExpFilter);
+    }
+    
+    // Filtro per Data Servizio
+    if (bookingDateFilter) {
+      filtered = filtered.filter(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        if (!slot) return false;
+        const slotDate = slot.start_datetime.split('T')[0];
+        return slotDate === bookingDateFilter;
+      });
+    }
+    
+    // Filtro per Cliente
+    if (bookingCustomerFilter) {
+      const search = bookingCustomerFilter.toLowerCase();
+      filtered = filtered.filter(b => 
+        (b.customer_name || '').toLowerCase().includes(search)
+      );
+    }
+    
+    // Filtro per Codice Prenotazione
+    if (bookingCodeFilter) {
+      const search = bookingCodeFilter.toLowerCase();
+      filtered = filtered.filter(b => 
+        (b.booking_ref || '').toLowerCase().includes(search)
+      );
+    }
+    
+    return filtered;
+  }, [bookings, bookingExpFilter, bookingDateFilter, bookingCustomerFilter, bookingCodeFilter, slots]);
   
   // Panoramica ordinata e filtrata
   const sortedOverviewBookings = useMemo(() => {
@@ -2151,21 +2182,74 @@ function AdminDashboard() {
 
         {/* Bookings */}
         <TabsContent value="bookings" className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Prenotazioni ({filteredBookingsTab.length})</h2>
-            <div className="flex items-center gap-2">
-              <Input 
-                placeholder="🔍 Cerca: codice, nominativo, data..."
-                className="w-80"
-                value={bookingSearch}
-                onChange={(e) => setBookingSearch(e.target.value)}
-              />
-              {bookingSearch && (
-                <Button variant="ghost" size="sm" onClick={() => setBookingSearch('')}>
-                  <X className="w-4 h-4" />
-                </Button>
-              )}
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold mb-4">Prenotazioni ({filteredBookingsTab.length})</h2>
+            
+            {/* Filtri Avanzati */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+              <div>
+                <Label className="text-xs mb-1 block">Esperienza</Label>
+                <Select value={bookingExpFilter} onValueChange={setBookingExpFilter}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Tutte le esperienze" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Tutte le esperienze</SelectItem>
+                    {experiences.map(exp => (
+                      <SelectItem key={exp.id} value={exp.id}>{exp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label className="text-xs mb-1 block">Data Servizio</Label>
+                <Input 
+                  type="date" 
+                  className="h-9"
+                  value={bookingDateFilter} 
+                  onChange={e => setBookingDateFilter(e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <Label className="text-xs mb-1 block">Cliente</Label>
+                <Input 
+                  placeholder="Nome cliente..."
+                  className="h-9"
+                  value={bookingCustomerFilter}
+                  onChange={e => setBookingCustomerFilter(e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <Label className="text-xs mb-1 block">Codice Prenotazione</Label>
+                <Input 
+                  placeholder="Codice..."
+                  className="h-9"
+                  value={bookingCodeFilter}
+                  onChange={e => setBookingCodeFilter(e.target.value)}
+                />
+              </div>
             </div>
+            
+            {/* Reset Filtri */}
+            {(bookingExpFilter !== 'ALL' || bookingDateFilter || bookingCustomerFilter || bookingCodeFilter) && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mb-3"
+                onClick={() => {
+                  setBookingExpFilter('ALL');
+                  setBookingDateFilter('');
+                  setBookingCustomerFilter('');
+                  setBookingCodeFilter('');
+                }}
+              >
+                <X className="w-4 h-4 mr-1" />
+                Reimposta Filtri
+              </Button>
+            )}
           </div>
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
             {filteredBookingsTab.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td><td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
