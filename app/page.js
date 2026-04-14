@@ -561,6 +561,8 @@ function ExperienceDetail({ experience, setView }) {
   const [selectedDate, setSelectedDate] = useState(''); // Date picker
   const [allSlots, setAllSlots] = useState([]); // Tutti gli slot per filtraggio
   const [assigned, setAssigned] = useState([]); // Risorse assegnate (calcolate in useEffect)
+  const [showResourceSelector, setShowResourceSelector] = useState(null); // Dialog per selezione risorsa
+  const [dateSlots, setDateSlots] = useState([]); // Slot per una specifica data (quando ci sono multiple risorse)
 
   useEffect(() => {
     if (!experience) return;
@@ -610,6 +612,41 @@ function ExperienceDetail({ experience, setView }) {
     setShowWaitlist(null);
     setWlForm({ name: '', email: '', phone: '', seats: 1 });
   };
+
+  // Funzione per gestire il click su una data - controlla se ci sono più slot per la stessa data
+  const handleDateClick = (dateSlots) => {
+    // Conta quanti slot hanno posti disponibili
+    const availableSlots = dateSlots.filter(s => {
+      const avail = s.max_seats - s.booked_seats - (s.blocked_seats || 0);
+      return avail > 0;
+    });
+
+    if (availableSlots.length === 0) {
+      // Tutti gli slot sono pieni, non fare nulla (gestito nell'UI)
+      return;
+    } else if (dateSlots.length === 1) {
+      // Un solo slot totale (quindi può essere solo disponibile), vai direttamente al booking
+      setView('booking', { experience, slot: dateSlots[0] });
+    } else {
+      // Più slot per la stessa data, mostra SEMPRE il selettore (anche se alcuni sono pieni)
+      // Questo permette all'utente di vedere quali risorse sono disponibili e quali no
+      setDateSlots(dateSlots);
+      setShowResourceSelector(true);
+    }
+  };
+
+  // Raggruppa gli slot per data
+  const groupedSlots = useMemo(() => {
+    const groups = {};
+    slots.forEach(slot => {
+      const dateKey = slot.start_datetime.split('T')[0]; // YYYY-MM-DD
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(slot);
+    });
+    return groups;
+  }, [slots]);
 
   if (!experience) return null;
 
@@ -675,19 +712,73 @@ function ExperienceDetail({ experience, setView }) {
                 )}
               </div>
               
-              {/* Lista Slot */}
+              {/* Lista Slot - Raggruppati per Data */}
               <div className="max-h-[400px] overflow-y-auto space-y-3">
-              {loading ? <div className="text-center py-8"><RefreshCw className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div> : slots.length === 0 ? <p className="text-sm text-muted-foreground text-center py-4">{selectedDate ? 'Nessuno slot disponibile per questa data.' : 'Nessuna data disponibile.'}</p> : slots.map(slot => {
-                const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats||0);
-                const isFull = avail <= 0;
-                return (
-                  <div key={slot.id} className={`p-3 rounded-lg border ${isFull ? 'bg-red-50/50 border-red-100' : 'hover:border-primary/50 hover:bg-primary/5 cursor-pointer'} transition`} onClick={() => !isFull && setView('booking', { experience, slot })}>
-                    <div className="flex justify-between items-start mb-2"><div><p className="font-medium text-sm capitalize">{fmtDate(slot.start_datetime)}</p><p className="text-xs text-muted-foreground">{fmtTime(slot.start_datetime)} - {fmtTime(slot.end_datetime)}</p></div>{isFull ? <Badge variant="destructive" className="text-xs">Completo</Badge> : <Badge variant="secondary" className="text-xs">{avail} posti</Badge>}</div>
-                    <AvailabilityBar booked={slot.booked_seats+(slot.blocked_seats||0)} max={slot.max_seats} />
-                    {isFull ? <Button size="sm" variant="outline" className="w-full mt-2 text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100" onClick={(e) => { e.stopPropagation(); setShowWaitlist(slot.id); }}><Bell className="w-4 h-4 mr-1" />Lista d'Attesa</Button> : <Button size="sm" className="w-full mt-2">Prenota Ora</Button>}
-                  </div>
-                );
-              })}
+              {loading ? (
+                <div className="text-center py-8"><RefreshCw className="w-6 h-6 animate-spin mx-auto text-muted-foreground" /></div>
+              ) : Object.keys(groupedSlots).length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {selectedDate ? 'Nessuno slot disponibile per questa data.' : 'Nessuna data disponibile.'}
+                </p>
+              ) : (
+                Object.entries(groupedSlots).sort(([dateA], [dateB]) => dateA.localeCompare(dateB)).map(([date, dateSlots]) => {
+                  // Calcola disponibilità totale per questa data
+                  const totalAvailable = dateSlots.reduce((sum, s) => {
+                    const avail = s.max_seats - s.booked_seats - (s.blocked_seats || 0);
+                    return sum + Math.max(0, avail);
+                  }, 0);
+                  const allFull = totalAvailable === 0;
+                  const hasMultipleSlots = dateSlots.length > 1;
+
+                  // Usa il primo slot per mostrare data e orario
+                  const firstSlot = dateSlots[0];
+
+                  return (
+                    <div 
+                      key={date} 
+                      className={`p-3 rounded-lg border ${allFull ? 'bg-red-50/50 border-red-100' : 'hover:border-primary/50 hover:bg-primary/5 cursor-pointer'} transition`}
+                      onClick={() => !allFull && handleDateClick(dateSlots)}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-medium text-sm capitalize">{fmtDate(firstSlot.start_datetime)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {fmtTime(firstSlot.start_datetime)} - {fmtTime(firstSlot.end_datetime)}
+                          </p>
+                          {hasMultipleSlots && !allFull && (
+                            <p className="text-xs text-primary font-medium mt-1">
+                              🚤 {dateSlots.length} risorse disponibili
+                            </p>
+                          )}
+                        </div>
+                        {allFull ? (
+                          <Badge variant="destructive" className="text-xs">Completo</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">{totalAvailable} posti</Badge>
+                        )}
+                      </div>
+                      <AvailabilityBar 
+                        booked={dateSlots.reduce((sum, s) => sum + s.booked_seats + (s.blocked_seats || 0), 0)} 
+                        max={dateSlots.reduce((sum, s) => sum + s.max_seats, 0)} 
+                      />
+                      {allFull ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full mt-2 text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100" 
+                          onClick={(e) => { e.stopPropagation(); setShowWaitlist(firstSlot.id); }}
+                        >
+                          <Bell className="w-4 h-4 mr-1" />Lista d'Attesa
+                        </Button>
+                      ) : (
+                        <Button size="sm" className="w-full mt-2">
+                          {hasMultipleSlots ? 'Scegli Risorsa' : 'Prenota Ora'}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
               </div>
             </CardContent>
           </Card>
@@ -703,6 +794,76 @@ function ExperienceDetail({ experience, setView }) {
             <div><Label>Telefono</Label><Input value={wlForm.phone} onChange={e=>setWlForm({...wlForm,phone:e.target.value})} placeholder="+39 333 1234567" /></div>
             <div><Label>Posti richiesti</Label><Input type="number" min="1" max="10" value={wlForm.seats} onChange={e=>setWlForm({...wlForm,seats:parseInt(e.target.value)||1})} /></div>
             <Button className="w-full" onClick={() => joinWaitlist(showWaitlist)}><Bell className="w-4 h-4 mr-2" />Iscriviti alla Lista d'Attesa</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resource Selector Dialog - Quando ci sono più slot/risorse per la stessa data */}
+      <Dialog open={showResourceSelector} onOpenChange={setShowResourceSelector}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Scegli la Risorsa</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mb-4">
+            Sono disponibili più barche per questa data. Seleziona quella che preferisci:
+          </p>
+          <div className="space-y-3">
+            {dateSlots.map(slot => {
+              const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats || 0);
+              const isFull = avail <= 0;
+              const resourceIds = slot.resource_ids || [];
+              const slotResources = resources.filter(r => resourceIds.includes(r.id));
+              
+              return (
+                <Card 
+                  key={slot.id} 
+                  className={`overflow-hidden transition ${isFull ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'cursor-pointer hover:border-primary hover:shadow-md'}`}
+                  onClick={() => {
+                    if (!isFull) {
+                      setShowResourceSelector(false);
+                      setView('booking', { experience, slot });
+                    }
+                  }}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Ship className={`w-4 h-4 ${isFull ? 'text-gray-400' : 'text-primary'}`} />
+                          <p className={`font-semibold text-sm ${isFull ? 'text-gray-500' : ''}`}>
+                            {slotResources.length > 0 
+                              ? slotResources.map(r => r.name).join(', ')
+                              : 'Risorsa Non Specificata'}
+                          </p>
+                        </div>
+                        {slotResources.length > 0 && (
+                          <p className="text-xs text-muted-foreground ml-6">
+                            {slotResources.map(r => 
+                              r.type === 'GUIDE' ? 'Guida' : (BOAT_TYPE_LABELS[r.boat_type] || 'Imbarcazione')
+                            ).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant={isFull ? "destructive" : "secondary"} className="text-xs">
+                        {isFull ? 'Completo' : `${avail} posti`}
+                      </Badge>
+                    </div>
+                    <AvailabilityBar 
+                      booked={slot.booked_seats + (slot.blocked_seats || 0)} 
+                      max={slot.max_seats} 
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-muted-foreground">
+                        Orario: {fmtTime(slot.start_datetime)} - {fmtTime(slot.end_datetime)}
+                      </p>
+                      {isFull && (
+                        <p className="text-xs text-red-600 font-medium">Non disponibile</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>
