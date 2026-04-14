@@ -71,6 +71,24 @@ function fmtTime(d) { try { return format(parseISO(d), 'HH:mm'); } catch { retur
 function fmtDateTime(d) { try { return format(parseISO(d), "EEE d MMM yyyy 'alle' HH:mm", { locale: it }); } catch { return d || ''; } }
 function fmtPrice(p) { return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(p || 0); }
 
+// Helper: Determina la fascia di prezzo attiva per una data specifica
+function getPriceTierForDate(experience, date) {
+  if (!experience?.price_tiers || experience.price_tiers.length === 0) {
+    return null;
+  }
+  
+  const dateStr = typeof date === 'string' ? date.split('T')[0] : format(date, 'yyyy-MM-dd');
+  
+  for (const tier of experience.price_tiers) {
+    if (!tier.start_date || !tier.end_date) continue;
+    if (dateStr >= tier.start_date && dateStr <= tier.end_date) {
+      return tier;
+    }
+  }
+  
+  return null;
+}
+
 // ============ IMAGE UPLOADER ============
 function ImageUploader({ images = [], onChange, maxImages = 3 }) {
   const [previews, setPreviews] = useState(images);
@@ -884,7 +902,24 @@ function BookingWizard({ experience, slot, setView }) {
 
   if (!experience || !slot) return null;
   const maxAvail = slot.max_seats - slot.booked_seats - (slot.blocked_seats||0);
-  const pricePerSeat = slot.price_override || experience.price_b2c;
+  
+  // Calcola prezzo con priorità: price_override > fascia stagionale > prezzo base
+  let pricePerSeat = experience.price_b2c;
+  let appliedTierName = null;
+  
+  if (slot.price_override) {
+    // Priorità 1: Override dello slot
+    pricePerSeat = slot.price_override;
+  } else {
+    // Priorità 2: Fascia stagionale
+    const tier = getPriceTierForDate(experience, slot.start_datetime);
+    if (tier && tier.price_b2c) {
+      pricePerSeat = tier.price_b2c;
+      appliedTierName = tier.tier_name;
+    }
+    // Altrimenti usa prezzo base (già impostato)
+  }
+  
   const subtotal = pricePerSeat * seats;
   const discount = voucherResult?.valid ? (voucherResult.voucher.type === 'PERCENTAGE' ? (subtotal * voucherResult.voucher.value / 100) : Math.min(voucherResult.voucher.value, subtotal)) : 0;
   const total = subtotal - discount;
@@ -939,10 +974,18 @@ function BookingWizard({ experience, slot, setView }) {
             <div className="flex-1">
               <CardTitle className="text-base">{experience.name}</CardTitle>
               <p className="text-sm text-muted-foreground capitalize">{fmtDateTime(slot.start_datetime)}</p>
+              {appliedTierName && (
+                <Badge variant="secondary" className="mt-1 text-xs">
+                  <Tag className="w-3 h-3 mr-1" />{appliedTierName}
+                </Badge>
+              )}
             </div>
             <div className="text-right">
               <p className="font-bold text-primary text-lg">{fmtPrice(pricePerSeat)}</p>
               <p className="text-xs text-muted-foreground">per persona</p>
+              {slot.price_override && (
+                <p className="text-xs text-amber-600 font-medium">Prezzo Override</p>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -2312,6 +2355,87 @@ function AdminDashboard() {
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (ore)</Label><Input type="number" value={formData.duration_hours||''} onChange={e=>setFormData({...formData,duration_hours:e.target.value,duration_minutes:e.target.value*60})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
+            
+            <Separator className="my-6" />
+            
+            {/* Listini Prezzi Stagionali */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Tag className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Listini Prezzi Stagionali (4 Fasce)</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">Configura fino a 4 fasce di prezzo in base al periodo. I prezzi base sopra verranno usati se nessuna fascia copre la data.</p>
+              
+              {[0, 1, 2, 3].map(tierIndex => {
+                const tier = (formData.price_tiers || [])[tierIndex] || {};
+                const updateTier = (field, value) => {
+                  const tiers = [...(formData.price_tiers || [{}, {}, {}, {}])];
+                  tiers[tierIndex] = { ...tiers[tierIndex], [field]: value };
+                  setFormData({ ...formData, price_tiers: tiers });
+                };
+                
+                return (
+                  <Card key={tierIndex} className="p-4 bg-muted/30">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${tierIndex === 0 ? 'bg-red-500' : tierIndex === 1 ? 'bg-yellow-500' : tierIndex === 2 ? 'bg-green-500' : 'bg-gray-400'}`} />
+                        <Label className="font-semibold">Fascia {tierIndex + 1}</Label>
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Nome Fascia</Label>
+                        <Input 
+                          placeholder={tierIndex === 0 ? "es: Alta Stagione" : tierIndex === 1 ? "es: Media Stagione" : tierIndex === 2 ? "es: Bassa Stagione" : "es: Fuori Stagione"}
+                          value={tier.tier_name || ''} 
+                          onChange={e => updateTier('tier_name', e.target.value)}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Data Inizio (dal)</Label>
+                          <Input 
+                            type="date" 
+                            value={tier.start_date || ''} 
+                            onChange={e => updateTier('start_date', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Data Fine (al)</Label>
+                          <Input 
+                            type="date" 
+                            value={tier.end_date || ''} 
+                            onChange={e => updateTier('end_date', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Prezzo B2C (€)</Label>
+                          <Input 
+                            type="number" 
+                            placeholder="0" 
+                            value={tier.price_b2c || ''} 
+                            onChange={e => updateTier('price_b2c', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Prezzo B2B (€)</Label>
+                          <Input 
+                            type="number" 
+                            placeholder="0" 
+                            value={tier.price_b2b || ''} 
+                            onChange={e => updateTier('price_b2b', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+            
             <Separator />
             <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
             <Separator />
