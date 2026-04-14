@@ -177,6 +177,25 @@ export default function MappaFlottaWrapper() {
           {analytics && analytics.route && analytics.route.length > 0 && (
             <SpeedChart route={analytics.route} />
           )}
+          
+          {/* Messaggio quando toggle attivo ma nessun dato */}
+          {showRoute && selectedDevice && analytics && (!analytics.route || analytics.route.length === 0) && (
+            <div className="p-4 border border-amber-200 rounded-lg bg-amber-50">
+              <div className="flex items-start gap-3">
+                <Route className="w-5 h-5 text-amber-600 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-amber-900 mb-1">Nessuna Rotta Disponibile</h4>
+                  <p className="text-sm text-amber-800">
+                    Non ci sono dati GPS per il <strong>{new Date(selectedDate).toLocaleDateString('it-IT')}</strong>.
+                    Il dispositivo potrebbe essere stato fermo o i dati non sono disponibili per questa data.
+                  </p>
+                  <p className="text-xs text-amber-700 mt-2">
+                    💡 Suggerimento: Verifica su Balin.app quali date hanno dati disponibili e seleziona una data con attività GPS registrata.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

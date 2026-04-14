@@ -1218,6 +1218,21 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     });
     
     if (!response.ok) {
+      // Se Balin ritorna 404, significa che non ci sono dati per quella data
+      // Ritorniamo dati vuoti invece di errore
+      if (response.status === 404) {
+        return json({
+          imei,
+          date,
+          total_distance: 0,
+          max_speed: 0,
+          avg_speed: 0,
+          total_time: 0,
+          stops: 0,
+          route: [],
+          points_count: 0
+        });
+      }
       return json({ error: 'Errore recupero dati' }, response.status);
     }
     
