@@ -597,7 +597,8 @@ function ExperienceDetail({ experience, setView }) {
   if (!experience) return null;
   
   // Aggrega TUTTE le risorse da TUTTI gli slot dell'esperienza (unificare risorse)
-  const allResourceIds = [...new Set(slots.flatMap(s => s.resource_ids || []))];
+  // IMPORTANTE: usare allSlots, non slots (che può essere filtrato dal date picker)
+  const allResourceIds = [...new Set(allSlots.flatMap(s => s.resource_ids || []))];
   const assigned = resources.filter(r => allResourceIds.includes(r.id));
 
   return (
