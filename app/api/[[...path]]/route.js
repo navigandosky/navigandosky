@@ -1203,11 +1203,15 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     const base64Auth = Buffer.from(authString).toString('base64');
     
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
-    const dateFrom = `${date}T00:00:00`;
-    const dateTo = `${date}T23:59:59`;
     
-    // Recupera storico posizioni - ENDPOINT CORRETTO da smartdomo
-    const apiUrl = `https://api.balin.app/external_api/v1/positionsHistory/${imei}?from=${dateFrom}&to=${dateTo}`;
+    // Converti in millisecondi Unix (Balin richiede start/stop in ms)
+    const startDate = new Date(`${date}T00:00:00Z`);
+    const stopDate = new Date(`${date}T23:59:59Z`);
+    const startMs = startDate.getTime();
+    const stopMs = stopDate.getTime();
+    
+    // Recupera storico posizioni - ENDPOINT CORRETTO con parametri in millisecondi
+    const apiUrl = `https://api.balin.app/external_api/v1/positionsHistory/${imei}?start=${startMs}&stop=${stopMs}&skip=0&limit=5000`;
     
     console.log(`🔍 [BALIN API CALL] URL: ${apiUrl}`);
     
@@ -1242,10 +1246,13 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     
     const history = await response.json();
     
-    console.log(`📊 [BALIN RESPONSE] Points: ${Array.isArray(history) ? history.length : typeof history}, First point:`, history[0]);
+    console.log(`📊 [BALIN RESPONSE] Type: ${typeof history}, Keys:`, Object.keys(history || {}).slice(0, 5));
     
-    if (!Array.isArray(history) || history.length === 0) {
-      console.log(`❌ [NO DATA] IMEI ${imei} on ${date} - Empty response`);
+    // Balin ritorna un oggetto con "data" array di posizioni
+    const positions = history?.data || history?.positions || [];
+    
+    if (!Array.isArray(positions) || positions.length === 0) {
+      console.log(`❌ [NO DATA] IMEI ${imei} on ${date} - Empty or invalid response structure`);
       return json({
         imei,
         date,
@@ -1254,7 +1261,8 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
         avg_speed: 0,
         total_time: 0,
         stops: 0,
-        route: []
+        route: [],
+        points_count: 0
       });
     }
     
@@ -1265,7 +1273,7 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     let stops = 0;
     let movingTime = 0;
     
-    const route = history.map((point, i) => {
+    const route = positions.map((point, i) => {
       if (point.speed > maxSpeed) maxSpeed = point.speed;
       totalSpeed += point.speed || 0;
       
@@ -1274,7 +1282,7 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
       
       // Calcola distanza dal punto precedente (formula di Haversine semplificata)
       if (i > 0) {
-        const prev = history[i - 1];
+        const prev = positions[i - 1];
         const R = 6371; // Raggio Terra in km
         const dLat = (point.lat - prev.lat) * Math.PI / 180;
         const dLon = (point.lng - prev.lng) * Math.PI / 180;
@@ -1298,11 +1306,11 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
       date,
       total_distance: parseFloat(totalDistance.toFixed(2)),
       max_speed: maxSpeed,
-      avg_speed: history.length > 0 ? parseFloat((totalSpeed / history.length).toFixed(2)) : 0,
+      avg_speed: positions.length > 0 ? parseFloat((totalSpeed / positions.length).toFixed(2)) : 0,
       total_time: movingTime,
       stops,
       route,
-      points_count: history.length
+      points_count: positions.length
     });
     
   } catch (error) {
