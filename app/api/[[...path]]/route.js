@@ -1282,13 +1282,25 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     let totalSpeed = 0;
     let stops = 0;
     let movingTime = 0;
+    let engineHoursMs = 0; // Tempo motore acceso in millisecondi
     
     const route = positions.map((point, i) => {
       if (point.speed > maxSpeed) maxSpeed = point.speed;
       totalSpeed += point.speed || 0;
       
       if (point.speed === 0) stops++;
-      else if (point.speed > 0) movingTime += 1;
+      else if (point.speed > 0) {
+        movingTime += 1;
+        
+        // Calcola tempo motore acceso basato su differenza timestamp
+        if (i > 0 && positions[i-1].speed > 0) {
+          const prevTs = positions[i-1].timestamp || positions[i-1].timestamp_position;
+          const currTs = point.timestamp || point.timestamp_position;
+          if (prevTs && currTs) {
+            engineHoursMs += (new Date(currTs).getTime() - new Date(prevTs).getTime());
+          }
+        }
+      }
       
       // Calcola distanza dal punto precedente (formula di Haversine semplificata)
       if (i > 0) {
@@ -1311,6 +1323,9 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
       };
     });
     
+    // Converti millisecondi in ore
+    const engineHours = engineHoursMs / (1000 * 60 * 60);
+    
     return json({
       imei,
       date,
@@ -1318,6 +1333,7 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
       max_speed: maxSpeed,
       avg_speed: positions.length > 0 ? parseFloat((totalSpeed / positions.length).toFixed(2)) : 0,
       total_time: movingTime,
+      engine_hours: parseFloat(engineHours.toFixed(2)), // Ore motore acceso
       stops,
       route,
       points_count: positions.length
