@@ -3908,46 +3908,42 @@ function B2BPortal({ setView, allExperiences }) {
 
       {/* B2B Booking Dialog */}
       <Dialog open={!!bookingSlot} onOpenChange={() => setBookingSlot(null)}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader><DialogTitle>Prenota per Cliente Finale</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="text-lg">Prenota per Cliente Finale</DialogTitle></DialogHeader>
+          <div className="space-y-3">
             {bookingSlot && selectedExp && (
               <>
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="font-bold text-lg">{selectedExp.name}</p>
-                  <p className="text-sm text-muted-foreground capitalize mt-1">{fmtDateTime(bookingSlot.start_datetime)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Disponibili: {bookingSlot.max_seats - bookingSlot.booked_seats} posti</p>
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="font-bold text-base">{selectedExp.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{fmtDateTime(bookingSlot.start_datetime)}</p>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 bg-gray-50 rounded border">
-                    <p className="text-xs text-muted-foreground">Prezzo Cliente</p>
-                    <p className="text-lg font-bold">{fmtPrice(selectedExp.price_b2c)}</p>
-                    <p className="text-xs text-muted-foreground">a persona</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-2 bg-gray-50 rounded border text-center">
+                    <p className="text-xs text-muted-foreground">Cliente</p>
+                    <p className="text-sm font-bold">{fmtPrice(selectedExp.price_b2c)}</p>
                   </div>
-                  <div className="p-3 bg-amber-50 rounded border border-amber-200">
-                    <p className="text-xs text-amber-700">Netto Maretrek</p>
-                    <p className="text-lg font-bold text-amber-700">{fmtPrice(selectedExp.price_b2b || selectedExp.price_b2c)}</p>
-                    <p className="text-xs text-amber-700">a persona</p>
+                  <div className="p-2 bg-amber-50 rounded border border-amber-200 text-center">
+                    <p className="text-xs text-amber-700">Netto</p>
+                    <p className="text-sm font-bold text-amber-700">{fmtPrice(selectedExp.price_b2b || selectedExp.price_b2c)}</p>
                   </div>
-                  <div className="p-3 bg-green-50 rounded border border-green-200">
-                    <p className="text-xs text-green-700">Tua Provvigione</p>
-                    <p className="text-lg font-bold text-green-700">+{fmtPrice((selectedExp.price_b2c - (selectedExp.price_b2b || selectedExp.price_b2c)) * (bkForm.seats || 1))}</p>
-                    <p className="text-xs text-green-700">totale</p>
+                  <div className="p-2 bg-green-50 rounded border border-green-200 text-center">
+                    <p className="text-xs text-green-700">Provvigione</p>
+                    <p className="text-sm font-bold text-green-700">+{fmtPrice((selectedExp.price_b2c - (selectedExp.price_b2b || selectedExp.price_b2c)) * (bkForm.seats || 1))}</p>
                   </div>
                 </div>
               </>
             )}
             
-            <div><Label>Nome Cliente Finale</Label><Input value={bkForm.name} onChange={e=>setBkForm({...bkForm,name:e.target.value})} placeholder="Mario Rossi" required /></div>
-            <div><Label>Email Cliente</Label><Input type="email" value={bkForm.email} onChange={e=>setBkForm({...bkForm,email:e.target.value})} placeholder="cliente@email.com" required /></div>
-            <div><Label>Telefono Cliente</Label><Input value={bkForm.phone} onChange={e=>setBkForm({...bkForm,phone:e.target.value})} placeholder="+39 333 1234567" required /></div>
-            <div><Label>Numero Posti</Label><Input type="number" min="1" max={bookingSlot ? bookingSlot.max_seats - bookingSlot.booked_seats : 1} value={bkForm.seats} onChange={e=>setBkForm({...bkForm,seats:parseInt(e.target.value)||1})} /></div>
-            <div><Label>Note / Richieste Speciali (opzionale)</Label><textarea className="w-full p-2 border rounded" rows="2" value={bkForm.special_requests||''} onChange={e=>setBkForm({...bkForm,special_requests:e.target.value})} placeholder="Es: allergie, esigenze particolari..." /></div>
+            <div><Label className="text-sm">Nome Cliente *</Label><Input className="h-9" value={bkForm.name} onChange={e=>setBkForm({...bkForm,name:e.target.value})} placeholder="Mario Rossi" required /></div>
+            <div><Label className="text-sm">Email Cliente *</Label><Input className="h-9" type="email" value={bkForm.email} onChange={e=>setBkForm({...bkForm,email:e.target.value})} placeholder="cliente@email.com" required /></div>
+            <div><Label className="text-sm">Telefono Cliente *</Label><Input className="h-9" value={bkForm.phone} onChange={e=>setBkForm({...bkForm,phone:e.target.value})} placeholder="+39 333 1234567" required /></div>
+            <div><Label className="text-sm">Posti</Label><Input className="h-9" type="number" min="1" max={bookingSlot ? bookingSlot.max_seats - bookingSlot.booked_seats : 1} value={bkForm.seats} onChange={e=>setBkForm({...bkForm,seats:parseInt(e.target.value)||1})} /></div>
+            <div><Label className="text-sm">Note (opzionale)</Label><textarea className="w-full p-2 border rounded text-sm" rows="2" value={bkForm.special_requests||''} onChange={e=>setBkForm({...bkForm,special_requests:e.target.value})} placeholder="Allergie, esigenze..." /></div>
             
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <p className="text-sm font-medium text-blue-900">Riepilogo Prenotazione</p>
-              <div className="mt-2 space-y-1 text-sm">
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <p className="text-xs font-medium text-blue-900 mb-1">Riepilogo</p>
+              <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
                   <span>Cliente paga:</span>
                   <span className="font-bold">{fmtPrice((selectedExp?.price_b2c || 0) * (bkForm.seats || 1))}</span>
@@ -3959,7 +3955,7 @@ function B2BPortal({ setView, allExperiences }) {
               </div>
             </div>
             
-            <Button className="w-full" onClick={handleB2BBook} disabled={loading || !bkForm.name || !bkForm.email || !bkForm.phone}>
+            <Button className="w-full h-10" onClick={handleB2BBook} disabled={loading || !bkForm.name || !bkForm.email || !bkForm.phone}>
               {loading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin"/> : <CheckCircle2 className="w-4 h-4 mr-2"/>}
               Conferma Prenotazione
             </Button>
