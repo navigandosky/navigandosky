@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { RefreshCw, Map as MapIcon, Calendar, TrendingUp, Route } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, Map as MapIcon, Calendar, TrendingUp, Route, Users, Ship, Droplet } from 'lucide-react';
 import { toast } from 'sonner';
 import GPSAnalyticsDashboard from './GPSAnalyticsDashboard';
 import SpeedChart from './SpeedChart';
@@ -44,6 +46,12 @@ export default function MappaFlottaWrapper() {
   const [showRoute, setShowRoute] = useState(false);
   const [analytics, setAnalytics] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  
+  // Prenotazioni e consumo
+  const [showBookingsDialog, setShowBookingsDialog] = useState(false);
+  const [todayBookings, setTodayBookings] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
+  const [fuelConsumption, setFuelConsumption] = useState(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -61,6 +69,16 @@ export default function MappaFlottaWrapper() {
       loadAnalytics(selectedDevice.imei);
     }
   }, [selectedDevice, selectedDate]);
+
+  // Calcola consumo quando le analytics cambiano
+  useEffect(() => {
+    if (analytics && selectedDevice?.resource) {
+      const consumption = calculateFuelConsumption(analytics, selectedDevice.resource);
+      setFuelConsumption(consumption);
+    } else {
+      setFuelConsumption(null);
+    }
+  }, [analytics, selectedDevice]);
 
   const loadFleet = async () => {
     try {
@@ -94,6 +112,45 @@ export default function MappaFlottaWrapper() {
       setAnalytics(null);
     } finally {
       setLoadingAnalytics(false);
+    }
+  };
+
+  const loadTodayBookings = async (resourceId) => {
+    setLoadingBookings(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const data = await api(`bookings/by-resource?resource_id=${resourceId}&date=${today}`);
+      setTodayBookings(data.bookings || []);
+      setShowBookingsDialog(true);
+    } catch (error) {
+      console.error('Error loading bookings:', error);
+      setTodayBookings([]);
+    } finally {
+      setLoadingBookings(false);
+    }
+  };
+
+  const calculateFuelConsumption = (analytics, resource) => {
+    if (!analytics || !analytics.engine_hours || !resource?.consumo_orario_litri) {
+      return null;
+    }
+    
+    // Calcolo: Consumo LT = Consumo orario (L/h) × Ore di moto
+    const fuelUsed = analytics.engine_hours * resource.consumo_orario_litri;
+    
+    return {
+      liters: fuelUsed.toFixed(2),
+      hours: analytics.engine_hours.toFixed(2),
+      rate: resource.consumo_orario_litri
+    };
+  };
+
+  const handleDeviceClick = async (device) => {
+    setSelectedDevice(device);
+    
+    // Se c'è una risorsa associata, carica le prenotazioni di oggi
+    if (device.resource?.id) {
+      await loadTodayBookings(device.resource.id);
     }
   };
 
@@ -174,6 +231,38 @@ export default function MappaFlottaWrapper() {
           
           <GPSAnalyticsDashboard analytics={analytics} loading={loadingAnalytics} />
           
+          {/* Card Consumo Carburante */}
+          {fuelConsumption && (
+            <div className="p-4 border border-blue-200 rounded-lg bg-blue-50">
+              <div className="flex items-start gap-3">
+                <Droplet className="w-6 h-6 text-blue-600 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                    Consumo Carburante Stimato
+                    <Badge variant="outline" className="bg-white">{new Date(selectedDate).toLocaleDateString('it-IT')}</Badge>
+                  </h4>
+                  <div className="grid grid-cols-3 gap-4 mt-3">
+                    <div className="bg-white rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Ore di Moto</p>
+                      <p className="text-2xl font-bold text-blue-700">{fuelConsumption.hours}h</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Consumo Orario</p>
+                      <p className="text-2xl font-bold text-blue-700">{fuelConsumption.rate} L/h</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 border-2 border-blue-400">
+                      <p className="text-xs text-muted-foreground mb-1">Totale Consumo</p>
+                      <p className="text-2xl font-bold text-blue-900">{fuelConsumption.liters} L</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-3">
+                    💡 Calcolo basato su: Consumo LT = {fuelConsumption.rate} L/h × {fuelConsumption.hours}h ore di moto GPS
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {analytics && analytics.route && analytics.route.length > 0 && (
             <SpeedChart route={analytics.route} />
           )}
@@ -206,7 +295,7 @@ export default function MappaFlottaWrapper() {
             devices={filteredDevices} 
             filter={filter}
             onFilterChange={setFilter}
-            onSelectDevice={setSelectedDevice}
+            onSelectDevice={handleDeviceClick}
             selectedDevice={selectedDevice}
           />
         </div>
@@ -246,6 +335,85 @@ export default function MappaFlottaWrapper() {
           )}
         </div>
       </div>
+      
+      {/* Dialog Prenotazioni Giornaliere */}
+      <Dialog open={showBookingsDialog} onOpenChange={setShowBookingsDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ship className="w-5 h-5 text-primary" />
+              Prenotazioni di Oggi - {selectedDevice?.resource?.name}
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          </DialogHeader>
+          
+          <div className="space-y-3 mt-4">
+            {loadingBookings && (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            )}
+            
+            {!loadingBookings && todayBookings.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Nessuna prenotazione per oggi</p>
+              </div>
+            )}
+            
+            {!loadingBookings && todayBookings.map((booking, idx) => (
+              <div key={booking.id} className="border rounded-lg p-4 bg-muted/30">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h4 className="font-semibold text-lg">{booking.experience_name}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Ref: {booking.booking_ref} • {booking.seats} {booking.seats === 1 ? 'posto' : 'posti'}
+                    </p>
+                  </div>
+                  <Badge className={booking.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
+                    {booking.status}
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Cliente</p>
+                    <p className="font-medium">{booking.customer_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Orario</p>
+                    <p className="font-medium">{booking.slot_time || '-'}</p>
+                  </div>
+                </div>
+                
+                {booking.seat_assignments && booking.seat_assignments.length > 0 && (
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="w-4 h-4 text-muted-foreground" />
+                      <p className="text-xs font-medium text-muted-foreground">Partecipanti</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {booking.seat_assignments.map((name, i) => (
+                        name && <Badge key={i} variant="outline" className="text-xs">{name}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {!loadingBookings && todayBookings.length > 0 && (
+              <div className="pt-3 border-t">
+                <p className="text-sm text-center text-muted-foreground">
+                  Totale: <strong>{todayBookings.length}</strong> {todayBookings.length === 1 ? 'prenotazione' : 'prenotazioni'} • 
+                  <strong className="ml-2">{todayBookings.reduce((sum, b) => sum + b.seats, 0)}</strong> passeggeri
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

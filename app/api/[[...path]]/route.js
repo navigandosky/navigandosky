@@ -135,6 +135,10 @@ async function handleResources(method, id, body, sp) {
       email: body.email || '',
       images: body.images || [], // Array di URL immagini (max 3)
       gps_imei: body.gps_imei || '', // IMEI dispositivo GPS Balin.app
+      potenza_motore: body.potenza_motore ? Number(body.potenza_motore) : null, // HP
+      marca: body.marca || '', // Marca motore (es: Yamaha, Mercury)
+      consumo_orario_litri: body.consumo_orario_litri ? Number(body.consumo_orario_litri) : null, // L/h
+      ore_inizio_stagione: body.ore_inizio_stagione ? Number(body.ore_inizio_stagione) : null, // Ore motore inizio stagione
       is_available: true,
       created_at: new Date().toISOString(),
     };
