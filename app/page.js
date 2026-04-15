@@ -3449,7 +3449,15 @@ function B2BPortal({ setView, allExperiences }) {
   const loadSlots = async (exp) => {
     setSelectedExp(exp);
     const s = await api(`slots?experience_id=${exp.id}&date_from=${new Date().toISOString()}`);
-    setSlots(Array.isArray(s) ? s.filter(sl => sl.status !== 'CANCELLED' && new Date(sl.start_datetime) > new Date()) : []);
+    console.log('Slots caricati:', s);
+    const filtered = Array.isArray(s) ? s.filter(sl => {
+      if (sl.status === 'CANCELLED') return false;
+      const slotDate = new Date(sl.start_datetime);
+      const now = new Date();
+      return slotDate > now;
+    }) : [];
+    console.log('Slots filtrati:', filtered);
+    setSlots(filtered);
   };
 
   const handleB2BBook = async () => {
@@ -3692,18 +3700,26 @@ function B2BPortal({ setView, allExperiences }) {
                   <div><h2 className="text-xl font-bold">{selectedExp.name}</h2><TypeBadge type={selectedExp.type} /><div className="mt-2 flex gap-4"><div><span className="text-sm text-muted-foreground">Prezzo Listino:</span> <span className="line-through text-muted-foreground">{fmtPrice(selectedExp.price_b2c)}</span></div><div><span className="text-sm text-muted-foreground">Prezzo B2B:</span> <span className="font-bold text-green-600">{fmtPrice(selectedExp.price_b2b * (1 - agency.discount_percentage/100))}</span></div></div></div></div>
               </CardContent></Card>
               <h3 className="font-semibold mb-3">Disponibilita</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {slots.map(slot => {
-                  const avail = slot.max_seats - slot.booked_seats;
-                  return (
-                    <div key={slot.id} className={`p-3 rounded-lg border ${avail <= 0 ? 'bg-red-50' : 'hover:border-primary cursor-pointer'}`} onClick={() => avail > 0 && setBookingSlot(slot)}>
-                      <p className="font-medium text-sm capitalize">{fmtDate(slot.start_datetime)}</p>
-                      <p className="text-xs text-muted-foreground">{fmtTime(slot.start_datetime)} - {fmtTime(slot.end_datetime)}</p>
-                      <AvailabilityBar booked={slot.booked_seats} max={slot.max_seats} />
-                    </div>
-                  );
-                })}
-              </div>
+              {slots.length === 0 ? (
+                <div className="p-8 text-center border-2 border-dashed rounded-lg">
+                  <p className="text-muted-foreground mb-2">Nessuna disponibilità al momento</p>
+                  <p className="text-xs text-muted-foreground">Gli slot potrebbero non essere ancora stati creati per questa esperienza</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {slots.map(slot => {
+                    const avail = slot.max_seats - slot.booked_seats;
+                    return (
+                      <div key={slot.id} className={`p-3 rounded-lg border ${avail <= 0 ? 'bg-red-50' : 'bg-white hover:border-primary hover:shadow-md cursor-pointer transition'}`} onClick={() => avail > 0 && setBookingSlot(slot)}>
+                        <p className="font-medium text-sm capitalize">{fmtDate(slot.start_datetime)}</p>
+                        <p className="text-xs text-muted-foreground">{fmtTime(slot.start_datetime)} - {fmtTime(slot.end_datetime)}</p>
+                        <AvailabilityBar booked={slot.booked_seats} max={slot.max_seats} />
+                        <p className="text-xs text-green-600 font-medium mt-2">Clicca per prenotare</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
