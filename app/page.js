@@ -3428,16 +3428,18 @@ function B2BPortal({ setView, allExperiences }) {
     const res = await api('agencies/login', { method: 'POST', body: loginForm });
     if (res.error) { toast.error(res.error); setLoading(false); return; }
     setAgency(res.agency);
+    
+    // Carica dati ottimizzati per agenzia
     const [exps, bks, res_data, sl] = await Promise.all([
       api('experiences'), 
-      api('bookings'),
+      api(`bookings?agency_id=${res.agency.id}`), // Solo prenotazioni dell'agenzia
       api('resources'),
       api('slots')
     ]);
+    
     setExperiences(Array.isArray(exps) ? exps : []);
-    const agencyBookings = Array.isArray(bks) ? bks.filter(b => b.customer_email === res.agency.email) : [];
-    setMyBookings(agencyBookings);
-    setFilteredBookings(agencyBookings);
+    setMyBookings(Array.isArray(bks) ? bks : []);
+    setFilteredBookings(Array.isArray(bks) ? bks : []);
     setResources(Array.isArray(res_data) ? res_data : []);
     setSlots(Array.isArray(sl) ? sl : []);
     setLoading(false);
@@ -3453,11 +3455,44 @@ function B2BPortal({ setView, allExperiences }) {
   const handleB2BBook = async () => {
     if (!bookingSlot || !agency) return;
     setLoading(true);
+    
     const exp = selectedExp;
-    const b2bPrice = exp.price_b2b || exp.price_b2c;
-    const discountedPrice = b2bPrice * (1 - (agency.discount_percentage || 0) / 100);
-    const res = await api('bookings', { method: 'POST', body: { slot_id: bookingSlot.id, experience_id: exp.id, customer_name: bkForm.name || agency.name, customer_email: agency.email, customer_phone: bkForm.phone || agency.phone, seats: bkForm.seats, total_amount: discountedPrice * bkForm.seats } });
-    if (res.error) { toast.error(res.error); } else { toast.success(`Prenotazione ${res.booking_ref} confermata!`); setBookingSlot(null); setBkForm({ name: '', email: '', phone: '', seats: 1 }); }
+    const priceB2C = exp.price_b2c || 0; // Prezzo cliente finale
+    const priceB2B = exp.price_b2b || priceB2C; // Prezzo netto Maretrek
+    const commission = (priceB2C - priceB2B) * bkForm.seats; // Provvigione agenzia
+    
+    const bookingData = {
+      slot_id: bookingSlot.id,
+      experience_id: exp.id,
+      customer_name: bkForm.name,
+      customer_email: bkForm.email,
+      customer_phone: bkForm.phone,
+      seats: bkForm.seats,
+      total_amount: priceB2C * bkForm.seats, // Cliente finale paga prezzo B2C
+      agency_id: agency.id, // Traccia agenzia
+      commission_amount: commission, // Provvigione agenzia
+      b2c_price: priceB2C, // Prezzo per posto B2C
+      b2b_price: priceB2B, // Prezzo per posto B2B
+      special_requests: bkForm.special_requests || ''
+    };
+    
+    const res = await api('bookings', { method: 'POST', body: bookingData });
+    
+    if (res.error) { 
+      toast.error(res.error); 
+    } else { 
+      toast.success(`✅ Prenotazione ${res.booking_ref} confermata! Provvigione: €${commission.toFixed(2)}`);
+      
+      // Ricarica prenotazioni
+      const bks = await api(`bookings?agency_id=${agency.id}`);
+      setMyBookings(Array.isArray(bks) ? bks : []);
+      setFilteredBookings(Array.isArray(bks) ? bks : []);
+      
+      // Reset form
+      setBookingSlot(null);
+      setBkForm({ name: '', email: '', phone: '', seats: 1, special_requests: '' });
+    }
+    
     setLoading(false);
   };
 
@@ -3639,6 +3674,7 @@ function B2BPortal({ setView, allExperiences }) {
           <TabsTrigger value="catalog">Catalogo B2B</TabsTrigger>
           <TabsTrigger value="mybookings">Le Mie Prenotazioni</TabsTrigger>
           <TabsTrigger value="reports"><BarChart3 className="w-4 h-4 mr-1.5" />Report Vendite</TabsTrigger>
+          <TabsTrigger value="calendar"><CalIcon className="w-4 h-4 mr-1.5" />Calendario</TabsTrigger>
         </TabsList>
         <TabsContent value="catalog" className="space-y-4 mt-4">
           {selectedExp ? (
@@ -3691,9 +3727,39 @@ function B2BPortal({ setView, allExperiences }) {
         </TabsContent>
         <TabsContent value="mybookings" className="mt-4">
           {myBookings.length === 0 ? <p className="text-center py-8 text-muted-foreground">Nessuna prenotazione.</p> : (
-            <div className="space-y-3">{myBookings.map(b => (
-              <div key={b.id} className="flex items-center justify-between p-4 rounded-lg border"><div><p className="font-semibold">{b.booking_ref} - {b.experience_name}</p><p className="text-sm text-muted-foreground">{fmtDate(b.slot_datetime)} | {b.seats} posti | {fmtPrice(b.total_amount)}</p></div><StatusBadge status={b.status} /></div>
-            ))}</div>
+            <div className="space-y-3">{myBookings.map(b => {
+              const commission = b.commission_amount || 0;
+              const b2cPrice = b.b2c_price || b.total_amount / b.seats;
+              const b2bPrice = b.b2b_price || b2cPrice;
+              
+              return (
+                <Card key={b.id}>
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <p className="font-bold font-mono">{b.booking_ref}</p>
+                          <StatusBadge status={b.status} />
+                        </div>
+                        <p className="text-sm font-medium">{b.experience_name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{fmtDate(b.slot_datetime)} • {b.customer_name}</p>
+                        <p className="text-xs text-muted-foreground">{b.seats} {b.seats === 1 ? 'posto' : 'posti'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Cliente Paga</p>
+                        <p className="font-bold text-lg">{fmtPrice(b.total_amount)}</p>
+                        {commission > 0 && (
+                          <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                            <p className="text-xs text-green-700">Tua Provvigione</p>
+                            <p className="font-bold text-green-700">+{fmtPrice(commission)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}</div>
           )}
         </TabsContent>
         
@@ -3701,6 +3767,40 @@ function B2BPortal({ setView, allExperiences }) {
           <div>
             <h2 className="text-2xl font-bold mb-2">Report Vendite - {agency.name}</h2>
             <p className="text-muted-foreground">Analizza le tue vendite e esporta i report</p>
+          </div>
+
+          {/* Statistiche Provvigioni */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-4 text-center">
+                <p className="text-sm text-muted-foreground">Totale Vendite</p>
+                <p className="text-3xl font-bold">{myBookings.length}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 text-center">
+                <p className="text-sm text-muted-foreground">Fatturato Clienti</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {fmtPrice(myBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0))}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 text-center">
+                <p className="text-sm text-muted-foreground">Netto Maretrek</p>
+                <p className="text-2xl font-bold text-amber-600">
+                  {fmtPrice(myBookings.reduce((sum, b) => sum + ((b.b2b_price || 0) * b.seats), 0))}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-green-50 border-green-200">
+              <CardContent className="pt-4 text-center">
+                <p className="text-sm text-green-700 font-medium">Tue Provvigioni</p>
+                <p className="text-3xl font-bold text-green-700">
+                  +{fmtPrice(myBookings.reduce((sum, b) => sum + (b.commission_amount || 0), 0))}
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Filtri */}
@@ -3733,13 +3833,14 @@ function B2BPortal({ setView, allExperiences }) {
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead><tr className="border-b text-left bg-muted/50"><th className="p-3">Codice</th><th className="p-3">Cliente</th><th className="p-3">Data</th><th className="p-3">Esperienza</th><th className="p-3">Risorsa</th><th className="p-3">Posti</th><th className="p-3">Stato</th><th className="p-3">Totale</th></tr></thead>
+                  <thead><tr className="border-b text-left bg-muted/50"><th className="p-3">Codice</th><th className="p-3">Cliente</th><th className="p-3">Data</th><th className="p-3">Esperienza</th><th className="p-3">Risorsa</th><th className="p-3">Posti</th><th className="p-3">Cliente Paga</th><th className="p-3">Provvigione</th><th className="p-3">Stato</th></tr></thead>
                   <tbody>
                     {filteredBookings.map(b => {
                       const slot = slots.find(s => s.id === b.slot_id);
                       const exp = experiences.find(e => e.id === slot?.experience_id);
                       const resourceIds = slot?.resource_ids || [];
                       const resourceNames = resourceIds.map(rid => resources.find(r => r.id === rid)?.name || '').filter(Boolean).join(', ');
+                      const commission = b.commission_amount || 0;
                       return (
                         <tr key={b.id} className="border-b hover:bg-muted/30">
                           <td className="p-3 font-mono text-xs">{b.booking_ref}</td>
@@ -3748,8 +3849,9 @@ function B2BPortal({ setView, allExperiences }) {
                           <td className="p-3">{exp?.name || '-'}</td>
                           <td className="p-3">{resourceNames ? <div className="flex items-center gap-2"><Ship className="w-4 h-4 text-primary" /><span className="text-xs">{resourceNames}</span></div> : '-'}</td>
                           <td className="p-3 font-semibold">{b.seats}</td>
-                          <td className="p-3"><StatusBadge status={b.status} /></td>
                           <td className="p-3 font-semibold">{fmtPrice(b.total_amount)}</td>
+                          <td className="p-3 font-bold text-green-600">+{fmtPrice(commission)}</td>
+                          <td className="p-3"><StatusBadge status={b.status} /></td>
                         </tr>
                       );
                     })}
@@ -3760,17 +3862,91 @@ function B2BPortal({ setView, allExperiences }) {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        {/* Tab Calendario */}
+        <TabsContent value="calendar" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Calendario Disponibilità</CardTitle>
+              <CardDescription>Visualizza tutte le disponibilità e le tue prenotazioni evidenziate</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Suspense fallback={<div className="flex items-center justify-center py-12"><RefreshCw className="w-8 h-8 animate-spin text-primary"/></div>}>
+                <GanttCalendar 
+                  resources={resources} 
+                  allSlots={slots} 
+                  allBookings={myBookings} 
+                  experiences={experiences} 
+                  onRefresh={() => {}}
+                />
+              </Suspense>
+              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  ℹ️ <strong>Legenda:</strong> Il calendario mostra tutte le disponibilità. Le tue prenotazioni sono evidenziate.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* B2B Booking Dialog */}
       <Dialog open={!!bookingSlot} onOpenChange={() => setBookingSlot(null)}>
-        <DialogContent><DialogHeader><DialogTitle>Prenota per Agenzia</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-xl">
+          <DialogHeader><DialogTitle>Prenota per Cliente Finale</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            {bookingSlot && selectedExp && <div className="p-3 bg-muted/50 rounded-lg text-sm"><p className="font-medium">{selectedExp.name}</p><p className="text-muted-foreground capitalize">{fmtDateTime(bookingSlot.start_datetime)}</p><p className="text-green-600 font-bold">Prezzo B2B: {fmtPrice(selectedExp.price_b2b * (1 - agency.discount_percentage/100))}/persona</p></div>}
-            <div><Label>Nome Cliente</Label><Input value={bkForm.name} onChange={e=>setBkForm({...bkForm,name:e.target.value})} placeholder="Nome gruppo/cliente" /></div>
-            <div><Label>Telefono</Label><Input value={bkForm.phone} onChange={e=>setBkForm({...bkForm,phone:e.target.value})} /></div>
-            <div><Label>Posti</Label><Input type="number" min="1" value={bkForm.seats} onChange={e=>setBkForm({...bkForm,seats:parseInt(e.target.value)||1})} /></div>
-            <Button className="w-full" onClick={handleB2BBook} disabled={loading}>{loading?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:null}Conferma Prenotazione B2B</Button>
+            {bookingSlot && selectedExp && (
+              <>
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="font-bold text-lg">{selectedExp.name}</p>
+                  <p className="text-sm text-muted-foreground capitalize mt-1">{fmtDateTime(bookingSlot.start_datetime)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Disponibili: {bookingSlot.max_seats - bookingSlot.booked_seats} posti</p>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-gray-50 rounded border">
+                    <p className="text-xs text-muted-foreground">Prezzo Cliente</p>
+                    <p className="text-lg font-bold">{fmtPrice(selectedExp.price_b2c)}</p>
+                    <p className="text-xs text-muted-foreground">a persona</p>
+                  </div>
+                  <div className="p-3 bg-amber-50 rounded border border-amber-200">
+                    <p className="text-xs text-amber-700">Netto Maretrek</p>
+                    <p className="text-lg font-bold text-amber-700">{fmtPrice(selectedExp.price_b2b || selectedExp.price_b2c)}</p>
+                    <p className="text-xs text-amber-700">a persona</p>
+                  </div>
+                  <div className="p-3 bg-green-50 rounded border border-green-200">
+                    <p className="text-xs text-green-700">Tua Provvigione</p>
+                    <p className="text-lg font-bold text-green-700">+{fmtPrice((selectedExp.price_b2c - (selectedExp.price_b2b || selectedExp.price_b2c)) * (bkForm.seats || 1))}</p>
+                    <p className="text-xs text-green-700">totale</p>
+                  </div>
+                </div>
+              </>
+            )}
+            
+            <div><Label>Nome Cliente Finale</Label><Input value={bkForm.name} onChange={e=>setBkForm({...bkForm,name:e.target.value})} placeholder="Mario Rossi" required /></div>
+            <div><Label>Email Cliente</Label><Input type="email" value={bkForm.email} onChange={e=>setBkForm({...bkForm,email:e.target.value})} placeholder="cliente@email.com" required /></div>
+            <div><Label>Telefono Cliente</Label><Input value={bkForm.phone} onChange={e=>setBkForm({...bkForm,phone:e.target.value})} placeholder="+39 333 1234567" required /></div>
+            <div><Label>Numero Posti</Label><Input type="number" min="1" max={bookingSlot ? bookingSlot.max_seats - bookingSlot.booked_seats : 1} value={bkForm.seats} onChange={e=>setBkForm({...bkForm,seats:parseInt(e.target.value)||1})} /></div>
+            <div><Label>Note / Richieste Speciali (opzionale)</Label><textarea className="w-full p-2 border rounded" rows="2" value={bkForm.special_requests||''} onChange={e=>setBkForm({...bkForm,special_requests:e.target.value})} placeholder="Es: allergie, esigenze particolari..." /></div>
+            
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <p className="text-sm font-medium text-blue-900">Riepilogo Prenotazione</p>
+              <div className="mt-2 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>Cliente paga:</span>
+                  <span className="font-bold">{fmtPrice((selectedExp?.price_b2c || 0) * (bkForm.seats || 1))}</span>
+                </div>
+                <div className="flex justify-between text-green-700">
+                  <span>Tu guadagni:</span>
+                  <span className="font-bold">+{fmtPrice(((selectedExp?.price_b2c || 0) - (selectedExp?.price_b2b || selectedExp?.price_b2c || 0)) * (bkForm.seats || 1))}</span>
+                </div>
+              </div>
+            </div>
+            
+            <Button className="w-full" onClick={handleB2BBook} disabled={loading || !bkForm.name || !bkForm.email || !bkForm.phone}>
+              {loading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin"/> : <CheckCircle2 className="w-4 h-4 mr-2"/>}
+              Conferma Prenotazione
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
