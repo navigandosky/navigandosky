@@ -33,6 +33,16 @@ const LOGO_URL = 'https://customer-assets.emergentagent.com/job_7d8a5623-84c4-4d
 const HERO_IMG = 'https://images.unsplash.com/photo-1557207773-caf19e055e40?w=1920&q=80';
 const TYPE_LABELS = { GITA_GOMMONE: 'Gita in Gommone', GITA_BARCA: 'Gita in Barca', VISITA_GUIDATA: 'Visita Guidata', NOLEGGIO_NATANTE: 'Noleggio Natante' };
 const TYPE_ICONS = { GITA_GOMMONE: Ship, GITA_BARCA: Ship, VISITA_GUIDATA: Compass, NOLEGGIO_NATANTE: Anchor };
+
+// Wrapper per toast che filtra messaggi generici
+const safeToastError = (message) => {
+  if (!message || message === '1 error' || message === '1' || message === 'error') {
+    console.error('Toast generico bloccato:', message);
+    return; // Non mostrare toast generici
+  }
+  toast.error(message);
+};
+
 const TYPE_COLORS = { GITA_GOMMONE: 'bg-sky-100 text-sky-800 border-sky-200', GITA_BARCA: 'bg-blue-100 text-blue-800 border-blue-200', VISITA_GUIDATA: 'bg-emerald-100 text-emerald-800 border-emerald-200', NOLEGGIO_NATANTE: 'bg-amber-100 text-amber-800 border-amber-200' };
 const GANTT_COLORS = { GITA_GOMMONE: 'bg-sky-50 border-sky-300 text-sky-900', GITA_BARCA: 'bg-blue-50 border-blue-300 text-blue-900', VISITA_GUIDATA: 'bg-emerald-50 border-emerald-300 text-emerald-900', NOLEGGIO_NATANTE: 'bg-amber-50 border-amber-300 text-amber-900' };
 const LANG_MAP = { IT: 'Italiano', EN: 'English', FR: 'Francais', DE: 'Deutsch' };
@@ -138,7 +148,7 @@ function ImageUploader({ images = [], onChange, maxImages = 3 }) {
       const res = await api('upload', { method: 'POST', body: { images: base64Images } });
       
       if (res.error) {
-        toast.error(res.error);
+        safeToastError(res.error);
         setUploading(false);
         return;
       }
@@ -250,7 +260,7 @@ function PDFUploader({ pdfUrl = '', onChange }) {
       const res = await api('upload-pdf', { method: 'POST', body: { pdf: base64, filename: file.name } });
       
       if (res.error) {
-        toast.error(res.error);
+        safeToastError(res.error);
         setUploading(false);
         return;
       }
@@ -409,7 +419,7 @@ function Footer() {
     setSending(false);
 
     if (res.error) {
-      toast.error(res.error);
+      safeToastError(res.error);
     } else {
       toast.success('Richiesta inviata con successo! Ti contatteremo presto.');
       setShowWorkWithUs(false);
@@ -643,7 +653,7 @@ function ExperienceDetail({ experience, setView }) {
 
   const joinWaitlist = async (slotId) => {
     const res = await api('waitlist', { method: 'POST', body: { slot_id: slotId, experience_id: experience.id, experience_name: experience.name, customer_name: wlForm.name, customer_email: wlForm.email, customer_phone: wlForm.phone, seats_requested: wlForm.seats } });
-    if (res.error) { toast.error(res.error); return; }
+    if (res.error) { safeToastError(res.error); return; }
     toast.success('Aggiunto alla lista d\'attesa! Ti contatteremo quando si libera un posto.');
     setShowWaitlist(null);
     setWlForm({ name: '', email: '', phone: '', seats: 1 });
@@ -1012,7 +1022,7 @@ function BookingWizard({ experience, slot, setView }) {
     setLoading(true);
     try {
       const res = await api('bookings', { method: 'POST', body: { slot_id: slot.id, experience_id: experience.id, customer_name: form.name, customer_email: form.email, customer_phone: form.phone, seats, total_amount: subtotal, voucher_code: voucherResult?.valid ? voucherCode : null, special_requests: form.special_requests, participants } });
-      if (res.error) { toast.error(res.error); setLoading(false); return; }
+      if (res.error) { safeToastError(res.error); setLoading(false); return; }
       setBookingResult(res); setStep(5); toast.success('Prenotazione confermata!');
     } catch { toast.error('Errore nella prenotazione'); }
     setLoading(false);
@@ -1104,7 +1114,7 @@ const ResourceBookingsList = memo(function ResourceBookingsList({ resource, book
       method: 'PUT', 
       body: { action: 'update_details', seat_assignments: assignments } 
     });
-    if (res.error) toast.error(res.error);
+    if (res.error) safeToastError(res.error);
     else { toast.success('Posti assegnati!'); onUpdate(); }
   };
 
@@ -1262,7 +1272,7 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
         targetSlot = created;
       }
       const res = await api(`bookings/${data.bookingId}`, { method: 'PUT', body: { action: 'reassign', new_slot_id: targetSlot.id } });
-      if (res.error) toast.error(res.error);
+      if (res.error) safeToastError(res.error);
       else { toast.success('Prenotazione riassegnata!'); onRefresh(); }
     } catch (err) { console.error(err); }
     setDragInfo(null);
@@ -1273,7 +1283,7 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
   const saveBookingEdit = async () => {
     if (!editBk) return;
     const res = await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'update_details', ...editForm } });
-    if (res.error) toast.error(res.error);
+    if (res.error) safeToastError(res.error);
     else { toast.success('Prenotazione aggiornata!'); setEditBk(null); onRefresh(); }
   };
 
@@ -1803,6 +1813,7 @@ function AdminDashboard() {
   const [bookingDateFilter, setBookingDateFilter] = useState('');
   const [bookingCustomerFilter, setBookingCustomerFilter] = useState('');
   const [bookingCodeFilter, setBookingCodeFilter] = useState('');
+  const [bookingAgencyFilter, setBookingAgencyFilter] = useState('ALL'); // NUOVO filtro agenzia
   
   // Filtro Slot Tab
   const [slotExpFilter, setSlotExpFilter] = useState('ALL');
@@ -1862,13 +1873,13 @@ function AdminDashboard() {
   const saveResource = async () => {
     if (!editRes) return;
     const res = await api(`resources/${editRes.id}`, { method: 'PUT', body: editResForm });
-    if (res.error) toast.error(res.error); else { toast.success('Risorsa aggiornata!'); setEditRes(null); await load(); }
+    if (res.error) safeToastError(res.error); else { toast.success('Risorsa aggiornata!'); setEditRes(null); await load(); }
   };
 
   const saveBookingEdit = async () => {
     if (!editBk) return;
     const res = await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'update_details', ...editForm } });
-    if (res.error) toast.error(res.error); else { toast.success('Prenotazione aggiornata!'); setEditBk(null); await load(); }
+    if (res.error) safeToastError(res.error); else { toast.success('Prenotazione aggiornata!'); setEditBk(null); await load(); }
   };
 
   const getResourceBookings = (resId) => {
@@ -1911,8 +1922,19 @@ function AdminDashboard() {
       );
     }
     
+    // Filtro per Agenzia
+    if (bookingAgencyFilter && bookingAgencyFilter !== 'ALL') {
+      if (bookingAgencyFilter === 'B2C') {
+        // Mostra solo prenotazioni dirette (senza agenzia)
+        filtered = filtered.filter(b => !b.agency_id);
+      } else {
+        // Mostra solo prenotazioni dell'agenzia specifica
+        filtered = filtered.filter(b => b.agency_id === bookingAgencyFilter);
+      }
+    }
+    
     return filtered;
-  }, [bookings, bookingExpFilter, bookingDateFilter, bookingCustomerFilter, bookingCodeFilter, slots]);
+  }, [bookings, bookingExpFilter, bookingDateFilter, bookingCustomerFilter, bookingCodeFilter, bookingAgencyFilter, slots]);
   
   // Filtro slot per esperienza
   const filteredSlots = useMemo(() => {
@@ -2510,6 +2532,23 @@ function AdminDashboard() {
                   onChange={e => setBookingCustomerFilter(e.target.value)}
                 />
               </div>
+              
+              <div>
+                <Label className="text-xs mb-1 block">Agenzia</Label>
+                <Select value={bookingAgencyFilter} onValueChange={setBookingAgencyFilter}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Tutte" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Tutte (B2C + B2B)</SelectItem>
+                    <SelectItem value="B2C">Solo B2C (Dirette)</SelectItem>
+                    {agencies.map(ag => (
+                      <SelectItem key={ag.id} value={ag.id}>{ag.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               
               <div>
                 <Label className="text-xs mb-1 block">Codice Prenotazione</Label>
@@ -3426,7 +3465,7 @@ function B2BPortal({ setView, allExperiences }) {
   const handleLogin = async () => {
     setLoading(true);
     const res = await api('agencies/login', { method: 'POST', body: loginForm });
-    if (res.error) { toast.error(res.error); setLoading(false); return; }
+    if (res.error) { safeToastError(res.error); setLoading(false); return; }
     setAgency(res.agency);
     
     // Carica dati ottimizzati per agenzia
@@ -3487,7 +3526,7 @@ function B2BPortal({ setView, allExperiences }) {
     const res = await api('bookings', { method: 'POST', body: bookingData });
     
     if (res.error) { 
-      toast.error(res.error); 
+      safeToastError(res.error); 
     } else { 
       toast.success(`✅ Prenotazione ${res.booking_ref} confermata! Provvigione: €${commission.toFixed(2)}`);
       
