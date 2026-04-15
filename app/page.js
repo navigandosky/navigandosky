@@ -1783,6 +1783,7 @@ function AdminDashboard() {
   const [editResForm, setEditResForm] = useState({});
   const [editBk, setEditBk] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [previewBk, setPreviewBk] = useState(null); // Stato per dialog anteprima prenotazione
   const [seeding, setSeeding] = useState(false);
   const [resBookings, setResBookings] = useState(null);
   
@@ -2526,6 +2527,7 @@ function AdminDashboard() {
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Risorsa</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
             {filteredBookingsTab.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td><td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3 text-xs font-mono font-semibold">{getResourceName(b)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
               <td className="p-3"><div className="flex gap-1">
+                <Button variant="secondary" size="sm" className="text-xs h-7" onClick={()=>setPreviewBk(b)}><Eye className="w-3 h-3 mr-1"/>Anteprima</Button>
                 {(b.status==='CONFIRMED'&&!b.checked_in_at)&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id)}>Cancella</Button>}
@@ -3252,6 +3254,129 @@ function AdminDashboard() {
               <Button variant="destructive" onClick={async () => { await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'cancel' } }); toast.success('Cancellata'); setEditBk(null); await load(); }}>Cancella</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog Anteprima Prenotazione */}
+      <Dialog open={!!previewBk} onOpenChange={() => setPreviewBk(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-primary" />
+              Anteprima Prenotazione {previewBk?.booking_ref}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {previewBk && (
+            <div className="space-y-4">
+              {/* Stato e Info Principali */}
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                <div>
+                  <p className="text-sm text-muted-foreground">Stato Prenotazione</p>
+                  <div className="mt-1"><StatusBadge status={previewBk.status} /></div>
+                </div>
+                {previewBk.checked_in_at && (
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Check-in</p>
+                    <p className="text-sm font-medium text-green-600">{fmtDate(previewBk.checked_in_at)}</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Esperienza e Risorsa */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 border rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Esperienza</p>
+                  <p className="font-semibold">{previewBk.experience_name || getExpName(previewBk.experience_id)}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{fmtDate(previewBk.slot_datetime || previewBk.created_at)}</p>
+                </div>
+                <div className="p-4 border rounded-lg bg-blue-50">
+                  <p className="text-xs text-muted-foreground mb-1">Risorsa Assegnata</p>
+                  <p className="font-semibold text-blue-900">{getResourceName(previewBk) || 'Non assegnata'}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{previewBk.seats} {previewBk.seats === 1 ? 'posto' : 'posti'}</p>
+                </div>
+              </div>
+              
+              {/* Dati Cliente */}
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Dati Cliente
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Nome</p>
+                    <p className="font-medium">{previewBk.customer_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium text-sm">{previewBk.customer_email}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-muted-foreground">Telefono</p>
+                    <p className="font-medium">{previewBk.customer_phone || '-'}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Lista Partecipanti */}
+              {previewBk.seat_assignments && previewBk.seat_assignments.length > 0 && previewBk.seat_assignments.some(s => s) && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Lista Completa Partecipanti ({previewBk.seat_assignments.filter(s => s).length})
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {previewBk.seat_assignments.map((name, idx) => 
+                      name && (
+                        <div key={idx} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
+                          <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                            {idx + 1}
+                          </div>
+                          <span className="text-sm font-medium">{name}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Prezzo Pagato */}
+              <div className="border-t pt-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Importo Totale Pagato</p>
+                      {previewBk.discount_applied && previewBk.discount_applied > 0 && (
+                        <p className="text-xs text-green-600 mt-1">Sconto applicato: {fmtPrice(previewBk.discount_applied)}</p>
+                      )}
+                    </div>
+                    <p className="text-3xl font-bold text-green-700">{fmtPrice(previewBk.total_amount)}</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Richieste Speciali */}
+              {previewBk.special_requests && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2 text-sm">Richieste Speciali</h4>
+                  <p className="text-sm text-muted-foreground bg-muted/30 p-3 rounded">{previewBk.special_requests}</p>
+                </div>
+              )}
+              
+              {/* Info Aggiuntive */}
+              <div className="border-t pt-4 text-xs text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Codice Riferimento</span>
+                  <span className="font-mono font-bold">{previewBk.booking_ref}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span>Prenotazione creata</span>
+                  <span>{fmtDate(previewBk.created_at)}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

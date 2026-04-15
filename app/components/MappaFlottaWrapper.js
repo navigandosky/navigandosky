@@ -87,13 +87,17 @@ export default function MappaFlottaWrapper() {
         api('resources').catch(() => [])
       ]);
       
-      const enriched = (Array.isArray(gpsData) ? gpsData : []).map(device => {
-        const resource = (resData || []).find(r => r.gps_imei === device.imei);
+      // Controlla se gpsData ha un errore e trattalo come array vuoto
+      const safeGpsData = (gpsData && gpsData.error) ? [] : gpsData;
+      const safeResData = (resData && resData.error) ? [] : resData;
+      
+      const enriched = (Array.isArray(safeGpsData) ? safeGpsData : []).map(device => {
+        const resource = (safeResData || []).find(r => r.gps_imei === device.imei);
         return { ...device, resource };
       });
       
       setDevices(enriched);
-      setResources(resData || []);
+      setResources(safeResData || []);
       setLoading(false);
     } catch (error) {
       console.error('Error loading fleet:', error);
