@@ -261,6 +261,7 @@ async function handleBookings(method, id, body, action, sp) {
     if (sp.get('status')) filter.status = sp.get('status');
     if (sp.get('slot_id')) filter.slot_id = sp.get('slot_id');
     if (sp.get('customer_email')) filter.customer_email = sp.get('customer_email');
+    if (sp.get('agency_id')) filter.agency_id = sp.get('agency_id'); // Filtra per agenzia
     const items = await col.find(filter).sort({ created_at: -1 }).toArray();
     return json(items);
   }
@@ -333,6 +334,10 @@ async function handleBookings(method, id, body, action, sp) {
       discount,
       total_amount: totalAmount - discount,
       voucher_code: voucherCode,
+      agency_id: body.agency_id || null, // ID agenzia per prenotazioni B2B
+      commission_amount: body.commission_amount || 0, // Provvigione agenzia (B2C - B2B)
+      b2c_price: body.b2c_price || pricePerSeat, // Prezzo cliente finale
+      b2b_price: body.b2b_price || null, // Prezzo netto Maretrek (se B2B)
       status: 'CONFIRMED',
       payment_status: 'PAID',
       special_requests: body.special_requests || '',
@@ -610,9 +615,11 @@ async function handleAgencies(method, id, body, action, sp) {
       discount_percentage: Number(body.discount_percentage) || 0,
       credit_limit: Number(body.credit_limit) || 0,
       payment_terms: body.payment_terms || '30_70',
+      payment_model: body.payment_model || 'PREPAID', // 'PREPAID' (paga B2B prima) o 'POSTPAID' (incassa B2C, versa B2B dopo)
       is_active: true,
       total_bookings: 0,
       total_revenue: 0,
+      total_commission: 0, // Totale provvigioni guadagnate
       created_at: new Date().toISOString(),
     };
     await col.insertOne(item);
