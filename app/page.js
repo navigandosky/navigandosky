@@ -1814,13 +1814,27 @@ function AdminDashboard() {
   const [overviewDateFilter, setOverviewDateFilter] = useState('');
 
   const load = useCallback(async () => {
-    const [s, e, r, sl, b, v, ag] = await Promise.all([
-      api('stats'), api('experiences?all=true'), api('resources'), api('slots'), api('bookings'), api('vouchers'), api('agencies')
+    // Carica solo dati essenziali all'avvio per velocizzare
+    const [s, e, r] = await Promise.all([
+      api('stats'), 
+      api('experiences?all=true'), 
+      api('resources')
     ]);
-    setStats(s||{}); setExps(Array.isArray(e)?e:[]); setResources(Array.isArray(r)?r:[]);
-    setSlots(Array.isArray(sl)?sl:[]); setBookings(Array.isArray(b)?b:[]); setVouchers(Array.isArray(v)?v:[]);
-    setAgencies(Array.isArray(ag)?ag:[]);
-    setFilteredBookings(Array.isArray(b)?b:[]); // Inizializza filtri
+    setStats(s||{}); 
+    setExps(Array.isArray(e)?e:[]); 
+    setResources(Array.isArray(r)?r:[]);
+    
+    // Carica il resto in background (non-blocking)
+    setTimeout(async () => {
+      const [sl, b, v, ag] = await Promise.all([
+        api('slots'), api('bookings'), api('vouchers'), api('agencies')
+      ]);
+      setSlots(Array.isArray(sl)?sl:[]); 
+      setBookings(Array.isArray(b)?b:[]); 
+      setVouchers(Array.isArray(v)?v:[]);
+      setAgencies(Array.isArray(ag)?ag:[]);
+      setFilteredBookings(Array.isArray(b)?b:[]);
+    }, 100);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -2162,7 +2176,9 @@ function AdminDashboard() {
 
         {/* Gantt Calendar */}
         <TabsContent value="gantt">
-          <GanttCalendar resources={resources} allSlots={slots} allBookings={bookings} experiences={experiences} onRefresh={load} />
+          <Suspense fallback={<div className="flex items-center justify-center py-12"><RefreshCw className="w-8 h-8 animate-spin text-primary"/><p className="ml-3 text-muted-foreground">Caricamento calendario...</p></div>}>
+            <GanttCalendar resources={resources} allSlots={slots} allBookings={bookings} experiences={experiences} onRefresh={load} />
+          </Suspense>
         </TabsContent>
 
         {/* Experiences */}
