@@ -3652,57 +3652,89 @@ function SuperAdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {companies.map(company => (
-                <div key={company.id} className="p-4 border rounded-lg hover:bg-muted/30 transition">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4">
-                      {company.logo_url ? (
-                        <img src={company.logo_url} alt={company.name} className="w-16 h-16 rounded-lg object-cover" />
-                      ) : (
-                        <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-400 rounded-lg flex items-center justify-center">
-                          <Building2 className="w-8 h-8 text-white" />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-lg">{company.name}</h3>
-                          {company.is_active ? (
-                            <Badge className="bg-green-100 text-green-800">Attiva</Badge>
-                          ) : (
-                            <Badge variant="destructive">Disattivata</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">{company.legal_form} • P.IVA: {company.vat_number}</p>
-                        <p className="text-sm text-muted-foreground">{company.email} • {company.phone}</p>
-                        <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-                          <span>Piano: {company.subscription_plan}</span>
-                          <span>Max Esperienze: {company.max_experiences}</span>
-                          <span>Max Agenzie: {company.max_agencies}</span>
+              {companies.map(company => {
+                const companyLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/#company/${company.slug}`;
+                
+                return (
+                  <div key={company.id} className="p-4 border rounded-lg hover:bg-muted/30 transition">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        {company.logo_url ? (
+                          <img src={company.logo_url} alt={company.name} className="w-16 h-16 rounded-lg object-cover" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${company.primary_color}, ${company.secondary_color})` }}>
+                            <Building2 className="w-8 h-8 text-white" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-lg">{company.name}</h3>
+                            {company.is_active ? (
+                              <Badge className="bg-green-100 text-green-800">Attiva</Badge>
+                            ) : (
+                              <Badge variant="destructive">Disattivata</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{company.legal_form} • P.IVA: {company.vat_number}</p>
+                          <p className="text-sm text-muted-foreground">{company.email} • {company.phone}</p>
+                          <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                            <span>Piano: {company.subscription_plan}</span>
+                            <span>Max Esperienze: {company.max_experiences}</span>
+                            <span>Max Agenzie: {company.max_agencies}</span>
+                          </div>
+                          
+                          {/* Link Diretto Company */}
+                          <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <p className="text-xs font-semibold text-blue-900 mb-1">🔗 Link Diretto Company</p>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                readOnly
+                                value={companyLink}
+                                className="flex-1 text-xs bg-white border rounded px-2 py-1.5 font-mono"
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(companyLink);
+                                  toast.success('Link copiato!');
+                                }}
+                              >
+                                <Copy className="w-3 h-3 mr-1" />
+                                Copia
+                              </Button>
+                            </div>
+                            <p className="text-xs text-blue-700 mt-1">
+                              💡 Distribuisci questo link per accesso diretto al brand {company.name}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant={company.is_active ? "destructive" : "default"}
-                        size="sm"
-                        onClick={() => toggleCompanyStatus(company.id, company.is_active)}
-                      >
-                        {company.is_active ? 'Disattiva' : 'Attiva'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setFormData(company);
-                          setShowDialog('edit_company');
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant={company.is_active ? "destructive" : "default"}
+                          size="sm"
+                          onClick={() => toggleCompanyStatus(company.id, company.is_active)}
+                        >
+                          {company.is_active ? 'Disattiva' : 'Attiva'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setFormData(company);
+                            setShowDialog('edit_company');
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               
               {companies.length === 0 && (
                 <div className="text-center py-12">
