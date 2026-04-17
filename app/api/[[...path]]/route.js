@@ -34,6 +34,7 @@ async function handleExperiences(method, id, body, sp) {
     if (sp.get('type')) filter.type = sp.get('type');
     if (sp.get('language')) filter.languages = { $in: [sp.get('language')] };
     if (sp.get('active') === 'true') filter.is_active = true;
+    if (sp.get('company_id')) filter.company_id = sp.get('company_id'); // Multi-Tenant
     if (sp.get('all') !== 'true' && !sp.get('active')) {
       filter.is_active = true;
       // Filtra solo esperienze visibili in home page per catalogo pubblico
@@ -111,6 +112,7 @@ async function handleResources(method, id, body, sp) {
   if (method === 'GET' && !id) {
     const filter = {};
     if (sp.get('type')) filter.type = sp.get('type');
+    if (sp.get('company_id')) filter.company_id = sp.get('company_id'); // Multi-Tenant
     const items = await col.find(filter).sort({ name: 1 }).toArray();
     return json(items);
   }
@@ -192,6 +194,8 @@ async function handleSlots(method, id, body, action, sp) {
     const filter = {};
     if (sp.get('experience_id')) filter.experience_id = sp.get('experience_id');
     if (sp.get('status')) filter.status = sp.get('status');
+    if (sp.get('company_id')) filter.company_id = sp.get('company_id'); // Multi-Tenant
+
     if (sp.get('date_from') || sp.get('date_to')) {
       filter.start_datetime = {};
       if (sp.get('date_from')) filter.start_datetime.$gte = sp.get('date_from');
@@ -257,6 +261,8 @@ async function handleBookings(method, id, body, action, sp) {
   const col = db.collection('bookings');
 
   if (method === 'GET' && !id) {
+    if (sp.get('company_id')) filter.company_id = sp.get('company_id'); // Multi-Tenant
+
     const filter = {};
     if (sp.get('status')) filter.status = sp.get('status');
     if (sp.get('slot_id')) filter.slot_id = sp.get('slot_id');

@@ -1789,6 +1789,13 @@ function AdminDashboard() {
   const [agencies, setAgencies] = useState([]);
   const [showDialog, setShowDialog] = useState(null);
   const [formData, setFormData] = useState({});
+  
+  // Multi-Tenant: Company Admin
+  const [companyAdmin, setCompanyAdmin] = useState(null);
+  const [company, setCompany] = useState(null);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [showLogin, setShowLogin] = useState(false);
+
   const [editRes, setEditRes] = useState(null);
   const [editResForm, setEditResForm] = useState({});
   const [editBk, setEditBk] = useState(null);
@@ -1821,15 +1828,45 @@ function AdminDashboard() {
   const [slotPage, setSlotPage] = useState(0);
   const SLOTS_PER_PAGE = 10;
   
+
+  // Login Company Admin
+  const handleCompanyAdminLogin = async () => {
+    const res = await api('users/login', { method: 'POST', body: loginForm });
+    if (res.error) {
+      safeToastError(res.error);
+      return;
+    }
+    
+    if (res.user.role !== 'COMPANY_ADMIN') {
+      toast.error('Accesso negato: solo Company Admin');
+      return;
+    }
+    
+    setCompanyAdmin(res.user);
+    setShowLogin(false);
+    
+    // Carica company info
+    const companyData = await api(`companies/${res.user.company_id}`);
+    setCompany(companyData);
+    
+    // Carica dati della company (tutto filtrato per company_id)
+    await load();
+    
+    toast.success(`Benvenuto ${companyData.name}!`);
+  };
+
   // Filtri Panoramica
   const [overviewDateFilter, setOverviewDateFilter] = useState('');
 
   const load = useCallback(async () => {
+    // Filtro company per multi-tenant
+    const companyFilter = companyAdmin ? `&company_id=${companyAdmin.company_id}` : '';
+    
     // Carica solo dati essenziali all'avvio per velocizzare
     const [s, e, r] = await Promise.all([
       api('stats'), 
-      api('experiences?all=true'), 
-      api('resources')
+      api(`experiences?all=true${companyFilter}`), 
+      api(`resources${companyFilter ? '?' + companyFilter.slice(1) : ''}`)
     ]);
     setStats(s||{}); 
     setExps(Array.isArray(e)?e:[]); 
@@ -1838,7 +1875,10 @@ function AdminDashboard() {
     // Carica il resto in background (non-blocking)
     setTimeout(async () => {
       const [sl, b, v, ag] = await Promise.all([
-        api('slots'), api('bookings'), api('vouchers'), api('agencies')
+        api(`slots${companyFilter ? '?' + companyFilter.slice(1) : ''}`), 
+        api(`bookings${companyFilter ? '?' + companyFilter.slice(1) : ''}`), 
+        api(`vouchers${companyFilter ? '?' + companyFilter.slice(1) : ''}`), 
+        api(`agencies${companyFilter ? '?' + companyFilter.slice(1) : ''}`)
       ]);
       setSlots(Array.isArray(sl)?sl:[]); 
       setBookings(Array.isArray(b)?b:[]); 
@@ -1846,7 +1886,7 @@ function AdminDashboard() {
       setAgencies(Array.isArray(ag)?ag:[]);
       setFilteredBookings(Array.isArray(b)?b:[]);
     }, 100);
-  }, []);
+  }, [companyAdmin]);
 
   useEffect(() => { load(); }, [load]);
 
