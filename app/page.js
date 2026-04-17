@@ -332,10 +332,10 @@ function PDFUploader({ pdfUrl = '', onChange }) {
 }
 
 // ============ NAVBAR ============
-function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand }) {
+function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, currentUser }) {
   const { language, changeLanguage, t } = useLanguage();
   const logoUrl = companyBrand?.logo_url || LOGO_URL;
-  const brandName = companyBrand?.name || 'Maretrek';
+  const brandName = companyBrand?.name || 'Trivor';
   
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border shadow-sm">
@@ -346,8 +346,15 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand }) {
         
         <nav className="hidden md:flex items-center gap-1">
           {[['home', t('home')], ['catalog', t('experiences')], ['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
-            <button key={v} onClick={() => setView(v)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === v ? 'bg-primary text-primary-foreground' : 'text-foreground/70 hover:bg-muted hover:text-foreground'}`}>{l}</button>
+            <button 
+              key={v} 
+              onClick={() => setView(v)} 
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === v ? 'bg-primary text-primary-foreground' : 'text-foreground/70 hover:bg-muted hover:text-foreground'}`}
+            >
+              {l}
+            </button>
           ))}
+
           
           {/* Language Selector */}
           <DropdownMenu>
@@ -4767,9 +4774,29 @@ export default function App() {
     }
   }, []);
 
-  const handleLoginSuccess = (user) => {
+  const handleLoginSuccess = async (user) => {
     setCurrentUser(user);
     setIsAuthenticated(true);
+    
+    // Se è un Company Admin, carica i dati della società per il branding
+    if (user.role === 'COMPANY_ADMIN' && user.company_id) {
+      try {
+        const companyRes = await fetch(`${API_BASE}/companies/${user.company_id}`);
+        const companyData = await companyRes.json();
+        
+        if (companyData && companyData.id) {
+          setCompanyBrand(companyData);
+          setBrandedMode(true);
+          
+          // Carica anche le esperienze della società
+          const expsRes = await fetch(`${API_BASE}/experiences?company_id=${user.company_id}`);
+          const expsData = await expsRes.json();
+          setExperiences(Array.isArray(expsData) ? expsData : []);
+        }
+      } catch (err) {
+        console.error('Error loading company brand:', err);
+      }
+    }
   };
 
   const handleLogout = () => {
@@ -4777,6 +4804,8 @@ export default function App() {
     localStorage.removeItem('sessionToken');
     setCurrentUser(null);
     setIsAuthenticated(false);
+    setCompanyBrand(null);
+    setBrandedMode(false);
     setView('home');
     toast.success('Logout effettuato');
   };
@@ -4832,9 +4861,10 @@ export default function App() {
           mobileOpen={mobileOpen} 
           setMobileOpen={setMobileOpen}
           companyBrand={companyBrand}
+          currentUser={currentUser}
         />
         <main className="flex-1">
-          {view === 'home' && <HomePage setView={navigate} experiences={experiences} companyBrand={companyBrand} />}
+          {view === 'home' && <HomePage setView={navigate} experiences={experiences} companyBrand={companyBrand} currentUser={currentUser} />}
           {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} />}
           {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
           {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}

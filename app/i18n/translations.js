@@ -3,7 +3,7 @@ export const translations = {
     // Navbar
     home: 'Home',
     experiences: 'Esperienze',
-    b2b: 'B2B Agenzie',
+    b2b: 'B2B Company',
     admin: 'Dashboard',
     
     // Homepage
@@ -83,7 +83,7 @@ export const translations = {
     // Navbar
     home: 'Home',
     experiences: 'Experiences',
-    b2b: 'B2B Agencies',
+    b2b: 'B2B Company',
     admin: 'Dashboard',
     
     // Homepage
@@ -131,7 +131,7 @@ export const translations = {
     // Navbar
     home: 'Accueil',
     experiences: 'Expériences',
-    b2b: 'B2B Agences',
+    b2b: 'B2B Company',
     admin: 'Tableau de bord',
     
     // Homepage
@@ -179,7 +179,7 @@ export const translations = {
     // Navbar
     home: 'Startseite',
     experiences: 'Erlebnisse',
-    b2b: 'B2B Agenturen',
+    b2b: 'B2B Company',
     admin: 'Dashboard',
     
     // Homepage
@@ -227,7 +227,7 @@ export const translations = {
     // Navbar
     home: 'Inicio',
     experiences: 'Experiencias',
-    b2b: 'B2B Agencias',
+    b2b: 'B2B Company',
     admin: 'Panel',
     
     // Homepage
