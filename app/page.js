@@ -1794,6 +1794,8 @@ function AdminDashboard() {
   const [vouchers, setVouchers] = useState([]);
   const [agencies, setAgencies] = useState([]);
   const [companies, setCompanies] = useState([]); // Multi-Tenant
+  const [showCompanyDialog, setShowCompanyDialog] = useState(false);
+  const [newCompanyForm, setNewCompanyForm] = useState({});
   const [showDialog, setShowDialog] = useState(null);
   const [formData, setFormData] = useState({});
   const [editRes, setEditRes] = useState(null);
@@ -1889,6 +1891,29 @@ function AdminDashboard() {
     const res = await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'update_details', ...editForm } });
     if (res.error) safeToastError(res.error); else { toast.success('Prenotazione aggiornata!'); setEditBk(null); await load(); }
   };
+
+  const createCompany = async () => {
+    if (!newCompanyForm.name) {
+      toast.error('Il nome della società è obbligatorio');
+      return;
+    }
+    
+    const res = await api('companies', { 
+      method: 'POST', 
+      body: newCompanyForm 
+    });
+    
+    if (res.error) {
+      safeToastError(res.error);
+    } else {
+      toast.success('Società creata con successo!');
+      setShowCompanyDialog(false);
+      setNewCompanyForm({});
+      await load(); // Ricarica i dati
+    }
+  };
+
+
 
   const getResourceBookings = (resId) => {
     const resSlotIds = slots.filter(s => (s.resource_ids || []).includes(resId)).map(s => s.id);
@@ -2794,18 +2819,26 @@ function AdminDashboard() {
         <TabsContent value="companies" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                Gestione Multi-Tenant
-              </CardTitle>
-              <CardDescription>Genera link diretti per le company con branding personalizzato</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5" />
+                    Gestione Multi-Tenant
+                  </CardTitle>
+                  <CardDescription>Genera link diretti per le company con branding personalizzato</CardDescription>
+                </div>
+                <Button onClick={() => setShowCompanyDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuova Società
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {companies.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                  <p>Nessuna company trovata.</p>
-                  <p className="text-sm mt-2">Usa lo script seed-multi-tenant.js per inizializzare il sistema multi-tenant.</p>
+                  <p className="font-medium mb-2">Nessuna società configurata</p>
+                  <p className="text-sm">Clicca su "Nuova Società" per aggiungere la prima company al sistema multi-tenant.</p>
                 </div>
               ) : (
                 <div className="grid gap-4">
@@ -2925,6 +2958,206 @@ function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* Dialog Creazione Nuova Società */}
+          <Dialog open={showCompanyDialog} onOpenChange={setShowCompanyDialog}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5" />
+                  Crea Nuova Società
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="grid gap-4 py-4">
+                {/* Informazioni Base */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nome Società *</Label>
+                    <Input 
+                      placeholder="Es: Maretrek" 
+                      value={newCompanyForm.name || ''}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Forma Giuridica</Label>
+                    <Select 
+                      value={newCompanyForm.legal_form || 'S.R.L.'}
+                      onValueChange={v => setNewCompanyForm({...newCompanyForm, legal_form: v})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="S.R.L.">S.R.L.</SelectItem>
+                        <SelectItem value="S.P.A.">S.P.A.</SelectItem>
+                        <SelectItem value="S.N.C.">S.N.C.</SelectItem>
+                        <SelectItem value="S.A.S.">S.A.S.</SelectItem>
+                        <SelectItem value="DITTA_INDIVIDUALE">Ditta Individuale</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Partita IVA</Label>
+                    <Input 
+                      placeholder="IT12345678901" 
+                      value={newCompanyForm.vat_number || ''}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, vat_number: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Codice SDI</Label>
+                    <Input 
+                      placeholder="ABC1234" 
+                      value={newCompanyForm.sdi_code || ''}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, sdi_code: e.target.value})}
+                    />
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                {/* Contatti */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input 
+                      type="email"
+                      placeholder="info@company.com" 
+                      value={newCompanyForm.email || ''}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, email: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Telefono</Label>
+                    <Input 
+                      placeholder="+39 070 123456" 
+                      value={newCompanyForm.phone || ''}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, phone: e.target.value})}
+                    />
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                {/* Branding */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-sm">Branding</h3>
+                  
+                  <div className="space-y-2">
+                    <Label>URL Logo</Label>
+                    <Input 
+                      placeholder="https://..." 
+                      value={newCompanyForm.logo_url || ''}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, logo_url: e.target.value})}
+                    />
+                    {newCompanyForm.logo_url && (
+                      <img src={newCompanyForm.logo_url} alt="Preview" className="h-16 object-contain border rounded p-2" />
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>URL Hero Image</Label>
+                    <Input 
+                      placeholder="https://..." 
+                      value={newCompanyForm.hero_image || ''}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, hero_image: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Colore Primario</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          type="color"
+                          value={newCompanyForm.primary_color || '#0066CC'}
+                          onChange={e => setNewCompanyForm({...newCompanyForm, primary_color: e.target.value})}
+                          className="w-16"
+                        />
+                        <Input 
+                          value={newCompanyForm.primary_color || '#0066CC'}
+                          onChange={e => setNewCompanyForm({...newCompanyForm, primary_color: e.target.value})}
+                          placeholder="#0066CC"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Colore Secondario</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          type="color"
+                          value={newCompanyForm.secondary_color || '#FF6B35'}
+                          onChange={e => setNewCompanyForm({...newCompanyForm, secondary_color: e.target.value})}
+                          className="w-16"
+                        />
+                        <Input 
+                          value={newCompanyForm.secondary_color || '#FF6B35'}
+                          onChange={e => setNewCompanyForm({...newCompanyForm, secondary_color: e.target.value})}
+                          placeholder="#FF6B35"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                {/* Piano e Limiti */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Piano</Label>
+                    <Select 
+                      value={newCompanyForm.subscription_plan || 'STANDARD'}
+                      onValueChange={v => setNewCompanyForm({...newCompanyForm, subscription_plan: v})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FREE">FREE</SelectItem>
+                        <SelectItem value="STANDARD">STANDARD</SelectItem>
+                        <SelectItem value="PREMIUM">PREMIUM</SelectItem>
+                        <SelectItem value="ENTERPRISE">ENTERPRISE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Max Esperienze</Label>
+                    <Input 
+                      type="number"
+                      value={newCompanyForm.max_experiences || 50}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, max_experiences: parseInt(e.target.value)})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Max Risorse</Label>
+                    <Input 
+                      type="number"
+                      value={newCompanyForm.max_resources || 20}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, max_resources: parseInt(e.target.value)})}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setShowCompanyDialog(false)}>
+                  Annulla
+                </Button>
+                <Button onClick={createCompany}>
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Crea Società
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+
         </TabsContent>
 
 
