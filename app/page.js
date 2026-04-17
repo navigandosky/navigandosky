@@ -29,7 +29,7 @@ import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { languageFlags, languageNames } from './i18n/translations';
 
 // ============ CONSTANTS ============
-const LOGO_URL = 'https://customer-assets.emergentagent.com/job_7d8a5623-84c4-4dc5-8737-98643d255bb4/artifacts/cdzklcx8_logo%20maretrek_1.jpg';
+const LOGO_URL = 'https://customer-assets.emergentagent.com/job_sardinia-tours-hub/artifacts/tw3hk6ud_logo%20trivor%20per%20copertura%20emergent.png';
 const HERO_IMG = 'https://images.unsplash.com/photo-1557207773-caf19e055e40?w=1920&q=80';
 const TYPE_LABELS = { GITA_GOMMONE: 'Gita in Gommone', GITA_BARCA: 'Gita in Barca', VISITA_GUIDATA: 'Visita Guidata', NOLEGGIO_NATANTE: 'Noleggio Natante' };
 const TYPE_ICONS = { GITA_GOMMONE: Ship, GITA_BARCA: Ship, VISITA_GUIDATA: Compass, NOLEGGIO_NATANTE: Anchor };
@@ -434,7 +434,7 @@ function Footer() {
       <footer className="wave-bg text-white mt-20">
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div><img src={LOGO_URL} alt="Maretrek" className="h-12 mb-4 rounded" /><p className="text-white/70 text-sm">Esperienze marine indimenticabili in Sardegna.</p></div>
+            <div><img src={LOGO_URL} alt="Trivor" className="h-12 mb-4 rounded" /><p className="text-white/70 text-sm">Esperienze marine indimenticabili in Sardegna.</p></div>
             <div><h4 className="font-semibold mb-3">Contatti</h4><div className="space-y-2 text-sm text-white/70"><p className="flex items-center gap-2"><Phone className="w-4 h-4" /> +39 079 123 456</p><p className="flex items-center gap-2"><Mail className="w-4 h-4" /> info@maretrek.it</p><p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Porto di Alghero, Sardegna</p></div></div>
             <div><h4 className="font-semibold mb-3">Info</h4><p className="text-sm text-white/70">Operatore turistico specializzato in esperienze marine nel nord Sardegna.</p></div>
             <div>
@@ -1855,8 +1855,10 @@ function AdminDashboard({ currentUser, onLogout }) {
     
     // Carica il resto in background (non-blocking)
     setTimeout(async () => {
+      // Filtra agenzie per company_id se non è Super Admin
+      const agenciesUrl = isSuperAdmin ? 'agencies' : `agencies?company_id=${currentUser?.company_id || ''}`;
       const [sl, b, v, ag, co] = await Promise.all([
-        api('slots'), api('bookings'), api('vouchers'), api('agencies'), api('companies')
+        api('slots'), api('bookings'), api('vouchers'), api(agenciesUrl), api('companies')
       ]);
       setSlots(Array.isArray(sl)?sl:[]); 
       setBookings(Array.isArray(b)?b:[]); 
@@ -2839,10 +2841,10 @@ function AdminDashboard({ currentUser, onLogout }) {
 
         {/* Agencies */}
         <TabsContent value="agencies" className="space-y-4">
-          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Agenzie B2B ({agencies.length})</h2><Button onClick={()=>{setFormData({discount_percentage:15,payment_terms:'30_70',logo:''});setShowDialog('agency');}}><Plus className="w-4 h-4 mr-2"/>Nuova Agenzia</Button></div>
+          <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Agenzie B2B ({agencies.length})</h2><Button onClick={()=>{setFormData({discount_percentage:15,payment_terms:'30_70',logo:'',company_id:currentUser?.company_id||null});setShowDialog('agency');}}><Plus className="w-4 h-4 mr-2"/>Nuova Agenzia</Button></div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Nome</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">P.IVA</th><th className="p-3 font-medium">Telefono</th><th className="p-3 font-medium">Sconto</th><th className="p-3 font-medium">Azioni</th></tr></thead>
+              <thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Nome</th>{isSuperAdmin && <th className="p-3 font-medium">Società</th>}<th className="p-3 font-medium">Email</th><th className="p-3 font-medium">P.IVA</th><th className="p-3 font-medium">Telefono</th><th className="p-3 font-medium">Sconto</th><th className="p-3 font-medium">Azioni</th></tr></thead>
               <tbody>
                 {agencies.map(a=>(
                   <tr key={a.id} className="border-b hover:bg-muted/30">
@@ -2852,6 +2854,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                         <span className="font-medium">{a.name}</span>
                       </div>
                     </td>
+                    {isSuperAdmin && <td className="p-3 text-xs">{companies.find(c=>c.id===a.company_id)?.name || 'N/A'}</td>}
                     <td className="p-3 text-xs">{a.email}</td>
                     <td className="p-3">{a.vat_number}</td>
                     <td className="p-3">{a.phone}</td>
@@ -3841,6 +3844,17 @@ function AdminDashboard({ currentUser, onLogout }) {
       <Dialog open={showDialog==='agency'} onOpenChange={v=>!v&&setShowDialog(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nuova Agenzia B2B</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            {isSuperAdmin && (
+              <div>
+                <Label>Società</Label>
+                <Select value={formData.company_id||''} onValueChange={v=>setFormData({...formData,company_id:v})}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona società" /></SelectTrigger>
+                  <SelectContent>
+                    {companies.map(c=><SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div><Label>Nome Agenzia</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Email</Label><Input value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})}/></div><div><Label>Password</Label><Input value={formData.password||'agency2025'} onChange={e=>setFormData({...formData,password:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Telefono</Label><Input value={formData.phone||''} onChange={e=>setFormData({...formData,phone:e.target.value})}/></div><div><Label>P.IVA</Label><Input value={formData.vat_number||''} onChange={e=>setFormData({...formData,vat_number:e.target.value})}/></div></div>

@@ -597,7 +597,9 @@ async function handleAgencies(method, id, body, action, sp) {
   }
 
   if (method === 'GET' && !id) {
-    const items = await col.find({}).sort({ name: 1 }).toArray();
+    const companyId = sp?.get('company_id');
+    const filter = companyId ? { company_id: companyId } : {};
+    const items = await col.find(filter).sort({ name: 1 }).toArray();
     const safe = items.map(({ password, ...rest }) => rest);
     return json(safe);
   }
@@ -612,6 +614,7 @@ async function handleAgencies(method, id, body, action, sp) {
   if (method === 'POST' && !id) {
     const item = {
       id: uuidv4(),
+      company_id: body.company_id || null, // Associa agenzia a società
       name: body.name || '',
       email: body.email || '',
       password: body.password || 'agency2025',
