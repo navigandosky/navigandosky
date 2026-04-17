@@ -1509,10 +1509,11 @@ async function handleUsersAuth(method, id, body, action, sp) {
   // Login con bcrypt - supporta username o email
   if (action === 'login') {
     // Cerca per email o username
+    const emailOrUsername = body.email_or_username || body.email || body.username;
     const user = await col.findOne({ 
       $or: [
-        { email: body.email },
-        { username: body.email }
+        { email: emailOrUsername },
+        { username: emailOrUsername }
       ]
     });
     
