@@ -1455,6 +1455,8 @@ async function handleRoute(request, resolvedParams, method) {
       case 'vouchers': return await handleVouchers(method, id, body, action, searchParams);
       case 'waitlist': return await handleWaitlist(method, id, body, action, searchParams);
       case 'agencies': return await handleAgencies(method, id, body, action, searchParams);
+      case 'companies': return await handleCompanies(method, id, body, action, searchParams);
+      case 'users': return await handleUsers(method, id, body, action, searchParams);
       case 'gps-config': return await handleGPSConfig(method, body);
       case 'upload': return await handleImageUpload(method, body);
       case 'upload-pdf': return await handlePDFUpload(method, body);
@@ -1476,6 +1478,146 @@ export async function GET(request, { params }) {
 }
 export async function POST(request, { params }) {
   const p = await params;
+
+
+// ============ COMPANIES (Multi-Tenant) ============
+async function handleCompanies(method, id, body, action, sp) {
+  const col = db.collection('companies');
+  
+  if (method === 'GET' && !id) {
+    const items = await col.find({}).sort({ created_at: -1 }).toArray();
+    return json(items);
+  }
+  
+  if (method === 'GET' && id) {
+    const item = await col.findOne({ id });
+    return item ? json(item) : json({ error: 'Company non trovata' }, 404);
+  }
+  
+  if (method === 'POST') {
+    const slug = body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const item = {
+      id: uuidv4(),
+      name: body.name || '',
+      slug,
+      legal_form: body.legal_form || 'S.R.L.',
+      vat_number: body.vat_number || '',
+      legal_address: body.legal_address || '',
+      sdi_code: body.sdi_code || '',
+      
+      // Branding
+      logo_url: body.logo_url || '',
+      primary_color: body.primary_color || '#0066CC',
+      secondary_color: body.secondary_color || '#FF6B35',
+      hero_image: body.hero_image || '',
+      
+      // Contatti
+      phone: body.phone || '',
+      email: body.email || '',
+      website: body.website || '',
+      
+      // Config
+      is_active: true,
+      subscription_plan: body.subscription_plan || 'STANDARD',
+      max_experiences: Number(body.max_experiences) || 50,
+      max_agencies: Number(body.max_agencies) || 10,
+      
+      // Stats
+      total_bookings: 0,
+      total_revenue: 0,
+      
+      created_at: new Date().toISOString(),
+    };
+    await col.insertOne(item);
+    return json(item, 201);
+  }
+  
+  if (method === 'PUT' && id) {
+    const { id: _, created_at, total_bookings, total_revenue, ...updateData } = body;
+    await col.updateOne({ id }, { $set: { ...updateData, updated_at: new Date().toISOString() } });
+    const updated = await col.findOne({ id });
+    return json(updated);
+  }
+  
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ success: true });
+  }
+  
+  return json({ error: 'Method not allowed' }, 405);
+}
+
+// ============ USERS (Multi-Role) ============
+async function handleUsers(method, id, body, action, sp) {
+  const col = db.collection('users');
+  
+  // Login
+  if (action === 'login') {
+    const user = await col.findOne({ email: body.email });
+    if (!user || user.password !== body.password) {
+      return json({ error: 'Credenziali non valide' }, 401);
+    }
+    if (!user.is_active) {
+      return json({ error: 'Account disattivato' }, 403);
+    }
+    const { password, ...safeUser } = user;
+    return json({ user: safeUser });
+  }
+  
+  if (method === 'GET' && !id) {
+    const filter = {};
+    if (sp.get('company_id')) filter.company_id = sp.get('company_id');
+    if (sp.get('role')) filter.role = sp.get('role');
+    const items = await col.find(filter).sort({ created_at: -1 }).toArray();
+    const safe = items.map(({ password, ...u }) => u);
+    return json(safe);
+  }
+  
+  if (method === 'GET' && id) {
+    const item = await col.findOne({ id });
+    if (!item) return json({ error: 'Utente non trovato' }, 404);
+    const { password, ...safe } = item;
+    return json(safe);
+  }
+  
+  if (method === 'POST') {
+    const existingUser = await col.findOne({ email: body.email });
+    if (existingUser) {
+      return json({ error: 'Email già registrata' }, 400);
+    }
+    
+    const item = {
+      id: uuidv4(),
+      email: body.email || '',
+      password: body.password || 'changeme',
+      role: body.role || 'COMPANY_ADMIN',
+      company_id: body.company_id || null,
+      permissions: body.permissions || [],
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+    await col.insertOne(item);
+    const { password, ...safe } = item;
+    return json(safe, 201);
+  }
+  
+  if (method === 'PUT' && id) {
+    const { id: _, created_at, ...updateData } = body;
+    if (!updateData.password) delete updateData.password;
+    await col.updateOne({ id }, { $set: { ...updateData, updated_at: new Date().toISOString() } });
+    const updated = await col.findOne({ id });
+    const { password, ...safe } = updated;
+    return json(safe);
+  }
+  
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ success: true });
+  }
+  
+  return json({ error: 'Method not allowed' }, 405);
+}
+
   return handleRoute(request, p, 'POST');
 }
 export async function PUT(request, { params }) {
