@@ -1902,15 +1902,19 @@ function AdminDashboard({ currentUser, onLogout }) {
       return;
     }
     
-    const res = await api('companies', { 
-      method: 'POST', 
+    const isEdit = !!newCompanyForm.id;
+    const method = isEdit ? 'PUT' : 'POST';
+    const endpoint = isEdit ? `companies/${newCompanyForm.id}` : 'companies';
+    
+    const res = await api(endpoint, { 
+      method, 
       body: newCompanyForm 
     });
     
     if (res.error) {
       safeToastError(res.error);
     } else {
-      toast.success('Società creata con successo!');
+      toast.success(isEdit ? 'Società aggiornata con successo!' : 'Società creata con successo!');
       setShowCompanyDialog(false);
       setNewCompanyForm({});
       await load(); // Ricarica i dati
@@ -2894,21 +2898,57 @@ function AdminDashboard({ currentUser, onLogout }) {
                                 </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {company.primary_color && (
-                                <div 
-                                  className="w-8 h-8 rounded border-2 border-gray-300"
-                                  style={{ backgroundColor: company.primary_color }}
-                                  title="Colore Primario"
-                                />
-                              )}
-                              {company.secondary_color && (
-                                <div 
-                                  className="w-8 h-8 rounded border-2 border-gray-300"
-                                  style={{ backgroundColor: company.secondary_color }}
-                                  title="Colore Secondario"
-                                />
-                              )}
+                            <div className="flex items-center gap-4">
+                              {/* Colori preview */}
+                              <div className="flex items-center gap-2">
+                                {company.primary_color && (
+                                  <div 
+                                    className="w-8 h-8 rounded border-2 border-gray-300"
+                                    style={{ backgroundColor: company.primary_color }}
+                                    title="Colore Primario"
+                                  />
+                                )}
+                                {company.secondary_color && (
+                                  <div 
+                                    className="w-8 h-8 rounded border-2 border-gray-300"
+                                    style={{ backgroundColor: company.secondary_color }}
+                                    title="Colore Secondario"
+                                  />
+                                )}
+                              </div>
+                              {/* Pulsanti azione */}
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => {
+                                    setNewCompanyForm(company);
+                                    setShowCompanyDialog(true);
+                                  }}
+                                  title="Modifica società"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="border-red-200 text-red-600 hover:bg-red-50"
+                                  onClick={async () => {
+                                    if (confirm(`Sei sicuro di voler eliminare "${company.name}"? Questa azione è irreversibile.`)) {
+                                      const res = await api(`companies/${company.id}`, { method: 'DELETE' });
+                                      if (res.error) {
+                                        safeToastError(res.error);
+                                      } else {
+                                        toast.success('Società eliminata');
+                                        await load();
+                                      }
+                                    }
+                                  }}
+                                  title="Elimina società"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </CardHeader>
@@ -2987,7 +3027,7 @@ function AdminDashboard({ currentUser, onLogout }) {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Building2 className="w-5 h-5" />
-                  Crea Nuova Società
+                  {newCompanyForm.id ? 'Modifica Società' : 'Crea Nuova Società'}
                 </DialogTitle>
               </DialogHeader>
               
@@ -3173,7 +3213,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                 </Button>
                 <Button onClick={createCompany}>
                   <Building2 className="w-4 h-4 mr-2" />
-                  Crea Società
+                  {newCompanyForm.id ? 'Salva Modifiche' : 'Crea Società'}
                 </Button>
               </div>
             </DialogContent>
