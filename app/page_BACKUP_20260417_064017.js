@@ -1789,6 +1789,13 @@ function AdminDashboard() {
   const [agencies, setAgencies] = useState([]);
   const [showDialog, setShowDialog] = useState(null);
   const [formData, setFormData] = useState({});
+  
+  // Multi-Tenant: Company Admin
+  const [companyAdmin, setCompanyAdmin] = useState(null);
+  const [company, setCompany] = useState(null);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [showLogin, setShowLogin] = useState(false);
+
   const [editRes, setEditRes] = useState(null);
   const [editResForm, setEditResForm] = useState({});
   const [editBk, setEditBk] = useState(null);
@@ -1821,15 +1828,45 @@ function AdminDashboard() {
   const [slotPage, setSlotPage] = useState(0);
   const SLOTS_PER_PAGE = 10;
   
+
+  // Login Company Admin
+  const handleCompanyAdminLogin = async () => {
+    const res = await api('users/login', { method: 'POST', body: loginForm });
+    if (res.error) {
+      safeToastError(res.error);
+      return;
+    }
+    
+    if (res.user.role !== 'COMPANY_ADMIN') {
+      toast.error('Accesso negato: solo Company Admin');
+      return;
+    }
+    
+    setCompanyAdmin(res.user);
+    setShowLogin(false);
+    
+    // Carica company info
+    const companyData = await api(`companies/${res.user.company_id}`);
+    setCompany(companyData);
+    
+    // Carica dati della company (tutto filtrato per company_id)
+    await load();
+    
+    toast.success(`Benvenuto ${companyData.name}!`);
+  };
+
   // Filtri Panoramica
   const [overviewDateFilter, setOverviewDateFilter] = useState('');
 
   const load = useCallback(async () => {
+    // Filtro company per multi-tenant
+    const companyFilter = companyAdmin ? `&company_id=${companyAdmin.company_id}` : '';
+    
     // Carica solo dati essenziali all'avvio per velocizzare
     const [s, e, r] = await Promise.all([
       api('stats'), 
-      api('experiences?all=true'), 
-      api('resources')
+      api(`experiences?all=true${companyFilter}`), 
+      api(`resources${companyFilter ? '?' + companyFilter.slice(1) : ''}`)
     ]);
     setStats(s||{}); 
     setExps(Array.isArray(e)?e:[]); 
@@ -1838,7 +1875,10 @@ function AdminDashboard() {
     // Carica il resto in background (non-blocking)
     setTimeout(async () => {
       const [sl, b, v, ag] = await Promise.all([
-        api('slots'), api('bookings'), api('vouchers'), api('agencies')
+        api(`slots${companyFilter ? '?' + companyFilter.slice(1) : ''}`), 
+        api(`bookings${companyFilter ? '?' + companyFilter.slice(1) : ''}`), 
+        api(`vouchers${companyFilter ? '?' + companyFilter.slice(1) : ''}`), 
+        api(`agencies${companyFilter ? '?' + companyFilter.slice(1) : ''}`)
       ]);
       setSlots(Array.isArray(sl)?sl:[]); 
       setBookings(Array.isArray(b)?b:[]); 
@@ -1846,7 +1886,7 @@ function AdminDashboard() {
       setAgencies(Array.isArray(ag)?ag:[]);
       setFilteredBookings(Array.isArray(b)?b:[]);
     }, 100);
-  }, []);
+  }, [companyAdmin]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -3398,6 +3438,493 @@ function AdminDashboard() {
               
               {/* Prezzo Pagato */}
               <div className="border-t pt-4">
+
+
+// ============ SUPER ADMIN DASHBOARD ============
+function SuperAdminDashboard() {
+  const [superAdmin, setSuperAdmin] = useState(null);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+  
+  const [companies, setCompanies] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [showDialog, setShowDialog] = useState(null);
+  const [formData, setFormData] = useState({});
+  
+  const api = async (endpoint, options = {}) => {
+    const res = await fetch(`/api/${endpoint}`, {
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+    return res.json();
+  };
+  
+  const handleLogin = async () => {
+    setLoading(true);
+    const res = await api('users/login', { method: 'POST', body: loginForm });
+    if (res.error) {
+      toast.error(res.error);
+      setLoading(false);
+      return;
+    }
+    
+    if (res.user.role !== 'SUPER_ADMIN') {
+      toast.error('Accesso negato: solo Super Admin');
+      setLoading(false);
+      return;
+    }
+    
+    setSuperAdmin(res.user);
+    toast.success(`Benvenuto Super Admin!`);
+    
+    // Carica dati
+    const [comps, usrs] = await Promise.all([
+      api('companies'),
+      api('users')
+    ]);
+    setCompanies(Array.isArray(comps) ? comps : []);
+    setUsers(Array.isArray(usrs) ? usrs : []);
+    setLoading(false);
+  };
+  
+  const createCompany = async () => {
+    setLoading(true);
+    const res = await api('companies', { method: 'POST', body: formData });
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success('Company creata con successo!');
+      setShowDialog(null);
+      setFormData({});
+      const comps = await api('companies');
+      setCompanies(Array.isArray(comps) ? comps : []);
+    }
+    setLoading(false);
+  };
+  
+  const toggleCompanyStatus = async (companyId, currentStatus) => {
+    const res = await api(`companies/${companyId}`, {
+      method: 'PUT',
+      body: { is_active: !currentStatus }
+    });
+    if (!res.error) {
+      toast.success(currentStatus ? 'Company disattivata' : 'Company attivata');
+      const comps = await api('companies');
+      setCompanies(Array.isArray(comps) ? comps : []);
+    }
+  };
+  
+  // Login Screen
+  if (!superAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mb-4">
+              <Building2 className="w-10 h-10 text-white" />
+            </div>
+            <CardTitle className="text-2xl font-bold">Super Admin Login</CardTitle>
+            <CardDescription>Sardinia Tours Hub - Multi-Tenant Platform</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={loginForm.email}
+                onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
+                placeholder="superadmin@sardinia-tours.com"
+                onKeyPress={e => e.key === 'Enter' && handleLogin()}
+              />
+            </div>
+            <div>
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={loginForm.password}
+                onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
+                placeholder="••••••••"
+                onKeyPress={e => e.key === 'Enter' && handleLogin()}
+              />
+            </div>
+            <Button className="w-full" onClick={handleLogin} disabled={loading}>
+              {loading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <LogIn className="w-4 h-4 mr-2" />}
+              Accedi come Super Admin
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  // Dashboard
+  const activeCompanies = companies.filter(c => c.is_active).length;
+  const totalUsers = users.length;
+  
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Super Admin Dashboard</h1>
+                <p className="text-sm text-muted-foreground">Sardinia Tours Hub - Multi-Tenant Platform</p>
+              </div>
+            </div>
+            <Button variant="outline" onClick={() => setSuperAdmin(null)}>
+              Logout
+            </Button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Totale Companies</p>
+                  <p className="text-3xl font-bold">{companies.length}</p>
+                </div>
+                <Building2 className="w-12 h-12 text-blue-500 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Companies Attive</p>
+                  <p className="text-3xl font-bold text-green-600">{activeCompanies}</p>
+                </div>
+                <CheckCircle2 className="w-12 h-12 text-green-500 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Totale Utenti</p>
+                  <p className="text-3xl font-bold">{totalUsers}</p>
+                </div>
+                <Users className="w-12 h-12 text-purple-500 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Company Inattive</p>
+                  <p className="text-3xl font-bold text-red-600">{companies.length - activeCompanies}</p>
+                </div>
+                <AlertCircle className="w-12 h-12 text-red-500 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Actions */}
+        <div className="flex gap-3">
+          <Button onClick={() => { setShowDialog('new_company'); setFormData({}); }}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nuova Company
+          </Button>
+        </div>
+        
+        {/* Companies List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Gestione Companies</CardTitle>
+            <CardDescription>Lista di tutte le società sulla piattaforma</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {companies.map(company => {
+                const companyLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/#company/${company.slug}`;
+                
+                return (
+                  <div key={company.id} className="p-4 border rounded-lg hover:bg-muted/30 transition">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        {company.logo_url ? (
+                          <img src={company.logo_url} alt={company.name} className="w-16 h-16 rounded-lg object-cover" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${company.primary_color}, ${company.secondary_color})` }}>
+                            <Building2 className="w-8 h-8 text-white" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-bold text-lg">{company.name}</h3>
+                            {company.is_active ? (
+                              <Badge className="bg-green-100 text-green-800">Attiva</Badge>
+                            ) : (
+                              <Badge variant="destructive">Disattivata</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">{company.legal_form} • P.IVA: {company.vat_number}</p>
+                          <p className="text-sm text-muted-foreground">{company.email} • {company.phone}</p>
+                          <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                            <span>Piano: {company.subscription_plan}</span>
+                            <span>Max Esperienze: {company.max_experiences}</span>
+                            <span>Max Agenzie: {company.max_agencies}</span>
+                          </div>
+                          
+                          {/* Link Diretto Company */}
+                          <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <p className="text-xs font-semibold text-blue-900 mb-1">🔗 Link Diretto Company</p>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                readOnly
+                                value={companyLink}
+                                className="flex-1 text-xs bg-white border rounded px-2 py-1.5 font-mono"
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(companyLink);
+                                  toast.success('Link copiato!');
+                                }}
+                              >
+                                <Copy className="w-3 h-3 mr-1" />
+                                Copia
+                              </Button>
+                            </div>
+                            <p className="text-xs text-blue-700 mt-1">
+                              💡 Distribuisci questo link per accesso diretto al brand {company.name}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant={company.is_active ? "destructive" : "default"}
+                          size="sm"
+                          onClick={() => toggleCompanyStatus(company.id, company.is_active)}
+                        >
+                          {company.is_active ? 'Disattiva' : 'Attiva'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setFormData(company);
+                            setShowDialog('edit_company');
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {companies.length === 0 && (
+                <div className="text-center py-12">
+                  <Building2 className="w-16 h-16 mx-auto text-muted-foreground opacity-20 mb-4" />
+                  <p className="text-muted-foreground">Nessuna company ancora creata</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Dialog Nuova/Modifica Company */}
+      <Dialog open={showDialog === 'new_company' || showDialog === 'edit_company'} onOpenChange={() => setShowDialog(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{showDialog === 'new_company' ? 'Crea Nuova Company' : 'Modifica Company'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Nome Company *</Label>
+                <Input
+                  value={formData.name || ''}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="es: Sardinia Experience S.R.L."
+                />
+              </div>
+              <div>
+                <Label>Forma Giuridica</Label>
+                <Select value={formData.legal_form || 'S.R.L.'} onValueChange={v => setFormData({ ...formData, legal_form: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="S.R.L.">S.R.L.</SelectItem>
+                    <SelectItem value="S.R.L.S.">S.R.L.S.</SelectItem>
+                    <SelectItem value="DITTA_INDIVIDUALE">Ditta Individuale</SelectItem>
+                    <SelectItem value="S.P.A.">S.P.A.</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>P.IVA *</Label>
+                <Input
+                  value={formData.vat_number || ''}
+                  onChange={e => setFormData({ ...formData, vat_number: e.target.value })}
+                  placeholder="IT12345678901"
+                />
+              </div>
+              <div>
+                <Label>Codice SDI</Label>
+                <Input
+                  value={formData.sdi_code || ''}
+                  onChange={e => setFormData({ ...formData, sdi_code: e.target.value })}
+                  placeholder="ABC1234"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label>Sede Legale</Label>
+              <Input
+                value={formData.legal_address || ''}
+                onChange={e => setFormData({ ...formData, legal_address: e.target.value })}
+                placeholder="Via Roma 1, 09124 Cagliari (CA)"
+              />
+            </div>
+            
+            <Separator />
+            <h4 className="font-semibold">Contatti</h4>
+            
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Email *</Label>
+                <Input
+                  type="email"
+                  value={formData.email || ''}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="info@company.com"
+                />
+              </div>
+              <div>
+                <Label>Telefono</Label>
+                <Input
+                  value={formData.phone || ''}
+                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="+39 070 123456"
+                />
+              </div>
+              <div>
+                <Label>Website</Label>
+                <Input
+                  value={formData.website || ''}
+                  onChange={e => setFormData({ ...formData, website: e.target.value })}
+                  placeholder="www.company.com"
+                />
+              </div>
+            </div>
+            
+            <Separator />
+            <h4 className="font-semibold">Branding</h4>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Logo URL</Label>
+                <Input
+                  value={formData.logo_url || ''}
+                  onChange={e => setFormData({ ...formData, logo_url: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <Label>Hero Image URL</Label>
+                <Input
+                  value={formData.hero_image || ''}
+                  onChange={e => setFormData({ ...formData, hero_image: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Colore Primario</Label>
+                <Input
+                  type="color"
+                  value={formData.primary_color || '#0066CC'}
+                  onChange={e => setFormData({ ...formData, primary_color: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Colore Secondario</Label>
+                <Input
+                  type="color"
+                  value={formData.secondary_color || '#FF6B35'}
+                  onChange={e => setFormData({ ...formData, secondary_color: e.target.value })}
+                />
+              </div>
+            </div>
+            
+            <Separator />
+            <h4 className="font-semibold">Configurazione</h4>
+            
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Piano</Label>
+                <Select value={formData.subscription_plan || 'STANDARD'} onValueChange={v => setFormData({ ...formData, subscription_plan: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BASIC">Basic</SelectItem>
+                    <SelectItem value="STANDARD">Standard</SelectItem>
+                    <SelectItem value="PREMIUM">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Max Esperienze</Label>
+                <Input
+                  type="number"
+                  value={formData.max_experiences || 50}
+                  onChange={e => setFormData({ ...formData, max_experiences: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Max Agenzie</Label>
+                <Input
+                  type="number"
+                  value={formData.max_agencies || 10}
+                  onChange={e => setFormData({ ...formData, max_agencies: e.target.value })}
+                />
+              </div>
+            </div>
+            
+            <Button className="w-full" onClick={createCompany} disabled={loading || !formData.name || !formData.email}>
+              {loading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+              {showDialog === 'new_company' ? 'Crea Company' : 'Salva Modifiche'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -4009,6 +4536,14 @@ function B2BPortal({ setView, allExperiences }) {
 export default function App() {
   const [view, setView] = useState('home');
   const [experiences, setExperiences] = useState([]);
+  
+  // Controlla URL hash per Super Admin
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#superadmin') {
+      setView('superadmin');
+    }
+  }, []);
+
   const [selectedExperience, setSelectedExperience] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -4027,18 +4562,22 @@ export default function App() {
 
   return (
     <LanguageProvider>
-      <div className="min-h-screen flex flex-col">
-        <NavBar view={view} setView={navigate} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-        <main className="flex-1">
-          {view === 'home' && <HomePage setView={navigate} experiences={experiences} />}
-          {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} />}
-          {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
-          {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}
-          {view === 'admin' && <AdminDashboard />}
-          {view === 'b2b' && <B2BPortal setView={navigate} allExperiences={experiences} />}
-        </main>
-        <Footer />
-      </div>
+      {view === 'superadmin' ? (
+        <SuperAdminDashboard />
+      ) : (
+        <div className="min-h-screen flex flex-col">
+          <NavBar view={view} setView={navigate} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+          <main className="flex-1">
+            {view === 'home' && <HomePage setView={navigate} experiences={experiences} />}
+            {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} />}
+            {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
+            {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}
+            {view === 'admin' && <AdminDashboard />}
+            {view === 'b2b' && <B2BPortal setView={navigate} allExperiences={experiences} />}
+          </main>
+          <Footer />
+        </div>
+      )}
     </LanguageProvider>
   );
 }
