@@ -1908,78 +1908,57 @@ function AdminDashboard({ currentUser, onLogout }) {
     }
     
     const isEdit = !!newCompanyForm.id;
+    
+    // Validazione credenziali admin solo per nuove società
+    if (!isEdit) {
+      if (!newCompanyForm.admin_username || !newCompanyForm.admin_password || !newCompanyForm.admin_email) {
+        toast.error('Username, email e password dell\'amministratore sono obbligatori');
+        return;
+      }
+    }
+    
     const method = isEdit ? 'PUT' : 'POST';
     const endpoint = isEdit ? `companies/${newCompanyForm.id}` : 'companies';
     
+    // Separa i dati della company dai dati admin
+    const { admin_username, admin_password, admin_email, ...companyData } = newCompanyForm;
+    
     const res = await api(endpoint, { 
       method, 
-      body: newCompanyForm 
+      body: companyData 
     });
     
     if (res.error) {
       safeToastError(res.error);
-    } else {
-      toast.success(isEdit ? 'Società aggiornata con successo!' : 'Società creata con successo!');
-      setShowCompanyDialog(false);
-      setNewCompanyForm({});
-      await load(); // Ricarica i dati
-    }
-
-  const loadCompanyUsers = async (companyId) => {
-    const users = await api(`users?company_id=${companyId}`);
-    setCompanyUsers(Array.isArray(users) ? users : []);
-  };
-
-  const createOrUpdateUser = async () => {
-    if (!userForm.email || !userForm.password) {
-      toast.error('Email e password sono obbligatori');
       return;
     }
     
-    const isEdit = !!userForm.id;
-    const method = isEdit ? 'PUT' : 'POST';
-    const endpoint = isEdit ? `users/${userForm.id}` : 'users';
-    
-    const payload = {
-      ...userForm,
-      role: 'COMPANY_ADMIN',
-      company_id: selectedCompany.id
-    };
-    
-    const res = await api(endpoint, { method, body: payload });
-    
-    if (res.error) {
-      safeToastError(res.error);
-    } else {
-      toast.success(isEdit ? 'Utente aggiornato!' : 'Utente creato con successo!');
-      setShowUserForm(false);
-      setUserForm({});
-      await loadCompanyUsers(selectedCompany.id);
-    }
-  };
-
-  const deleteUser = async (userId) => {
-    if (confirm('Sei sicuro di voler eliminare questo utente?')) {
-      const res = await api(`users/${userId}`, { method: 'DELETE' });
-      if (res.error) {
-        safeToastError(res.error);
+    // Se è una nuova società, crea anche l'utente admin
+    if (!isEdit && res.id) {
+      const userRes = await api('users', {
+        method: 'POST',
+        body: {
+          email: admin_email,
+          username: admin_username,
+          password: admin_password,
+          role: 'COMPANY_ADMIN',
+          company_id: res.id,
+          is_active: true
+        }
+      });
+      
+      if (userRes.error) {
+        toast.error('Società creata ma errore creazione utente: ' + userRes.error);
       } else {
-        toast.success('Utente eliminato');
-        await loadCompanyUsers(selectedCompany.id);
-
-  // Carica utenti quando si apre il dialog
-  useEffect(() => {
-    if (showUsersDialog && selectedCompany) {
-      loadCompanyUsers(selectedCompany.id);
-    }
-  }, [showUsersDialog, selectedCompany]);
-
-
+        toast.success('Società e utente admin creati con successo!');
       }
+    } else {
+      toast.success('Società aggiornata con successo!');
     }
-  };
-
-
+    
+    setShowCompanyDialog(false);
+    setNewCompanyForm({});
+    await load();
   };
 
 
@@ -3179,29 +3158,78 @@ function AdminDashboard({ currentUser, onLogout }) {
                 
                 <Separator />
                 
+
+                <Separator />
+                
+                {/* Credenziali Amministratore */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Credenziali Amministratore
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Crea le credenziali di accesso per l'amministratore di questa società
+                  </p>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Username Admin *</Label>
+                      <Input 
+                        placeholder="Admin_NomeSocieta"
+                        value={newCompanyForm.admin_username || ''}
+                        onChange={e => setNewCompanyForm({...newCompanyForm, admin_username: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Password Admin *</Label>
+                      <Input 
+                        type="password"
+                        placeholder="Password123!"
+                        value={newCompanyForm.admin_password || ''}
+                        onChange={e => setNewCompanyForm({...newCompanyForm, admin_password: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Email Admin *</Label>
+                    <Input 
+                      type="email"
+                      placeholder="admin@nomesocieta.com"
+                      value={newCompanyForm.admin_email || ''}
+                      onChange={e => setNewCompanyForm({...newCompanyForm, admin_email: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <p className="text-xs text-purple-800">
+                      <strong>💡 Nota:</strong> Queste credenziali permetteranno all'amministratore della società di accedere alla dashboard.
+                    </p>
+                  </div>
+                </div>
+                
+
                 {/* Branding */}
                 <div className="space-y-4">
                   <h3 className="font-semibold text-sm">Branding</h3>
                   
                   <div className="space-y-2">
-                    <Label>URL Logo</Label>
-                    <Input 
-                      placeholder="https://..." 
-                      value={newCompanyForm.logo_url || ''}
-                      onChange={e => setNewCompanyForm({...newCompanyForm, logo_url: e.target.value})}
+                    <ImageUploader 
+                      images={newCompanyForm.logo_url ? [newCompanyForm.logo_url] : []}
+                      onChange={(urls) => setNewCompanyForm({...newCompanyForm, logo_url: urls[0] || ''})}
+                      maxImages={1}
                     />
-                    {newCompanyForm.logo_url && (
-                      <img src={newCompanyForm.logo_url} alt="Preview" className="h-16 object-contain border rounded p-2" />
-                    )}
+                    <p className="text-xs text-muted-foreground">Carica il logo della società (1 immagine)</p>
                   </div>
                   
                   <div className="space-y-2">
-                    <Label>URL Hero Image</Label>
-                    <Input 
-                      placeholder="https://..." 
-                      value={newCompanyForm.hero_image || ''}
-                      onChange={e => setNewCompanyForm({...newCompanyForm, hero_image: e.target.value})}
+                    <Label>Hero Images (Immagini Homepage)</Label>
+                    <ImageUploader 
+                      images={newCompanyForm.hero_images || []}
+                      onChange={(urls) => setNewCompanyForm({...newCompanyForm, hero_images: urls, hero_image: urls[0] || ''})}
+                      maxImages={3}
                     />
+                    <p className="text-xs text-muted-foreground">Carica fino a 3 immagini per la homepage (la prima sarà quella principale)</p>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
