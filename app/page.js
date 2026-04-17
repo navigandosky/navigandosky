@@ -1800,6 +1800,11 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [companies, setCompanies] = useState([]); // Multi-Tenant
   const [showCompanyDialog, setShowCompanyDialog] = useState(false);
   const [newCompanyForm, setNewCompanyForm] = useState({});
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [showUsersDialog, setShowUsersDialog] = useState(false);
+  const [companyUsers, setCompanyUsers] = useState([]);
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [userForm, setUserForm] = useState({});
   const [showDialog, setShowDialog] = useState(null);
   const [formData, setFormData] = useState({});
   const [editRes, setEditRes] = useState(null);
@@ -1919,6 +1924,62 @@ function AdminDashboard({ currentUser, onLogout }) {
       setNewCompanyForm({});
       await load(); // Ricarica i dati
     }
+
+  const loadCompanyUsers = async (companyId) => {
+    const users = await api(`users?company_id=${companyId}`);
+    setCompanyUsers(Array.isArray(users) ? users : []);
+  };
+
+  const createOrUpdateUser = async () => {
+    if (!userForm.email || !userForm.password) {
+      toast.error('Email e password sono obbligatori');
+      return;
+    }
+    
+    const isEdit = !!userForm.id;
+    const method = isEdit ? 'PUT' : 'POST';
+    const endpoint = isEdit ? `users/${userForm.id}` : 'users';
+    
+    const payload = {
+      ...userForm,
+      role: 'COMPANY_ADMIN',
+      company_id: selectedCompany.id
+    };
+    
+    const res = await api(endpoint, { method, body: payload });
+    
+    if (res.error) {
+      safeToastError(res.error);
+    } else {
+      toast.success(isEdit ? 'Utente aggiornato!' : 'Utente creato con successo!');
+      setShowUserForm(false);
+      setUserForm({});
+      await loadCompanyUsers(selectedCompany.id);
+    }
+  };
+
+  const deleteUser = async (userId) => {
+    if (confirm('Sei sicuro di voler eliminare questo utente?')) {
+      const res = await api(`users/${userId}`, { method: 'DELETE' });
+      if (res.error) {
+        safeToastError(res.error);
+      } else {
+        toast.success('Utente eliminato');
+        await loadCompanyUsers(selectedCompany.id);
+
+  // Carica utenti quando si apre il dialog
+  useEffect(() => {
+    if (showUsersDialog && selectedCompany) {
+      loadCompanyUsers(selectedCompany.id);
+    }
+  }, [showUsersDialog, selectedCompany]);
+
+
+      }
+    }
+  };
+
+
   };
 
 
@@ -2922,6 +2983,18 @@ function AdminDashboard({ currentUser, onLogout }) {
                                   size="sm" 
                                   variant="outline"
                                   onClick={() => {
+                                    setSelectedCompany(company);
+                                    setShowUsersDialog(true);
+                                  }}
+                                  title="Gestisci utenti"
+                                  className="border-purple-200 text-purple-600 hover:bg-purple-50"
+                                >
+                                  <User className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => {
                                     setNewCompanyForm(company);
                                     setShowCompanyDialog(true);
                                   }}
@@ -3215,6 +3288,171 @@ function AdminDashboard({ currentUser, onLogout }) {
                   <Building2 className="w-4 h-4 mr-2" />
                   {newCompanyForm.id ? 'Salva Modifiche' : 'Crea Società'}
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+
+
+          {/* Dialog Gestione Utenti Società */}
+          <Dialog open={showUsersDialog} onOpenChange={setShowUsersDialog}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Gestione Utenti - {selectedCompany?.name}
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Crea e gestisci gli utenti Company Admin per questa società
+                  </p>
+                  <Button 
+                    size="sm"
+                    onClick={() => {
+                      setUserForm({ email: '', password: '', username: '' });
+                      setShowUserForm(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nuovo Utente
+                  </Button>
+                </div>
+                
+                {companyUsers.length === 0 ? (
+                  <div className="text-center py-12 border-2 border-dashed rounded-lg">
+                    <User className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                    <p className="text-muted-foreground mb-2">Nessun utente configurato</p>
+                    <p className="text-xs text-muted-foreground">Crea il primo utente Company Admin</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {companyUsers.map(user => (
+                      <Card key={user.id} className="border-2">
+                        <CardContent className="pt-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                  <User className="w-5 h-5 text-purple-600" />
+                                </div>
+                                <div>
+                                  <p className="font-medium">{user.username || user.email}</p>
+                                  <p className="text-sm text-muted-foreground">{user.email}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 mt-3">
+                                <Badge className="text-xs">COMPANY ADMIN</Badge>
+                                {user.is_active ? (
+                                  <Badge className="text-xs bg-green-100 text-green-800">Attivo</Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs">Disattivato</Badge>
+                                )}
+                                <span className="text-xs text-muted-foreground">
+                                  Creato: {new Date(user.created_at).toLocaleDateString('it-IT')}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setUserForm(user);
+                                  setShowUserForm(true);
+                                }}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="border-red-200 text-red-600 hover:bg-red-50"
+                                onClick={() => deleteUser(user.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Form Creazione/Modifica Utente */}
+                {showUserForm && (
+                  <Card className="border-2 border-primary">
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        {userForm.id ? 'Modifica Utente' : 'Nuovo Utente'}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Email *</Label>
+                          <Input 
+                            type="email"
+                            placeholder="admin@company.com"
+                            value={userForm.email || ''}
+                            onChange={e => setUserForm({...userForm, email: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Username</Label>
+                          <Input 
+                            placeholder="Admin_Company"
+                            value={userForm.username || ''}
+                            onChange={e => setUserForm({...userForm, username: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Password *</Label>
+                        <Input 
+                          type="password"
+                          placeholder={userForm.id ? "Lascia vuoto per non modificare" : "Password123!"}
+                          value={userForm.password || ''}
+                          onChange={e => setUserForm({...userForm, password: e.target.value})}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Minimo 8 caratteri, almeno una maiuscola, un numero e un carattere speciale
+                        </p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="checkbox"
+                          id="is_active"
+                          checked={userForm.is_active !== false}
+                          onChange={e => setUserForm({...userForm, is_active: e.target.checked})}
+                          className="rounded"
+                        />
+                        <Label htmlFor="is_active" className="cursor-pointer">Utente attivo</Label>
+                      </div>
+                      
+                      <div className="flex justify-end gap-2 pt-4 border-t">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setShowUserForm(false);
+                            setUserForm({});
+                          }}
+                        >
+                          Annulla
+                        </Button>
+                        <Button onClick={createOrUpdateUser}>
+                          <User className="w-4 h-4 mr-2" />
+                          {userForm.id ? 'Salva Modifiche' : 'Crea Utente'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </DialogContent>
           </Dialog>

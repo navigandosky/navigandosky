@@ -1480,6 +1480,7 @@ async function handleCompaniesNew(method, id, body, action, sp) {
   if (method === 'PUT' && id) {
     const updates = { ...body, updated_at: new Date().toISOString() };
     delete updates.id;
+    delete updates._id; // Rimuovi _id di MongoDB (immutabile)
     delete updates.created_at;
     await col.updateOne({ id }, { $set: updates });
     const updated = await col.findOne({ id });
@@ -1574,6 +1575,7 @@ async function handleUsersAuth(method, id, body, action, sp) {
   if (method === 'PUT' && id) {
     const updates = { ...body };
     delete updates.id;
+    delete updates._id; // Rimuovi _id di MongoDB (immutabile)
     delete updates.created_at;
     
     // Hash password se viene cambiata
