@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
@@ -1495,6 +1496,106 @@ async function handleCompaniesNew(method, id, body, action, sp) {
 
 
 // ==================== ROUTE DISPATCHER ====================
+
+// ============ USERS & AUTH ============
+async function handleUsersAuth(method, id, body, action, sp) {
+  const db = await getDb();
+  const col = db.collection('users');
+  
+  // Login con bcrypt - supporta username o email
+  if (action === 'login') {
+    // Cerca per email o username
+    const user = await col.findOne({ 
+      $or: [
+        { email: body.email },
+        { username: body.email }
+      ]
+    });
+    
+    if (!user) {
+      return json({ error: 'Credenziali non valide' }, 401);
+    }
+    
+    // Verifica password con bcrypt
+    const isPasswordValid = await bcrypt.compare(body.password, user.password);
+    if (!isPasswordValid) {
+      return json({ error: 'Credenziali non valide' }, 401);
+    }
+    
+    if (!user.is_active) {
+      return json({ error: 'Account disattivato' }, 403);
+    }
+    
+    const { password, ...safeUser } = user;
+    return json({ user: safeUser });
+  }
+  
+  if (method === 'GET' && !id) {
+    const filter = {};
+    if (sp.get('company_id')) filter.company_id = sp.get('company_id');
+    if (sp.get('role')) filter.role = sp.get('role');
+    const items = await col.find(filter).sort({ created_at: -1 }).toArray();
+    const safe = items.map(({ password, ...u }) => u);
+    return json(safe);
+  }
+  
+  if (method === 'GET' && id) {
+    const item = await col.findOne({ id });
+    if (!item) return json({ error: 'Utente non trovato' }, 404);
+    const { password, ...safe } = item;
+    return json(safe);
+  }
+  
+  if (method === 'POST') {
+    const existingUser = await col.findOne({ email: body.email });
+    if (existingUser) {
+      return json({ error: 'Email già registrata' }, 400);
+    }
+    
+    // Hash password con bcrypt
+    const hashedPassword = await bcrypt.hash(body.password || 'changeme', 10);
+    
+    const item = {
+      id: uuidv4(),
+      email: body.email || '',
+      username: body.username || '',
+      password: hashedPassword,
+      role: body.role || 'COMPANY_ADMIN',
+      company_id: body.company_id || null,
+      permissions: body.permissions || [],
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+    await col.insertOne(item);
+    const { password, ...safe } = item;
+    return json(safe, 201);
+  }
+  
+  if (method === 'PUT' && id) {
+    const updates = { ...body };
+    delete updates.id;
+    delete updates.created_at;
+    
+    // Hash password se viene cambiata
+    if (updates.password) {
+      updates.password = await bcrypt.hash(updates.password, 10);
+    }
+    
+    await col.updateOne({ id }, { $set: updates });
+    const updated = await col.findOne({ id });
+    const { password, ...safe } = updated;
+    return json(safe);
+  }
+  
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ success: true });
+  }
+  
+  return json({ error: 'Method not allowed' }, 405);
+}
+
+
 async function handleRoute(request, resolvedParams, method) {
   try {
     const pathSegments = resolvedParams?.path || [];
@@ -1505,7 +1606,7 @@ async function handleRoute(request, resolvedParams, method) {
     }
     const entity = pathSegments[0];
     const id = pathSegments[1];
-    const action = pathSegments[2];
+    const action = pathSegments[2] || searchParams.get('action');
 
     // Route GPS speciale
     if (entity === 'gps') {
@@ -1539,7 +1640,7 @@ async function handleRoute(request, resolvedParams, method) {
       case 'waitlist': return await handleWaitlist(method, id, body, action, searchParams);
       case 'agencies': return await handleAgencies(method, id, body, action, searchParams);
       case 'companies': return await handleCompaniesNew(method, id, body, action, searchParams);
-      case 'users': return await handleUsers(method, id, body, action, searchParams);
+      case 'users': return await handleUsersAuth(method, id, body, action, searchParams);
       case 'gps-config': return await handleGPSConfig(method, body);
       case 'upload': return await handleImageUpload(method, body);
       case 'upload-pdf': return await handlePDFUpload(method, body);
@@ -1640,17 +1741,26 @@ async function handleCompanies(method, id, body, action, sp) {
 
 // ============ USERS (Multi-Role) ============
 async function handleUsers(method, id, body, action, sp) {
+  const db = await getDb();
   const col = db.collection('users');
   
-  // Login
+  // Login con bcrypt
   if (action === 'login') {
     const user = await col.findOne({ email: body.email });
-    if (!user || user.password !== body.password) {
+    if (!user) {
       return json({ error: 'Credenziali non valide' }, 401);
     }
+    
+    // Verifica password con bcrypt
+    const isPasswordValid = await bcrypt.compare(body.password, user.password);
+    if (!isPasswordValid) {
+      return json({ error: 'Credenziali non valide' }, 401);
+    }
+    
     if (!user.is_active) {
       return json({ error: 'Account disattivato' }, 403);
     }
+    
     const { password, ...safeUser } = user;
     return json({ user: safeUser });
   }
@@ -1677,10 +1787,14 @@ async function handleUsers(method, id, body, action, sp) {
       return json({ error: 'Email già registrata' }, 400);
     }
     
+    // Hash password con bcrypt
+    const hashedPassword = await bcrypt.hash(body.password || 'changeme', 10);
+    
     const item = {
       id: uuidv4(),
       email: body.email || '',
-      password: body.password || 'changeme',
+      username: body.username || '',
+      password: hashedPassword,
       role: body.role || 'COMPANY_ADMIN',
       company_id: body.company_id || null,
       permissions: body.permissions || [],

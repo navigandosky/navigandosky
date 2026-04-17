@@ -1784,9 +1784,13 @@ function SetupGPS() {
 
 
 // ============ ADMIN DASHBOARD ============
-function AdminDashboard() {
+function AdminDashboard({ currentUser, onLogout }) {
   const { t } = useLanguage();
   const [stats, setStats] = useState({});
+  
+  // Verifica ruolo
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const isCompanyAdmin = currentUser?.role === 'COMPANY_ADMIN';
   const [experiences, setExps] = useState([]);
   const [resources, setResources] = useState([]);
   const [slots, setSlots] = useState([]);
@@ -2164,10 +2168,28 @@ function AdminDashboard() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-        <div><h1 className="text-3xl font-bold">Dashboard Admin</h1><p className="text-muted-foreground">Gestione completa del booking engine</p></div>
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard Admin</h1>
+          <p className="text-muted-foreground">
+            {currentUser && (
+              <span className="inline-flex items-center gap-2">
+                <User className="w-4 h-4" />
+                {currentUser.username || currentUser.email}
+                {isSuperAdmin && <Badge className="ml-2 bg-purple-600">SUPER ADMIN</Badge>}
+                {isCompanyAdmin && <Badge className="ml-2 bg-blue-600">COMPANY ADMIN</Badge>}
+              </span>
+            )}
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
           <Button onClick={seedData} disabled={seeding} variant="secondary">{seeding?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:<Download className="w-4 h-4 mr-2"/>}Dati Demo</Button>
+          {onLogout && (
+            <Button variant="outline" onClick={onLogout} className="border-red-200 text-red-600 hover:bg-red-50">
+              <LogIn className="w-4 h-4 mr-2 rotate-180" />
+              Logout
+            </Button>
+          )}
         </div>
       </div>
 
@@ -2181,7 +2203,7 @@ function AdminDashboard() {
           <TabsTrigger value="slots"><CalIcon className="w-4 h-4 mr-1.5" />{t('slots')}</TabsTrigger>
           <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
           <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
-          <TabsTrigger value="companies"><Building2 className="w-4 h-4 mr-1.5" />Multi-Tenant</TabsTrigger>
+          {isSuperAdmin && <TabsTrigger value="companies"><Building2 className="w-4 h-4 mr-1.5" />Multi-Tenant</TabsTrigger>}
 
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
@@ -4387,6 +4409,8 @@ function B2BPortal({ setView, allExperiences }) {
   );
 }
 
+import LoginScreen from '@/components/auth/LoginScreen';
+
 // ============ MAIN APP ============
 export default function App() {
   const [view, setView] = useState('home');
@@ -4395,9 +4419,47 @@ export default function App() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   
+  // Autenticazione
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
   // Branding dinamico
   const [companyBrand, setCompanyBrand] = useState(null);
   const [brandedMode, setBrandedMode] = useState(false);
+
+  // Verifica sessione esistente al mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const savedUser = localStorage.getItem('user');
+    const sessionToken = localStorage.getItem('sessionToken');
+    
+    if (savedUser && sessionToken) {
+      try {
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error('Errore parsing sessione:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('sessionToken');
+      }
+    }
+  }, []);
+
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('sessionToken');
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    setView('home');
+    toast.success('Logout effettuato');
+  };
 
   // Carica company branding se presente in URL
   useEffect(() => {
@@ -4456,7 +4518,13 @@ export default function App() {
           {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} />}
           {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
           {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}
-          {view === 'admin' && <AdminDashboard />}
+          {view === 'admin' && (
+            isAuthenticated ? (
+              <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />
+            ) : (
+              <LoginScreen onLoginSuccess={handleLoginSuccess} />
+            )
+          )}
           {view === 'b2b' && <B2BPortal setView={navigate} allExperiences={experiences} />}
         </main>
         <Footer />
