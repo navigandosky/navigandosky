@@ -332,14 +332,16 @@ function PDFUploader({ pdfUrl = '', onChange }) {
 }
 
 // ============ NAVBAR ============
-function NavBar({ view, setView, mobileOpen, setMobileOpen }) {
+function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand }) {
   const { language, changeLanguage, t } = useLanguage();
+  const logoUrl = companyBrand?.logo_url || LOGO_URL;
+  const brandName = companyBrand?.name || 'Maretrek';
   
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border shadow-sm">
       <div className="container mx-auto px-4 flex items-center justify-between h-16">
         <button onClick={() => setView('home')} className="flex items-center gap-2 hover:opacity-80 transition">
-          <img src={LOGO_URL} alt="Maretrek" style={{ height: '40px', width: 'auto' }} className="rounded" />
+          <img src={logoUrl} alt={brandName} style={{ height: '40px', width: 'auto' }} className="rounded" />
         </button>
         
         <nav className="hidden md:flex items-center gap-1">
@@ -506,15 +508,19 @@ function Footer() {
 }
 
 // ============ HOME PAGE ============
-function HomePage({ setView, experiences }) {
+function HomePage({ setView, experiences, companyBrand }) {
   const featured = experiences.slice(0, 3);
+  const heroImg = companyBrand?.hero_image || HERO_IMG;
+  const logoUrl = companyBrand?.logo_url || LOGO_URL;
+  const brandName = companyBrand?.name || 'Maretrek';
+  
   return (
     <div>
       <section className="relative h-[85vh] min-h-[600px] flex items-center justify-center overflow-hidden">
-        <img src={HERO_IMG} alt="Sardegna" className="absolute inset-0 w-full h-full object-cover" />
+        <img src={heroImg} alt={brandName} className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 hero-gradient" />
         <div className="relative z-10 text-center text-white px-4 max-w-4xl">
-          <div className="mb-6"><img src={LOGO_URL} alt="Maretrek" className="h-20 md:h-28 mx-auto rounded-lg shadow-2xl" /></div>
+          <div className="mb-6"><img src={logoUrl} alt={brandName} className="h-20 md:h-28 mx-auto rounded-lg shadow-2xl" /></div>
           <h1 className="text-4xl md:text-6xl font-bold mb-4 drop-shadow-lg">Scopri la Sardegna dal Mare</h1>
           <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">Escursioni in barca, visite guidate, noleggio gommoni. Vivi il Mediterraneo con guide esperte.</p>
           <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold text-base px-8 shadow-lg" onClick={() => setView('catalog')}><Compass className="w-5 h-5 mr-2" />Esplora le Esperienze</Button>
@@ -1787,6 +1793,7 @@ function AdminDashboard() {
   const [bookings, setBookings] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [agencies, setAgencies] = useState([]);
+  const [companies, setCompanies] = useState([]); // Multi-Tenant
   const [showDialog, setShowDialog] = useState(null);
   const [formData, setFormData] = useState({});
   const [editRes, setEditRes] = useState(null);
@@ -1837,13 +1844,14 @@ function AdminDashboard() {
     
     // Carica il resto in background (non-blocking)
     setTimeout(async () => {
-      const [sl, b, v, ag] = await Promise.all([
-        api('slots'), api('bookings'), api('vouchers'), api('agencies')
+      const [sl, b, v, ag, co] = await Promise.all([
+        api('slots'), api('bookings'), api('vouchers'), api('agencies'), api('companies')
       ]);
       setSlots(Array.isArray(sl)?sl:[]); 
       setBookings(Array.isArray(b)?b:[]); 
       setVouchers(Array.isArray(v)?v:[]);
       setAgencies(Array.isArray(ag)?ag:[]);
+      setCompanies(Array.isArray(co)?co:[]);
       setFilteredBookings(Array.isArray(b)?b:[]);
     }, 100);
   }, []);
@@ -2148,6 +2156,8 @@ function AdminDashboard() {
           <TabsTrigger value="slots"><CalIcon className="w-4 h-4 mr-1.5" />{t('slots')}</TabsTrigger>
           <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
           <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
+          <TabsTrigger value="companies"><Building2 className="w-4 h-4 mr-1.5" />Multi-Tenant</TabsTrigger>
+
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
         </TabsList>
@@ -2779,6 +2789,145 @@ function AdminDashboard() {
         <TabsContent value="gps-setup">
           <SetupGPS />
         </TabsContent>
+
+        {/* Multi-Tenant Companies Tab */}
+        <TabsContent value="companies" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                Gestione Multi-Tenant
+              </CardTitle>
+              <CardDescription>Genera link diretti per le company con branding personalizzato</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {companies.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                  <p>Nessuna company trovata.</p>
+                  <p className="text-sm mt-2">Usa lo script seed-multi-tenant.js per inizializzare il sistema multi-tenant.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {companies.map(company => {
+                    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                    const directLink = `${baseUrl}/${company.slug}`;
+                    
+                    return (
+                      <Card key={company.id} className="border-2">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {company.logo_url && (
+                                <img 
+                                  src={company.logo_url} 
+                                  alt={company.name} 
+                                  className="w-12 h-12 rounded object-cover border"
+                                />
+                              )}
+                              <div>
+                                <CardTitle className="text-lg">{company.name}</CardTitle>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant="outline" className="text-xs">
+                                    {company.subscription_plan || 'STANDARD'}
+                                  </Badge>
+                                  {company.is_active ? (
+                                    <Badge className="text-xs bg-green-100 text-green-800">Attiva</Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs">Inattiva</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {company.primary_color && (
+                                <div 
+                                  className="w-8 h-8 rounded border-2 border-gray-300"
+                                  style={{ backgroundColor: company.primary_color }}
+                                  title="Colore Primario"
+                                />
+                              )}
+                              {company.secondary_color && (
+                                <div 
+                                  className="w-8 h-8 rounded border-2 border-gray-300"
+                                  style={{ backgroundColor: company.secondary_color }}
+                                  title="Colore Secondario"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">P.IVA</p>
+                              <p className="font-medium">{company.vat_number || '-'}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Slug</p>
+                              <p className="font-mono text-xs bg-muted px-2 py-1 rounded">{company.slug}</p>
+                            </div>
+                          </div>
+                          
+                          <Separator />
+                          
+                          <div>
+                            <Label className="text-xs text-muted-foreground mb-2 block">Link Diretto con Branding</Label>
+                            <div className="flex items-center gap-2">
+                              <Input 
+                                value={directLink}
+                                readOnly
+                                className="flex-1 font-mono text-sm"
+                              />
+                              <Button 
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(directLink);
+                                  toast.success('Link copiato negli appunti!');
+                                }}
+                              >
+                                <Copy className="w-4 h-4 mr-1" />
+                                Copia
+                              </Button>
+                              <Button 
+                                size="sm"
+                                onClick={() => window.open(directLink, '_blank')}
+                              >
+                                <Eye className="w-4 h-4 mr-1" />
+                                Anteprima
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Questo link mostrerà automaticamente il logo, i colori e solo le esperienze di {company.name}.
+                            </p>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-2 pt-2">
+                            <div className="text-center p-3 bg-muted/30 rounded">
+                              <p className="text-2xl font-bold text-blue-600">{company.total_bookings || 0}</p>
+                              <p className="text-xs text-muted-foreground">Prenotazioni</p>
+                            </div>
+                            <div className="text-center p-3 bg-muted/30 rounded">
+                              <p className="text-2xl font-bold text-green-600">{fmtPrice(company.total_revenue || 0)}</p>
+                              <p className="text-xs text-muted-foreground">Fatturato</p>
+                            </div>
+                            <div className="text-center p-3 bg-muted/30 rounded">
+                              <p className="text-2xl font-bold text-purple-600">{company.max_experiences || 0}</p>
+                              <p className="text-xs text-muted-foreground">Max Exp.</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
       </Tabs>
 
       {/* Create Dialogs */}
@@ -4012,10 +4161,44 @@ export default function App() {
   const [selectedExperience, setSelectedExperience] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  
+  // Branding dinamico
+  const [companyBrand, setCompanyBrand] = useState(null);
+  const [brandedMode, setBrandedMode] = useState(false);
+
+  // Carica company branding se presente in URL
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const companyId = params.get('company_id');
+    const isBranded = params.get('branded') === 'true';
+    
+    if (companyId && isBranded) {
+      setBrandedMode(true);
+      api(`companies/${companyId}`).then(company => {
+        if (company && !company.error) {
+          setCompanyBrand(company);
+          
+          // Applica branding CSS
+          if (company.primary_color) {
+            document.documentElement.style.setProperty('--primary', company.primary_color);
+          }
+          if (company.secondary_color) {
+            document.documentElement.style.setProperty('--secondary', company.secondary_color);
+          }
+        }
+      }).catch(err => console.error('Errore caricamento branding:', err));
+    }
+  }, []);
 
   useEffect(() => {
-    api('experiences').then(data => { if (Array.isArray(data)) setExperiences(data); }).catch(() => {});
-  }, [view]);
+    // Filtra experiences per company se in modalità branded
+    const filter = brandedMode && companyBrand ? `?company_id=${companyBrand.id}` : '';
+    api(`experiences${filter}`).then(data => { 
+      if (Array.isArray(data)) setExperiences(data); 
+    }).catch(() => {});
+  }, [view, brandedMode, companyBrand]);
 
   const navigate = (newView, data = {}) => {
     if (data.experience) setSelectedExperience(data.experience);
@@ -4028,9 +4211,15 @@ export default function App() {
   return (
     <LanguageProvider>
       <div className="min-h-screen flex flex-col">
-        <NavBar view={view} setView={navigate} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+        <NavBar 
+          view={view} 
+          setView={navigate} 
+          mobileOpen={mobileOpen} 
+          setMobileOpen={setMobileOpen}
+          companyBrand={companyBrand}
+        />
         <main className="flex-1">
-          {view === 'home' && <HomePage setView={navigate} experiences={experiences} />}
+          {view === 'home' && <HomePage setView={navigate} experiences={experiences} companyBrand={companyBrand} />}
           {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} />}
           {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
           {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}

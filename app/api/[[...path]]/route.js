@@ -1417,6 +1417,83 @@ async function handleBookingsByResource(method, searchParams) {
   }
 }
 
+
+// ============ COMPANIES (Multi-Tenant) ============
+async function handleCompaniesNew(method, id, body, action, sp) {
+  const db = await getDb();
+  const col = db.collection('companies');
+  
+  if (method === 'GET' && !id) {
+    // Supporto per query by slug
+    const slug = sp.get('slug');
+    if (slug) {
+      const item = await col.findOne({ slug });
+      return item ? json(item) : json({ error: 'Company non trovata' }, 404);
+    }
+    
+    const items = await col.find({}).sort({ created_at: -1 }).toArray();
+    console.log('[handleCompaniesNew] GET all - found:', items.length);
+    return json(items);
+  }
+  
+  if (method === 'GET' && id) {
+    const item = await col.findOne({ id });
+    return item ? json(item) : json({ error: 'Company non trovata' }, 404);
+  }
+  
+  if (method === 'POST') {
+    const slug = body.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const item = {
+      id: uuidv4(),
+      name: body.name || '',
+      slug,
+      legal_form: body.legal_form || 'S.R.L.',
+      vat_number: body.vat_number || '',
+      fiscal_code: body.fiscal_code || '',
+      address: body.address || '',
+      city: body.city || '',
+      postal_code: body.postal_code || '',
+      country: body.country || 'IT',
+      phone: body.phone || '',
+      email: body.email || '',
+      pec: body.pec || '',
+      sdi_code: body.sdi_code || '',
+      logo_url: body.logo_url || '',
+      hero_image: body.hero_image || '',
+      primary_color: body.primary_color || '#0066cc',
+      secondary_color: body.secondary_color || '#ff6600',
+      subscription_plan: body.subscription_plan || 'STANDARD',
+      max_experiences: body.max_experiences || 50,
+      max_resources: body.max_resources || 20,
+      max_users: body.max_users || 5,
+      is_active: body.is_active !== undefined ? body.is_active : true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      total_bookings: 0,
+      total_revenue: 0
+    };
+    await col.insertOne(item);
+    return json(item, 201);
+  }
+  
+  if (method === 'PUT' && id) {
+    const updates = { ...body, updated_at: new Date().toISOString() };
+    delete updates.id;
+    delete updates.created_at;
+    await col.updateOne({ id }, { $set: updates });
+    const updated = await col.findOne({ id });
+    return json(updated);
+  }
+  
+  if (method === 'DELETE' && id) {
+    await col.deleteOne({ id });
+    return json({ success: true });
+  }
+  
+  return json({ error: 'Method not allowed' }, 405);
+}
+
+
 // ==================== ROUTE DISPATCHER ====================
 async function handleRoute(request, resolvedParams, method) {
   try {
@@ -1461,7 +1538,7 @@ async function handleRoute(request, resolvedParams, method) {
       case 'vouchers': return await handleVouchers(method, id, body, action, searchParams);
       case 'waitlist': return await handleWaitlist(method, id, body, action, searchParams);
       case 'agencies': return await handleAgencies(method, id, body, action, searchParams);
-      case 'companies': return await handleCompanies(method, id, body, action, searchParams);
+      case 'companies': return await handleCompaniesNew(method, id, body, action, searchParams);
       case 'users': return await handleUsers(method, id, body, action, searchParams);
       case 'gps-config': return await handleGPSConfig(method, body);
       case 'upload': return await handleImageUpload(method, body);
@@ -1488,9 +1565,17 @@ export async function POST(request, { params }) {
 
 // ============ COMPANIES (Multi-Tenant) ============
 async function handleCompanies(method, id, body, action, sp) {
+  const db = await getDb();
   const col = db.collection('companies');
   
   if (method === 'GET' && !id) {
+    // Supporto per query by slug
+    const slug = sp.get('slug');
+    if (slug) {
+      const item = await col.findOne({ slug });
+      return item ? json(item) : json({ error: 'Company non trovata' }, 404);
+    }
+    
     const items = await col.find({}).sort({ created_at: -1 }).toArray();
     return json(items);
   }
