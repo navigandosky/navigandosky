@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, Ship, Compass } from 'lucide-react';
+import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -22,6 +22,7 @@ export default function AgencyB2BPortal() {
   const [loading, setLoading] = useState(true);
   const [agency, setAgency] = useState(null);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [experiences, setExperiences] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({});
@@ -224,14 +225,25 @@ export default function AgencyB2BPortal() {
             
             <div>
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={loginForm.password}
-                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             
             <Button 
