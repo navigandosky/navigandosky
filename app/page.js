@@ -1918,12 +1918,12 @@ function AdminDashboard({ currentUser, onLogout }) {
     
     const isEdit = !!newCompanyForm.id;
     
-    // Validazione credenziali admin solo per nuove società
-    if (!isEdit) {
-      if (!newCompanyForm.admin_username || !newCompanyForm.admin_password || !newCompanyForm.admin_email) {
-        toast.error('Username, email e password dell\'amministratore sono obbligatori');
-        return;
-      }
+    // Validazione credenziali admin solo per nuove società O se sono state modificate
+    const hasAdminCredentials = newCompanyForm.admin_username || newCompanyForm.admin_password || newCompanyForm.admin_email;
+    
+    if (!isEdit && (!newCompanyForm.admin_username || !newCompanyForm.admin_password || !newCompanyForm.admin_email)) {
+      toast.error('Username, email e password dell\'amministratore sono obbligatori');
+      return;
     }
     
     const method = isEdit ? 'PUT' : 'POST';
@@ -1942,7 +1942,7 @@ function AdminDashboard({ currentUser, onLogout }) {
       return;
     }
     
-    // Se è una nuova società, crea anche l'utente admin
+    // Se è una nuova società, crea l'utente admin
     if (!isEdit && res.id) {
       const userRes = await api('users', {
         method: 'POST',
@@ -1960,6 +1960,39 @@ function AdminDashboard({ currentUser, onLogout }) {
         toast.error('Società creata ma errore creazione utente: ' + userRes.error);
       } else {
         toast.success('Società e utente admin creati con successo!');
+      }
+    } 
+    // Se è una modifica E ci sono credenziali admin, aggiorna l'utente
+    else if (isEdit && hasAdminCredentials) {
+      try {
+        // Trova l'utente admin della società
+        const usersRes = await fetch('/api/users');
+        const users = await usersRes.json();
+        const companyAdmin = users.find(u => u.company_id === newCompanyForm.id && u.role === 'COMPANY_ADMIN');
+        
+        if (companyAdmin) {
+          // Aggiorna solo i campi che sono stati forniti
+          const updateData = {};
+          if (admin_username) updateData.username = admin_username;
+          if (admin_email) updateData.email = admin_email;
+          if (admin_password) updateData.password = admin_password;
+          
+          const userRes = await api(`users/${companyAdmin.id}`, {
+            method: 'PUT',
+            body: updateData
+          });
+          
+          if (userRes.error) {
+            toast.error('Società aggiornata ma errore aggiornamento credenziali: ' + userRes.error);
+          } else {
+            toast.success('Società e credenziali aggiornate con successo!');
+          }
+        } else {
+          toast.success('Società aggiornata con successo!');
+        }
+      } catch (err) {
+        console.error('Error updating admin user:', err);
+        toast.success('Società aggiornata con successo!');
       }
     } else {
       toast.success('Società aggiornata con successo!');
@@ -2983,9 +3016,25 @@ function AdminDashboard({ currentUser, onLogout }) {
                                 <Button 
                                   size="sm" 
                                   variant="outline"
-                                  onClick={() => {
-                                    setNewCompanyForm(company);
-                                    setShowCompanyDialog(true);
+                                  onClick={async () => {
+                                    // Carica le credenziali dell'admin della società
+                                    try {
+                                      const usersRes = await fetch('/api/users');
+                                      const users = await usersRes.json();
+                                      const companyAdmin = users.find(u => u.company_id === company.id && u.role === 'COMPANY_ADMIN');
+                                      
+                                      setNewCompanyForm({
+                                        ...company,
+                                        admin_username: companyAdmin?.username || '',
+                                        admin_email: companyAdmin?.email || '',
+                                        admin_password: '' // Non mostriamo la password per sicurezza
+                                      });
+                                      setShowCompanyDialog(true);
+                                    } catch (err) {
+                                      console.error('Error loading company admin:', err);
+                                      setNewCompanyForm(company);
+                                      setShowCompanyDialog(true);
+                                    }
                                   }}
                                   title="Modifica società"
                                 >

@@ -203,7 +203,7 @@ export default function AgencyB2BPortal() {
               <Building2 className="w-8 h-8 text-white" />
             </div>
             
-            <CardTitle className="text-2xl">Portale B2B Agenzie</CardTitle>
+            <CardTitle className="text-2xl">Portale B2B Company</CardTitle>
             <CardDescription className="text-base">
               Accedi con le credenziali della tua agenzia per {company.name}
             </CardDescription>
