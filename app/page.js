@@ -559,18 +559,50 @@ function HomePage({ setView, experiences, companyBrand }) {
 }
 
 // ============ CATALOG ============
-function CatalogPage({ setView, experiences }) {
+function CatalogPage({ setView, experiences, currentUser, companies, companyBrand }) {
   const [typeF, setTypeF] = useState('ALL');
   const [langF, setLangF] = useState('ALL');
   const [q, setQ] = useState('');
-  const filtered = experiences.filter(e => {
+  
+  // Determina il logo da mostrare
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const isCompanyAdmin = currentUser?.role === 'COMPANY_ADMIN';
+  const logoUrl = companyBrand?.logo_url || LOGO_URL;
+  const brandName = companyBrand?.name || 'Trivor';
+  
+  // Filtra esperienze in base al ruolo
+  let displayExperiences = experiences;
+  if (isCompanyAdmin && currentUser?.company_id) {
+    // Company Admin vede solo le sue esperienze
+    displayExperiences = experiences.filter(e => e.company_id === currentUser.company_id);
+  }
+  
+  const filtered = displayExperiences.filter(e => {
     if (typeF !== 'ALL' && e.type !== typeF) return false;
     if (langF !== 'ALL' && !(e.languages||[]).includes(langF)) return false;
     if (q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
+  
+  // Helper per ottenere il nome della società
+  const getCompanyName = (companyId) => {
+    const company = companies?.find(c => c.id === companyId);
+    return company ? company.name : 'N/A';
+  };
+  
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Header con logo dinamico */}
+      {isCompanyAdmin && (
+        <div className="mb-6 flex items-center gap-4">
+          <img src={logoUrl} alt={brandName} className="h-16 object-contain" />
+          <div>
+            <h2 className="text-2xl font-bold">{brandName}</h2>
+            <p className="text-sm text-muted-foreground">Le tue esperienze</p>
+          </div>
+        </div>
+      )}
+      
       <div className="mb-8"><h1 className="text-3xl md:text-4xl font-bold mb-2">Le Nostre Esperienze</h1><p className="text-muted-foreground">Scopri tutte le attivita disponibili.</p></div>
       <div className="flex flex-wrap gap-3 mb-8 p-4 bg-white rounded-xl shadow-sm border">
         <div className="flex-1 min-w-[200px]"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Cerca..." value={q} onChange={e=>setQ(e.target.value)} className="pl-9" /></div></div>
@@ -582,7 +614,7 @@ function CatalogPage({ setView, experiences }) {
           {filtered.map(exp => (
             <Card key={exp.id} className="card-hover overflow-hidden border shadow-sm cursor-pointer group" onClick={() => setView('detail', { experience: exp })}>
               <div className="relative h-52 overflow-hidden"><img src={(exp.images && exp.images[0]) || exp.image_url || '/uploads/placeholder.jpg'} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div></div>
-              <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle><CardDescription className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" />{exp.meeting_point}</CardDescription></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle><CardDescription className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" />{exp.meeting_point}</CardDescription>{isSuperAdmin && exp.company_id && (<div className="mt-2"><Badge className="bg-purple-100 text-purple-800 text-xs">{getCompanyName(exp.company_id)}</Badge></div>)}</CardHeader>
               <CardContent className="pb-2"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span><span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span></div></CardContent>
               <CardFooter className="pt-0 flex justify-between items-center"><div className="text-2xl font-bold text-primary">{fmtPrice(exp.price_b2c)}<span className="text-xs font-normal text-muted-foreground">/persona</span></div><Button size="sm">Scopri <ChevronRight className="w-4 h-4 ml-1" /></Button></CardFooter>
             </Card>
@@ -4325,6 +4357,7 @@ import LoginScreen from '@/components/auth/LoginScreen';
 export default function App() {
   const [view, setView] = useState('home');
   const [experiences, setExperiences] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [selectedExperience, setSelectedExperience] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -4355,6 +4388,28 @@ export default function App() {
         localStorage.removeItem('sessionToken');
       }
     }
+  }, []);
+
+  // Carica companies e experiences all'avvio
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const [companiesRes, experiencesRes] = await Promise.all([
+          fetch('/api/companies'),
+          fetch('/api/experiences')
+        ]);
+        
+        const companiesData = await companiesRes.json();
+        const experiencesData = await experiencesRes.json();
+        
+        setCompanies(Array.isArray(companiesData) ? companiesData : []);
+        setExperiences(Array.isArray(experiencesData) ? experiencesData : []);
+      } catch (err) {
+        console.error('Error loading initial data:', err);
+      }
+    };
+    
+    loadInitialData();
   }, []);
 
   const handleLoginSuccess = async (user) => {
@@ -4448,7 +4503,7 @@ export default function App() {
         />
         <main className="flex-1">
           {view === 'home' && <HomePage setView={navigate} experiences={experiences} companyBrand={companyBrand} currentUser={currentUser} />}
-          {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} />}
+          {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} currentUser={currentUser} companies={companies} companyBrand={companyBrand} />}
           {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
           {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}
           {view === 'admin' && (
