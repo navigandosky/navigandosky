@@ -96,12 +96,33 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
         safeResData = (safeResData || []).filter(r => r.company_id === currentUser.company_id);
       }
       
-      const enriched = (Array.isArray(safeGpsData) ? safeGpsData : []).map(device => {
-        const resource = (safeResData || []).find(r => r.gps_imei === device.imei);
-        return { ...device, resource };
+      // Filtra solo risorse con GPS IMEI configurato
+      const resourcesWithGPS = (safeResData || []).filter(r => r.gps_imei && r.gps_imei.trim() !== '');
+      
+      // Mappa 1: Dispositivi GPS con dati real-time
+      const enrichedFromGPS = (Array.isArray(safeGpsData) ? safeGpsData : []).map(device => {
+        const resource = resourcesWithGPS.find(r => r.gps_imei === device.imei);
+        return { ...device, resource, status: 'online' };
       });
       
-      setDevices(enriched);
+      // Mappa 2: Risorse con GPS IMEI ma senza dati real-time (offline)
+      const offlineResources = resourcesWithGPS
+        .filter(r => !enrichedFromGPS.find(d => d.imei === r.gps_imei))
+        .map(resource => ({
+          imei: resource.gps_imei,
+          resource,
+          status: 'offline',
+          last_update: null,
+          latitude: null,
+          longitude: null,
+          speed: 0,
+          battery: 0
+        }));
+      
+      // Combina dispositivi online e offline
+      const allDevices = [...enrichedFromGPS, ...offlineResources];
+      
+      setDevices(allDevices);
       setResources(safeResData || []);
       setLoading(false);
     } catch (error) {
