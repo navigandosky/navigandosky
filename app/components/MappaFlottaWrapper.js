@@ -33,7 +33,7 @@ const api = async (path, opts = {}) => {
   return res.json();
 };
 
-export default function MappaFlottaWrapper() {
+export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
   const [devices, setDevices] = useState([]);
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +89,12 @@ export default function MappaFlottaWrapper() {
       
       // Controlla se gpsData ha un errore e trattalo come array vuoto
       const safeGpsData = (gpsData && gpsData.error) ? [] : gpsData;
-      const safeResData = (resData && resData.error) ? [] : resData;
+      let safeResData = (resData && resData.error) ? [] : resData;
+      
+      // Filtra risorse per company_id se non è Super Admin
+      if (!isSuperAdmin && currentUser?.company_id) {
+        safeResData = (safeResData || []).filter(r => r.company_id === currentUser.company_id);
+      }
       
       const enriched = (Array.isArray(safeGpsData) ? safeGpsData : []).map(device => {
         const resource = (safeResData || []).find(r => r.gps_imei === device.imei);

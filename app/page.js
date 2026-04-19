@@ -2948,7 +2948,7 @@ function AdminDashboard({ currentUser, onLogout }) {
 
         {/* Mappa Flotta GPS */}
         <TabsContent value="fleet">
-          <MappaFlottaWrapper />
+          <MappaFlottaWrapper currentUser={currentUser} isSuperAdmin={isSuperAdmin} />
         </TabsContent>
 
         {/* Setup GPS */}
