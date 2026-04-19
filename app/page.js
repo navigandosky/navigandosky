@@ -2404,7 +2404,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                             <p className="text-xs text-muted-foreground">{r.type==='GUIDE'?'Guida':(BOAT_TYPE_LABELS[r.boat_type]||'Imbarcazione')}{r.capacity?` - ${r.capacity} posti`:''}</p>
                           </div>
                           <div className="flex gap-1">
-                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={()=>{setEditRes(r);setEditResForm({name:r.name,type:r.type,boat_type:r.boat_type||'GOMMONE',capacity:r.capacity||0,bio:r.bio||'',email:r.email||'',phone:r.phone||'',languages:r.languages||[],is_available:r.is_available});}}><Edit className="w-3.5 h-3.5"/></Button>
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={()=>{setEditRes(r);setEditResForm({name:r.name,type:r.type,boat_type:r.boat_type||'GOMMONE',capacity:r.capacity||0,bio:r.bio||'',email:r.email||'',phone:r.phone||'',languages:r.languages||[],is_available:r.is_available,gps_imei:r.gps_imei||'',marca:r.marca||'',potenza_motore:r.potenza_motore||'',consumo_orario_litri:r.consumo_orario_litri||'',ore_inizio_stagione:r.ore_inizio_stagione||''});}}><Edit className="w-3.5 h-3.5"/></Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={()=>deleteItem('resources',r.id)}><Trash2 className="w-3.5 h-3.5 text-red-500"/></Button>
                           </div>
                         </div>
