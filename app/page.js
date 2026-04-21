@@ -2737,12 +2737,44 @@ function AdminDashboard({ currentUser, onLogout }) {
               
               <div>
                 <Label className="text-xs mb-1 block">Data Servizio</Label>
-                <Input 
-                  type="date" 
-                  className="h-9"
-                  value={bookingDateFilter} 
-                  onChange={e => setBookingDateFilter(e.target.value)}
-                />
+                <div className="flex items-center gap-1">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-9 w-9 flex-shrink-0"
+                    title="Giorno precedente"
+                    onClick={() => {
+                      const base = bookingDateFilter || new Date().toISOString().split('T')[0];
+                      const d = new Date(base + 'T00:00:00');
+                      d.setDate(d.getDate() - 1);
+                      setBookingDateFilter(d.toISOString().split('T')[0]);
+                    }}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Input 
+                    type="date" 
+                    className="h-9 flex-1"
+                    value={bookingDateFilter} 
+                    onChange={e => setBookingDateFilter(e.target.value)}
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-9 w-9 flex-shrink-0"
+                    title="Giorno successivo"
+                    onClick={() => {
+                      const base = bookingDateFilter || new Date().toISOString().split('T')[0];
+                      const d = new Date(base + 'T00:00:00');
+                      d.setDate(d.getDate() + 1);
+                      setBookingDateFilter(d.toISOString().split('T')[0]);
+                    }}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               
               <div>
