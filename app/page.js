@@ -2811,7 +2811,24 @@ function AdminDashboard({ currentUser, onLogout }) {
                 {b.checked_in_at&&<Badge className="bg-green-100 text-green-800 text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/>OK</Badge>}
               </div></td>
             </tr>))}
-          </tbody></table>{filteredBookingsTab.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione trovata.</p>}</div>
+          </tbody>
+          {filteredBookingsTab.length > 0 && (
+            <tfoot className="bg-muted/80 font-semibold border-t-2 border-primary/20 sticky bottom-0">
+              <tr>
+                <td colSpan={6} className="p-3 text-right text-muted-foreground uppercase text-xs tracking-wide">
+                  Totale {filteredBookingsTab.length} {filteredBookingsTab.length === 1 ? 'prenotazione' : 'prenotazioni'}
+                </td>
+                <td className="p-3 text-primary">
+                  {filteredBookingsTab.reduce((sum, b) => sum + (b.seats || 0), 0)}
+                </td>
+                <td className="p-3 text-primary font-bold text-base">
+                  {fmtPrice(filteredBookingsTab.reduce((sum, b) => sum + (b.total_amount || 0), 0))}
+                </td>
+                <td className="p-3" colSpan={2}></td>
+              </tr>
+            </tfoot>
+          )}
+          </table>{filteredBookingsTab.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione trovata.</p>}</div>
         </TabsContent>
 
         {/* Vouchers */}
