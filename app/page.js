@@ -567,8 +567,22 @@ function CatalogPage({ setView, experiences, currentUser, companies, companyBran
   // Determina il logo da mostrare
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const isCompanyAdmin = currentUser?.role === 'COMPANY_ADMIN';
-  const logoUrl = companyBrand?.logo_url || LOGO_URL;
-  const brandName = companyBrand?.name || 'Trivor';
+  
+  // Per Company Admin, usa il branding della sua società
+  let logoUrl = LOGO_URL;
+  let brandName = 'Trivor';
+  
+  if (isCompanyAdmin && currentUser?.company_id && companies) {
+    const userCompany = companies.find(c => c.id === currentUser.company_id);
+    if (userCompany) {
+      logoUrl = userCompany.logo_url || LOGO_URL;
+      brandName = userCompany.name || 'Trivor';
+    }
+  } else if (companyBrand) {
+    // Usa il branding passato come prop (per utenti pubblici)
+    logoUrl = companyBrand.logo_url || LOGO_URL;
+    brandName = companyBrand.name || 'Trivor';
+  }
   
   // Filtra esperienze in base al ruolo
   let displayExperiences = experiences;
@@ -592,10 +606,10 @@ function CatalogPage({ setView, experiences, currentUser, companies, companyBran
   
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header con logo dinamico */}
+      {/* Header con logo dinamico per Company Admin */}
       {isCompanyAdmin && (
         <div className="mb-6 flex items-center gap-4">
-          <img src={logoUrl} alt={brandName} className="h-16 object-contain" />
+          <img src={logoUrl} alt={brandName} className="h-16 object-contain rounded" />
           <div>
             <h2 className="text-2xl font-bold">{brandName}</h2>
             <p className="text-sm text-muted-foreground">Le tue esperienze</p>
