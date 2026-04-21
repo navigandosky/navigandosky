@@ -84,6 +84,7 @@ export const translations = {
     discover_all_activities: 'Scopri tutte le attività disponibili.',
     search_placeholder: 'Cerca...',
     all_languages: 'Tutte le lingue',
+    all_types: 'Tutti i tipi',
     discover: 'Scopri',
     per_person: '/persona',
     no_experiences_found: 'Nessuna esperienza trovata',
@@ -148,6 +149,7 @@ export const translations = {
     discover_all_activities: 'Discover all available activities.',
     search_placeholder: 'Search...',
     all_languages: 'All languages',
+    all_types: 'All types',
     discover: 'Discover',
     per_person: '/person',
     no_experiences_found: 'No experiences found',
@@ -205,6 +207,30 @@ export const translations = {
     edit: 'Modifier',
     search: 'Rechercher',
     filter: 'Filtrer',
+    name: 'Nom',
+    email: 'Email',
+    phone: 'Téléphone',
+    status: 'Statut',
+    date: 'Date',
+    actions: 'Actions',
+    details: 'Détails',
+    
+    // Catalog
+    your_experiences: 'Vos expériences',
+    our_experiences: 'Nos Expériences',
+    discover_all_activities: 'Découvrez toutes les activités disponibles.',
+    search_placeholder: 'Rechercher...',
+    all_languages: 'Toutes les langues',
+    all_types: 'Tous les types',
+    discover: 'Découvrir',
+    per_person: '/personne',
+    no_experiences_found: 'Aucune expérience trouvée',
+    
+    // Experience types
+    GITA_GOMMONE: 'Tour en Zodiac',
+    GITA_BARCA: 'Tour en Bateau',
+    VISITA_GUIDATA: 'Visite Guidée',
+    NOLEGGIO_NATANTE: 'Location de Bateau',
   },
   
   de: {
@@ -253,6 +279,30 @@ export const translations = {
     edit: 'Bearbeiten',
     search: 'Suchen',
     filter: 'Filtern',
+    name: 'Name',
+    email: 'Email',
+    phone: 'Telefon',
+    status: 'Status',
+    date: 'Datum',
+    actions: 'Aktionen',
+    details: 'Details',
+    
+    // Catalog
+    your_experiences: 'Ihre Erlebnisse',
+    our_experiences: 'Unsere Erlebnisse',
+    discover_all_activities: 'Entdecken Sie alle verfügbaren Aktivitäten.',
+    search_placeholder: 'Suchen...',
+    all_languages: 'Alle Sprachen',
+    all_types: 'Alle Typen',
+    discover: 'Entdecken',
+    per_person: '/Person',
+    no_experiences_found: 'Keine Erlebnisse gefunden',
+    
+    // Experience types
+    GITA_GOMMONE: 'Schlauchboot-Tour',
+    GITA_BARCA: 'Bootstour',
+    VISITA_GUIDATA: 'Geführte Tour',
+    NOLEGGIO_NATANTE: 'Bootsvermietung',
   },
   
   es: {
@@ -301,6 +351,30 @@ export const translations = {
     edit: 'Editar',
     search: 'Buscar',
     filter: 'Filtrar',
+    name: 'Nombre',
+    email: 'Email',
+    phone: 'Teléfono',
+    status: 'Estado',
+    date: 'Fecha',
+    actions: 'Acciones',
+    details: 'Detalles',
+    
+    // Catalog
+    your_experiences: 'Tus experiencias',
+    our_experiences: 'Nuestras Experiencias',
+    discover_all_activities: 'Descubre todas las actividades disponibles.',
+    search_placeholder: 'Buscar...',
+    all_languages: 'Todos los idiomas',
+    all_types: 'Todos los tipos',
+    discover: 'Descubrir',
+    per_person: '/persona',
+    no_experiences_found: 'No se encontraron experiencias',
+    
+    // Experience types
+    GITA_GOMMONE: 'Tour en Lancha',
+    GITA_BARCA: 'Tour en Barco',
+    VISITA_GUIDATA: 'Visita Guiada',
+    NOLEGGIO_NATANTE: 'Alquiler de Barco',
   }
 };
 
