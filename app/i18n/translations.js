@@ -77,6 +77,22 @@ export const translations = {
     date: 'Data',
     actions: 'Azioni',
     details: 'Dettagli',
+    
+    // Catalog
+    your_experiences: 'Le tue esperienze',
+    our_experiences: 'Le Nostre Esperienze',
+    discover_all_activities: 'Scopri tutte le attività disponibili.',
+    search_placeholder: 'Cerca...',
+    all_languages: 'Tutte le lingue',
+    discover: 'Scopri',
+    per_person: '/persona',
+    no_experiences_found: 'Nessuna esperienza trovata',
+    
+    // Experience types (Italian names)
+    GITA_GOMMONE: 'Gita in Gommone',
+    GITA_BARCA: 'Gita in Barca',
+    VISITA_GUIDATA: 'Visita Guidata',
+    NOLEGGIO_NATANTE: 'Noleggio Natante',
   },
   
   en: {
@@ -125,6 +141,22 @@ export const translations = {
     edit: 'Edit',
     search: 'Search',
     filter: 'Filter',
+    
+    // Catalog
+    your_experiences: 'Your experiences',
+    our_experiences: 'Our Experiences',
+    discover_all_activities: 'Discover all available activities.',
+    search_placeholder: 'Search...',
+    all_languages: 'All languages',
+    discover: 'Discover',
+    per_person: '/person',
+    no_experiences_found: 'No experiences found',
+    
+    // Experience types
+    GITA_GOMMONE: 'Rubber Boat Tour',
+    GITA_BARCA: 'Boat Tour',
+    VISITA_GUIDATA: 'Guided Tour',
+    NOLEGGIO_NATANTE: 'Boat Rental',
   },
   
   fr: {

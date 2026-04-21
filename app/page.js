@@ -560,6 +560,7 @@ function HomePage({ setView, experiences, companyBrand }) {
 
 // ============ CATALOG ============
 function CatalogPage({ setView, experiences, currentUser, companies, companyBrand }) {
+  const { t } = useLanguage();
   const [typeF, setTypeF] = useState('ALL');
   const [langF, setLangF] = useState('ALL');
   const [q, setQ] = useState('');
@@ -612,16 +613,16 @@ function CatalogPage({ setView, experiences, currentUser, companies, companyBran
           <img src={logoUrl} alt={brandName} className="h-16 object-contain rounded" />
           <div>
             <h2 className="text-2xl font-bold">{brandName}</h2>
-            <p className="text-sm text-muted-foreground">Le tue esperienze</p>
+            <p className="text-sm text-muted-foreground">{t('your_experiences')}</p>
           </div>
         </div>
       )}
       
-      <div className="mb-8"><h1 className="text-3xl md:text-4xl font-bold mb-2">Le Nostre Esperienze</h1><p className="text-muted-foreground">Scopri tutte le attivita disponibili.</p></div>
+      <div className="mb-8"><h1 className="text-3xl md:text-4xl font-bold mb-2">{t('our_experiences')}</h1><p className="text-muted-foreground">{t('discover_all_activities')}</p></div>
       <div className="flex flex-wrap gap-3 mb-8 p-4 bg-white rounded-xl shadow-sm border">
-        <div className="flex-1 min-w-[200px]"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Cerca..." value={q} onChange={e=>setQ(e.target.value)} className="pl-9" /></div></div>
-        <Select value={typeF} onValueChange={setTypeF}><SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tutti i tipi</SelectItem><SelectItem value="GITA_GOMMONE">Gita in Gommone</SelectItem><SelectItem value="GITA_BARCA">Gita in Barca</SelectItem><SelectItem value="VISITA_GUIDATA">Visita Guidata</SelectItem><SelectItem value="NOLEGGIO_NATANTE">Noleggio Natante</SelectItem></SelectContent></Select>
-        <Select value={langF} onValueChange={setLangF}><SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tutte le lingue</SelectItem><SelectItem value="IT">Italiano</SelectItem><SelectItem value="EN">English</SelectItem><SelectItem value="FR">Francais</SelectItem><SelectItem value="DE">Deutsch</SelectItem></SelectContent></Select>
+        <div className="flex-1 min-w-[200px]"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder={t('search_placeholder')} value={q} onChange={e=>setQ(e.target.value)} className="pl-9" /></div></div>
+        <Select value={typeF} onValueChange={setTypeF}><SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Tutti i tipi</SelectItem><SelectItem value="GITA_GOMMONE">{t('GITA_GOMMONE')}</SelectItem><SelectItem value="GITA_BARCA">{t('GITA_BARCA')}</SelectItem><SelectItem value="VISITA_GUIDATA">{t('VISITA_GUIDATA')}</SelectItem><SelectItem value="NOLEGGIO_NATANTE">{t('NOLEGGIO_NATANTE')}</SelectItem></SelectContent></Select>
+        <Select value={langF} onValueChange={setLangF}><SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">{t('all_languages')}</SelectItem><SelectItem value="IT">Italiano</SelectItem><SelectItem value="EN">English</SelectItem><SelectItem value="FR">Français</SelectItem><SelectItem value="DE">Deutsch</SelectItem></SelectContent></Select>
       </div>
       {filtered.length === 0 ? <div className="text-center py-20"><Waves className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" /><p className="text-muted-foreground">Nessuna esperienza trovata.</p></div> : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -630,7 +631,7 @@ function CatalogPage({ setView, experiences, currentUser, companies, companyBran
               <div className="relative h-52 overflow-hidden"><img src={(exp.images && exp.images[0]) || exp.image_url || '/uploads/placeholder.jpg'} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div></div>
               <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle><CardDescription className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" />{exp.meeting_point}</CardDescription>{isSuperAdmin && exp.company_id && (<div className="mt-2"><Badge className="bg-purple-100 text-purple-800 text-xs">{getCompanyName(exp.company_id)}</Badge></div>)}</CardHeader>
               <CardContent className="pb-2"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span><span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span></div></CardContent>
-              <CardFooter className="pt-0 flex justify-between items-center"><div className="text-2xl font-bold text-primary">{fmtPrice(exp.price_b2c)}<span className="text-xs font-normal text-muted-foreground">/persona</span></div><Button size="sm">Scopri <ChevronRight className="w-4 h-4 ml-1" /></Button></CardFooter>
+              <CardFooter className="pt-0 flex justify-between items-center"><div className="text-2xl font-bold text-primary">{fmtPrice(exp.price_b2c)}<span className="text-xs font-normal text-muted-foreground">{t('per_person')}</span></div><Button size="sm">{t('discover')} <ChevronRight className="w-4 h-4 ml-1" /></Button></CardFooter>
             </Card>
           ))}
         </div>
