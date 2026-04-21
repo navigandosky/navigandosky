@@ -530,7 +530,7 @@ function HomePage({ setView, experiences, companyBrand }) {
           <div className="mb-6"><img src={logoUrl} alt={brandName} className="h-20 md:h-28 mx-auto rounded-lg shadow-2xl" /></div>
           <h1 className="text-4xl md:text-6xl font-bold mb-4 drop-shadow-lg">Scopri la Sardegna dal Mare</h1>
           <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto">Escursioni in barca, visite guidate, noleggio gommoni. Vivi il Mediterraneo con guide esperte.</p>
-          <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold text-base px-8 shadow-lg" onClick={() => setView('catalog')}><Compass className="w-5 h-5 mr-2" />Esplora le Esperienze</Button>
+          <Button size="lg" className="bg-primary text-white hover:bg-primary/90 font-bold text-base px-8 py-6 shadow-2xl border-2 border-white" onClick={() => setView('catalog')}><Compass className="w-5 h-5 mr-2" />Esplora le Esperienze</Button>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
       </section>
