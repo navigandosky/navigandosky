@@ -45,7 +45,8 @@ export default function FleetMap({
     if (!isMounted || devices.length === 0) return;
 
     devices.forEach(device => {
-      if (device.resource?.id && !deviceBookings[device.imei]) {
+      const bKey = device.uniqueKey || device.imei;
+      if (device.resource?.id && !deviceBookings[bKey]) {
         loadBookingsForDevice(device);
       }
     });
@@ -60,13 +61,15 @@ export default function FleetMap({
 
     // Se abbiamo routeData dal parent (selectedDevice), usalo
     if (routeData && routeData.length > 0 && selectedDevice?.imei) {
-      setRoutes({ [selectedDevice.imei]: routeData });
+      const rKey = selectedDevice.uniqueKey || selectedDevice.imei;
+      setRoutes({ [rKey]: routeData });
       return;
     }
 
     // Altrimenti carica per tutti i dispositivi
     devices.forEach(device => {
-      if (device.imei && !routes[device.imei]) {
+      const rKey = device.uniqueKey || device.imei;
+      if (device.imei && !routes[rKey]) {
         loadRouteForDevice(device);
       }
     });
@@ -74,17 +77,18 @@ export default function FleetMap({
 
   const loadBookingsForDevice = async (device) => {
     if (!device.resource?.id) return;
+    const bKey = device.uniqueKey || device.imei;
 
-    setLoadingBookings(prev => ({ ...prev, [device.imei]: true }));
+    setLoadingBookings(prev => ({ ...prev, [bKey]: true }));
 
     try {
       const date = selectedDate || new Date().toISOString().split('T')[0];
       const data = await api(`bookings/by-resource?resource_id=${device.resource.id}&date=${date}`);
-      setDeviceBookings(prev => ({ ...prev, [device.imei]: data }));
+      setDeviceBookings(prev => ({ ...prev, [bKey]: data }));
     } catch (error) {
       console.error('Error loading bookings:', error);
     } finally {
-      setLoadingBookings(prev => ({ ...prev, [device.imei]: false }));
+      setLoadingBookings(prev => ({ ...prev, [bKey]: false }));
     }
   };
 
@@ -94,7 +98,8 @@ export default function FleetMap({
       const data = await api(`gps/analytics/${device.imei}?date=${date}`);
       
       if (data.route && data.route.length > 0) {
-        setRoutes(prev => ({ ...prev, [device.imei]: data.route }));
+        const rKey = device.uniqueKey || device.imei;
+        setRoutes(prev => ({ ...prev, [rKey]: data.route }));
       }
     } catch (error) {
       console.error('Error loading route:', error);
@@ -126,14 +131,18 @@ export default function FleetMap({
       />
 
       {/* Rotte storiche */}
-      {showRoute && Object.entries(routes).map(([imei, route]) => {
+      {showRoute && Object.entries(routes).map(([rKey, route]) => {
         if (!route || route.length < 2) return null;
         
-        const positions = route.map(p => [p.lat, p.lng]);
+        const positions = route
+          .map(p => [p.lat ?? p.latitude, p.lng ?? p.longitude])
+          .filter(pos => pos[0] != null && pos[1] != null);
+        
+        if (positions.length < 2) return null;
         
         return (
           <Polyline
-            key={`route-${imei}`}
+            key={`route-${rKey}`}
             positions={positions}
             pathOptions={{
               color: '#10b981',
@@ -149,13 +158,16 @@ export default function FleetMap({
 
       {/* Marker dispositivi */}
       {devices.map(device => {
-        if (!device.lat || !device.lng) return null;
+        const lat = device.lat ?? device.latitude;
+        const lng = device.lng ?? device.longitude;
+        if (!lat || !lng) return null;
 
-        const bookings = deviceBookings[device.imei];
-        const loading = loadingBookings[device.imei];
+        const bookingsKey = device.uniqueKey || device.imei;
+        const bookings = deviceBookings[bookingsKey];
+        const loading = loadingBookings[bookingsKey];
 
         return (
-          <Marker key={device.imei} position={[device.lat, device.lng]}>
+          <Marker key={device.uniqueKey || device.imei} position={[lat, lng]}>
             <Popup maxWidth={450} className="custom-popup">
               <ParticipantsPopup 
                 device={device}

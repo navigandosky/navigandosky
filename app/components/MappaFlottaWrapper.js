@@ -99,28 +99,59 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
       // Filtra solo risorse con GPS IMEI configurato
       const resourcesWithGPS = (safeResData || []).filter(r => r.gps_imei && r.gps_imei.trim() !== '');
       
-      // Mappa 1: Dispositivi GPS con dati real-time
-      const enrichedFromGPS = (Array.isArray(safeGpsData) ? safeGpsData : []).map(device => {
-        const resource = resourcesWithGPS.find(r => r.gps_imei === device.imei);
-        return { ...device, resource, status: 'online' };
+      // Crea mappa IMEI -> device GPS (per lookup veloce)
+      const gpsByImei = {};
+      (Array.isArray(safeGpsData) ? safeGpsData : []).forEach(device => {
+        const imei = device.imei || device.id;
+        if (imei) gpsByImei[String(imei).trim()] = device;
       });
       
-      // Mappa 2: Risorse con GPS IMEI ma senza dati real-time (offline)
-      const offlineResources = resourcesWithGPS
-        .filter(r => !enrichedFromGPS.find(d => d.imei === r.gps_imei))
-        .map(resource => ({
-          imei: resource.gps_imei,
+      // IMPORTANTE: Iteriamo sulle RISORSE, non sui device.
+      // In questo modo se 2+ risorse hanno lo stesso IMEI (es. test),
+      // ciascuna ottiene la sua riga sulla mappa (stessa posizione GPS).
+      const allDevices = resourcesWithGPS.map(resource => {
+        const imei = String(resource.gps_imei).trim();
+        const gpsDevice = gpsByImei[imei];
+        
+        // Chiave unica per React: imei + resource.id (gestisce IMEI duplicati)
+        const uniqueKey = `${imei}_${resource.id}`;
+        
+        if (gpsDevice) {
+          // Normalizza campi lat/lng/moving (Balin può usare nomi diversi)
+          const lat = gpsDevice.lat ?? gpsDevice.latitude ?? null;
+          const lng = gpsDevice.lng ?? gpsDevice.longitude ?? null;
+          const speed = gpsDevice.speed ?? 0;
+          const moving = gpsDevice.moving ?? (speed > 1);
+          return {
+            ...gpsDevice,
+            imei,
+            lat,
+            lng,
+            latitude: lat,
+            longitude: lng,
+            speed,
+            moving,
+            resource,
+            status: 'online',
+            uniqueKey,
+          };
+        }
+        // Risorsa con IMEI ma senza dati GPS real-time => offline
+        return {
+          imei,
           resource,
           status: 'offline',
           last_update: null,
           latitude: null,
           longitude: null,
+          lat: null,
+          lng: null,
           speed: 0,
-          battery: 0
-        }));
-      
-      // Combina dispositivi online e offline
-      const allDevices = [...enrichedFromGPS, ...offlineResources];
+          battery: 0,
+          moving: false,
+          uniqueKey,
+        };
+      });
       
       setDevices(allDevices);
       setResources(safeResData || []);
@@ -191,8 +222,9 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
   }, [devices, filter]);
 
   const mapCenter = useMemo(() => {
-    if (filteredDevices.length > 0 && filteredDevices[0].lat && filteredDevices[0].lng) {
-      return [filteredDevices[0].lat, filteredDevices[0].lng];
+    const firstWithCoords = filteredDevices.find(d => (d.lat ?? d.latitude) && (d.lng ?? d.longitude));
+    if (firstWithCoords) {
+      return [firstWithCoords.lat ?? firstWithCoords.latitude, firstWithCoords.lng ?? firstWithCoords.longitude];
     }
     return [40.9, 9.5];
   }, [filteredDevices]);
