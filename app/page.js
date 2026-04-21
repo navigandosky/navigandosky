@@ -2745,10 +2745,12 @@ function AdminDashboard({ currentUser, onLogout }) {
                     className="h-9 w-9 flex-shrink-0"
                     title="Giorno precedente"
                     onClick={() => {
-                      const base = bookingDateFilter || new Date().toISOString().split('T')[0];
-                      const d = new Date(base + 'T00:00:00');
-                      d.setDate(d.getDate() - 1);
-                      setBookingDateFilter(d.toISOString().split('T')[0]);
+                      const toYMD = (dt) => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+                      const base = bookingDateFilter || toYMD(new Date());
+                      const [y,m,d] = base.split('-').map(Number);
+                      const dt = new Date(y, m-1, d);
+                      dt.setDate(dt.getDate() - 1);
+                      setBookingDateFilter(toYMD(dt));
                     }}
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -2766,10 +2768,12 @@ function AdminDashboard({ currentUser, onLogout }) {
                     className="h-9 w-9 flex-shrink-0"
                     title="Giorno successivo"
                     onClick={() => {
-                      const base = bookingDateFilter || new Date().toISOString().split('T')[0];
-                      const d = new Date(base + 'T00:00:00');
-                      d.setDate(d.getDate() + 1);
-                      setBookingDateFilter(d.toISOString().split('T')[0]);
+                      const toYMD = (dt) => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+                      const base = bookingDateFilter || toYMD(new Date());
+                      const [y,m,d] = base.split('-').map(Number);
+                      const dt = new Date(y, m-1, d);
+                      dt.setDate(dt.getDate() + 1);
+                      setBookingDateFilter(toYMD(dt));
                     }}
                   >
                     <ChevronRight className="w-4 h-4" />
