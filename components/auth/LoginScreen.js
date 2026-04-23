@@ -112,7 +112,7 @@ export default function LoginScreen({ onLoginSuccess }) {
 
             <Button 
               type="submit" 
-              className="w-full h-12 text-base font-semibold"
+              className="w-full h-12 text-base font-semibold bg-primary text-white hover:bg-primary/90 shadow-md"
               disabled={loading}
             >
               {loading ? (

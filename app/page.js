@@ -44,6 +44,66 @@ const safeToastError = (message) => {
   toast.error(message);
 };
 
+// ============ HEX → HSL CONVERTER (per shadcn CSS vars) ============
+// shadcn usa `--primary: H S% L%` (senza hsl() wrapper).
+// I color-picker salvano in hex (#RRGGBB). Dobbiamo convertire.
+const hexToHSL = (hex) => {
+  if (!hex || typeof hex !== 'string') return null;
+  let h = hex.replace('#', '').trim();
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  if (h.length !== 6) return null;
+  const r = parseInt(h.slice(0,2), 16) / 255;
+  const g = parseInt(h.slice(2,4), 16) / 255;
+  const b = parseInt(h.slice(4,6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  let H = 0, S = 0;
+  if (max !== min) {
+    const d = max - min;
+    S = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: H = ((g - b) / d + (g < b ? 6 : 0)); break;
+      case g: H = ((b - r) / d + 2); break;
+      case b: H = ((r - g) / d + 4); break;
+    }
+    H *= 60;
+  }
+  return { h: Math.round(H), s: Math.round(S * 100), l: Math.round(l * 100) };
+};
+
+// Calcola contrasto: ritorna il colore foreground (0 0% 100% o 222 47% 11%)
+const contrastForeground = (hslObj) => {
+  if (!hslObj) return '0 0% 100%';
+  return hslObj.l >= 60 ? '222 47% 11%' : '0 0% 100%';
+};
+
+// Applica il branding company a livello di CSS vars (shadcn-compatible)
+const applyCompanyBranding = (company) => {
+  if (typeof document === 'undefined' || !company) return;
+  const root = document.documentElement;
+  
+  const primaryHSL = hexToHSL(company.primary_color);
+  if (primaryHSL) {
+    root.style.setProperty('--primary', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
+    root.style.setProperty('--primary-foreground', contrastForeground(primaryHSL));
+  }
+  
+  const secondaryHSL = hexToHSL(company.secondary_color);
+  if (secondaryHSL) {
+    root.style.setProperty('--secondary', `${secondaryHSL.h} ${secondaryHSL.s}% ${secondaryHSL.l}%`);
+    root.style.setProperty('--secondary-foreground', contrastForeground(secondaryHSL));
+  }
+};
+
+const resetCompanyBranding = () => {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.style.removeProperty('--primary');
+  root.style.removeProperty('--primary-foreground');
+  root.style.removeProperty('--secondary');
+  root.style.removeProperty('--secondary-foreground');
+};
+
 const TYPE_COLORS = { GITA_GOMMONE: 'bg-sky-100 text-sky-800 border-sky-200', GITA_BARCA: 'bg-blue-100 text-blue-800 border-blue-200', VISITA_GUIDATA: 'bg-emerald-100 text-emerald-800 border-emerald-200', NOLEGGIO_NATANTE: 'bg-amber-100 text-amber-800 border-amber-200' };
 const GANTT_COLORS = { GITA_GOMMONE: 'bg-sky-50 border-sky-300 text-sky-900', GITA_BARCA: 'bg-blue-50 border-blue-300 text-blue-900', VISITA_GUIDATA: 'bg-emerald-50 border-emerald-300 text-emerald-900', NOLEGGIO_NATANTE: 'bg-amber-50 border-amber-300 text-amber-900' };
 const LANG_MAP = { IT: 'Italiano', EN: 'English', FR: 'Francais', DE: 'Deutsch' };
@@ -452,7 +512,7 @@ function Footer() {
             <div>
               <h4 className="font-semibold mb-3">Diventa Partner</h4>
               <p className="text-sm text-white/90 mb-3 font-bold">Sei un'agenzia viaggi? Entra nella nostra rete B2B.</p>
-              <Button variant="outline" className="w-full text-white border-white hover:bg-white hover:text-primary" onClick={() => setShowWorkWithUs(true)}>
+              <Button variant="outline" className="w-full bg-white/10 text-white border-2 border-white hover:bg-white hover:text-primary backdrop-blur-sm" onClick={() => setShowWorkWithUs(true)}>
                 <Building2 className="w-4 h-4 mr-2" />
                 <span className="font-bold">Lavora con noi</span>
               </Button>
@@ -4572,6 +4632,19 @@ export default function App() {
         const user = JSON.parse(savedUser);
         setCurrentUser(user);
         setIsAuthenticated(true);
+        // Ripristina il branding per Company Admin
+        if (user.role === 'COMPANY_ADMIN' && user.company_id) {
+          fetch(`/api/companies/${user.company_id}`)
+            .then(r => r.json())
+            .then(cd => {
+              if (cd && cd.id) {
+                setCompanyBrand(cd);
+                setBrandedMode(true);
+                applyCompanyBranding(cd);
+              }
+            })
+            .catch(() => {});
+        }
       } catch (error) {
         console.error('Errore parsing sessione:', error);
         localStorage.removeItem('user');
@@ -4615,6 +4688,7 @@ export default function App() {
         if (companyData && companyData.id) {
           setCompanyBrand(companyData);
           setBrandedMode(true);
+          applyCompanyBranding(companyData);
           
           // Carica anche le esperienze della società
           const expsRes = await fetch(`${API_BASE}/experiences?company_id=${user.company_id}`);
@@ -4634,6 +4708,7 @@ export default function App() {
     setIsAuthenticated(false);
     setCompanyBrand(null);
     setBrandedMode(false);
+    resetCompanyBranding();
     setView('home');
     toast.success('Logout effettuato');
   };
@@ -4651,14 +4726,7 @@ export default function App() {
       api(`companies/${companyId}`).then(company => {
         if (company && !company.error) {
           setCompanyBrand(company);
-          
-          // Applica branding CSS
-          if (company.primary_color) {
-            document.documentElement.style.setProperty('--primary', company.primary_color);
-          }
-          if (company.secondary_color) {
-            document.documentElement.style.setProperty('--secondary', company.secondary_color);
-          }
+          applyCompanyBranding(company);
         }
       }).catch(err => console.error('Errore caricamento branding:', err));
     }
