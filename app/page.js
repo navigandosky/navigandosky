@@ -3283,6 +3283,88 @@ function AdminDashboard({ currentUser, onLogout }) {
               </DialogHeader>
               
               <div className="grid gap-4 py-4">
+                {/* Link Pubblici & Accessi (solo per company esistenti) */}
+                {newCompanyForm.id && newCompanyForm.slug && (
+                  <div className="space-y-3 p-4 bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-primary" />
+                      Link Pubblici & Accessi
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Condividi questi link per dare accesso diretto al catalogo pubblico e alle dashboard di questa società
+                    </p>
+                    
+                    {(() => {
+                      const base = typeof window !== 'undefined' ? window.location.origin : '';
+                      const catalogUrl = `${base}/${newCompanyForm.slug}`;
+                      const adminUrl = `${base}/`;
+                      const b2bUrl = `${base}/${newCompanyForm.slug}/b2b`;
+                      const copy = (url, label) => {
+                        navigator.clipboard.writeText(url);
+                        toast.success(`${label} copiato!`);
+                      };
+                      return (
+                        <div className="space-y-2">
+                          {/* Catalogo pubblico B2C */}
+                          <div className="flex items-center gap-2 bg-white p-2 rounded-md border">
+                            <Badge className="bg-green-100 text-green-800 text-xs shrink-0">B2C</Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-muted-foreground">Catalogo Pubblico</p>
+                              <a href={catalogUrl} target="_blank" rel="noopener" className="text-xs font-mono text-primary hover:underline truncate block">
+                                {catalogUrl}
+                              </a>
+                            </div>
+                            <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" onClick={() => copy(catalogUrl, 'Link catalogo')}>
+                              <Copy className="w-3 h-3 mr-1" />Copia
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" className="h-8 shrink-0" onClick={() => window.open(catalogUrl, '_blank')}>
+                              <ChevronRight className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          
+                          {/* Login Company Admin */}
+                          <div className="flex items-center gap-2 bg-white p-2 rounded-md border">
+                            <Badge className="bg-purple-100 text-purple-800 text-xs shrink-0">ADMIN</Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-muted-foreground">Login Amministratore Company</p>
+                              <a href={adminUrl} target="_blank" rel="noopener" className="text-xs font-mono text-primary hover:underline truncate block">
+                                {adminUrl} → B2B Company
+                              </a>
+                            </div>
+                            <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" onClick={() => copy(adminUrl, 'Link admin')}>
+                              <Copy className="w-3 h-3 mr-1" />Copia
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" className="h-8 shrink-0" onClick={() => window.open(adminUrl, '_blank')}>
+                              <ChevronRight className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          
+                          {/* Login Agenzie B2B */}
+                          <div className="flex items-center gap-2 bg-white p-2 rounded-md border">
+                            <Badge className="bg-amber-100 text-amber-800 text-xs shrink-0">B2B</Badge>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-muted-foreground">Login Agenzie B2B</p>
+                              <a href={b2bUrl} target="_blank" rel="noopener" className="text-xs font-mono text-primary hover:underline truncate block">
+                                {b2bUrl}
+                              </a>
+                            </div>
+                            <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" onClick={() => copy(b2bUrl, 'Link B2B')}>
+                              <Copy className="w-3 h-3 mr-1" />Copia
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" className="h-8 shrink-0" onClick={() => window.open(b2bUrl, '_blank')}>
+                              <ChevronRight className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    
+                    <div className="text-xs text-muted-foreground pt-1 border-t border-blue-200">
+                      💡 Slug società: <span className="font-mono bg-white px-1.5 py-0.5 rounded border">{newCompanyForm.slug}</span>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Informazioni Base */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
