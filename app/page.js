@@ -477,10 +477,38 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, curren
 }
 
 // ============ FOOTER ============
-function Footer() {
+function Footer({ companyBrand, currentUser }) {
   const [showWorkWithUs, setShowWorkWithUs] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', company: '', message: '' });
   const [sending, setSending] = useState(false);
+  
+  // Determina i contatti da mostrare
+  // - Super Admin (o nessun contesto company): contatti Trivor
+  // - Company branded (B2C catalog /[slug], Company Admin loggato): contatti della company
+  const isSuperAdminView = currentUser?.role === 'SUPER_ADMIN' && !companyBrand;
+  const hasCompanyContext = Boolean(companyBrand);
+  
+  const contactInfo = hasCompanyContext ? {
+    name: companyBrand.name,
+    phone: companyBrand.phone || companyBrand.whatsapp || '',
+    whatsapp: companyBrand.whatsapp || companyBrand.phone || '',
+    email: companyBrand.email || '',
+    address: [companyBrand.address, companyBrand.city].filter(Boolean).join(', '),
+    description: companyBrand.description || 'Esperienze marine indimenticabili in Sardegna.',
+    pIva: companyBrand.vat_number || companyBrand.piva || '',
+    logo: companyBrand.logo_url || LOGO_URL
+  } : {
+    // Default = Trivor (Super Admin o senza contesto)
+    name: 'Trivor SRL',
+    phone: '+39 320 8083839',
+    whatsapp: '+39 320 8083839',
+    email: 'trivorsrl@gmail.com',
+    address: '',
+    description: 'Piattaforma multi-tenant per operatori turistici.',
+    pIva: '',
+    logo: LOGO_URL
+  };
+  const showAddress = hasCompanyContext && contactInfo.address;
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.email || !formData.message) {
@@ -506,9 +534,34 @@ function Footer() {
       <footer className="wave-bg text-white mt-20">
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div><img src={LOGO_URL} alt="Trivor" className="h-12 mb-4 rounded" /><p className="text-white/70 text-sm">Esperienze marine indimenticabili in Sardegna.</p></div>
-            <div><h4 className="font-semibold mb-3">Contatti</h4><div className="space-y-2 text-sm text-white/70"><p className="flex items-center gap-2"><Phone className="w-4 h-4" /> +39 079 123 456</p><p className="flex items-center gap-2"><Mail className="w-4 h-4" /> info@maretrek.it</p><p className="flex items-center gap-2"><MapPin className="w-4 h-4" /> Porto di Alghero, Sardegna</p></div></div>
-            <div><h4 className="font-semibold mb-3">Info</h4><p className="text-sm text-white/70">Operatore turistico specializzato in esperienze marine nel nord Sardegna.</p></div>
+            <div><img src={contactInfo.logo} alt={contactInfo.name} className="h-12 mb-4 rounded bg-white/90 p-1" /><p className="text-white/70 text-sm">{contactInfo.description}</p></div>
+            <div>
+              <h4 className="font-semibold mb-3">Contatti</h4>
+              <div className="space-y-2 text-sm text-white/70">
+                {contactInfo.phone && (
+                  <p className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 flex-shrink-0" />
+                    <a href={`tel:${contactInfo.phone.replace(/\s+/g,'')}`} className="hover:text-white transition-colors">{contactInfo.phone}</a>
+                    {contactInfo.whatsapp && (
+                      <a href={`https://wa.me/${contactInfo.whatsapp.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener noreferrer" className="text-xs px-1.5 py-0.5 bg-green-600/80 rounded hover:bg-green-600" title="WhatsApp">WA</a>
+                    )}
+                  </p>
+                )}
+                {contactInfo.email && (
+                  <p className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 flex-shrink-0" />
+                    <a href={`mailto:${contactInfo.email}`} className="hover:text-white transition-colors break-all">{contactInfo.email}</a>
+                  </p>
+                )}
+                {showAddress && (
+                  <p className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 flex-shrink-0" />
+                    <span>{contactInfo.address}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+            <div><h4 className="font-semibold mb-3">Info</h4><p className="text-sm text-white/70">{hasCompanyContext ? `Operatore turistico - ${contactInfo.name}` : 'Piattaforma SaaS multi-tenant per operatori turistici. Ogni company gestisce il proprio catalogo, prenotazioni e flotta.'}</p></div>
             <div>
               <h4 className="font-semibold mb-3">Diventa Partner</h4>
               <p className="text-sm text-white/90 mb-3 font-bold">Sei un'agenzia viaggi? Entra nella nostra rete B2B.</p>
@@ -520,7 +573,10 @@ function Footer() {
           </div>
           <Separator className="my-8 bg-white/20" />
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <p className="text-sm text-white/50">&copy; 2025 Maretrek S.r.l. - P.IVA 01234567890</p>
+            <p className="text-sm text-white/50">
+              &copy; {new Date().getFullYear()} {contactInfo.name}
+              {contactInfo.pIva && ` - P.IVA ${contactInfo.pIva}`}
+            </p>
             <div className="flex items-center gap-2">
               <p className="text-xs text-white/40">Created by</p>
               <a 
@@ -4779,7 +4835,7 @@ export default function App() {
             )
           )}
         </main>
-        <Footer />
+        <Footer companyBrand={companyBrand} currentUser={currentUser} />
       </div>
     </LanguageProvider>
   );
