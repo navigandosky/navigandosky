@@ -1929,11 +1929,16 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [overviewDateFilter, setOverviewDateFilter] = useState('');
 
   const load = useCallback(async () => {
+    // Multi-tenancy: Company Admin vede SOLO i dati della sua Company
+    const cid = currentUser?.company_id;
+    const q = (!isSuperAdmin && cid) ? `?company_id=${cid}` : '';
+    const qAll = (!isSuperAdmin && cid) ? `&company_id=${cid}` : '';
+    
     // Carica solo dati essenziali all'avvio per velocizzare
     const [s, e, r] = await Promise.all([
-      api('stats'), 
-      api('experiences?all=true'), 
-      api('resources')
+      api(`stats${q}`), 
+      api(`experiences?all=true${qAll}`), 
+      api(`resources${q}`)
     ]);
     setStats(s||{}); 
     setExps(Array.isArray(e)?e:[]); 
@@ -1941,10 +1946,13 @@ function AdminDashboard({ currentUser, onLogout }) {
     
     // Carica il resto in background (non-blocking)
     setTimeout(async () => {
-      // Filtra agenzie per company_id se non è Super Admin
-      const agenciesUrl = isSuperAdmin ? 'agencies' : `agencies?company_id=${currentUser?.company_id || ''}`;
+      const agenciesUrl = isSuperAdmin ? 'agencies' : `agencies?company_id=${cid || ''}`;
       const [sl, b, v, ag, co] = await Promise.all([
-        api('slots'), api('bookings'), api('vouchers'), api(agenciesUrl), api('companies')
+        api(`slots${q}`), 
+        api(`bookings${q}`), 
+        api(`vouchers${q}`), 
+        api(agenciesUrl), 
+        api('companies')
       ]);
       setSlots(Array.isArray(sl)?sl:[]); 
       setBookings(Array.isArray(b)?b:[]); 
@@ -1953,7 +1961,7 @@ function AdminDashboard({ currentUser, onLogout }) {
       setCompanies(Array.isArray(co)?co:[]);
       setFilteredBookings(Array.isArray(b)?b:[]);
     }, 100);
-  }, []);
+  }, [isSuperAdmin, currentUser?.company_id]);
 
   useEffect(() => { load(); }, [load]);
 

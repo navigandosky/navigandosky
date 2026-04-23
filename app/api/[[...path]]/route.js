@@ -262,9 +262,8 @@ async function handleBookings(method, id, body, action, sp) {
   const col = db.collection('bookings');
 
   if (method === 'GET' && !id) {
-    if (sp.get('company_id')) filter.company_id = sp.get('company_id'); // Multi-Tenant
-
     const filter = {};
+    if (sp.get('company_id')) filter.company_id = sp.get('company_id'); // Multi-Tenant
     if (sp.get('status')) filter.status = sp.get('status');
     if (sp.get('slot_id')) filter.slot_id = sp.get('slot_id');
     if (sp.get('customer_email')) filter.customer_email = sp.get('customer_email');
@@ -655,15 +654,18 @@ async function handleAgencies(method, id, body, action, sp) {
 }
 
 // ==================== STATS ====================
-async function handleStats() {
+async function handleStats(sp) {
   const db = await getDb();
-  const totalBookings = await db.collection('bookings').countDocuments({ status: { $ne: 'CANCELLED' } });
-  const totalExperiences = await db.collection('experiences').countDocuments();
-  const totalResources = await db.collection('resources').countDocuments();
-  const totalSlots = await db.collection('slots').countDocuments();
+  const companyId = sp?.get?.('company_id');
+  const companyFilter = companyId ? { company_id: companyId } : {};
+  
+  const totalBookings = await db.collection('bookings').countDocuments({ ...companyFilter, status: { $ne: 'CANCELLED' } });
+  const totalExperiences = await db.collection('experiences').countDocuments(companyFilter);
+  const totalResources = await db.collection('resources').countDocuments(companyFilter);
+  const totalSlots = await db.collection('slots').countDocuments(companyFilter);
 
   const revenueAgg = await db.collection('bookings').aggregate([
-    { $match: { status: 'CONFIRMED' } },
+    { $match: { ...companyFilter, status: 'CONFIRMED' } },
     { $group: { _id: null, total: { $sum: '$total_amount' }, seats: { $sum: '$seats' } } }
   ]).toArray();
 
@@ -673,12 +675,13 @@ async function handleStats() {
   todayEnd.setHours(23, 59, 59, 999);
 
   const todayBookings = await db.collection('bookings').countDocuments({
+    ...companyFilter,
     created_at: { $gte: todayStart.toISOString(), $lte: todayEnd.toISOString() },
     status: 'CONFIRMED'
   });
 
   const recentBookings = await db.collection('bookings')
-    .find({}).sort({ created_at: -1 }).limit(10).toArray();
+    .find(companyFilter).sort({ created_at: -1 }).limit(10).toArray();
 
   return json({
     total_bookings: totalBookings,
@@ -1651,7 +1654,7 @@ async function handleRoute(request, resolvedParams, method) {
       case 'upload': return await handleImageUpload(method, body);
       case 'upload-pdf': return await handlePDFUpload(method, body);
       case 'contact': return await handleContact(method, body);
-      case 'stats': return await handleStats();
+      case 'stats': return await handleStats(searchParams);
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
       default: return json({ error: 'Endpoint non trovato' }, 404);
