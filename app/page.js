@@ -2112,6 +2112,19 @@ function AdminDashboard({ currentUser, onLogout }) {
     return resource.name.substring(0, 6);
   };
 
+  // Helper: nome company + badge colorato per Super Admin view
+  const getCompanyName = (companyId) => {
+    if (!companyId) return '—';
+    const c = companies?.find(co => co.id === companyId);
+    return c ? c.name : `#${String(companyId).slice(0,6)}`;
+  };
+
+  const CompanyBadge = ({ companyId }) => {
+    if (!isSuperAdmin) return null;
+    if (!companyId) return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">ORFANO</Badge>;
+    return <Badge className="bg-purple-100 text-purple-800 border border-purple-200 text-xs hover:bg-purple-200">{getCompanyName(companyId)}</Badge>;
+  };
+
   const saveResource = async () => {
     if (!editRes) return;
     const res = await api(`resources/${editRes.id}`, { method: 'PUT', body: editResForm });
@@ -2563,8 +2576,8 @@ function AdminDashboard({ currentUser, onLogout }) {
         {/* Experiences */}
         <TabsContent value="experiences" className="space-y-4">
           <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Esperienze ({experiences.length})</h2><Button onClick={()=>{setFormData({type:'GITA_GOMMONE',languages:['IT'],is_active:true});setShowDialog('experience');}}><Plus className="w-4 h-4 mr-2"/>Nuova</Button></div>
-          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Nome</th><th className="p-3 font-medium">Tipo</th><th className="p-3 font-medium">B2C</th><th className="p-3 font-medium">B2B</th><th className="p-3 font-medium">Durata</th><th className="p-3 font-medium">Cap.</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {experiences.map(e=>(<tr key={e.id} className="border-b hover:bg-muted/30"><td className="p-3 font-medium">{e.name}</td><td className="p-3"><TypeBadge type={e.type}/></td><td className="p-3">{fmtPrice(e.price_b2c)}</td><td className="p-3">{fmtPrice(e.price_b2b)}</td><td className="p-3">{Math.floor(e.duration_minutes/60)}h</td><td className="p-3">{e.max_capacity}</td><td className="p-3">{e.is_active === false ? <Badge variant="outline" className="text-muted-foreground">Sospesa</Badge> : e.is_visible_on_home === false ? <Badge variant="secondary" className="bg-amber-100 text-amber-800">NO View</Badge> : <Badge className="bg-green-100 text-green-800">Attiva</Badge>}</td><td className="p-3"><div className="flex gap-1 flex-wrap"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{setFormData({...e,duration_hours:Math.floor(e.duration_minutes/60)});setShowDialog('edit_experience');}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button><Button variant="secondary" size="sm" className="h-7 text-xs" onClick={async ()=>{const {id,created_at,updated_at,...expData}=e;const duplicated=await api('experiences',{method:'POST',body:{...expData,name:`${e.name} (Copia)`,duration_hours:Math.floor(e.duration_minutes/60)}});if(duplicated.error){toast.error(duplicated.error);}else{toast.success('Esperienza duplicata!');await load();setFormData({...duplicated,duration_hours:Math.floor(duplicated.duration_minutes/60)});setShowDialog('edit_experience');}}}><Copy className="w-3 h-3 mr-1"/>Duplica</Button><Button variant={e.is_active !== false ? "ghost" : "outline"} size="sm" className="h-7 text-xs" onClick={async ()=>{await api(`experiences/${e.id}`,{method:'PUT',body:{is_active:!(e.is_active !== false)}});toast.success(e.is_active !== false ? 'Esperienza sospesa':'Esperienza attivata');await load();}}>{e.is_active !== false ? 'Sospendi' : 'Attiva'}</Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={()=>deleteItem('experiences',e.id)}><Trash2 className="w-3.5 h-3.5 text-red-500"/></Button></div></td></tr>))}
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Nome</th><th className="p-3 font-medium">Tipo</th>{isSuperAdmin && <th className="p-3 font-medium">Company</th>}<th className="p-3 font-medium">B2C</th><th className="p-3 font-medium">B2B</th><th className="p-3 font-medium">Durata</th><th className="p-3 font-medium">Cap.</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
+            {experiences.map(e=>(<tr key={e.id} className="border-b hover:bg-muted/30"><td className="p-3 font-medium">{e.name}</td><td className="p-3"><TypeBadge type={e.type}/></td>{isSuperAdmin && <td className="p-3"><CompanyBadge companyId={e.company_id}/></td>}<td className="p-3">{fmtPrice(e.price_b2c)}</td><td className="p-3">{fmtPrice(e.price_b2b)}</td><td className="p-3">{Math.floor(e.duration_minutes/60)}h</td><td className="p-3">{e.max_capacity}</td><td className="p-3">{e.is_active === false ? <Badge variant="outline" className="text-muted-foreground">Sospesa</Badge> : e.is_visible_on_home === false ? <Badge variant="secondary" className="bg-amber-100 text-amber-800">NO View</Badge> : <Badge className="bg-green-100 text-green-800">Attiva</Badge>}</td><td className="p-3"><div className="flex gap-1 flex-wrap"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={()=>{setFormData({...e,duration_hours:Math.floor(e.duration_minutes/60)});setShowDialog('edit_experience');}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button><Button variant="secondary" size="sm" className="h-7 text-xs" onClick={async ()=>{const {id,created_at,updated_at,...expData}=e;const duplicated=await api('experiences',{method:'POST',body:{...expData,name:`${e.name} (Copia)`,duration_hours:Math.floor(e.duration_minutes/60)}});if(duplicated.error){toast.error(duplicated.error);}else{toast.success('Esperienza duplicata!');await load();setFormData({...duplicated,duration_hours:Math.floor(duplicated.duration_minutes/60)});setShowDialog('edit_experience');}}}><Copy className="w-3 h-3 mr-1"/>Duplica</Button><Button variant={e.is_active !== false ? "ghost" : "outline"} size="sm" className="h-7 text-xs" onClick={async ()=>{await api(`experiences/${e.id}`,{method:'PUT',body:{is_active:!(e.is_active !== false)}});toast.success(e.is_active !== false ? 'Esperienza sospesa':'Esperienza attivata');await load();}}>{e.is_active !== false ? 'Sospendi' : 'Attiva'}</Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={()=>deleteItem('experiences',e.id)}><Trash2 className="w-3.5 h-3.5 text-red-500"/></Button></div></td></tr>))}
           </tbody></table></div>
         </TabsContent>
 
@@ -2592,9 +2605,10 @@ function AdminDashboard({ currentUser, onLogout }) {
                         </div>
                         <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{r.bio}</p>
                         {r.languages?.length>0&&<div className="mt-2 flex gap-1">{r.languages.map(l=><Badge key={l} variant="secondary" className="text-xs">{l}</Badge>)}</div>}
-                        <div className="mt-2 flex items-center gap-2">
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
                           <Badge variant="outline" className="text-xs">{rb.length} prenotazioni</Badge>
                           {rb.length>0&&<Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={()=>setResBookings({resource:r,bookings:rb})}>Vedi lista</Button>}
+                          <CompanyBadge companyId={r.company_id}/>
                         </div>
                       </div>
                     </div>
@@ -2729,7 +2743,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                           <div className="flex items-center gap-2">
                             {expanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
                             <div>
-                              <p className="font-semibold">{getExpName(group.experience_id)}</p>
+                              <p className="font-semibold flex items-center gap-2">{getExpName(group.experience_id)}<CompanyBadge companyId={group.slots[0]?.company_id}/></p>
                               <p className="text-sm text-muted-foreground capitalize">{fmtDate(group.slots[0].start_datetime)} • {group.slots.length} slot</p>
                             </div>
                           </div>
@@ -2972,8 +2986,8 @@ function AdminDashboard({ currentUser, onLogout }) {
               </Button>
             )}
           </div>
-          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th><th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Risorsa</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {filteredBookingsTab.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td><td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3 text-xs font-mono font-semibold">{getResourceName(b)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th>{isSuperAdmin && <th className="p-3 font-medium">Company</th>}<th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Risorsa</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
+            {filteredBookingsTab.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td>{isSuperAdmin && <td className="p-3"><CompanyBadge companyId={b.company_id}/></td>}<td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3 text-xs font-mono font-semibold">{getResourceName(b)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
               <td className="p-3"><div className="flex gap-1">
                 <Button variant="secondary" size="sm" className="text-xs h-7" onClick={()=>setPreviewBk(b)}><Eye className="w-3 h-3 mr-1"/>Anteprima</Button>
                 {(b.status==='CONFIRMED'&&!b.checked_in_at)&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>}
@@ -2986,7 +3000,7 @@ function AdminDashboard({ currentUser, onLogout }) {
           {filteredBookingsTab.length > 0 && (
             <tfoot className="bg-muted/80 font-semibold border-t-2 border-primary/20 sticky bottom-0">
               <tr>
-                <td colSpan={6} className="p-3 text-right text-muted-foreground uppercase text-xs tracking-wide">
+                <td colSpan={isSuperAdmin ? 7 : 6} className="p-3 text-right text-muted-foreground uppercase text-xs tracking-wide">
                   Totale {filteredBookingsTab.length} {filteredBookingsTab.length === 1 ? 'prenotazione' : 'prenotazioni'}
                 </td>
                 <td className="p-3 text-primary">
@@ -3005,8 +3019,8 @@ function AdminDashboard({ currentUser, onLogout }) {
         {/* Vouchers */}
         <TabsContent value="vouchers" className="space-y-4">
           <div className="flex justify-between items-center"><h2 className="text-xl font-semibold">Voucher ({vouchers.length})</h2><Button onClick={()=>{setFormData({type:'PERCENTAGE',value:10,max_uses:100});setShowDialog('voucher');}}><Plus className="w-4 h-4 mr-2"/>Nuovo</Button></div>
-          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Codice</th><th className="p-3 font-medium">Tipo</th><th className="p-3 font-medium">Valore</th><th className="p-3 font-medium">Utilizzi</th><th className="p-3 font-medium">Scadenza</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {vouchers.map(v=>(<tr key={v.id} className="border-b"><td className="p-3 font-mono font-bold">{v.code}</td><td className="p-3">{v.type==='PERCENTAGE'?'%':v.type==='FIXED'?'Fisso':'Regalo'}</td><td className="p-3 font-medium">{v.type==='PERCENTAGE'?`${v.value}%`:fmtPrice(v.value)}</td><td className="p-3">{v.uses_count}/{v.max_uses}</td><td className="p-3 text-xs">{v.valid_until?fmtDate(v.valid_until):'Illimitato'}</td><td className="p-3"><Button variant="ghost" size="icon" onClick={()=>deleteItem('vouchers',v.id)}><Trash2 className="w-4 h-4 text-red-500"/></Button></td></tr>))}
+          <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Codice</th><th className="p-3 font-medium">Tipo</th><th className="p-3 font-medium">Valore</th><th className="p-3 font-medium">Utilizzi</th><th className="p-3 font-medium">Scadenza</th>{isSuperAdmin && <th className="p-3 font-medium">Company</th>}<th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
+            {vouchers.map(v=>(<tr key={v.id} className="border-b"><td className="p-3 font-mono font-bold">{v.code}</td><td className="p-3">{v.type==='PERCENTAGE'?'%':v.type==='FIXED'?'Fisso':'Regalo'}</td><td className="p-3 font-medium">{v.type==='PERCENTAGE'?`${v.value}%`:fmtPrice(v.value)}</td><td className="p-3">{v.uses_count}/{v.max_uses}</td><td className="p-3 text-xs">{v.valid_until?fmtDate(v.valid_until):'Illimitato'}</td>{isSuperAdmin && <td className="p-3"><CompanyBadge companyId={v.company_id}/></td>}<td className="p-3"><Button variant="ghost" size="icon" onClick={()=>deleteItem('vouchers',v.id)}><Trash2 className="w-4 h-4 text-red-500"/></Button></td></tr>))}
           </tbody></table></div>
         </TabsContent>
 
