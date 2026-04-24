@@ -2082,7 +2082,18 @@ function AdminDashboard({ currentUser, onLogout }) {
   useEffect(() => { load(); }, [load]);
 
   const seedData = async () => { setSeeding(true); await api('seed', { method: 'POST' }); toast.success('Dati demo caricati!'); await load(); setSeeding(false); };
-  const createItem = async (ep, data) => { await api(ep, { method: 'POST', body: data }); toast.success('Creato!'); setShowDialog(null); setFormData({}); await load(); };
+  const createItem = async (ep, data) => {
+    // Multi-tenant: Company Admin assegna automaticamente company_id alle nuove entità
+    const payload = (!isSuperAdmin && currentUser?.company_id && !data.company_id) 
+      ? { ...data, company_id: currentUser.company_id }
+      : data;
+    const res = await api(ep, { method: 'POST', body: payload });
+    if (res?.error) { safeToastError(res.error); return; }
+    toast.success('Creato!'); 
+    setShowDialog(null); 
+    setFormData({}); 
+    await load();
+  };
   const deleteItem = async (ep, id) => { if (!confirm('Eliminare?')) return; await api(`${ep}/${id}`, { method: 'DELETE' }); toast.success('Eliminato!'); await load(); };
   const cancelBooking = async (id) => { await api(`bookings/${id}`, { method: 'PUT', body: { action: 'cancel' } }); toast.success('Cancellata'); await load(); };
   const checkinBooking = async (id) => { await api(`bookings/${id}`, { method: 'PUT', body: { action: 'checkin' } }); toast.success('Check-in!'); await load(); };
@@ -4738,7 +4749,7 @@ export default function App() {
     // Se è un Company Admin, carica i dati della società per il branding
     if (user.role === 'COMPANY_ADMIN' && user.company_id) {
       try {
-        const companyRes = await fetch(`${API_BASE}/companies/${user.company_id}`);
+        const companyRes = await fetch(`/api/companies/${user.company_id}`);
         const companyData = await companyRes.json();
         
         if (companyData && companyData.id) {
@@ -4747,7 +4758,7 @@ export default function App() {
           applyCompanyBranding(companyData);
           
           // Carica anche le esperienze della società
-          const expsRes = await fetch(`${API_BASE}/experiences?company_id=${user.company_id}`);
+          const expsRes = await fetch(`/api/experiences?company_id=${user.company_id}`);
           const expsData = await expsRes.json();
           setExperiences(Array.isArray(expsData) ? expsData : []);
         }
