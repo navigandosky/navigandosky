@@ -1429,7 +1429,7 @@ const ResourceBookingsList = memo(function ResourceBookingsList({ resource, book
 });
 
 // ============ GANTT CALENDAR ============
-const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBookings, experiences, onRefresh }) {
+const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBookings, experiences, companies, isSuperAdmin, onRefresh }) {
   const [weekOff, setWeekOff] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [slotBookings, setSlotBookings] = useState([]);
@@ -1453,6 +1453,11 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
   const getSlotBookings = (slotId) => (allBookings || []).filter(b => b.slot_id === slotId && b.status !== 'CANCELLED');
   const getExpName = (eid) => (experiences || []).find(e => e.id === eid)?.name || 'N/A';
   const getExpType = (eid) => (experiences || []).find(e => e.id === eid)?.type || '';
+  const getCompanyName = (cid) => {
+    if (!cid) return '—';
+    const c = (companies || []).find(co => co.id === cid);
+    return c ? c.name : `#${String(cid).slice(0,6)}`;
+  };
 
   const handleDragStart = (e, booking, slot) => {
     const data = JSON.stringify({ bookingId: booking.id, slotId: slot.id, expId: slot.experience_id });
@@ -1546,6 +1551,15 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
                                 </div>
                               )}
                             </div>
+                            {isSuperAdmin && (
+                              <div className="mb-1">
+                                {slot.company_id ? (
+                                  <Badge className="bg-purple-100 text-purple-800 border border-purple-200 text-[10px] py-0 px-1.5 h-auto leading-4">{getCompanyName(slot.company_id)}</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-[10px] py-0 px-1.5 h-auto leading-4">ORFANO</Badge>
+                                )}
+                              </div>
+                            )}
                             <p className="text-muted-foreground font-medium mb-2">{fmtTime(slot.start_datetime)} - {fmtTime(slot.end_datetime)}</p>
                             <div className="flex items-center gap-2 mb-2">
                               <div className="flex-1 h-2 bg-white/60 rounded-full overflow-hidden">
@@ -2569,7 +2583,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         {/* Gantt Calendar */}
         <TabsContent value="gantt">
           <Suspense fallback={<div className="flex items-center justify-center py-12"><RefreshCw className="w-8 h-8 animate-spin text-primary"/><p className="ml-3 text-muted-foreground">Caricamento calendario...</p></div>}>
-            <GanttCalendar resources={resources} allSlots={slots} allBookings={bookings} experiences={experiences} onRefresh={load} />
+            <GanttCalendar resources={resources} allSlots={slots} allBookings={bookings} experiences={experiences} companies={companies} isSuperAdmin={isSuperAdmin} onRefresh={load} />
           </Suspense>
         </TabsContent>
 
