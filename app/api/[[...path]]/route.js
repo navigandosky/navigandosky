@@ -75,6 +75,7 @@ async function handleExperiences(method, id, body, sp) {
       terms_pdf_url: body.terms_pdf_url || '', // PDF condizioni servizio
       resource_ids: body.resource_ids || [],
       price_tiers: body.price_tiers || [], // Fasce di prezzo stagionali (max 4)
+      company_id: body.company_id || null, // Multi-Tenant
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -143,6 +144,7 @@ async function handleResources(method, id, body, sp) {
       consumo_orario_litri: body.consumo_orario_litri ? Number(body.consumo_orario_litri) : null, // L/h
       ore_inizio_stagione: body.ore_inizio_stagione ? Number(body.ore_inizio_stagione) : null, // Ore motore inizio stagione
       is_available: true,
+      company_id: body.company_id || null, // Multi-Tenant
       created_at: new Date().toISOString(),
     };
     await col.insertOne(item);
@@ -222,6 +224,12 @@ async function handleSlots(method, id, body, action, sp) {
   }
 
   if (method === 'POST' && !id) {
+    // Multi-Tenant: deriva company_id dal body o dall'esperienza linkata (fallback automatico)
+    let companyId = body.company_id;
+    if (!companyId && body.experience_id) {
+      const exp = await db.collection('experiences').findOne({ id: body.experience_id });
+      companyId = exp?.company_id || null;
+    }
     const item = {
       id: uuidv4(),
       experience_id: body.experience_id,
@@ -233,6 +241,7 @@ async function handleSlots(method, id, body, action, sp) {
       status: 'OPEN',
       price_override: body.price_override ? Number(body.price_override) : null,
       notes: body.notes || '',
+      company_id: companyId,
       created_at: new Date().toISOString(),
     };
     await col.insertOne(item);
@@ -351,6 +360,8 @@ async function handleBookings(method, id, body, action, sp) {
       seat_assignments: body.seat_assignments || [],
       slot_datetime: slot.start_datetime,
       checked_in_at: null,
+      // Multi-Tenant: eredita company_id da slot o experience
+      company_id: body.company_id || slot.company_id || experience?.company_id || null,
       created_at: new Date().toISOString(),
     };
 
@@ -492,6 +503,7 @@ async function handleVouchers(method, id, body, action, sp) {
       applicable_to: body.applicable_to || 'ALL',
       created_for: body.created_for || null,
       is_active: true,
+      company_id: body.company_id || null, // Multi-Tenant
       created_at: new Date().toISOString(),
     };
     await col.insertOne(item);
