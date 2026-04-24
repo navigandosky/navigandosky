@@ -32,6 +32,13 @@ import { languageFlags, languageNames } from './i18n/translations';
 // ============ CONSTANTS ============
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_sardinia-tours-hub/artifacts/tw3hk6ud_logo%20trivor%20per%20copertura%20emergent.png';
 const HERO_IMG = 'https://images.unsplash.com/photo-1557207773-caf19e055e40?w=1920&q=80';
+const DEFAULT_EXP_IMG = 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80';
+// Helper: ricava la prima immagine valida dall'esperienza (con fallback default)
+const getExpImage = (exp) => {
+  const img = (exp?.images && exp.images[0]) || exp?.image_url;
+  if (!img || img === '/uploads/placeholder.jpg') return DEFAULT_EXP_IMG;
+  return img;
+};
 const TYPE_LABELS = { GITA_GOMMONE: 'Gita in Gommone', GITA_BARCA: 'Gita in Barca', VISITA_GUIDATA: 'Visita Guidata', NOLEGGIO_NATANTE: 'Noleggio Natante' };
 const TYPE_ICONS = { GITA_GOMMONE: Ship, GITA_BARCA: Ship, VISITA_GUIDATA: Compass, NOLEGGIO_NATANTE: Anchor };
 
@@ -134,13 +141,25 @@ function StatusBadge({ status }) {
 function AvailabilityBar({ booked, max }) {
   const pct = max > 0 ? (booked / max) * 100 : 0;
   const avail = max - booked;
-  const color = pct >= 100 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-emerald-500';
+  // Semaforo in base alla % di posti prenotati:
+  // < 50% → verde (molti disponibili)
+  // 50-70% → giallo (medio)
+  // > 70% → rosso (quasi pieno)
+  const color = pct >= 70 ? 'bg-red-500' : pct >= 50 ? 'bg-amber-500' : 'bg-emerald-500';
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} /></div>
       <span className="text-xs text-muted-foreground whitespace-nowrap">{avail} posti</span>
     </div>
   );
+}
+// Helper: classi colore per badge posti in base alla % DISPONIBILE
+function seatsBadgeColor(avail, max) {
+  if (!max || max <= 0 || avail <= 0) return 'bg-red-500 text-white border-red-600 hover:bg-red-600';
+  const pctAvail = (avail / max) * 100;
+  if (pctAvail > 50) return 'bg-emerald-500 text-white border-emerald-600 hover:bg-emerald-600'; // > 50% disponibili → verde
+  if (pctAvail >= 30) return 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'; // 30-50% disponibili → giallo
+  return 'bg-red-500 text-white border-red-600 hover:bg-red-600'; // < 30% disponibili → rosso
 }
 function fmtDate(d) { try { return format(parseISO(d), 'EEE d MMM yyyy', { locale: it }); } catch { return d || ''; } }
 function fmtTime(d) { try { return format(parseISO(d), 'HH:mm'); } catch { return ''; } }
@@ -665,7 +684,7 @@ function HomePage({ setView, experiences, companyBrand }) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {featured.map(exp => (
             <Card key={exp.id} className="card-hover overflow-hidden cursor-pointer border-0 shadow-lg" onClick={() => setView('detail', { experience: exp })}>
-              <div className="relative h-48"><img src={(exp.images && exp.images[0]) || exp.image_url || '/uploads/placeholder.jpg'} alt={exp.name} className="w-full h-full object-cover" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div><div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-primary">{fmtPrice(exp.price_b2c)}</div></div>
+              <div className="relative h-48"><img src={getExpImage(exp)} alt={exp.name} className="w-full h-full object-cover" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div><div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-primary">{fmtPrice(exp.price_b2c)}</div></div>
               <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle></CardHeader>
               <CardContent className="pb-4"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex items-center gap-4 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span></div></CardContent>
             </Card>
@@ -768,7 +787,7 @@ function CatalogPage({ setView, experiences, currentUser, companies, companyBran
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTranslated.map(exp => (
             <Card key={exp.id} className="card-hover overflow-hidden border shadow-sm cursor-pointer group" onClick={() => setView('detail', { experience: exp })}>
-              <div className="relative h-52 overflow-hidden"><img src={(exp.images && exp.images[0]) || exp.image_url || '/uploads/placeholder.jpg'} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div></div>
+              <div className="relative h-52 overflow-hidden"><img src={getExpImage(exp)} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div></div>
               <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle><CardDescription className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" />{exp.meeting_point}</CardDescription>{isSuperAdmin && exp.company_id && (<div className="mt-2"><Badge className="bg-purple-100 text-purple-800 text-xs">{getCompanyName(exp.company_id)}</Badge></div>)}</CardHeader>
               <CardContent className="pb-2"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span><span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span></div></CardContent>
               <CardFooter className="pt-0 flex justify-between items-center"><div className="text-2xl font-bold text-primary">{fmtPrice(exp.price_b2c)}<span className="text-xs font-normal text-muted-foreground">{t('per_person')}</span></div><Button size="sm">{t('discover')} <ChevronRight className="w-4 h-4 ml-1" /></Button></CardFooter>
@@ -909,7 +928,7 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
       <button onClick={() => setView('catalog')} className="flex items-center gap-2 text-primary hover:underline mb-6 font-medium"><ArrowLeft className="w-4 h-4" />Torna alle Esperienze</button>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="relative rounded-2xl overflow-hidden h-[400px]"><img src={experience.image_url} alt={experience.name} className="w-full h-full object-cover" /><div className="absolute top-4 left-4"><TypeBadge type={experience.type} /></div></div>
+          <div className="relative rounded-2xl overflow-hidden h-[400px]"><img src={getExpImage(experience)} alt={experience.name} className="w-full h-full object-cover" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} /><div className="absolute top-4 left-4"><TypeBadge type={experience.type} /></div></div>
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-3">{experience.name}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
@@ -1070,10 +1089,13 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                           )}
                         </div>
                         {allFull ? (
-                          <Badge variant="destructive" className="text-xs">Completo</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">{totalAvailable} posti</Badge>
-                        )}
+                          <Badge className="bg-red-500 text-white border-red-600 text-xs">Completo</Badge>
+                        ) : (() => {
+                          const totalMax = dateSlots.reduce((sum, s) => sum + s.max_seats, 0);
+                          return (
+                            <Badge className={`text-xs ${seatsBadgeColor(totalAvailable, totalMax)}`}>{totalAvailable} posti</Badge>
+                          );
+                        })()}
                       </div>
                       <AvailabilityBar 
                         booked={dateSlots.reduce((sum, s) => sum + s.booked_seats + (s.blocked_seats || 0), 0)} 
@@ -1162,7 +1184,7 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                           </p>
                         )}
                       </div>
-                      <Badge variant={isFull ? "destructive" : "secondary"} className="text-xs">
+                      <Badge className={`text-xs ${seatsBadgeColor(avail, slot.max_seats)}`}>
                         {isFull ? 'Completo' : `${avail} posti`}
                       </Badge>
                     </div>
@@ -1262,15 +1284,7 @@ function BookingWizard({ experience, slot, setView }) {
       <Card className="shadow-lg">
         <CardHeader className="bg-muted/50 border-b">
           <div className="flex gap-4 items-center">
-            {experience.images && experience.images.length > 0 ? (
-              <img src={experience.images[0]} alt={experience.name} className="w-16 h-16 rounded-lg object-cover" />
-            ) : experience.image_url ? (
-              <img src={experience.image_url} alt={experience.name} className="w-16 h-16 rounded-lg object-cover" />
-            ) : (
-              <div className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center">
-                <ImageIcon className="w-8 h-8 text-gray-400" />
-              </div>
-            )}
+            <img src={getExpImage(experience)} alt={experience.name} className="w-16 h-16 rounded-lg object-cover" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} />
             <div className="flex-1">
               <CardTitle className="text-base">{experience.name}</CardTitle>
               <p className="text-sm text-muted-foreground capitalize">{fmtDateTime(slot.start_datetime)}</p>
