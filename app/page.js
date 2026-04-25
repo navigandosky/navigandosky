@@ -801,7 +801,7 @@ function CatalogPage({ setView, experiences, currentUser, companies, companyBran
 
 // ============ EXPERIENCE DETAIL (with waitlist) ============
 function ExperienceDetail({ experience: experienceProp, setView }) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   // Traduzione on-demand dell'esperienza
   const { translated: experience, isTranslating } = useTranslatedItem(
     experienceProp,
@@ -930,7 +930,7 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <button onClick={() => setView('catalog')} className="flex items-center gap-2 text-primary hover:underline mb-6 font-medium"><ArrowLeft className="w-4 h-4" />Torna alle Esperienze</button>
+      <button onClick={() => setView('catalog')} className="flex items-center gap-2 text-primary hover:underline mb-6 font-medium"><ArrowLeft className="w-4 h-4" />{t('back_to_experiences')}</button>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <div className="relative rounded-2xl overflow-hidden h-[400px]"><img src={getExpImage(experience)} alt={experience.name} className="w-full h-full object-cover" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} /><div className="absolute top-4 left-4"><TypeBadge type={experience.type} /></div></div>
@@ -949,7 +949,7 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
               </div>
             )}
             {assigned.length > 0 && (
-              <div className="mb-6"><h3 className="text-xl font-semibold mb-3">Risorse Assegnate</h3>
+              <div className="mb-6"><h3 className="text-xl font-semibold mb-3">{t('assigned_resources')}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{assigned.map(r=>(<div key={r.id} className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg"><div className={`w-10 h-10 rounded-full flex items-center justify-center ${r.type==='GUIDE'?'bg-emerald-100 text-emerald-700':'bg-sky-100 text-sky-700'}`}>{r.type==='GUIDE'?<User className="w-5 h-5"/>:<Ship className="w-5 h-5"/>}</div><div><p className="font-medium text-sm">{r.name}</p><p className="text-xs text-muted-foreground">{r.type==='GUIDE'?'Guida':(BOAT_TYPE_LABELS[r.boat_type]||'Imbarcazione')}{r.capacity?` - ${r.capacity} posti`:''}</p></div></div>))}</div>
               </div>
             )}
@@ -960,14 +960,14 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
             <CardHeader>
               <div className="flex items-baseline justify-between">
                 <CardTitle className="text-2xl">{fmtPrice(experience.price_b2c)}</CardTitle>
-                <span className="text-sm text-muted-foreground">per persona</span>
+                <span className="text-sm text-muted-foreground">{t('per_person').replace('/','')}</span>
               </div>
-              <CardDescription>Scegli una data disponibile</CardDescription>
+              <CardDescription>{t('choose_available_date')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {/* Date Picker per selezionare data custom */}
               <div className="pb-3 border-b">
-                <Label htmlFor="date-picker" className="text-sm font-medium mb-2 block">📅 Cerca per data specifica</Label>
+                <Label htmlFor="date-picker" className="text-sm font-medium mb-2 block">📅 {t('search_specific_date')}</Label>
                 <div className="flex gap-2">
                   <Input 
                     id="date-picker"
@@ -1049,7 +1049,7 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       {next5Days.some(d => d.hasSlots && d.totalAvail > 0) 
-                        ? 'Clicca su una data per vedere gli orari' 
+                        ? t('click_date_for_times') 
                         : 'Nessuna disponibilità nei prossimi 5 giorni'}
                     </p>
                   </div>
@@ -1119,7 +1119,7 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                         </Button>
                       ) : (
                         <Button size="sm" className="w-full mt-2">
-                          {hasMultipleSlots ? 'Scegli Risorsa' : 'Prenota Ora'}
+                          {hasMultipleSlots ? t('choose_resource') : t('book_now')}
                         </Button>
                       )}
                     </div>
@@ -4938,3 +4938,4 @@ export default function App() {
     </LanguageProvider>
   );
 }
+
