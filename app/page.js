@@ -839,28 +839,32 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
   // Filtra slot quando cambia la data selezionata
   useEffect(() => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0]; // Solo data, senza ora
+    const nowMs = now.getTime();
+    const today = now.toISOString().split('T')[0];
     
     if (!selectedDate) {
-      // Mostra solo slot futuri quando nessuna data è selezionata
-      // Slot è futuro se la data di FINE è >= oggi
+      // Mostra solo slot futuri (la cui partenza non è ancora passata)
       const futureSlots = allSlots.filter(sl => {
-        const slotEndDate = new Date(sl.end_datetime).toISOString().split('T')[0];
-        return slotEndDate >= today;
+        const slotStartMs = new Date(sl.start_datetime).getTime();
+        return slotStartMs > nowMs;
       });
       setSlots(futureSlots);
     } else {
       const filtered = allSlots.filter(slot => {
+        const slotStartMs = new Date(slot.start_datetime).getTime();
         const slotStartDate = new Date(slot.start_datetime).toISOString().split('T')[0];
         const slotEndDate = new Date(slot.end_datetime).toISOString().split('T')[0];
         
         // Controlla se la data selezionata cade DENTRO il periodo dello slot
         const isInRange = selectedDate >= slotStartDate && selectedDate <= slotEndDate;
         
-        // La data selezionata deve essere >= oggi (non nel passato)
+        // La data selezionata deve essere >= oggi
         const isNotPast = selectedDate >= today;
         
-        return isInRange && isNotPast;
+        // E lo slot non deve essere già iniziato
+        const slotNotStarted = slotStartMs > nowMs;
+        
+        return isInRange && isNotPast && slotNotStarted;
       });
       setSlots(filtered);
     }
@@ -888,21 +892,22 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
 
   // Funzione per gestire il click su una data - controlla se ci sono più slot per la stessa data
   const handleDateClick = (dateSlots) => {
-    // Conta quanti slot hanno posti disponibili
+    const nowMs = new Date().getTime();
+    // Conta quanti slot hanno posti disponibili E non sono già iniziati
     const availableSlots = dateSlots.filter(s => {
       const avail = s.max_seats - s.booked_seats - (s.blocked_seats || 0);
-      return avail > 0;
+      const notStarted = new Date(s.start_datetime).getTime() > nowMs;
+      return avail > 0 && notStarted;
     });
 
     if (availableSlots.length === 0) {
-      // Tutti gli slot sono pieni, non fare nulla (gestito nell'UI)
+      // Tutti gli slot sono pieni o passati
       return;
     } else if (dateSlots.length === 1) {
-      // Un solo slot totale (quindi può essere solo disponibile), vai direttamente al booking
+      // Un solo slot totale (deve essere disponibile e non passato)
       setView('booking', { experience, slot: dateSlots[0] });
     } else {
-      // Più slot per la stessa data, mostra SEMPRE il selettore (anche se alcuni sono pieni)
-      // Questo permette all'utente di vedere quali risorse sono disponibili e quali no
+      // Più slot per la stessa data, mostra il selettore
       setDateSlots(dateSlots);
       setShowResourceSelector(true);
     }
@@ -997,13 +1002,15 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                   day.setDate(today.getDate() + i);
                   const dateKey = day.toISOString().split('T')[0];
                   
-                  // Conta disponibilità per questo giorno
+                  // Conta disponibilità per questo giorno (escludendo slot già iniziati)
                   let totalAvail = 0;
                   let hasSlots = false;
+                  const nowMs = new Date().getTime();
                   
                   allSlots.forEach(slot => {
                     const slotDate = slot.start_datetime.split('T')[0];
-                    if (slotDate === dateKey) {
+                    const slotStartMs = new Date(slot.start_datetime).getTime();
+                    if (slotDate === dateKey && slotStartMs > nowMs) {
                       hasSlots = true;
                       const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats || 0);
                       if (avail > 0) {
@@ -1150,16 +1157,19 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
           <div className="space-y-3">
             {dateSlots.map(slot => {
               const avail = slot.max_seats - slot.booked_seats - (slot.blocked_seats || 0);
+              const slotStartMs = new Date(slot.start_datetime).getTime();
+              const isPast = slotStartMs <= Date.now();
               const isFull = avail <= 0;
+              const isUnavailable = isFull || isPast;
               const resourceIds = slot.resource_ids || [];
               const slotResources = resources.filter(r => resourceIds.includes(r.id));
               
               return (
                 <Card 
                   key={slot.id} 
-                  className={`overflow-hidden transition ${isFull ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'cursor-pointer hover:border-primary hover:shadow-md'}`}
+                  className={`overflow-hidden transition ${isUnavailable ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'cursor-pointer hover:border-primary hover:shadow-md'}`}
                   onClick={() => {
-                    if (!isFull) {
+                    if (!isUnavailable) {
                       setShowResourceSelector(false);
                       setView('booking', { experience, slot });
                     }
@@ -1169,8 +1179,8 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <Ship className={`w-4 h-4 ${isFull ? 'text-gray-400' : 'text-primary'}`} />
-                          <p className={`font-semibold text-sm ${isFull ? 'text-gray-500' : ''}`}>
+                          <Ship className={`w-4 h-4 ${isUnavailable ? 'text-gray-400' : 'text-primary'}`} />
+                          <p className={`font-semibold text-sm ${isUnavailable ? 'text-gray-500' : ''}`}>
                             {slotResources.length > 0 
                               ? slotResources.map(r => r.name).join(', ')
                               : 'Risorsa Non Specificata'}
@@ -1184,9 +1194,15 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                           </p>
                         )}
                       </div>
-                      <Badge className={`text-xs ${seatsBadgeColor(avail, slot.max_seats)}`}>
-                        {isFull ? 'Completo' : `${avail} posti`}
-                      </Badge>
+                      {isPast ? (
+                        <Badge className="bg-gray-500 text-white border-gray-600 text-xs">
+                          <Clock className="w-3 h-3 mr-1" />Orario passato
+                        </Badge>
+                      ) : (
+                        <Badge className={`text-xs ${seatsBadgeColor(avail, slot.max_seats)}`}>
+                          {isFull ? 'Completo' : `${avail} posti`}
+                        </Badge>
+                      )}
                     </div>
                     <AvailabilityBar 
                       booked={slot.booked_seats + (slot.blocked_seats || 0)} 
@@ -1196,9 +1212,13 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                       <p className="text-xs text-muted-foreground">
                         Orario: {fmtTime(slot.start_datetime)} - {fmtTime(slot.end_datetime)}
                       </p>
-                      {isFull && (
+                      {isPast ? (
+                        <p className="text-xs text-gray-600 font-medium flex items-center gap-1">
+                          <Clock className="w-3 h-3" />Non più prenotabile
+                        </p>
+                      ) : isFull ? (
                         <p className="text-xs text-red-600 font-medium">Non disponibile</p>
-                      )}
+                      ) : null}
                     </div>
                   </CardContent>
                 </Card>
