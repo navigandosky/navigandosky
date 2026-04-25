@@ -2071,6 +2071,7 @@ function AdminDashboard({ currentUser, onLogout }) {
   
   // Filtri Panoramica
   const [overviewDateFilter, setOverviewDateFilter] = useState('');
+  const [overviewExpFilter, setOverviewExpFilter] = useState('ALL');
 
   const load = useCallback(async () => {
     // Multi-tenancy: Company Admin vede SOLO i dati della sua Company
@@ -2329,6 +2330,11 @@ function AdminDashboard({ currentUser, onLogout }) {
       result = result.filter(b => b.created_at?.startsWith(overviewDateFilter));
     }
     
+    // Filtra per esperienza se specificata
+    if (overviewExpFilter && overviewExpFilter !== 'ALL') {
+      result = result.filter(b => b.experience_id === overviewExpFilter);
+    }
+    
     // Ordina per created_at decrescente
     result.sort((a, b) => {
       const dateA = new Date(a.created_at || 0);
@@ -2337,7 +2343,7 @@ function AdminDashboard({ currentUser, onLogout }) {
     });
     
     return result;
-  }, [bookings, overviewDateFilter]);
+  }, [bookings, overviewDateFilter, overviewExpFilter]);
   
   // Totale economico
   const totalRevenue = useMemo(() => {
@@ -2564,7 +2570,26 @@ function AdminDashboard({ currentUser, onLogout }) {
                 <CardTitle className="text-lg">Prenotazioni per Data Acquisto</CardTitle>
                 <p className="text-sm text-muted-foreground">Ordinate dalla più recente</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-muted-foreground" />
+                  <Select value={overviewExpFilter} onValueChange={setOverviewExpFilter}>
+                    <SelectTrigger className="w-56 h-9">
+                      <SelectValue placeholder="Tutte le esperienze" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Tutte le esperienze</SelectItem>
+                      {experiences.map(e => (
+                        <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {overviewExpFilter !== 'ALL' && (
+                    <Button variant="ghost" size="sm" onClick={() => setOverviewExpFilter('ALL')}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <CalIcon className="w-4 h-4 text-muted-foreground" />
                   <Input 
