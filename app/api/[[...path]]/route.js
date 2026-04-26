@@ -1667,6 +1667,16 @@ async function handleRoute(request, resolvedParams, method) {
       case 'upload-pdf': return await handlePDFUpload(method, body);
       case 'contact': return await handleContact(method, body);
       case 'stats': return await handleStats(searchParams);
+      case 'marinas': {
+        const { handleMarinas } = await import('./marinas');
+        const db = await getDb();
+        return await handleMarinas(method, id, body, action, searchParams, db);
+      }
+      case 'marina-quote': {
+        const { handleMarinaQuote } = await import('./marinas');
+        const db = await getDb();
+        return await handleMarinaQuote(method, body, db);
+      }
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
       default: return json({ error: 'Endpoint non trovato' }, 404);
