@@ -1682,6 +1682,16 @@ async function handleRoute(request, resolvedParams, method) {
         const db = await getDb();
         return await handleBerths(method, id, body, action, searchParams, db);
       }
+      case 'port-quotes': {
+        const { handlePortQuotes } = await import('./port_archive');
+        const db = await getDb();
+        return await handlePortQuotes(method, id, body, action, searchParams, db);
+      }
+      case 'port-settings': {
+        const { handlePortSettings } = await import('./port_archive');
+        const db = await getDb();
+        return await handlePortSettings(method, id, body, action, searchParams, db);
+      }
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
       default: return json({ error: 'Endpoint non trovato' }, 404);

@@ -15,6 +15,11 @@ const MappaFlottaWrapper = dynamic(() => import('./components/MappaFlottaWrapper
 // Marina/Berths Admin (lazy)
 const MarinasManagerLazy = dynamic(() => import('./components/MarinasAdmin').then(m => ({ default: m.MarinasManager })), { ssr: false });
 const BerthsManagerLazy = dynamic(() => import('./components/MarinasAdmin').then(m => ({ default: m.BerthsManager })), { ssr: false });
+// Port Registries (Preventivi, Transiti, Contratti, Settings)
+const QuotesManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.QuotesManager })), { ssr: false });
+const TransitsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.TransitsManager })), { ssr: false });
+const ContractsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.ContractsManager })), { ssr: false });
+const PortSettingsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.PortSettingsManager })), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -24,7 +29,8 @@ import {
   Anchor, Ship, MapPin, Calendar as CalIcon, Clock, Users, Star, ChevronRight, ChevronDown, ArrowLeft, ArrowRight, ChevronsLeft, ChevronsRight,
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
-  ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy
+  ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
+  ClipboardList, FileSignature, Shield
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -2595,6 +2601,10 @@ function AdminDashboard({ currentUser, onLogout }) {
           {isSuperAdmin && <TabsTrigger value="companies"><Building2 className="w-4 h-4 mr-1.5" />Multi-Tenant</TabsTrigger>}
           {isSuperAdmin && <TabsTrigger value="marinas"><Anchor className="w-4 h-4 mr-1.5" />Marine</TabsTrigger>}
           {isSuperAdmin && <TabsTrigger value="berths"><Ship className="w-4 h-4 mr-1.5" />Posti Barca</TabsTrigger>}
+          {isSuperAdmin && <TabsTrigger value="quotes"><ClipboardList className="w-4 h-4 mr-1.5" />Preventivi</TabsTrigger>}
+          {isSuperAdmin && <TabsTrigger value="transits"><Ship className="w-4 h-4 mr-1.5" />Transiti</TabsTrigger>}
+          {isSuperAdmin && <TabsTrigger value="contracts"><FileSignature className="w-4 h-4 mr-1.5" />Contratti</TabsTrigger>}
+          {isSuperAdmin && <TabsTrigger value="port-settings"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>}
 
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
@@ -4021,6 +4031,42 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsContent value="berths" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <BerthsManagerLazy />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin: Preventivi */}
+        {isSuperAdmin && (
+          <TabsContent value="quotes" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><ClipboardList className="w-8 h-8 mx-auto animate-pulse" /></div>}>
+              <QuotesManagerLazy />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin: Transiti */}
+        {isSuperAdmin && (
+          <TabsContent value="transits" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
+              <TransitsManagerLazy />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin: Contratti */}
+        {isSuperAdmin && (
+          <TabsContent value="contracts" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><FileSignature className="w-8 h-8 mx-auto animate-pulse" /></div>}>
+              <ContractsManagerLazy />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin: Impostazioni Porto */}
+        {isSuperAdmin && (
+          <TabsContent value="port-settings" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Shield className="w-8 h-8 mx-auto animate-pulse" /></div>}>
+              <PortSettingsManagerLazy />
             </Suspense>
           </TabsContent>
         )}

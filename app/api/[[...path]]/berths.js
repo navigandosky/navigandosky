@@ -77,6 +77,11 @@ export async function handleBerths(method, id, body, action, sp, db) {
         surname: body.customer.surname || '',
         email: body.customer.email,
         phone: body.customer.phone || '',
+        tax_code: body.customer.tax_code || '',
+        address: body.customer.address || '',
+        city: body.customer.city || '',
+        zip: body.customer.zip || '',
+        country: body.customer.country || 'IT',
       },
       boat: {
         name: body.boat?.name || '',
@@ -84,11 +89,22 @@ export async function handleBerths(method, id, body, action, sp, db) {
         type: body.boat?.type || 'motor',
         length: Number(body.boat?.length) || 0,
         beam: Number(body.boat?.beam) || 0,
+        photo_url: body.boat?.photo_url || '',
       },
       start_date: body.start_date,
       end_date: body.end_date,
       notes: body.notes || '',
       total_amount: Number(body.total_amount) || 0,
+      tariff_applied: body.tariff_applied || null,
+      // Pagamento
+      payment_status: body.payment_status || 'DA_PAGARE', // DA_PAGARE | PAGATO_PARZIALE | PAGATO | GRATUITO | STORNATO
+      payment_method: body.payment_method || '', // CONTANTI | BONIFICO | POS | STRIPE
+      payment_date: body.payment_date || null,
+      payment_amount: Number(body.payment_amount) || 0,
+      // Tariffa servizio (cortesia / gratuita)
+      is_complimentary: !!body.is_complimentary,
+      complimentary_authorized_at: body.complimentary_authorized_at || null,
+      complimentary_reason: body.complimentary_reason || '',
       created_at: new Date().toISOString(),
       created_by: body.created_by || 'public',
     };

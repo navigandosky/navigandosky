@@ -36,10 +36,15 @@ export default function MarinaMapPage() {
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
     notes: '',
-    tariff_choice: '', // 'daily'|'monthly'|'summer_flat'|'annual'|'custom'
+    tariff_choice: '', // 'daily'|'monthly'|'summer_flat'|'annual'|'custom'|'complimentary'
     custom_amount: '',
     extras: { parking_daily: false, parking_monthly: false, launch: false, hull_wash: false, antifouling: false },
     antifouling_coats: 1,
+    payment_status: 'DA_PAGARE',
+    payment_method: '',
+    is_complimentary: false,
+    complimentary_authorized_at: null,
+    complimentary_reason: '',
   };
   const [form, setForm] = useState(initialForm);
   const [uploading, setUploading] = useState(false);
@@ -48,6 +53,12 @@ export default function MarinaMapPage() {
   // Quote dinamico
   const [quote, setQuote] = useState(null);
   const [calculating, setCalculating] = useState(false);
+  
+  // Password autorizzazione tariffa servizio
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [authPassword, setAuthPassword] = useState('');
+  const [authReason, setAuthReason] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
 
   const loadData = async () => {
     try {
@@ -105,6 +116,7 @@ export default function MarinaMapPage() {
 
   // Calcola totale finale in base a scelta tariffa
   const finalTotal = useMemo(() => {
+    if (form.tariff_choice === 'complimentary') return 0; // tariffa servizio = gratuita
     if (!quote) return 0;
     let mooring = 0;
     if (form.tariff_choice === 'custom') mooring = Number(form.custom_amount) || 0;
@@ -204,6 +216,8 @@ export default function MarinaMapPage() {
           extras_total: quote?.extras_total || 0,
           grand_total: finalTotal,
         } : null,
+        // Forza payment_status='GRATUITO' se complimentary
+        payment_status: form.tariff_choice === 'complimentary' ? 'GRATUITO' : form.payment_status,
       };
       
       const res = await fetch(`/api/berths/${selectedBerth.id}/occupy`, {
@@ -235,6 +249,35 @@ export default function MarinaMapPage() {
       await loadData();
     } catch (e) { toast.error(e.message); }
     finally { setSubmitting(false); }
+  };
+
+  // Verifica password autorizzazione tariffa servizio
+  const verifyAuth = async () => {
+    if (!authPassword) { toast.error('Inserisci password'); return; }
+    setAuthLoading(true);
+    try {
+      const res = await fetch('/api/port-settings/global/verify-complimentary-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: authPassword }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast.success('Autorizzazione concessa');
+      setForm(f => ({
+        ...f,
+        tariff_choice: 'complimentary',
+        is_complimentary: true,
+        complimentary_authorized_at: data.authorized_at,
+        complimentary_reason: authReason,
+      }));
+      setShowAuthDialog(false);
+      setAuthPassword('');
+      setAuthReason('');
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   if (loading) return (
@@ -564,6 +607,36 @@ export default function MarinaMapPage() {
                     />
                   </label>
 
+                  {/* Tariffa servizio (cortesia) */}
+                  <label className={`flex items-center justify-between gap-2 p-2 rounded cursor-pointer border-2 transition-all ${form.tariff_choice === 'complimentary' ? 'border-amber-500 bg-amber-50' : 'border-transparent hover:border-amber-300 bg-white'}`}>
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        type="radio"
+                        name="tariff"
+                        checked={form.tariff_choice === 'complimentary'}
+                        onChange={() => {
+                          if (!form.is_complimentary) {
+                            setShowAuthDialog(true);
+                          } else {
+                            setForm(f => ({ ...f, tariff_choice: 'complimentary' }));
+                          }
+                        }}
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium flex items-center gap-1">
+                          🎁 Tariffa Servizio (Gratuita)
+                          {form.is_complimentary && <Badge className="bg-emerald-100 text-emerald-700 text-[9px]">AUTORIZZATA</Badge>}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {form.is_complimentary 
+                            ? `Autorizzata · ${form.complimentary_reason || 'Senza motivazione'}`
+                            : 'Richiede password Super Admin'}
+                        </p>
+                      </div>
+                    </div>
+                    <strong className="text-sm text-emerald-600 whitespace-nowrap">€ 0,00</strong>
+                  </label>
+
                   {/* Servizi extra dettaglio */}
                   {quote.extras?.length > 0 && (
                     <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs">
@@ -593,6 +666,41 @@ export default function MarinaMapPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* === STATO PAGAMENTO === */}
+            <div className="border rounded-lg p-3 bg-slate-50">
+              <h3 className="font-semibold text-sm mb-2 text-primary flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />Stato Pagamento
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Stato</Label>
+                  <Select value={form.payment_status} onValueChange={v => setForm(f => ({ ...f, payment_status: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DA_PAGARE">Da pagare</SelectItem>
+                      <SelectItem value="PAGATO_PARZIALE">Pagato parziale</SelectItem>
+                      <SelectItem value="PAGATO">Pagato</SelectItem>
+                      <SelectItem value="GRATUITO">Gratuito (servizio)</SelectItem>
+                      <SelectItem value="STORNATO">Stornato</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Metodo pagamento</Label>
+                  <Select value={form.payment_method || 'NESSUNO'} onValueChange={v => setForm(f => ({ ...f, payment_method: v === 'NESSUNO' ? '' : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Non specificato" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NESSUNO">Non specificato</SelectItem>
+                      <SelectItem value="CONTANTI">Contanti</SelectItem>
+                      <SelectItem value="BONIFICO">Bonifico</SelectItem>
+                      <SelectItem value="POS">POS / Carta</SelectItem>
+                      <SelectItem value="STRIPE">Stripe online</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -714,13 +822,20 @@ export default function MarinaMapPage() {
               </Card>
 
               {/* TARIFFA APPLICATA */}
-              {selectedBerth.current_occupation.tariff_applied && (
-                <Card className="border-l-4 border-l-emerald-500 bg-emerald-50/40">
+              {selectedBerth.current_occupation.tariff_applied ? (
+                <Card className={`border-l-4 ${selectedBerth.current_occupation.is_complimentary ? 'border-l-amber-500 bg-amber-50/40' : 'border-l-emerald-500 bg-emerald-50/40'}`}>
                   <CardContent className="p-3">
-                    <p className="font-semibold text-emerald-900 flex items-center gap-1.5 mb-2">
-                      <CreditCard className="w-4 h-4" />Tariffa Applicata
+                    <p className="font-semibold flex items-center gap-1.5 mb-2">
+                      <CreditCard className="w-4 h-4" />
+                      {selectedBerth.current_occupation.is_complimentary ? '🎁 Tariffa Servizio (Gratuita)' : 'Tariffa Applicata'}
                     </p>
                     <p className="text-sm font-medium">{selectedBerth.current_occupation.tariff_applied.label}</p>
+                    {selectedBerth.current_occupation.is_complimentary && (
+                      <p className="text-xs text-amber-700 italic mt-1">
+                        Autorizzata il {fmtDate(selectedBerth.current_occupation.complimentary_authorized_at)}
+                        {selectedBerth.current_occupation.complimentary_reason && ` · ${selectedBerth.current_occupation.complimentary_reason}`}
+                      </p>
+                    )}
                     <div className="mt-2 space-y-1">
                       <div className="flex justify-between text-xs">
                         <span>Ormeggio:</span>
@@ -738,14 +853,43 @@ export default function MarinaMapPage() {
                           <strong>€ {selectedBerth.current_occupation.tariff_applied.extras_total.toFixed(2)}</strong>
                         </div>
                       )}
-                      <div className="flex justify-between text-base mt-2 pt-2 border-t-2 border-emerald-300 font-bold text-emerald-700">
+                      <div className={`flex justify-between text-base mt-2 pt-2 border-t-2 font-bold ${selectedBerth.current_occupation.is_complimentary ? 'border-amber-300 text-amber-700' : 'border-emerald-300 text-emerald-700'}`}>
                         <span>TOTALE:</span>
                         <span>€ {(selectedBerth.current_occupation.tariff_applied.grand_total || selectedBerth.current_occupation.total_amount || 0).toFixed(2)}</span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
+              ) : (
+                <Card className="border-l-4 border-l-slate-300 bg-slate-50/40">
+                  <CardContent className="p-3">
+                    <p className="text-xs text-muted-foreground italic">⚠️ Tariffa non specificata in fase di registrazione</p>
+                  </CardContent>
+                </Card>
               )}
+
+              {/* STATO PAGAMENTO */}
+              <Card className="border-l-4 border-l-rose-500">
+                <CardContent className="p-3">
+                  <p className="font-semibold text-rose-900 flex items-center gap-1.5 mb-2">
+                    <CreditCard className="w-4 h-4" />Pagamento
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <Badge className={
+                      selectedBerth.current_occupation.payment_status === 'PAGATO' ? 'bg-emerald-100 text-emerald-700 border-emerald-300' :
+                      selectedBerth.current_occupation.payment_status === 'GRATUITO' ? 'bg-amber-100 text-amber-700 border-amber-300' :
+                      selectedBerth.current_occupation.payment_status === 'PAGATO_PARZIALE' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                      selectedBerth.current_occupation.payment_status === 'STORNATO' ? 'bg-red-100 text-red-700 border-red-300' :
+                      'bg-orange-100 text-orange-700 border-orange-300'
+                    }>
+                      {(selectedBerth.current_occupation.payment_status || 'DA_PAGARE').replace('_', ' ')}
+                    </Badge>
+                    {selectedBerth.current_occupation.payment_method && (
+                      <span className="text-xs text-muted-foreground">{selectedBerth.current_occupation.payment_method}</span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* NOTE */}
               {selectedBerth.current_occupation.notes && (
@@ -773,11 +917,55 @@ export default function MarinaMapPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Dialog: Autorizzazione tariffa servizio */}
+      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              🎁 Autorizzazione Tariffa Servizio
+            </DialogTitle>
+            <DialogDescription>
+              La tariffa servizio è gratuita e richiede autorizzazione tramite password Super Admin.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Password autorizzazione *</Label>
+              <Input
+                type="password"
+                value={authPassword}
+                onChange={e => setAuthPassword(e.target.value)}
+                placeholder="Inserisci la password Super Admin"
+                onKeyDown={e => e.key === 'Enter' && verifyAuth()}
+                autoFocus
+              />
+            </div>
+            <div>
+              <Label>Motivazione (consigliata)</Label>
+              <Input
+                value={authReason}
+                onChange={e => setAuthReason(e.target.value)}
+                placeholder="es. Ospite di rappresentanza, Cortesia familiare, ecc."
+              />
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-800">
+              <AlertCircle className="w-3 h-3 inline mr-1" />
+              L'autorizzazione viene registrata nel sistema con timestamp e motivazione per tracciabilità contabile.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowAuthDialog(false); setAuthPassword(''); setAuthReason(''); }}>
+              Annulla
+            </Button>
+            <Button onClick={verifyAuth} disabled={authLoading || !authPassword}>
+              {authLoading ? 'Verifico...' : 'Autorizza'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-// ============ COMPONENTE: BANCHINA (parte fissa, terraferma) ============
 function Banchina() {
   return (
     <div className="relative">

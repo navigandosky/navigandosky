@@ -71,8 +71,14 @@ export default function MarinaDetailPage() {
   const [showPdfDialog, setShowPdfDialog] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [clientData, setClientData] = useState({
-    name: '', surname: '', email: '', phone: '', boat_name: '', boat_registration: ''
+    name: '', surname: '', email: '', phone: '', boat_name: '', boat_registration: '',
+    tax_code: '', address: '', city: '', zip: '', country: 'IT'
   });
+  
+  // Salva preventivo
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [savingQuote, setSavingQuote] = useState(false);
+  const [savedQuoteNumber, setSavedQuoteNumber] = useState('');
 
   useEffect(() => {
     fetch(`/api/marinas/${slug}`)
@@ -289,6 +295,67 @@ export default function MarinaDetailPage() {
       toast.error('Errore generazione PDF: ' + (e.message || ''));
     } finally {
       setGeneratingPdf(false);
+    }
+  };
+
+  const saveQuote = async () => {
+    if (!quote) { toast.error('Calcola prima il preventivo'); return; }
+    if (!clientData.name || !clientData.email) {
+      toast.error('Nome ed Email sono obbligatori per salvare');
+      return;
+    }
+    setSavingQuote(true);
+    try {
+      const chosenOpt = tariffChoice === 'custom'
+        ? { type: 'custom', label: 'Tariffa personalizzata', total: Number(customAmount) || 0 }
+        : quote.options?.find(o => o.type === tariffChoice) || quote.recommended;
+      
+      const payload = {
+        marina_id: marina.id,
+        marina_name: marina.name,
+        customer: {
+          name: clientData.name,
+          surname: clientData.surname,
+          email: clientData.email,
+          phone: clientData.phone,
+          tax_code: clientData.tax_code,
+          address: clientData.address,
+          city: clientData.city,
+          zip: clientData.zip,
+          country: clientData.country,
+        },
+        boat: {
+          name: clientData.boat_name,
+          registration: clientData.boat_registration,
+          type: boatType,
+          length: parseFloat(boatLength),
+          beam: 0,
+        },
+        start_date: startDate,
+        end_date: endDate,
+        days: quote.period?.days || 0,
+        tariff_choice: tariffChoice,
+        tariff_label: chosenOpt?.label || '',
+        mooring_amount: chosenOpt?.total || 0,
+        extras: quote.extras || [],
+        extras_total: quote.extras_total || 0,
+        grand_total: finalTotal,
+        status: 'BOZZA',
+      };
+      
+      const res = await fetch('/api/port-quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSavedQuoteNumber(data.quote_number);
+      toast.success(`Preventivo ${data.quote_number} salvato in archivio!`);
+    } catch (e) {
+      toast.error('Errore salvataggio: ' + e.message);
+    } finally {
+      setSavingQuote(false);
     }
   };
 
@@ -525,6 +592,9 @@ export default function MarinaDetailPage() {
                     <Button variant="outline" className="w-full bg-amber-50 border-amber-400 text-amber-900 hover:bg-amber-100" onClick={() => setShowPdfDialog(true)}>
                       <ClipboardList className="w-4 h-4 mr-2" />Genera Preview Posto Barca (PDF)
                     </Button>
+                    <Button variant="outline" className="w-full bg-emerald-50 border-emerald-400 text-emerald-900 hover:bg-emerald-100" onClick={() => setShowSaveDialog(true)}>
+                      <Sparkles className="w-4 h-4 mr-2" />Salva Preventivo in Archivio
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -557,6 +627,75 @@ export default function MarinaDetailPage() {
             <Button onClick={generatePDF} disabled={generatingPdf}>
               {generatingPdf ? 'Genero PDF...' : <><FileText className="w-4 h-4 mr-2" />Genera e Scarica</>}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Dialog Salva Preventivo in Archivio */}
+      <Dialog open={showSaveDialog} onOpenChange={(o) => { setShowSaveDialog(o); if (!o) setSavedQuoteNumber(''); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-emerald-600" />Salva Preventivo in Archivio</DialogTitle>
+            <DialogDescription>
+              Il preventivo verrà salvato nel registro per essere consultato e modificato in seguito.
+            </DialogDescription>
+          </DialogHeader>
+          {savedQuoteNumber ? (
+            <div className="bg-emerald-50 border-2 border-emerald-300 rounded-lg p-6 text-center">
+              <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-600 mb-2" />
+              <h3 className="text-xl font-bold text-emerald-900">Preventivo Salvato!</h3>
+              <p className="text-sm text-emerald-700 mt-2">Numero preventivo:</p>
+              <p className="text-3xl font-mono font-bold text-emerald-900 mt-1">{savedQuoteNumber}</p>
+              <p className="text-xs text-emerald-700 mt-3">Lo trovi nella dashboard Super Admin → tab "Preventivi"</p>
+            </div>
+          ) : (
+            <div className="space-y-3 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Nome *</Label><Input value={clientData.name} onChange={e => setClientData(d => ({ ...d, name: e.target.value }))} /></div>
+                <div><Label>Cognome / Rag.Soc.</Label><Input value={clientData.surname} onChange={e => setClientData(d => ({ ...d, surname: e.target.value }))} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Email *</Label><Input type="email" value={clientData.email} onChange={e => setClientData(d => ({ ...d, email: e.target.value }))} /></div>
+                <div><Label>Telefono</Label><Input value={clientData.phone} onChange={e => setClientData(d => ({ ...d, phone: e.target.value }))} /></div>
+              </div>
+              <div><Label>Codice Fiscale / P.IVA</Label><Input value={clientData.tax_code} onChange={e => setClientData(d => ({ ...d, tax_code: e.target.value.toUpperCase() }))} /></div>
+              <div><Label>Indirizzo</Label><Input value={clientData.address} onChange={e => setClientData(d => ({ ...d, address: e.target.value }))} /></div>
+              <div className="grid grid-cols-3 gap-2">
+                <div><Label>Città</Label><Input value={clientData.city} onChange={e => setClientData(d => ({ ...d, city: e.target.value }))} /></div>
+                <div><Label>CAP</Label><Input value={clientData.zip} onChange={e => setClientData(d => ({ ...d, zip: e.target.value }))} /></div>
+                <div>
+                  <Label>Paese</Label>
+                  <Select value={clientData.country} onValueChange={v => setClientData(d => ({ ...d, country: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="IT">Italia</SelectItem>
+                      <SelectItem value="FR">Francia</SelectItem>
+                      <SelectItem value="DE">Germania</SelectItem>
+                      <SelectItem value="ES">Spagna</SelectItem>
+                      <SelectItem value="OTHER">Altro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Nome Barca</Label><Input value={clientData.boat_name} onChange={e => setClientData(d => ({ ...d, boat_name: e.target.value }))} /></div>
+                <div><Label>Targa / Sigla</Label><Input value={clientData.boat_registration} onChange={e => setClientData(d => ({ ...d, boat_registration: e.target.value }))} /></div>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded p-2 text-xs text-emerald-800">
+                <strong>Riepilogo:</strong> {marina.name} · {boatLength}m · {startDate} → {endDate} · {tariffChoice ? quote?.options?.find(o => o.type === tariffChoice)?.label || (tariffChoice === 'custom' ? 'Personalizzata' : '') : 'Nessuna tariffa'} · TOTALE <strong>€ {finalTotal.toFixed(2)}</strong>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            {savedQuoteNumber ? (
+              <Button onClick={() => { setShowSaveDialog(false); setSavedQuoteNumber(''); }}>Chiudi</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setShowSaveDialog(false)}>Annulla</Button>
+                <Button onClick={saveQuote} disabled={savingQuote || !clientData.name || !clientData.email}>
+                  {savingQuote ? 'Salvo...' : <><Sparkles className="w-4 h-4 mr-2" />Salva Preventivo</>}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
