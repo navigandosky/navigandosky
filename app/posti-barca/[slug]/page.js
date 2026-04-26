@@ -10,7 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Anchor, MapPin, Phone, Mail, Ship, ArrowLeft, Calculator, FileText, CheckCircle2, MessageCircle, Map } from 'lucide-react';
+import { Anchor, MapPin, Phone, Mail, Ship, ArrowLeft, Calculator, FileText, CheckCircle2, MessageCircle, Map, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fmtPrice = (p) => (p ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -173,7 +173,7 @@ export default function MarinaDetailPage() {
         body: [[
           quote.boat.type === 'sail' ? 'Vela' : quote.boat.type === 'catamaran' ? 'Catamarano' : 'Motore',
           `${quote.boat.length} m`,
-          `${new Date(quote.period.start_date).toLocaleDateString('it-IT')} → ${new Date(quote.period.end_date).toLocaleDateString('it-IT')}`,
+          `${new Date(quote.period.start_date).toLocaleDateString('it-IT')} - ${new Date(quote.period.end_date).toLocaleDateString('it-IT')}`,
           `${quote.period.days} gg`
         ]],
         theme: 'grid',
@@ -418,6 +418,14 @@ export default function MarinaDetailPage() {
                 {/* Risultato preventivo */}
                 {quote && (
                   <div className="mt-4 pt-4 border-t-2 space-y-3">
+                    {!quote.recommended && (
+                      <div className="bg-red-50 p-3 rounded border border-red-200">
+                        <p className="text-sm font-semibold text-red-700 flex items-center gap-1 mb-1">
+                          <AlertCircle className="w-4 h-4" />Tariffa non disponibile
+                        </p>
+                        <p className="text-xs text-red-600">Non sono presenti tariffe d'ormeggio per il periodo selezionato. Verranno calcolati solo gli eventuali servizi extra. Contatta direttamente la Marina per un preventivo personalizzato.</p>
+                      </div>
+                    )}
                     {quote.recommended && (
                       <div className="bg-emerald-50 p-3 rounded border border-emerald-200">
                         <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1 mb-1">

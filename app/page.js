@@ -12,6 +12,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 // Import componente Mappa Flotta
 const MappaFlottaWrapper = dynamic(() => import('./components/MappaFlottaWrapper'), { ssr: false });
+// Marina/Berths Admin (lazy)
+const MarinasManagerLazy = dynamic(() => import('./components/MarinasAdmin').then(m => ({ default: m.MarinasManager })), { ssr: false });
+const BerthsManagerLazy = dynamic(() => import('./components/MarinasAdmin').then(m => ({ default: m.BerthsManager })), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -2590,6 +2593,8 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
           <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
           {isSuperAdmin && <TabsTrigger value="companies"><Building2 className="w-4 h-4 mr-1.5" />Multi-Tenant</TabsTrigger>}
+          {isSuperAdmin && <TabsTrigger value="marinas"><Anchor className="w-4 h-4 mr-1.5" />Marine</TabsTrigger>}
+          {isSuperAdmin && <TabsTrigger value="berths"><Ship className="w-4 h-4 mr-1.5" />Posti Barca</TabsTrigger>}
 
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
@@ -4002,6 +4007,23 @@ function AdminDashboard({ currentUser, onLogout }) {
 
         </TabsContent>
 
+        {/* Super Admin: Marine */}
+        {isSuperAdmin && (
+          <TabsContent value="marinas" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Anchor className="w-8 h-8 mx-auto animate-pulse" /></div>}>
+              <MarinasManagerLazy />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin: Posti Barca */}
+        {isSuperAdmin && (
+          <TabsContent value="berths" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
+              <BerthsManagerLazy />
+            </Suspense>
+          </TabsContent>
+        )}
 
       </Tabs>
 

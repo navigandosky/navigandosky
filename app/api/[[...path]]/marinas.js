@@ -171,7 +171,7 @@ export async function handleMarinaQuote(method, body, db) {
       });
     }
   }
-  
+
   // Opzione 3: forfait estivo (se nel periodo 1/6 - 30/9)
   if (isInSummer && pricing.summer_flat?.length > 0) {
     const flatPrice = findPriceForLength(pricing.summer_flat, length);
