@@ -10,7 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   Anchor, ArrowLeft, MapPin, Ship, Sailboat, AlertCircle, Clock, RefreshCw, Lock, Unlock,
-  Upload, Image as ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2
+  Upload, Image as ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, CreditCard
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -28,17 +28,25 @@ export default function MarinaMapPage() {
   const [submitting, setSubmitting] = useState(false);
   const [zoom, setZoom] = useState(1);
   
-  // Form occupazione (con foto barca opzionale)
+  // Form occupazione (con foto barca opzionale + dati completi cliente + calcolo tariffa)
   const initialForm = {
-    customer: { name: '', surname: '', email: '', phone: '' },
+    customer: { name: '', surname: '', email: '', phone: '', tax_code: '', address: '', city: '', zip: '', country: 'IT' },
     boat: { name: '', registration: '', type: 'motor', length: '', beam: '', photo_url: '' },
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
     notes: '',
+    tariff_choice: '', // 'daily'|'monthly'|'summer_flat'|'annual'|'custom'
+    custom_amount: '',
+    extras: { parking_daily: false, parking_monthly: false, launch: false, hull_wash: false, antifouling: false },
+    antifouling_coats: 1,
   };
   const [form, setForm] = useState(initialForm);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  
+  // Quote dinamico
+  const [quote, setQuote] = useState(null);
+  const [calculating, setCalculating] = useState(false);
 
   const loadData = async () => {
     try {
@@ -57,6 +65,54 @@ export default function MarinaMapPage() {
   };
 
   useEffect(() => { if (slug) loadData(); /* eslint-disable-next-line */ }, [slug]);
+
+  // Calcolo automatico preventivo quando cambiano i parametri
+  useEffect(() => {
+    if (!showOccupy || !marina) return;
+    if (!form.boat.length || !form.start_date || !form.end_date) { setQuote(null); return; }
+    if (new Date(form.end_date) < new Date(form.start_date)) { setQuote(null); return; }
+    
+    let cancelled = false;
+    setCalculating(true);
+    const services = Object.entries(form.extras).filter(([_, v]) => v).map(([type]) =>
+      type === 'antifouling' ? { type, coats: form.antifouling_coats } : { type }
+    );
+    fetch('/api/marina-quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        marina_id: marina.id,
+        boat_type: form.boat.type,
+        boat_length: parseFloat(form.boat.length),
+        start_date: form.start_date,
+        end_date: form.end_date,
+        services,
+      }),
+    }).then(r => r.json()).then(data => {
+      if (cancelled) return;
+      if (data?.error) setQuote(null);
+      else {
+        setQuote(data);
+        // Pre-seleziona l'opzione consigliata se nessuna scelta esistente
+        setForm(f => f.tariff_choice ? f : { ...f, tariff_choice: data.recommended?.type || '' });
+      }
+    }).catch(() => setQuote(null))
+      .finally(() => { if (!cancelled) setCalculating(false); });
+    
+    return () => { cancelled = true; };
+  }, [showOccupy, marina, form.boat.length, form.boat.type, form.start_date, form.end_date, form.extras, form.antifouling_coats]);
+
+  // Calcola totale finale in base a scelta tariffa
+  const finalTotal = useMemo(() => {
+    if (!quote) return 0;
+    let mooring = 0;
+    if (form.tariff_choice === 'custom') mooring = Number(form.custom_amount) || 0;
+    else {
+      const opt = quote.options?.find(o => o.type === form.tariff_choice);
+      if (opt) mooring = opt.total;
+    }
+    return mooring + (quote.extras_total || 0);
+  }, [quote, form.tariff_choice, form.custom_amount]);
 
   const pontoonsData = useMemo(() => {
     const grouped = {};
@@ -126,18 +182,40 @@ export default function MarinaMapPage() {
     if (Number(form.boat.length) > selectedBerth.length_max) {
       toast.error(`La barca (${form.boat.length}m) supera la lunghezza max del posto (${selectedBerth.length_max}m)`); return;
     }
+    if (!form.tariff_choice) {
+      toast.error('Seleziona una tariffa da applicare'); return;
+    }
     setSubmitting(true);
     try {
+      // Costruisci dettaglio tariffa scelta
+      const chosenOption = form.tariff_choice === 'custom'
+        ? { type: 'custom', label: 'Tariffa personalizzata', total: Number(form.custom_amount) || 0 }
+        : quote?.options?.find(o => o.type === form.tariff_choice);
+      
+      const payload = {
+        ...form,
+        total_amount: finalTotal,
+        tariff_applied: chosenOption ? {
+          type: chosenOption.type,
+          label: chosenOption.label,
+          mooring_amount: chosenOption.total,
+          extras: quote?.extras || [],
+          extras_total: quote?.extras_total || 0,
+          grand_total: finalTotal,
+        } : null,
+      };
+      
       const res = await fetch(`/api/berths/${selectedBerth.id}/occupy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      toast.success(`Posto ${selectedBerth.label} occupato!`);
+      toast.success(`Posto ${selectedBerth.label} occupato! Totale: €${finalTotal.toFixed(2)}`);
       setShowOccupy(false);
       setForm(initialForm);
+      setQuote(null);
       await loadData();
     } catch (e) { toast.error(e.message); }
     finally { setSubmitting(false); }
@@ -290,9 +368,31 @@ export default function MarinaMapPage() {
               <h3 className="font-semibold text-sm mb-2 text-primary">Dati Cliente</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Nome *</Label><Input value={form.customer.name} onChange={e => setForm(f => ({ ...f, customer: { ...f.customer, name: e.target.value } }))} /></div>
-                <div><Label>Cognome</Label><Input value={form.customer.surname} onChange={e => setForm(f => ({ ...f, customer: { ...f.customer, surname: e.target.value } }))} /></div>
+                <div><Label>Cognome / Ragione Sociale</Label><Input value={form.customer.surname} onChange={e => setForm(f => ({ ...f, customer: { ...f.customer, surname: e.target.value } }))} /></div>
                 <div><Label>Email *</Label><Input type="email" value={form.customer.email} onChange={e => setForm(f => ({ ...f, customer: { ...f.customer, email: e.target.value } }))} /></div>
                 <div><Label>Telefono</Label><Input value={form.customer.phone} onChange={e => setForm(f => ({ ...f, customer: { ...f.customer, phone: e.target.value } }))} /></div>
+                <div className="col-span-2"><Label>Codice Fiscale / P.IVA</Label><Input value={form.customer.tax_code} onChange={e => setForm(f => ({ ...f, customer: { ...f.customer, tax_code: e.target.value.toUpperCase() } }))} placeholder="RSSMRA80A01H501Z o IT01234567890" /></div>
+                <div className="col-span-2"><Label>Indirizzo</Label><Input value={form.customer.address} onChange={e => setForm(f => ({ ...f, customer: { ...f.customer, address: e.target.value } }))} placeholder="Via Roma 12" /></div>
+                <div><Label>Città</Label><Input value={form.customer.city} onChange={e => setForm(f => ({ ...f, customer: { ...f.customer, city: e.target.value } }))} /></div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div><Label>CAP</Label><Input value={form.customer.zip} onChange={e => setForm(f => ({ ...f, customer: { ...f.customer, zip: e.target.value } }))} /></div>
+                  <div>
+                    <Label>Paese</Label>
+                    <Select value={form.customer.country} onValueChange={v => setForm(f => ({ ...f, customer: { ...f.customer, country: v } }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IT">Italia</SelectItem>
+                        <SelectItem value="FR">Francia</SelectItem>
+                        <SelectItem value="DE">Germania</SelectItem>
+                        <SelectItem value="ES">Spagna</SelectItem>
+                        <SelectItem value="CH">Svizzera</SelectItem>
+                        <SelectItem value="GB">Regno Unito</SelectItem>
+                        <SelectItem value="US">USA</SelectItem>
+                        <SelectItem value="OTHER">Altro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
             <div>
@@ -312,7 +412,7 @@ export default function MarinaMapPage() {
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><Label>Lung. (m)</Label><Input type="number" step="0.1" value={form.boat.length} onChange={e => setForm(f => ({ ...f, boat: { ...f.boat, length: e.target.value } }))} /></div>
+                  <div><Label>Lung. (m) *</Label><Input type="number" step="0.1" value={form.boat.length} onChange={e => setForm(f => ({ ...f, boat: { ...f.boat, length: e.target.value } }))} /></div>
                   <div><Label>Larg. (m)</Label><Input type="number" step="0.1" value={form.boat.beam} onChange={e => setForm(f => ({ ...f, boat: { ...f.boat, beam: e.target.value } }))} /></div>
                 </div>
               </div>
@@ -353,13 +453,150 @@ export default function MarinaMapPage() {
             <div>
               <h3 className="font-semibold text-sm mb-2 text-primary">Periodo</h3>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Dal *</Label><Input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} /></div>
-                <div><Label>Al *</Label><Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} /></div>
+                <div><Label>Dal *</Label><Input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value, tariff_choice: '' }))} /></div>
+                <div><Label>Al *</Label><Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value, tariff_choice: '' }))} /></div>
               </div>
             </div>
+
+            {/* === Servizi extra === */}
             <div>
-              <Label>Note</Label>
-              <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Note aggiuntive..." />
+              <h3 className="font-semibold text-sm mb-2 text-primary">Servizi extra (opzionali)</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {[
+                  { key: 'parking_daily', label: 'Sosta piazzale (giornaliera)' },
+                  { key: 'parking_monthly', label: 'Sosta piazzale (mensile)' },
+                  { key: 'launch', label: 'Alaggio o Varo a movimento' },
+                  { key: 'hull_wash', label: 'Lavaggio carena' },
+                  { key: 'antifouling', label: 'Antivegetativa' },
+                ].map(s => (
+                  <label key={s.key} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!form.extras[s.key]}
+                      onChange={e => setForm(f => ({ ...f, extras: { ...f.extras, [s.key]: e.target.checked } }))}
+                    />
+                    <span>{s.label}</span>
+                  </label>
+                ))}
+              </div>
+              {form.extras.antifouling && (
+                <div className="mt-2 ml-1">
+                  <Label className="text-xs">N° mani antivegetativa</Label>
+                  <Select value={String(form.antifouling_coats)} onValueChange={v => setForm(f => ({ ...f, antifouling_coats: Number(v) }))}>
+                    <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 mano</SelectItem>
+                      <SelectItem value="2">2 mani</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            {/* === CALCOLATORE TARIFFA === */}
+            <div className="border-2 border-primary/30 rounded-lg p-4 bg-blue-50/50">
+              <h3 className="font-semibold text-sm mb-2 text-primary flex items-center gap-2">
+                <CreditCard className="w-4 h-4" />Calcolo Costo · Scegli la tariffa
+              </h3>
+              {!form.boat.length || !form.start_date || !form.end_date ? (
+                <p className="text-xs text-muted-foreground italic">Inserisci lunghezza barca e date per vedere le tariffe disponibili.</p>
+              ) : calculating ? (
+                <p className="text-sm text-muted-foreground">Calcolo tariffe...</p>
+              ) : !quote || quote.options?.length === 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-800">
+                  <AlertCircle className="w-3 h-3 inline mr-1" />Nessuna tariffa disponibile per questo periodo. Inserisci un importo personalizzato.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {quote.options?.map(opt => (
+                    <label
+                      key={opt.type}
+                      className={`flex items-center justify-between gap-2 p-2 rounded cursor-pointer border-2 transition-all ${form.tariff_choice === opt.type ? 'border-primary bg-primary/10' : 'border-transparent hover:border-primary/30 bg-white'}`}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="radio"
+                          name="tariff"
+                          checked={form.tariff_choice === opt.type}
+                          onChange={() => setForm(f => ({ ...f, tariff_choice: opt.type }))}
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            {opt.label}
+                            {quote.recommended?.type === opt.type && <Badge className="ml-2 bg-emerald-100 text-emerald-700 text-[10px]">CONSIGLIATA</Badge>}
+                          </p>
+                          {opt.detail && opt.detail.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {opt.detail.map((d, i) => (
+                                <span key={i}>
+                                  {d.month_name ? `${d.month_name}: ${d.days}gg × €${d.daily_price?.toFixed(2)}` :
+                                   d.months ? `${d.months} mese${d.months > 1 ? 'i' : ''} × €${d.monthly_price?.toFixed(2)}` :
+                                   `Forfait: €${d.subtotal}`}
+                                  {i < opt.detail.length - 1 ? ' + ' : ''}
+                                </span>
+                              ))}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <strong className="text-base text-primary">€ {opt.total.toFixed(2)}</strong>
+                    </label>
+                  ))}
+                  {/* Custom amount option */}
+                  <label className={`flex items-center justify-between gap-2 p-2 rounded cursor-pointer border-2 transition-all ${form.tariff_choice === 'custom' ? 'border-primary bg-primary/10' : 'border-transparent hover:border-primary/30 bg-white'}`}>
+                    <div className="flex items-center gap-2 flex-1">
+                      <input type="radio" name="tariff" checked={form.tariff_choice === 'custom'} onChange={() => setForm(f => ({ ...f, tariff_choice: 'custom' }))} />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Tariffa personalizzata (manuale)</p>
+                        <p className="text-xs text-muted-foreground">Inserisci un importo concordato a parte</p>
+                      </div>
+                    </div>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      className="w-24 h-8 text-right"
+                      disabled={form.tariff_choice !== 'custom'}
+                      value={form.custom_amount}
+                      onChange={e => setForm(f => ({ ...f, custom_amount: e.target.value }))}
+                      onClick={() => setForm(f => ({ ...f, tariff_choice: 'custom' }))}
+                    />
+                  </label>
+
+                  {/* Servizi extra dettaglio */}
+                  {quote.extras?.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs">
+                      <p className="font-semibold text-amber-800 mb-1">Servizi extra applicati:</p>
+                      {quote.extras.map((e, i) => (
+                        <div key={i} className="flex justify-between">
+                          <span>{e.name} ({e.detail})</span>
+                          <strong>€ {e.subtotal.toFixed(2)}</strong>
+                        </div>
+                      ))}
+                      <div className="flex justify-between border-t border-amber-300 mt-1 pt-1">
+                        <span className="font-semibold">Subtotale extra:</span>
+                        <strong>€ {(quote.extras_total || 0).toFixed(2)}</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Totale finale */}
+                  <div className="bg-primary text-white rounded p-3 mt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs uppercase tracking-wide">Totale da pagare</span>
+                      <span className="text-2xl font-bold">€ {finalTotal.toFixed(2)}</span>
+                    </div>
+                    {quote.period && (
+                      <p className="text-xs opacity-80">{quote.period.days} giorni · barca {form.boat.length}m</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label>Note interne</Label>
+              <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Note aggiuntive (visibili solo internamente)..." />
             </div>
           </div>
           <DialogFooter>
@@ -401,6 +638,26 @@ export default function MarinaMapPage() {
                 <p className="font-semibold">Periodo:</p>
                 <p>Dal <strong>{fmtDate(selectedBerth.current_occupation.start_date)}</strong> al <strong>{fmtDate(selectedBerth.current_occupation.end_date)}</strong></p>
               </div>
+              {selectedBerth.current_occupation.tariff_applied && (
+                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded">
+                  <p className="font-semibold text-emerald-800">Tariffa applicata:</p>
+                  <p className="text-xs">{selectedBerth.current_occupation.tariff_applied.label}</p>
+                  <div className="flex justify-between text-xs mt-1">
+                    <span>Ormeggio:</span>
+                    <strong>€ {(selectedBerth.current_occupation.tariff_applied.mooring_amount || 0).toFixed(2)}</strong>
+                  </div>
+                  {selectedBerth.current_occupation.tariff_applied.extras_total > 0 && (
+                    <div className="flex justify-between text-xs">
+                      <span>Servizi extra:</span>
+                      <strong>€ {selectedBerth.current_occupation.tariff_applied.extras_total.toFixed(2)}</strong>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm mt-1 pt-1 border-t border-emerald-300 font-bold text-emerald-700">
+                    <span>TOTALE:</span>
+                    <span>€ {(selectedBerth.current_occupation.tariff_applied.grand_total || selectedBerth.current_occupation.total_amount || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
               {selectedBerth.current_occupation.notes && (
                 <div className="bg-muted p-3 rounded">
                   <p className="font-semibold">Note:</p>
