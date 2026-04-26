@@ -10,7 +10,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import {
   Anchor, ArrowLeft, MapPin, Ship, Sailboat, AlertCircle, Clock, RefreshCw, Lock, Unlock,
-  Upload, Image as ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, CreditCard
+  Upload, Image as ImageIcon, Trash2, ZoomIn, ZoomOut, Maximize2, CreditCard,
+  Users, Mail, Phone, FileText, Calendar as CalIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -610,60 +611,158 @@ export default function MarinaMapPage() {
 
       {/* Dialog: Info posto occupato */}
       <Dialog open={showInfo} onOpenChange={setShowInfo}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedBerth?.status === 'releasing' ? <Clock className="w-5 h-5 text-amber-500" /> : <Lock className="w-5 h-5 text-red-500" />}
-              Posto {selectedBerth?.label} — {selectedBerth?.status === 'releasing' ? 'In liberazione' : 'Occupato'}
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              {selectedBerth?.status === 'releasing' ? <Clock className="w-6 h-6 text-amber-500" /> : <Lock className="w-6 h-6 text-red-500" />}
+              Posto {selectedBerth?.label}
+              <Badge className={selectedBerth?.status === 'releasing' ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-red-100 text-red-700 border-red-300'}>
+                {selectedBerth?.status === 'releasing' ? 'IN LIBERAZIONE' : 'OCCUPATO'}
+              </Badge>
             </DialogTitle>
           </DialogHeader>
           {selectedBerth?.current_occupation && (
             <div className="space-y-3 text-sm">
+              {/* Foto barca se presente */}
               {selectedBerth.current_occupation.boat?.photo_url && (
-                <img src={selectedBerth.current_occupation.boat.photo_url} alt="Foto barca" className="w-full h-40 rounded object-cover border" />
+                <div className="rounded-lg overflow-hidden border-2 border-primary/20 shadow">
+                  <img src={selectedBerth.current_occupation.boat.photo_url} alt="Foto barca" className="w-full h-48 object-cover" />
+                </div>
               )}
-              <div className="bg-muted p-3 rounded">
-                <p className="font-semibold">Cliente:</p>
-                <p>{selectedBerth.current_occupation.customer?.name} {selectedBerth.current_occupation.customer?.surname}</p>
-                <p className="text-xs text-muted-foreground">{selectedBerth.current_occupation.customer?.email} · {selectedBerth.current_occupation.customer?.phone}</p>
-              </div>
-              <div className="bg-muted p-3 rounded">
-                <p className="font-semibold">Imbarcazione:</p>
-                <p>{selectedBerth.current_occupation.boat?.name || '—'} ({selectedBerth.current_occupation.boat?.registration || 'no targa'})</p>
-                <p className="text-xs text-muted-foreground">
-                  {selectedBerth.current_occupation.boat?.type} · {selectedBerth.current_occupation.boat?.length}m × {selectedBerth.current_occupation.boat?.beam}m
-                </p>
-              </div>
-              <div className="bg-muted p-3 rounded">
-                <p className="font-semibold">Periodo:</p>
-                <p>Dal <strong>{fmtDate(selectedBerth.current_occupation.start_date)}</strong> al <strong>{fmtDate(selectedBerth.current_occupation.end_date)}</strong></p>
-              </div>
-              {selectedBerth.current_occupation.tariff_applied && (
-                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded">
-                  <p className="font-semibold text-emerald-800">Tariffa applicata:</p>
-                  <p className="text-xs">{selectedBerth.current_occupation.tariff_applied.label}</p>
-                  <div className="flex justify-between text-xs mt-1">
-                    <span>Ormeggio:</span>
-                    <strong>€ {(selectedBerth.current_occupation.tariff_applied.mooring_amount || 0).toFixed(2)}</strong>
+
+              {/* CLIENTE - dati completi */}
+              <Card className="border-l-4 border-l-blue-500">
+                <CardContent className="p-3">
+                  <p className="font-semibold text-blue-900 flex items-center gap-1.5 mb-2">
+                    <Users className="w-4 h-4" />Cliente
+                  </p>
+                  <p className="text-base font-medium">
+                    {selectedBerth.current_occupation.customer?.name} {selectedBerth.current_occupation.customer?.surname}
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                    {selectedBerth.current_occupation.customer?.email && (
+                      <p className="flex items-center gap-1.5"><Mail className="w-3 h-3" />{selectedBerth.current_occupation.customer.email}</p>
+                    )}
+                    {selectedBerth.current_occupation.customer?.phone && (
+                      <p className="flex items-center gap-1.5"><Phone className="w-3 h-3" />{selectedBerth.current_occupation.customer.phone}</p>
+                    )}
+                    {selectedBerth.current_occupation.customer?.tax_code && (
+                      <p className="flex items-center gap-1.5 col-span-2"><FileText className="w-3 h-3" />CF/P.IVA: <strong className="text-foreground">{selectedBerth.current_occupation.customer.tax_code}</strong></p>
+                    )}
+                    {(selectedBerth.current_occupation.customer?.address || selectedBerth.current_occupation.customer?.city) && (
+                      <p className="flex items-center gap-1.5 col-span-2"><MapPin className="w-3 h-3" />
+                        {[
+                          selectedBerth.current_occupation.customer.address,
+                          selectedBerth.current_occupation.customer.zip,
+                          selectedBerth.current_occupation.customer.city,
+                          selectedBerth.current_occupation.customer.country !== 'IT' ? selectedBerth.current_occupation.customer.country : ''
+                        ].filter(Boolean).join(', ')}
+                      </p>
+                    )}
                   </div>
-                  {selectedBerth.current_occupation.tariff_applied.extras_total > 0 && (
-                    <div className="flex justify-between text-xs">
-                      <span>Servizi extra:</span>
-                      <strong>€ {selectedBerth.current_occupation.tariff_applied.extras_total.toFixed(2)}</strong>
+                </CardContent>
+              </Card>
+
+              {/* IMBARCAZIONE */}
+              <Card className="border-l-4 border-l-cyan-500">
+                <CardContent className="p-3">
+                  <p className="font-semibold text-cyan-900 flex items-center gap-1.5 mb-2">
+                    <Ship className="w-4 h-4" />Imbarcazione
+                  </p>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-base font-medium">
+                      {selectedBerth.current_occupation.boat?.name || '—'}
+                      {selectedBerth.current_occupation.boat?.registration && (
+                        <span className="text-sm text-muted-foreground font-normal ml-2">({selectedBerth.current_occupation.boat.registration})</span>
+                      )}
+                    </p>
+                    <Badge variant="outline" className="text-xs">
+                      {selectedBerth.current_occupation.boat?.type === 'sail' ? 'Vela' : selectedBerth.current_occupation.boat?.type === 'catamaran' ? 'Catamarano' : 'Motore'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Dimensioni: <strong className="text-foreground">{selectedBerth.current_occupation.boat?.length}m × {selectedBerth.current_occupation.boat?.beam}m</strong>
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* PERIODO */}
+              <Card className="border-l-4 border-l-purple-500">
+                <CardContent className="p-3">
+                  <p className="font-semibold text-purple-900 flex items-center gap-1.5 mb-2">
+                    <CalIcon className="w-4 h-4" />Periodo Soggiorno
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Arrivo</p>
+                      <p className="font-bold">{fmtDate(selectedBerth.current_occupation.start_date)}</p>
                     </div>
-                  )}
-                  <div className="flex justify-between text-sm mt-1 pt-1 border-t border-emerald-300 font-bold text-emerald-700">
-                    <span>TOTALE:</span>
-                    <span>€ {(selectedBerth.current_occupation.tariff_applied.grand_total || selectedBerth.current_occupation.total_amount || 0).toFixed(2)}</span>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Partenza</p>
+                      <p className="font-bold">{fmtDate(selectedBerth.current_occupation.end_date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Durata</p>
+                      <p className="font-bold">
+                        {selectedBerth.current_occupation.start_date && selectedBerth.current_occupation.end_date
+                          ? Math.ceil((new Date(selectedBerth.current_occupation.end_date) - new Date(selectedBerth.current_occupation.start_date)) / (1000 * 60 * 60 * 24)) + 1
+                          : 0} giorni
+                      </p>
+                    </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+
+              {/* TARIFFA APPLICATA */}
+              {selectedBerth.current_occupation.tariff_applied && (
+                <Card className="border-l-4 border-l-emerald-500 bg-emerald-50/40">
+                  <CardContent className="p-3">
+                    <p className="font-semibold text-emerald-900 flex items-center gap-1.5 mb-2">
+                      <CreditCard className="w-4 h-4" />Tariffa Applicata
+                    </p>
+                    <p className="text-sm font-medium">{selectedBerth.current_occupation.tariff_applied.label}</p>
+                    <div className="mt-2 space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span>Ormeggio:</span>
+                        <strong>€ {(selectedBerth.current_occupation.tariff_applied.mooring_amount || 0).toFixed(2)}</strong>
+                      </div>
+                      {selectedBerth.current_occupation.tariff_applied.extras?.map((e, i) => (
+                        <div key={i} className="flex justify-between text-xs text-muted-foreground">
+                          <span>+ {e.name}</span>
+                          <span>€ {(e.subtotal || 0).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {selectedBerth.current_occupation.tariff_applied.extras_total > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span>Subtotale extra:</span>
+                          <strong>€ {selectedBerth.current_occupation.tariff_applied.extras_total.toFixed(2)}</strong>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-base mt-2 pt-2 border-t-2 border-emerald-300 font-bold text-emerald-700">
+                        <span>TOTALE:</span>
+                        <span>€ {(selectedBerth.current_occupation.tariff_applied.grand_total || selectedBerth.current_occupation.total_amount || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
+
+              {/* NOTE */}
               {selectedBerth.current_occupation.notes && (
-                <div className="bg-muted p-3 rounded">
-                  <p className="font-semibold">Note:</p>
-                  <p className="text-xs">{selectedBerth.current_occupation.notes}</p>
-                </div>
+                <Card className="border-l-4 border-l-amber-500 bg-amber-50/40">
+                  <CardContent className="p-3">
+                    <p className="font-semibold text-amber-900 flex items-center gap-1.5 mb-1">
+                      <AlertCircle className="w-4 h-4" />Note interne
+                    </p>
+                    <p className="text-xs">{selectedBerth.current_occupation.notes}</p>
+                  </CardContent>
+                </Card>
               )}
+
+              {/* META: registrato il */}
+              <p className="text-xs text-muted-foreground italic text-right">
+                Registrato il {fmtDate(selectedBerth.current_occupation.created_at)}
+              </p>
             </div>
           )}
           <DialogFooter>

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Anchor, MapPin, Phone, Mail, Ship, ArrowLeft, Calculator, FileText, CheckCircle2, MessageCircle, Map, AlertCircle } from 'lucide-react';
+import { Anchor, MapPin, Phone, Mail, Ship, ArrowLeft, Calculator, FileText, CheckCircle2, MessageCircle, Map, AlertCircle, ClipboardList, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fmtPrice = (p) => (p ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -52,6 +52,20 @@ export default function MarinaDetailPage() {
   const [antifoulingCoats, setAntifoulingCoats] = useState(1);
   const [quote, setQuote] = useState(null);
   const [calculating, setCalculating] = useState(false);
+  const [tariffChoice, setTariffChoice] = useState(''); // tipologia tariffa scelta
+  const [customAmount, setCustomAmount] = useState('');
+  
+  // Calcola totale finale in base a tariffa scelta + extra
+  const finalTotal = useMemo(() => {
+    if (!quote) return 0;
+    let mooring = 0;
+    if (tariffChoice === 'custom') mooring = Number(customAmount) || 0;
+    else {
+      const opt = quote.options?.find(o => o.type === tariffChoice);
+      if (opt) mooring = opt.total;
+    }
+    return mooring + (quote.extras_total || 0);
+  }, [quote, tariffChoice, customAmount]);
   
   // Form cliente per PDF
   const [showPdfDialog, setShowPdfDialog] = useState(false);
@@ -93,7 +107,11 @@ export default function MarinaDetailPage() {
       });
       const data = await res.json();
       if (data.error) toast.error(data.error);
-      else { setQuote(data); toast.success('Preventivo calcolato!'); }
+      else { 
+        setQuote(data); 
+        setTariffChoice(data.recommended?.type || ''); // pre-seleziona la consigliata
+        toast.success('Preventivo calcolato!'); 
+      }
     } catch (e) { toast.error('Errore calcolo'); }
     finally { setCalculating(false); }
   };
@@ -128,7 +146,7 @@ export default function MarinaDetailPage() {
 
       // Titolo centrato
       doc.setFontSize(16); doc.setTextColor(20, 80, 160);
-      doc.text('PREVENTIVO ORMEGGIO', 105, 18, { align: 'center' });
+      doc.text('PREVIEW POSTO BARCA', 105, 18, { align: 'center' });
       doc.setFontSize(11); doc.setTextColor(60);
       doc.text(marina.name, 105, 25, { align: 'center' });
       doc.setFontSize(9); doc.setTextColor(100);
@@ -183,21 +201,25 @@ export default function MarinaDetailPage() {
       });
       y = doc.lastAutoTable.finalY + 6;
 
-      // === TARIFFA CONSIGLIATA ===
-      if (quote.recommended) {
+      // === TARIFFA SCELTA ===
+      const chosenOpt = tariffChoice === 'custom'
+        ? { type: 'custom', label: 'Tariffa personalizzata', total: Number(customAmount) || 0, detail: [{ subtotal: Number(customAmount) || 0 }] }
+        : quote.options?.find(o => o.type === tariffChoice) || quote.recommended;
+      
+      if (chosenOpt) {
         doc.setFontSize(10); doc.setTextColor(20, 120, 60);
-        doc.text(`✓ Tariffa consigliata: ${quote.recommended.label}`, 14, y);
+        doc.text(`Tariffa applicata: ${chosenOpt.label}`, 14, y);
         y += 3;
         autoTable(doc, {
           startY: y,
           head: [['Descrizione', 'Importo']],
-          body: quote.recommended.detail.map(d => [
+          body: (chosenOpt.detail || []).map(d => [
             d.month_name ? `${d.month_name} - ${d.days} giorni × €${d.daily_price?.toFixed(2)}` :
             d.months ? `${d.months} mese${d.months > 1 ? 'i' : ''} × €${d.monthly_price?.toFixed(2)}` :
-            quote.recommended.label,
+            chosenOpt.label,
             fmtPrice(d.subtotal)
           ]),
-          foot: [['TOTALE ORMEGGIO', fmtPrice(quote.recommended.total)]],
+          foot: [['TOTALE ORMEGGIO', fmtPrice(chosenOpt.total)]],
           theme: 'striped',
           headStyles: { fillColor: [20, 80, 160], fontSize: 9 },
           bodyStyles: { fontSize: 9 },
@@ -232,9 +254,9 @@ export default function MarinaDetailPage() {
       doc.setFillColor(20, 120, 60);
       doc.rect(14, y, 182, 16, 'F');
       doc.setFontSize(13); doc.setTextColor(255);
-      doc.text('TOTALE PREVENTIVO', 18, y + 10);
+      doc.text('TOTALE PREVIEW POSTO BARCA', 18, y + 10);
       doc.setFontSize(15);
-      doc.text(fmtPrice(quote.grand_total), 192, y + 10, { align: 'right' });
+      doc.text(fmtPrice(finalTotal), 192, y + 10, { align: 'right' });
       y += 22;
 
       // === NOTE ===
@@ -351,9 +373,12 @@ export default function MarinaDetailPage() {
 
           {/* Calcolatore preventivo */}
           <div className="lg:col-span-1">
-            <Card className="sticky top-4 border-2 border-primary">
-              <CardHeader className="bg-primary text-white">
-                <CardTitle className="flex items-center gap-2"><Calculator className="w-5 h-5" />Calcolatore Preventivo</CardTitle>
+            <Card className="sticky top-4 border-2 border-primary shadow-2xl">
+              <CardHeader className="bg-gradient-to-br from-primary via-blue-700 to-blue-900 text-white">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ClipboardList className="w-5 h-5" />Preview Posto Barca
+                </CardTitle>
+                <p className="text-xs text-white/80 -mt-1">Configura e ottieni un preventivo personalizzato</p>
               </CardHeader>
               <CardContent className="p-5 space-y-4">
                 {!hasPricing ? (
@@ -426,36 +451,57 @@ export default function MarinaDetailPage() {
                         <p className="text-xs text-red-600">Non sono presenti tariffe d'ormeggio per il periodo selezionato. Verranno calcolati solo gli eventuali servizi extra. Contatta direttamente la Marina per un preventivo personalizzato.</p>
                       </div>
                     )}
-                    {quote.recommended && (
-                      <div className="bg-emerald-50 p-3 rounded border border-emerald-200">
-                        <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1 mb-1">
-                          <CheckCircle2 className="w-3 h-3" />OPZIONE CONSIGLIATA
-                        </p>
-                        <p className="text-sm font-medium">{quote.recommended.label}</p>
-                        {quote.recommended.detail.map((d, i) => (
-                          <p key={i} className="text-xs text-muted-foreground">
-                            {d.month_name ? `${d.month_name}: ${d.days} gg × €${d.daily_price?.toFixed(2)} = ${fmtPrice(d.subtotal)}` : 
-                             d.months ? `${d.months} mese${d.months > 1 ? 'i' : ''} × €${d.monthly_price?.toFixed(2)} = ${fmtPrice(d.subtotal)}` :
-                             fmtPrice(d.subtotal)}
-                          </p>
-                        ))}
-                        <p className="text-base font-bold text-emerald-700 mt-1">Subtotale: {fmtPrice(quote.recommended.total)}</p>
-                      </div>
-                    )}
                     
-                    {quote.options.length > 1 && (
-                      <details className="text-xs text-muted-foreground">
-                        <summary className="cursor-pointer font-medium">Altre opzioni disponibili</summary>
-                        <div className="mt-1 space-y-1">
-                          {quote.options.slice(1).map((o, i) => (
-                            <p key={i}>• {o.label}: {fmtPrice(o.total)}</p>
+                    {/* Selezione tariffa con radio button */}
+                    {quote.options?.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-primary mb-2 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />Scegli la tariffa da applicare
+                        </p>
+                        <div className="space-y-1.5">
+                          {quote.options.map(opt => (
+                            <label
+                              key={opt.type}
+                              className={`flex items-start justify-between gap-2 p-2 rounded cursor-pointer border-2 transition-all ${tariffChoice === opt.type ? 'border-primary bg-primary/10' : 'border-transparent hover:border-primary/30 bg-white'}`}
+                            >
+                              <div className="flex items-start gap-2 flex-1">
+                                <input
+                                  type="radio"
+                                  name="tariff"
+                                  className="mt-0.5"
+                                  checked={tariffChoice === opt.type}
+                                  onChange={() => setTariffChoice(opt.type)}
+                                />
+                                <div className="flex-1">
+                                  <p className="text-xs font-medium leading-tight">
+                                    {opt.label}
+                                    {quote.recommended?.type === opt.type && <Badge className="ml-1 bg-emerald-100 text-emerald-700 text-[9px] py-0 px-1">★</Badge>}
+                                  </p>
+                                </div>
+                              </div>
+                              <strong className="text-sm text-primary whitespace-nowrap">€ {opt.total.toFixed(0)}</strong>
+                            </label>
                           ))}
+                          <label className={`flex items-center justify-between gap-2 p-2 rounded cursor-pointer border-2 transition-all ${tariffChoice === 'custom' ? 'border-primary bg-primary/10' : 'border-transparent hover:border-primary/30 bg-white'}`}>
+                            <div className="flex items-center gap-2 flex-1">
+                              <input type="radio" name="tariff" checked={tariffChoice === 'custom'} onChange={() => setTariffChoice('custom')} />
+                              <span className="text-xs font-medium">Personalizzata</span>
+                            </div>
+                            <Input
+                              type="number" step="0.01" placeholder="0"
+                              className="w-20 h-7 text-right text-xs"
+                              disabled={tariffChoice !== 'custom'}
+                              value={customAmount}
+                              onChange={e => setCustomAmount(e.target.value)}
+                              onClick={() => setTariffChoice('custom')}
+                            />
+                          </label>
                         </div>
-                      </details>
+                      </div>
                     )}
 
                     {quote.extras?.length > 0 && (
-                      <div className="bg-amber-50 p-3 rounded border border-amber-200">
+                      <div className="bg-amber-50 p-2 rounded border border-amber-200">
                         <p className="text-xs font-semibold text-amber-700 mb-1">SERVIZI EXTRA</p>
                         {quote.extras.map((e, i) => (
                           <div key={i} className="flex justify-between text-xs">
@@ -463,19 +509,21 @@ export default function MarinaDetailPage() {
                             <strong>{fmtPrice(e.subtotal)}</strong>
                           </div>
                         ))}
-                        <p className="text-sm font-bold text-amber-700 mt-1 pt-1 border-t">Subtotale: {fmtPrice(quote.extras_total)}</p>
+                        <p className="text-xs font-bold text-amber-700 mt-1 pt-1 border-t flex justify-between">
+                          <span>Subtotale extra</span><span>{fmtPrice(quote.extras_total)}</span>
+                        </p>
                       </div>
                     )}
                     
                     <Separator />
-                    <div className="bg-primary text-white p-4 rounded">
-                      <p className="text-xs uppercase tracking-wide">Totale Preventivo</p>
-                      <p className="text-3xl font-bold">{fmtPrice(quote.grand_total)}</p>
+                    <div className="bg-gradient-to-br from-primary to-blue-700 text-white p-4 rounded shadow-lg">
+                      <p className="text-xs uppercase tracking-wide opacity-80">Totale Preventivo</p>
+                      <p className="text-3xl font-bold">{fmtPrice(finalTotal)}</p>
                       <p className="text-xs opacity-80">{quote.period.days} giorni · barca {quote.boat.length}m</p>
                     </div>
                     
-                    <Button variant="outline" className="w-full" onClick={() => setShowPdfDialog(true)}>
-                      <FileText className="w-4 h-4 mr-2" />Scarica PDF Preventivo
+                    <Button variant="outline" className="w-full bg-amber-50 border-amber-400 text-amber-900 hover:bg-amber-100" onClick={() => setShowPdfDialog(true)}>
+                      <ClipboardList className="w-4 h-4 mr-2" />Genera Preview Posto Barca (PDF)
                     </Button>
                   </div>
                 )}
