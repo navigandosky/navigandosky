@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Anchor, MapPin, Phone, Mail, Ship, ArrowLeft, Calculator, FileText, CheckCircle2, MessageCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Anchor, MapPin, Phone, Mail, Ship, ArrowLeft, Calculator, FileText, CheckCircle2, MessageCircle, Map } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fmtPrice = (p) => (p ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
@@ -21,6 +22,20 @@ const SERVICES_LIST = [
   { type: 'hull_wash', label: 'Lavaggio carena con pulivapor' },
   { type: 'antifouling', label: 'Ciclo di Antivegetativa' },
 ];
+
+// Carica un'immagine come dataURL per inserirla nel PDF
+const loadImageAsDataURL = async (url) => {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) { return null; }
+};
 
 export default function MarinaDetailPage() {
   const router = useRouter();
@@ -37,6 +52,13 @@ export default function MarinaDetailPage() {
   const [antifoulingCoats, setAntifoulingCoats] = useState(1);
   const [quote, setQuote] = useState(null);
   const [calculating, setCalculating] = useState(false);
+  
+  // Form cliente per PDF
+  const [showPdfDialog, setShowPdfDialog] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [clientData, setClientData] = useState({
+    name: '', surname: '', email: '', phone: '', boat_name: '', boat_registration: ''
+  });
 
   useEffect(() => {
     fetch(`/api/marinas/${slug}`)
@@ -76,87 +98,176 @@ export default function MarinaDetailPage() {
     finally { setCalculating(false); }
   };
 
-  const downloadPDF = async () => {
+  const generatePDF = async () => {
     if (!quote) return;
-    const { jsPDF } = await import('jspdf');
-    const autoTable = (await import('jspdf-autotable')).default;
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(20); doc.setTextColor(20, 80, 160);
-    doc.text(marina.name, 14, 20);
-    doc.setFontSize(10); doc.setTextColor(80);
-    doc.text('PREVENTIVO ORMEGGIO - ' + new Date().toLocaleDateString('it-IT'), 14, 28);
-    if (marina.address) doc.text(marina.address, 14, 34);
-    
-    // Dati barca
-    doc.setFontSize(12); doc.setTextColor(0);
-    doc.text('Dettagli imbarcazione:', 14, 46);
-    doc.setFontSize(10);
-    doc.text(`Tipo: ${quote.boat.type === 'sail' ? 'Vela' : 'Motore'}`, 14, 53);
-    doc.text(`Lunghezza: ${quote.boat.length} m`, 14, 59);
-    doc.text(`Periodo: dal ${new Date(quote.period.start_date).toLocaleDateString('it-IT')} al ${new Date(quote.period.end_date).toLocaleDateString('it-IT')} (${quote.period.days} giorni)`, 14, 65);
-    
-    // Tariffe
-    let y = 78;
-    if (quote.recommended) {
-      doc.setFontSize(12); doc.setTextColor(20, 120, 60);
-      doc.text(`Tariffa consigliata: ${quote.recommended.label}`, 14, y);
-      y += 6;
+    if (!clientData.name || !clientData.email) {
+      toast.error('Nome ed Email sono obbligatori');
+      return;
+    }
+    setGeneratingPdf(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const autoTable = (await import('jspdf-autotable')).default;
+      const doc = new jsPDF();
+
+      // Carica i loghi (Trivor + Maretrek)
+      const [trivorLogo, maretrekLogo] = await Promise.all([
+        loadImageAsDataURL('/logos/trivor.png'),
+        loadImageAsDataURL('/logos/maretrek.png'),
+      ]);
+
+      // === HEADER con loghi ===
+      // Logo Maretrek a sinistra
+      if (maretrekLogo) {
+        try { doc.addImage(maretrekLogo, 'PNG', 14, 10, 25, 25); } catch (e) {}
+      }
+      // Logo Trivor a destra
+      if (trivorLogo) {
+        try { doc.addImage(trivorLogo, 'PNG', 165, 12, 30, 22); } catch (e) {}
+      }
+
+      // Titolo centrato
+      doc.setFontSize(16); doc.setTextColor(20, 80, 160);
+      doc.text('PREVENTIVO ORMEGGIO', 105, 18, { align: 'center' });
+      doc.setFontSize(11); doc.setTextColor(60);
+      doc.text(marina.name, 105, 25, { align: 'center' });
+      doc.setFontSize(9); doc.setTextColor(100);
+      doc.text(`Data emissione: ${new Date().toLocaleDateString('it-IT')} · Validità: 30 giorni`, 105, 31, { align: 'center' });
+
+      // Linea separatrice
+      doc.setDrawColor(20, 80, 160); doc.setLineWidth(0.6);
+      doc.line(14, 40, 196, 40);
+
+      let y = 48;
+
+      // === DATI MARINA + CLIENTE (due colonne) ===
+      doc.setFontSize(9); doc.setTextColor(20, 80, 160);
+      doc.text('MARINA', 14, y);
+      doc.text('CLIENTE', 110, y);
+      y += 5;
+      doc.setFontSize(9); doc.setTextColor(0);
+      const marinaLines = [
+        marina.name,
+        marina.address || marina.location || '',
+        marina.contact_phone || '',
+        marina.contact_email || '',
+      ].filter(Boolean);
+      const clientLines = [
+        `${clientData.name} ${clientData.surname}`.trim(),
+        clientData.email,
+        clientData.phone,
+        clientData.boat_name ? `Barca: ${clientData.boat_name}` : '',
+        clientData.boat_registration ? `Targa: ${clientData.boat_registration}` : '',
+      ].filter(Boolean);
+      const maxLines = Math.max(marinaLines.length, clientLines.length);
+      for (let i = 0; i < maxLines; i++) {
+        if (marinaLines[i]) doc.text(String(marinaLines[i]).slice(0, 50), 14, y + i * 4.5);
+        if (clientLines[i]) doc.text(String(clientLines[i]).slice(0, 50), 110, y + i * 4.5);
+      }
+      y += maxLines * 4.5 + 8;
+
+      // === DETTAGLI IMBARCAZIONE / PERIODO ===
       autoTable(doc, {
         startY: y,
-        head: [['Descrizione', 'Importo']],
-        body: quote.recommended.detail.map(d => [
-          d.month_name ? `${d.month_name} - ${d.days} giorni × €${d.daily_price?.toFixed(2)}` :
-          d.months ? `${d.months} mese${d.months > 1 ? 'i' : ''} × €${d.monthly_price?.toFixed(2)}` :
-          quote.recommended.label,
-          fmtPrice(d.subtotal)
-        ]),
-        foot: [['TOTALE ORMEGGIO', fmtPrice(quote.recommended.total)]],
-        theme: 'striped',
-        headStyles: { fillColor: [20, 80, 160] },
-        footStyles: { fillColor: [20, 80, 160], textColor: 255, fontStyle: 'bold' }
+        head: [['Tipo', 'Lunghezza', 'Periodo', 'Giorni']],
+        body: [[
+          quote.boat.type === 'sail' ? 'Vela' : quote.boat.type === 'catamaran' ? 'Catamarano' : 'Motore',
+          `${quote.boat.length} m`,
+          `${new Date(quote.period.start_date).toLocaleDateString('it-IT')} → ${new Date(quote.period.end_date).toLocaleDateString('it-IT')}`,
+          `${quote.period.days} gg`
+        ]],
+        theme: 'grid',
+        headStyles: { fillColor: [20, 80, 160], textColor: 255, fontSize: 9 },
+        bodyStyles: { fontSize: 9 },
+        margin: { left: 14, right: 14 },
       });
-      y = doc.lastAutoTable.finalY + 10;
+      y = doc.lastAutoTable.finalY + 6;
+
+      // === TARIFFA CONSIGLIATA ===
+      if (quote.recommended) {
+        doc.setFontSize(10); doc.setTextColor(20, 120, 60);
+        doc.text(`✓ Tariffa consigliata: ${quote.recommended.label}`, 14, y);
+        y += 3;
+        autoTable(doc, {
+          startY: y,
+          head: [['Descrizione', 'Importo']],
+          body: quote.recommended.detail.map(d => [
+            d.month_name ? `${d.month_name} - ${d.days} giorni × €${d.daily_price?.toFixed(2)}` :
+            d.months ? `${d.months} mese${d.months > 1 ? 'i' : ''} × €${d.monthly_price?.toFixed(2)}` :
+            quote.recommended.label,
+            fmtPrice(d.subtotal)
+          ]),
+          foot: [['TOTALE ORMEGGIO', fmtPrice(quote.recommended.total)]],
+          theme: 'striped',
+          headStyles: { fillColor: [20, 80, 160], fontSize: 9 },
+          bodyStyles: { fontSize: 9 },
+          footStyles: { fillColor: [20, 80, 160], textColor: 255, fontStyle: 'bold', fontSize: 10 },
+          margin: { left: 14, right: 14 },
+          columnStyles: { 1: { halign: 'right' } }
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
+
+      // === SERVIZI EXTRA ===
+      if (quote.extras?.length > 0) {
+        doc.setFontSize(10); doc.setTextColor(160, 80, 20);
+        doc.text('Servizi aggiuntivi:', 14, y);
+        y += 3;
+        autoTable(doc, {
+          startY: y,
+          head: [['Servizio', 'Dettaglio', 'Importo']],
+          body: quote.extras.map(e => [e.name, e.detail, fmtPrice(e.subtotal)]),
+          foot: [['TOTALE EXTRA', '', fmtPrice(quote.extras_total)]],
+          theme: 'striped',
+          headStyles: { fillColor: [160, 80, 20], fontSize: 9 },
+          bodyStyles: { fontSize: 9 },
+          footStyles: { fillColor: [160, 80, 20], textColor: 255, fontStyle: 'bold', fontSize: 10 },
+          margin: { left: 14, right: 14 },
+          columnStyles: { 2: { halign: 'right' } }
+        });
+        y = doc.lastAutoTable.finalY + 6;
+      }
+
+      // === TOTALE FINALE ===
+      doc.setFillColor(20, 120, 60);
+      doc.rect(14, y, 182, 16, 'F');
+      doc.setFontSize(13); doc.setTextColor(255);
+      doc.text('TOTALE PREVENTIVO', 18, y + 10);
+      doc.setFontSize(15);
+      doc.text(fmtPrice(quote.grand_total), 192, y + 10, { align: 'right' });
+      y += 22;
+
+      // === NOTE ===
+      doc.setFontSize(8); doc.setTextColor(100);
+      if (marina.pricing_notes?.length > 0) {
+        doc.text('Note:', 14, y); y += 3.5;
+        marina.pricing_notes.forEach(n => {
+          const wrapped = doc.splitTextToSize(`• ${n}`, 180);
+          wrapped.forEach(line => { doc.text(line, 14, y); y += 3.5; });
+        });
+        y += 2;
+      }
+
+      // === FOOTER ===
+      const pageH = doc.internal.pageSize.getHeight();
+      doc.setDrawColor(20, 80, 160); doc.setLineWidth(0.4);
+      doc.line(14, pageH - 22, 196, pageH - 22);
+      doc.setFontSize(8); doc.setTextColor(80);
+      doc.text(`Maretrek by Trivor S.r.l. — ${marina.contact_email || ''}`, 105, pageH - 16, { align: 'center' });
+      doc.text(`Tel. ${marina.contact_phone || ''}  ·  ${marina.address || ''}`, 105, pageH - 12, { align: 'center' });
+      doc.setFontSize(7); doc.setTextColor(140);
+      doc.text('Documento generato automaticamente. Per accettare il preventivo contattare la Marina.', 105, pageH - 7, { align: 'center' });
+
+      const fileName = `Preventivo_${marina.slug}_${clientData.surname || clientData.name || 'cliente'}_${quote.boat.length}m.pdf`.replace(/\s+/g, '_');
+      doc.save(fileName);
+      toast.success('PDF preventivo scaricato!');
+      setShowPdfDialog(false);
+    } catch (e) {
+      console.error(e);
+      toast.error('Errore generazione PDF: ' + (e.message || ''));
+    } finally {
+      setGeneratingPdf(false);
     }
-    
-    // Servizi extra
-    if (quote.extras?.length > 0) {
-      doc.setFontSize(12); doc.setTextColor(160, 80, 20);
-      doc.text('Servizi aggiuntivi:', 14, y);
-      y += 4;
-      autoTable(doc, {
-        startY: y,
-        head: [['Servizio', 'Dettaglio', 'Importo']],
-        body: quote.extras.map(e => [e.name, e.detail, fmtPrice(e.subtotal)]),
-        foot: [['TOTALE EXTRA', '', fmtPrice(quote.extras_total)]],
-        theme: 'striped',
-        headStyles: { fillColor: [160, 80, 20] },
-        footStyles: { fillColor: [160, 80, 20], textColor: 255, fontStyle: 'bold' }
-      });
-      y = doc.lastAutoTable.finalY + 10;
-    }
-    
-    // Totale
-    doc.setFillColor(20, 120, 60);
-    doc.rect(14, y, 182, 14, 'F');
-    doc.setFontSize(14); doc.setTextColor(255);
-    doc.text('TOTALE PREVENTIVO', 18, y + 9);
-    doc.text(fmtPrice(quote.grand_total), 195, y + 9, { align: 'right' });
-    y += 22;
-    
-    // Note + contatti
-    doc.setFontSize(8); doc.setTextColor(100);
-    if (marina.pricing_notes?.length > 0) {
-      doc.text('Note:', 14, y); y += 4;
-      marina.pricing_notes.forEach(n => { doc.text(`• ${n}`, 14, y); y += 4; });
-    }
-    y += 4;
-    doc.setFontSize(9); doc.setTextColor(0);
-    doc.text(`Contatti: ${marina.contact_phone || ''} | ${marina.contact_email || ''}`, 14, y);
-    
-    doc.save(`Preventivo_${marina.slug}_${quote.boat.length}m.pdf`);
-    toast.success('PDF scaricato!');
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Anchor className="w-12 h-12 animate-pulse text-primary" /></div>;
@@ -181,9 +292,14 @@ export default function MarinaDetailPage() {
                 </h1>
                 {marina.location && <p className="text-white/90 flex items-center gap-1"><MapPin className="w-4 h-4" />{marina.location}</p>}
               </div>
-              {marina.total_berths > 0 && (
-                <Badge className="bg-white text-primary font-bold text-lg px-4 py-2"><Ship className="w-5 h-5 mr-2" />{marina.total_berths} posti</Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {marina.total_berths > 0 && (
+                  <Badge className="bg-white text-primary font-bold text-lg px-4 py-2"><Ship className="w-5 h-5 mr-2" />{marina.total_berths} posti</Badge>
+                )}
+                <Button className="bg-amber-500 text-white hover:bg-amber-600 font-semibold shadow-lg" onClick={() => router.push(`/posti-barca/${slug}/mappa`)}>
+                  <Map className="w-4 h-4 mr-2" /> Mappa Interattiva
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -350,7 +466,7 @@ export default function MarinaDetailPage() {
                       <p className="text-xs opacity-80">{quote.period.days} giorni · barca {quote.boat.length}m</p>
                     </div>
                     
-                    <Button variant="outline" className="w-full" onClick={downloadPDF}>
+                    <Button variant="outline" className="w-full" onClick={() => setShowPdfDialog(true)}>
                       <FileText className="w-4 h-4 mr-2" />Scarica PDF Preventivo
                     </Button>
                   </div>
@@ -360,6 +476,34 @@ export default function MarinaDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Dialog dati cliente per PDF */}
+      <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><FileText className="w-5 h-5 text-primary" />Dati per il preventivo PDF</DialogTitle>
+            <DialogDescription>Compila i tuoi dati per personalizzare il documento</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Nome *</Label><Input value={clientData.name} onChange={e => setClientData(d => ({ ...d, name: e.target.value }))} /></div>
+              <div><Label>Cognome</Label><Input value={clientData.surname} onChange={e => setClientData(d => ({ ...d, surname: e.target.value }))} /></div>
+            </div>
+            <div><Label>Email *</Label><Input type="email" value={clientData.email} onChange={e => setClientData(d => ({ ...d, email: e.target.value }))} /></div>
+            <div><Label>Telefono</Label><Input value={clientData.phone} onChange={e => setClientData(d => ({ ...d, phone: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Nome Barca</Label><Input value={clientData.boat_name} onChange={e => setClientData(d => ({ ...d, boat_name: e.target.value }))} placeholder="Aurora" /></div>
+              <div><Label>Targa / Sigla</Label><Input value={clientData.boat_registration} onChange={e => setClientData(d => ({ ...d, boat_registration: e.target.value }))} placeholder="CA-1234" /></div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPdfDialog(false)}>Annulla</Button>
+            <Button onClick={generatePDF} disabled={generatingPdf}>
+              {generatingPdf ? 'Genero PDF...' : <><FileText className="w-4 h-4 mr-2" />Genera e Scarica</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

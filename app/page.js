@@ -429,7 +429,22 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, curren
         </button>
         
         <nav className="hidden md:flex items-center gap-1">
-          {[['home', t('home')], ['catalog', t('experiences')], ['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
+          {[['home', t('home')], ['catalog', t('experiences')]].map(([v, l]) => (
+            <button 
+              key={v} 
+              onClick={() => setView(v)} 
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${view === v ? 'bg-primary text-primary-foreground shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}
+            >
+              {l}
+            </button>
+          ))}
+          <a 
+            href="/posti-barca"
+            className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-gray-700 hover:bg-gray-100 hover:text-gray-900 flex items-center gap-1.5"
+          >
+            <Anchor className="w-4 h-4" /> Posti Barca
+          </a>
+          {[['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
             <button 
               key={v} 
               onClick={() => setView(v)} 
@@ -469,7 +484,11 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, curren
       
       {mobileOpen && (
         <div className="md:hidden border-t bg-white p-4 space-y-2">
-          {[['home', t('home')], ['catalog', t('experiences')], ['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
+          {[['home', t('home')], ['catalog', t('experiences')]].map(([v, l]) => (
+            <button key={v} onClick={() => { setView(v); setMobileOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium ${view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>{l}</button>
+          ))}
+          <a href="/posti-barca" className="block px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-muted">⚓ Posti Barca</a>
+          {[['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
             <button key={v} onClick={() => { setView(v); setMobileOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium ${view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>{l}</button>
           ))}
           

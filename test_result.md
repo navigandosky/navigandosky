@@ -213,6 +213,21 @@ backend:
         agent: "testing"
         comment: "Seed data API tested successfully. Created 6 experiences, 8 resources, 117 slots, 3 vouchers as expected. All demo data populated correctly."
 
+  - task: "Berths CRUD API with occupy/release"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/berths.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "New berths module implemented with CRUD operations, occupy/release functionality, and status computation (free/occupied/releasing). Bosa Marina seeded with 120 berths (3 pontoons × 2 sides × 20 berths). Backend tested via curl."
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE BERTHS TESTING COMPLETED - All 11/11 tests passed (100% success rate). ✅ GET /api/berths?marina_id={id} returns 120 berths with correct structure. ✅ GET /api/berths?marina_slug=bosa-marina working. ✅ GET /api/berths/{id} single berth retrieval. ✅ POST /api/berths/seed-layout creates 120 berths correctly. ✅ POST /api/berths/{id}/occupy with customer/boat data working. ✅ POST /api/berths/{id}/release functionality working. ✅ Status computation logic: free/occupied/releasing states working correctly. ✅ Validation errors (missing customer name/email, missing dates) return 400. ✅ Occupy already occupied berth returns 409. ✅ All 404 errors for non-existent berths handled correctly. Fixed status computation bug where future occupations were incorrectly marked as 'free' - now correctly shows 'occupied' for future bookings and 'releasing' for end dates today/tomorrow."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
@@ -221,12 +236,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Experiences CRUD API"
-    - "Bookings CRUD with seat management"
-    - "Voucher validation and application"
-    - "Slots CRUD API with availability"
+    - "Berths CRUD API with occupy/release"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
@@ -236,3 +248,7 @@ agent_communication:
     message: "✅ COMPREHENSIVE BACKEND TESTING COMPLETED - All 32 tests passed (100% success rate). Tested: Seed data (6 experiences, 8 resources, 117 slots, 3 vouchers), Experiences CRUD (all operations + filtering), Resources CRUD (guides & boats), Slots CRUD (with availability calculation), Bookings with seat management (booking increases seats, cancellation decreases), Voucher validation (all 3 codes working + discount application), Stats API (all required fields). Critical business logic verified: seat management, voucher discounts, booking flow. Backend APIs are production-ready."
   - agent: "testing"
     message: "✅ MARETREK SEAT ASSIGNMENTS & DRAG-DROP TESTING COMPLETED - All 13 specialized tests passed (100% success rate). NEW FUNCTIONALITY VERIFIED: ✅ Seat assignments (PUT /api/bookings/{id} with action:'update_details' + seat_assignments array) ✅ Drag & drop reassignment (PUT /api/bookings/{id} with action:'reassign' + new_slot_id) preserves seat_assignments ✅ Multiple booking modifications ✅ Query bookings by slot_id ✅ Edge cases (single seat bookings). All requested functionality working perfectly as specified in the user requirements."
+  - agent: "main"
+    message: "🆕 POSTI BARCA MODULE — Phase 1A + 1B IMPLEMENTED. New features: 1) NavBar link to /posti-barca added between Esperienze and B2B Company. 2) Marina detail page now has 'Mappa Interattiva' button and a customer-data dialog before PDF download (Nome, Cognome, Email, Telefono, Nome Barca, Targa). 3) PDF preventivo includes Maretrek (left) + Trivor (right) logos saved in /app/public/logos/. 4) Backend: new file /app/app/api/[[...path]]/berths.js with endpoints GET /api/berths?marina_id=X, POST /api/berths/seed-layout, POST /api/berths/{id}/occupy, POST /api/berths/{id}/release. 5) Berths schema with status (free/occupied/releasing) computed runtime. 6) Bosa Marina seeded with 120 berths layout (3 pontili bifacciali × 2 lati × 20 posti). 7) New page /posti-barca/[slug]/mappa with interactive port map: 3 pontili visualizzati, click su posto libero apre dialog occupazione (con dati cliente+barca+date), click su occupato mostra dettagli + bottone Libera. Color coding: green=libero, amber=in liberazione (≤1 giorno), red=occupato. Backend testato via curl con successo (occupy + release flow + status transitions verificati). Files modified: /app/app/page.js (NavBar), /app/app/posti-barca/[slug]/page.js (PDF dialog + Mappa link), /app/app/posti-barca/[slug]/mappa/page.js (NEW), /app/app/api/[[...path]]/berths.js (NEW), /app/app/api/[[...path]]/route.js (registered berths route). NEEDS TESTING: backend berths CRUD + occupy/release + map UI flow."
+  - agent: "testing"
+    message: "✅ BERTHS (POSTI BARCA) BACKEND TESTING COMPLETED - All 11/11 tests passed (100% success rate). COMPREHENSIVE VALIDATION: ✅ GET /api/berths?marina_id={id} returns 120 berths with correct structure (id, marina_id, pontoon, side, position, label, length_max, beam_max, status). ✅ GET /api/berths?marina_slug=bosa-marina alternative filtering working. ✅ GET /api/berths/{id} single berth retrieval with computed status. ✅ POST /api/berths/seed-layout creates 120 berths (3 pontoons × 2 sides × 20 berths) correctly. ✅ POST /api/berths/{id}/occupy with customer/boat data working perfectly. ✅ POST /api/berths/{id}/release functionality working. ✅ Status computation logic: 'free' (no occupation), 'occupied' (end_date > today+1), 'releasing' (end_date today/tomorrow) working correctly. ✅ Validation: missing customer name/email returns 400, missing dates returns 400. ✅ Business logic: occupy already occupied berth returns 409. ✅ Error handling: all 404 errors for non-existent berths handled correctly. CRITICAL FIX APPLIED: Fixed status computation bug where future occupations were incorrectly marked as 'free' - now correctly shows 'occupied' for future bookings. All berths endpoints are production-ready and working as specified."
