@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { ClipboardList, Ship, FileSignature, Shield, Save, Eye, Trash2, Search, RefreshCw, Download, FileText, Lock, Unlock } from 'lucide-react';
+import { ClipboardList, Ship, FileSignature, Shield, Save, Eye, Trash2, Search, RefreshCw, Download, FileText, Lock, Unlock, ArrowRightCircle, Anchor } from 'lucide-react';
 import { toast } from 'sonner';
+import { generateQuotePDF, generateReceiptPDF } from '@/app/lib/pdfGen';
 
 const fmtPrice = (p) => (p ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—';
@@ -75,6 +76,28 @@ export function QuotesManager() {
       load();
     } catch (e) { toast.error(e.message); }
   };
+
+  const downloadPDF = async (q) => {
+    try {
+      // Fetch marina full data for logos / contacts
+      const m = await fetch(`/api/marinas/${q.marina_id}`).then(r => r.json());
+      await generateQuotePDF({
+        marina: m,
+        customer: q.customer,
+        boat: q.boat,
+        period: { start_date: q.start_date, end_date: q.end_date, days: q.days },
+        tariff: { label: q.tariff_label, total: q.mooring_amount, detail: [{ subtotal: q.mooring_amount }] },
+        extras: q.extras || [],
+        extras_total: q.extras_total || 0,
+        grand_total: q.grand_total,
+        quote_number: q.quote_number,
+        notes: q.notes,
+      });
+      toast.success('PDF generato!');
+    } catch (e) { toast.error('Errore PDF: ' + e.message); }
+  };
+  
+  const [convertingQuote, setConvertingQuote] = useState(null);
 
   return (
     <div className="space-y-4">
@@ -162,8 +185,12 @@ export function QuotesManager() {
                     </Select>
                   </td>
                   <td className="p-2">
-                    <Button size="sm" variant="ghost" onClick={() => setSelected(q)}><Eye className="w-3 h-3" /></Button>
-                    <Button size="sm" variant="ghost" onClick={() => deleteQuote(q)}><Trash2 className="w-3 h-3 text-red-500" /></Button>
+                    <Button size="sm" variant="ghost" title="Vedi" onClick={() => setSelected(q)}><Eye className="w-3 h-3" /></Button>
+                    <Button size="sm" variant="ghost" title="Scarica PDF" onClick={() => downloadPDF(q)}><Download className="w-3 h-3 text-blue-500" /></Button>
+                    {q.status !== 'CONVERTITO' && (
+                      <Button size="sm" variant="ghost" title="Converti in occupazione" onClick={() => setConvertingQuote(q)}><ArrowRightCircle className="w-3 h-3 text-emerald-600" /></Button>
+                    )}
+                    <Button size="sm" variant="ghost" title="Elimina" onClick={() => deleteQuote(q)}><Trash2 className="w-3 h-3 text-red-500" /></Button>
                   </td>
                 </tr>
               ))}
@@ -174,7 +201,142 @@ export function QuotesManager() {
       )}
 
       {selected && <QuoteDetailDialog quote={selected} onClose={() => setSelected(null)} />}
+      {convertingQuote && <ConvertQuoteDialog quote={convertingQuote} onClose={() => setConvertingQuote(null)} onDone={() => { setConvertingQuote(null); load(); }} />}
     </div>
+  );
+}
+
+// =====================================================================
+// Convert Quote → Occupation
+// =====================================================================
+function ConvertQuoteDialog({ quote, onClose, onDone }) {
+  const [berths, setBerths] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBerth, setSelectedBerth] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('DA_PAGARE');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/berths?marina_id=${quote.marina_id}`).then(r => r.json()).then(data => {
+      const free = (Array.isArray(data) ? data : []).filter(b => b.status === 'free' && b.length_max >= (quote.boat?.length || 0));
+      setBerths(free);
+      setLoading(false);
+    });
+  }, [quote.marina_id, quote.boat?.length]);
+
+  const submit = async () => {
+    if (!selectedBerth) { toast.error('Seleziona un posto barca'); return; }
+    setSubmitting(true);
+    try {
+      // Crea occupazione
+      const occupyRes = await fetch(`/api/berths/${selectedBerth}/occupy`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: quote.customer,
+          boat: quote.boat,
+          start_date: quote.start_date,
+          end_date: quote.end_date,
+          notes: `Da preventivo ${quote.quote_number}`,
+          total_amount: quote.grand_total,
+          tariff_applied: {
+            type: quote.tariff_choice,
+            label: quote.tariff_label,
+            mooring_amount: quote.mooring_amount,
+            extras: quote.extras || [],
+            extras_total: quote.extras_total || 0,
+            grand_total: quote.grand_total,
+          },
+          payment_status: paymentStatus,
+          payment_method: paymentMethod,
+          created_by: 'admin_convert',
+        }),
+      });
+      const occData = await occupyRes.json();
+      if (occData.error) throw new Error(occData.error);
+
+      // Aggiorna stato preventivo
+      await fetch(`/api/port-quotes/${quote.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CONVERTITO', converted_to_berth_id: selectedBerth, converted_at: new Date().toISOString() }),
+      });
+
+      toast.success('Preventivo convertito in occupazione!');
+      onDone();
+    } catch (e) { toast.error(e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><ArrowRightCircle className="w-5 h-5 text-emerald-600" />Converti Preventivo {quote.quote_number} in Occupazione</DialogTitle>
+          <DialogDescription>
+            Seleziona un posto barca libero adatto. Solo posti con lunghezza ≥ {quote.boat?.length || 0}m sono mostrati.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="bg-blue-50 rounded p-2 text-xs">
+            <p><strong>Cliente:</strong> {quote.customer?.name} {quote.customer?.surname}</p>
+            <p><strong>Barca:</strong> {quote.boat?.name} · {quote.boat?.length}m {quote.boat?.type}</p>
+            <p><strong>Periodo:</strong> {fmtDate(quote.start_date)} → {fmtDate(quote.end_date)}</p>
+            <p><strong>Tariffa:</strong> {quote.tariff_label} · <strong>{fmtPrice(quote.grand_total)}</strong></p>
+          </div>
+          <div>
+            <Label>Posto barca disponibile *</Label>
+            {loading ? (
+              <p className="text-xs text-muted-foreground">Carico posti...</p>
+            ) : berths.length === 0 ? (
+              <p className="text-xs text-red-600">Nessun posto libero disponibile per questa lunghezza barca.</p>
+            ) : (
+              <Select value={selectedBerth} onValueChange={setSelectedBerth}>
+                <SelectTrigger><SelectValue placeholder="Seleziona posto" /></SelectTrigger>
+                <SelectContent>
+                  {berths.map(b => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.label} · max {b.length_max}m · Pontile {b.pontoon} {b.side === 'left' ? 'SX' : 'DX'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Stato pagamento</Label>
+              <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DA_PAGARE">Da pagare</SelectItem>
+                  <SelectItem value="PAGATO_PARZIALE">Pagato parziale</SelectItem>
+                  <SelectItem value="PAGATO">Pagato</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Metodo pagamento</Label>
+              <Select value={paymentMethod || 'NESSUNO'} onValueChange={v => setPaymentMethod(v === 'NESSUNO' ? '' : v)}>
+                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NESSUNO">Non specificato</SelectItem>
+                  <SelectItem value="CONTANTI">Contanti</SelectItem>
+                  <SelectItem value="BONIFICO">Bonifico</SelectItem>
+                  <SelectItem value="POS">POS / Carta</SelectItem>
+                  <SelectItem value="STRIPE">Stripe online</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annulla</Button>
+          <Button onClick={submit} disabled={submitting || !selectedBerth || berths.length === 0}>
+            {submitting ? 'Converto...' : <><ArrowRightCircle className="w-4 h-4 mr-2" />Crea Occupazione</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -358,6 +520,7 @@ export function TransitsManager() {
                 <th className="p-2 text-right">Importo</th>
                 <th className="p-2 text-left">Pagamento</th>
                 <th className="p-2 text-left">Stato</th>
+                <th className="p-2 text-left">Azioni</th>
               </tr>
             </thead>
             <tbody>
@@ -386,6 +549,22 @@ export function TransitsManager() {
                   </td>
                   <td className="p-2">
                     {t.is_active ? <Badge className="bg-blue-100 text-blue-700 text-[10px]">IN CORSO</Badge> : <Badge variant="outline" className="text-[10px]">CONCLUSA</Badge>}
+                  </td>
+                  <td className="p-2">
+                    {t.payment_status === 'PAGATO' && (
+                      <Button size="sm" variant="ghost" title="Scarica Ricevuta PDF" onClick={async () => {
+                        try {
+                          const m = await fetch(`/api/marinas/${t.marina_id}`).then(r => r.json());
+                          await generateReceiptPDF({
+                            marina: m, occupation: t, berth_label: t.berth_label,
+                            receipt_number: `R-${new Date().getFullYear()}-${t.berth_label}-${(t.id || '').slice(-6).toUpperCase()}`,
+                          });
+                          toast.success('Ricevuta scaricata');
+                        } catch (e) { toast.error(e.message); }
+                      }}>
+                        <FileText className="w-3 h-3 text-emerald-600" />
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}

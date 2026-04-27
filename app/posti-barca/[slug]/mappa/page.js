@@ -251,6 +251,20 @@ export default function MarinaMapPage() {
     finally { setSubmitting(false); }
   };
 
+  // Genera ricevuta PDF post-pagamento
+  const generateReceipt = async () => {
+    try {
+      const { generateReceiptPDF } = await import('@/app/lib/pdfGen');
+      await generateReceiptPDF({
+        marina,
+        occupation: selectedBerth.current_occupation,
+        berth_label: selectedBerth.label,
+        receipt_number: `R-${new Date().getFullYear()}-${selectedBerth.label}-${Date.now().toString().slice(-6)}`,
+      });
+      toast.success('Ricevuta scaricata');
+    } catch (e) { toast.error('Errore: ' + e.message); }
+  };
+
   // Verifica password autorizzazione tariffa servizio
   const verifyAuth = async () => {
     if (!authPassword) { toast.error('Inserisci password'); return; }
@@ -911,6 +925,11 @@ export default function MarinaMapPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowInfo(false)}>Chiudi</Button>
+            {selectedBerth?.current_occupation?.payment_status === 'PAGATO' && (
+              <Button variant="outline" className="bg-emerald-50 border-emerald-400 text-emerald-700 hover:bg-emerald-100" onClick={generateReceipt}>
+                <FileText className="w-4 h-4 mr-2" />Ricevuta PDF
+              </Button>
+            )}
             <Button variant="destructive" onClick={releaseBerth} disabled={submitting}>
               <Unlock className="w-4 h-4 mr-2" />Libera Posto
             </Button>
