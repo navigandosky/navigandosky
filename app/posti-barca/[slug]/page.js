@@ -54,6 +54,7 @@ export default function MarinaDetailPage() {
   const [calculating, setCalculating] = useState(false);
   const [tariffChoice, setTariffChoice] = useState(''); // tipologia tariffa scelta
   const [customAmount, setCustomAmount] = useState('');
+  const [customDescription, setCustomDescription] = useState(''); // descrizione tariffa personalizzata
   
   // Calcola totale finale in base a tariffa scelta + extra
   const finalTotal = useMemo(() => {
@@ -209,7 +210,7 @@ export default function MarinaDetailPage() {
 
       // === TARIFFA SCELTA ===
       const chosenOpt = tariffChoice === 'custom'
-        ? { type: 'custom', label: 'Tariffa personalizzata', total: Number(customAmount) || 0, detail: [{ subtotal: Number(customAmount) || 0 }] }
+        ? { type: 'custom', label: 'Tariffa personalizzata', total: Number(customAmount) || 0, detail: [{ subtotal: Number(customAmount) || 0 }], description: customDescription }
         : quote.options?.find(o => o.type === tariffChoice) || quote.recommended;
       
       if (chosenOpt) {
@@ -221,7 +222,7 @@ export default function MarinaDetailPage() {
           head: [['Descrizione', 'Importo']],
           body: (chosenOpt.detail || []).map(d => [
             d.month_name ? `${d.month_name} - ${d.days} giorni × €${d.daily_price?.toFixed(2)}` :
-            d.months ? `${d.months} mese${d.months > 1 ? 'i' : ''} × €${d.monthly_price?.toFixed(2)}` :
+            d.months ? `${d.months} mes${d.months > 1 ? 'i' : 'e'} × €${d.monthly_price?.toFixed(2)}` :
             chosenOpt.label,
             fmtPrice(d.subtotal)
           ]),
@@ -234,6 +235,17 @@ export default function MarinaDetailPage() {
           columnStyles: { 1: { halign: 'right' } }
         });
         y = doc.lastAutoTable.finalY + 6;
+        
+        // Stampa descrizione tariffa personalizzata se presente
+        if (chosenOpt.description) {
+          doc.setFontSize(8); doc.setTextColor(60, 80, 120);
+          doc.text('Dettaglio tariffa personalizzata:', 14, y);
+          y += 4;
+          doc.setFontSize(8); doc.setTextColor(40);
+          const wrapped = doc.splitTextToSize(chosenOpt.description, 180);
+          wrapped.forEach(line => { doc.text(line, 14, y); y += 4; });
+          y += 3;
+        }
       }
 
       // === SERVIZI EXTRA ===
@@ -307,7 +319,7 @@ export default function MarinaDetailPage() {
     setSavingQuote(true);
     try {
       const chosenOpt = tariffChoice === 'custom'
-        ? { type: 'custom', label: 'Tariffa personalizzata', total: Number(customAmount) || 0 }
+        ? { type: 'custom', label: customDescription ? 'Tariffa personalizzata' : 'Tariffa personalizzata', total: Number(customAmount) || 0, description: customDescription }
         : quote.options?.find(o => o.type === tariffChoice) || quote.recommended;
       
       const payload = {
@@ -336,6 +348,7 @@ export default function MarinaDetailPage() {
         days: quote.period?.days || 0,
         tariff_choice: tariffChoice,
         tariff_label: chosenOpt?.label || '',
+        tariff_description: tariffChoice === 'custom' ? customDescription : '',
         mooring_amount: chosenOpt?.total || 0,
         extras: quote.extras || [],
         extras_total: quote.extras_total || 0,
@@ -563,6 +576,19 @@ export default function MarinaDetailPage() {
                               onClick={() => setTariffChoice('custom')}
                             />
                           </label>
+                          {tariffChoice === 'custom' && (
+                            <div className="bg-blue-50 border border-blue-200 rounded p-2 mt-1">
+                              <Label className="text-xs font-semibold text-blue-900">Descrizione tariffa personalizzata (multiriga)</Label>
+                              <textarea
+                                rows={3}
+                                value={customDescription}
+                                onChange={e => setCustomDescription(e.target.value)}
+                                placeholder="es. Tariffa concordata per posto barca dal 1/1 al 31/12 inclusi servizi extra, pulizia banchina, parking auto, accesso WiFi, lavanderia, scontistica fedeltà..."
+                                className="w-full mt-1 text-xs px-2 py-1.5 border rounded resize-y focus:outline-none focus:ring-2 focus:ring-blue-300"
+                              />
+                              <p className="text-[10px] text-blue-700 mt-1">Questa descrizione comparirà nel PDF preventivo e nel registro preventivi.</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

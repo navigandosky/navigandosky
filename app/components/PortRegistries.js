@@ -86,7 +86,7 @@ export function QuotesManager() {
         customer: q.customer,
         boat: q.boat,
         period: { start_date: q.start_date, end_date: q.end_date, days: q.days },
-        tariff: { label: q.tariff_label, total: q.mooring_amount, detail: [{ subtotal: q.mooring_amount }] },
+        tariff: { label: q.tariff_label, total: q.mooring_amount, detail: [{ subtotal: q.mooring_amount }], description: q.tariff_description || '' },
         extras: q.extras || [],
         extras_total: q.extras_total || 0,
         grand_total: q.grand_total,
@@ -370,6 +370,11 @@ function QuoteDetailDialog({ quote, onClose }) {
           </CardContent></Card>
           <Card className="bg-emerald-50"><CardContent className="p-3">
             <p className="font-semibold mb-1">{quote.tariff_label}</p>
+            {quote.tariff_description && (
+              <div className="bg-white border border-emerald-200 rounded p-2 mb-2 text-xs whitespace-pre-line">
+                {quote.tariff_description}
+              </div>
+            )}
             <div className="flex justify-between"><span>Ormeggio:</span><strong>{fmtPrice(quote.mooring_amount)}</strong></div>
             {quote.extras?.map((e, i) => (
               <div key={i} className="flex justify-between text-xs text-muted-foreground"><span>+ {e.name}</span><span>{fmtPrice(e.subtotal)}</span></div>

@@ -165,7 +165,7 @@ export async function handleMarinaQuote(method, body, db) {
       monthlyDetail.push({ month: mo, months, monthly_price: monthPrice, subtotal: monthlyTotal });
       options.push({
         type: 'monthly',
-        label: `Tariffa mensile (${months} mese${months > 1 ? 'i' : ''})`,
+        label: `Tariffa mensile (${months} mes${months > 1 ? 'i' : 'e'})`,
         total: monthlyTotal,
         detail: monthlyDetail
       });

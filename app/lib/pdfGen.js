@@ -101,7 +101,7 @@ export async function generateQuotePDF({ marina, customer, boat, period, tariff,
       head: [['Descrizione', 'Importo']],
       body: (tariff.detail || [{ subtotal: tariff.total }]).map(d => [
         d.month_name ? `${d.month_name} - ${d.days} giorni × €${d.daily_price?.toFixed(2)}` :
-        d.months ? `${d.months} mese${d.months > 1 ? 'i' : ''} × €${d.monthly_price?.toFixed(2)}` :
+        d.months ? `${d.months} mes${d.months > 1 ? 'i' : 'e'} × €${d.monthly_price?.toFixed(2)}` :
         tariff.label || 'Ormeggio',
         fmtPrice(d.subtotal)
       ]),
@@ -114,6 +114,17 @@ export async function generateQuotePDF({ marina, customer, boat, period, tariff,
       columnStyles: { 1: { halign: 'right' } }
     });
     y = doc.lastAutoTable.finalY + 6;
+    
+    // Descrizione tariffa personalizzata
+    if (tariff.description) {
+      doc.setFontSize(8); doc.setTextColor(60, 80, 120);
+      doc.text('Dettaglio tariffa personalizzata:', 14, y);
+      y += 4;
+      doc.setFontSize(8); doc.setTextColor(40);
+      const wrapped = doc.splitTextToSize(tariff.description, 180);
+      wrapped.forEach(line => { doc.text(line, 14, y); y += 4; });
+      y += 3;
+    }
   }
 
   // === EXTRA ===
