@@ -398,9 +398,10 @@ export default function MarinaDetailPage() {
                 {marina.total_berths > 0 && (
                   <Badge className="bg-white text-primary font-bold text-lg px-4 py-2"><Ship className="w-5 h-5 mr-2" />{marina.total_berths} posti</Badge>
                 )}
-                <Button className="bg-amber-500 text-white hover:bg-amber-600 font-semibold shadow-lg" onClick={() => router.push(`/posti-barca/${slug}/mappa`)}>
-                  <Map className="w-4 h-4 mr-2" /> Mappa Interattiva
+                <Button className="bg-amber-500 text-white hover:bg-amber-600 font-semibold shadow-lg" onClick={() => router.push(`/posti-barca/${slug}/mappa-pubblica`)}>
+                  <Map className="w-4 h-4 mr-2" /> Vedi Mappa Posti
                 </Button>
+                <SuperAdminMapButton slug={slug} />
               </div>
             </div>
           </div>
@@ -753,3 +754,26 @@ export default function MarinaDetailPage() {
     </div>
   );
 }
+
+// Bottone visibile solo a SUPER_ADMIN per accedere alla mappa di gestione (admin)
+function SuperAdminMapButton({ slug }) {
+  const router = useRouter();
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || 'null');
+      if (u?.role === 'SUPER_ADMIN') setShow(true);
+    } catch (e) { /* */ }
+  }, []);
+  if (!show) return null;
+  return (
+    <Button
+      className="bg-amber-700 text-white hover:bg-amber-800 font-semibold shadow-lg border border-amber-900"
+      onClick={() => router.push(`/posti-barca/${slug}/mappa`)}
+      title="Solo Super Admin"
+    >
+      🔐 Gestione Mappa
+    </Button>
+  );
+}
+

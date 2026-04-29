@@ -23,11 +23,32 @@ export default function MarinaMapPage() {
   const [marina, setMarina] = useState(null);
   const [berths, setBerths] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [selectedBerth, setSelectedBerth] = useState(null);
   const [showOccupy, setShowOccupy] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [zoom, setZoom] = useState(1);
+  
+  // Auth check: solo SUPER_ADMIN può accedere a questa pagina
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || 'null');
+      if (u?.role === 'SUPER_ADMIN') {
+        setIsSuperAdmin(true);
+      } else {
+        // Redirect a versione pubblica
+        router.replace(`/posti-barca/${slug}/mappa-pubblica`);
+        return;
+      }
+    } catch (e) {
+      router.replace(`/posti-barca/${slug}/mappa-pubblica`);
+      return;
+    }
+    setAuthChecked(true);
+    /* eslint-disable-next-line */
+  }, []);
   
   // Form occupazione (con foto barca opzionale + dati completi cliente + calcolo tariffa)
   const initialForm = {
@@ -76,7 +97,7 @@ export default function MarinaMapPage() {
     }
   };
 
-  useEffect(() => { if (slug) loadData(); /* eslint-disable-next-line */ }, [slug]);
+  useEffect(() => { if (slug && authChecked) loadData(); /* eslint-disable-next-line */ }, [slug, authChecked]);
 
   // Calcolo automatico preventivo quando cambiano i parametri
   useEffect(() => {
@@ -294,9 +315,12 @@ export default function MarinaMapPage() {
     }
   };
 
-  if (loading) return (
+  if (loading || !authChecked) return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100 to-blue-200">
-      <Anchor className="w-12 h-12 animate-pulse text-primary" />
+      <div className="text-center">
+        <Anchor className="w-12 h-12 mx-auto animate-pulse text-primary" />
+        {!authChecked && <p className="text-sm text-muted-foreground mt-2">Verifico autorizzazione...</p>}
+      </div>
     </div>
   );
 
@@ -312,6 +336,7 @@ export default function MarinaMapPage() {
             <div>
               <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
                 <MapPin className="w-8 h-8" /> Mappa Interattiva — {marina?.name}
+                <Badge className="bg-amber-500 text-white text-xs">🔐 ADMIN</Badge>
               </h1>
               <p className="text-white/90 mt-1">Visualizzazione realistica del porto · Click su un posto per gestirlo</p>
             </div>

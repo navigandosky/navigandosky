@@ -445,6 +445,9 @@ export function BerthsManager() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadBerths}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
           <Button variant="outline" onClick={() => selectedMarina && window.open(`/posti-barca/${selectedMarina.slug}/mappa`, '_blank')} disabled={!selectedMarina}>
+            <MapIcon className="w-4 h-4 mr-2" />Apri Mappa Gestione
+          </Button>
+          <Button variant="outline" onClick={() => selectedMarina && window.open(`/posti-barca/${selectedMarina.slug}/mappa-pubblica`, '_blank')} disabled={!selectedMarina}>
             <MapIcon className="w-4 h-4 mr-2" />Apri Mappa Pubblica
           </Button>
           <Button onClick={() => setShowSeed(true)} disabled={!selectedMarinaId}>
