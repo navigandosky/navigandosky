@@ -428,6 +428,31 @@ export default function MarinaDetailPage() {
               </Card>
             )}
 
+            {/* Google Maps della Marina */}
+            {marina.latitude && marina.longitude && (
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Map className="w-5 h-5 text-primary" />Posizione</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                  <iframe
+                    title="Marina Map"
+                    width="100%"
+                    height="350"
+                    loading="lazy"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${marina.longitude - 0.01}%2C${marina.latitude - 0.01}%2C${marina.longitude + 0.01}%2C${marina.latitude + 0.01}&layer=mapnik&marker=${marina.latitude}%2C${marina.longitude}`}
+                    style={{ border: 0, display: 'block' }}
+                  />
+                  <div className="p-3 bg-muted/30 border-t flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">📍 {marina.latitude}, {marina.longitude}</span>
+                    <a
+                      href={`https://www.google.com/maps?q=${marina.latitude},${marina.longitude}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="text-primary hover:underline flex items-center gap-1 font-medium"
+                    ><Map className="w-4 h-4" />Apri in Google Maps</a>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Tabella tariffe annuali (se presenti) */}
             {marina.pricing?.annual?.length > 0 && (
               <Card>

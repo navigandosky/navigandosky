@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { ClipboardList, Ship, FileSignature, Shield, Save, Eye, Trash2, Search, RefreshCw, Download, FileText, Lock, Unlock, ArrowRightCircle, Anchor } from 'lucide-react';
+import { ClipboardList, Ship, FileSignature, Shield, Save, Eye, Edit, Trash2, Search, RefreshCw, Download, FileText, Lock, Unlock, ArrowRightCircle, Anchor } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateQuotePDF, generateReceiptPDF } from '@/app/lib/pdfGen';
 
@@ -98,6 +98,7 @@ export function QuotesManager() {
   };
   
   const [convertingQuote, setConvertingQuote] = useState(null);
+  const [editingQuote, setEditingQuote] = useState(null);
 
   return (
     <div className="space-y-4">
@@ -186,6 +187,7 @@ export function QuotesManager() {
                   </td>
                   <td className="p-2">
                     <Button size="sm" variant="ghost" title="Vedi" onClick={() => setSelected(q)}><Eye className="w-3 h-3" /></Button>
+                    <Button size="sm" variant="ghost" title="Modifica" onClick={() => setEditingQuote(q)}><Edit className="w-3 h-3 text-amber-600" /></Button>
                     <Button size="sm" variant="ghost" title="Scarica PDF" onClick={() => downloadPDF(q)}><Download className="w-3 h-3 text-blue-500" /></Button>
                     {q.status !== 'CONVERTITO' && (
                       <Button size="sm" variant="ghost" title="Converti in occupazione" onClick={() => setConvertingQuote(q)}><ArrowRightCircle className="w-3 h-3 text-emerald-600" /></Button>
@@ -202,7 +204,149 @@ export function QuotesManager() {
 
       {selected && <QuoteDetailDialog quote={selected} onClose={() => setSelected(null)} />}
       {convertingQuote && <ConvertQuoteDialog quote={convertingQuote} onClose={() => setConvertingQuote(null)} onDone={() => { setConvertingQuote(null); load(); }} />}
+      {editingQuote && <EditQuoteDialog quote={editingQuote} onClose={() => setEditingQuote(null)} onSaved={() => { setEditingQuote(null); load(); }} />}
     </div>
+  );
+}
+
+// =====================================================================
+// EDIT QUOTE DIALOG
+// =====================================================================
+function EditQuoteDialog({ quote, onClose, onSaved }) {
+  const [form, setForm] = useState({
+    customer: { ...quote.customer },
+    boat: { ...quote.boat },
+    start_date: quote.start_date,
+    end_date: quote.end_date,
+    days: quote.days,
+    tariff_label: quote.tariff_label || '',
+    tariff_description: quote.tariff_description || '',
+    mooring_amount: quote.mooring_amount || 0,
+    extras_total: quote.extras_total || 0,
+    grand_total: quote.grand_total || 0,
+    notes: quote.notes || '',
+    status: quote.status,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const update = (path, value) => {
+    setForm(f => {
+      const next = { ...f };
+      const parts = path.split('.');
+      let target = next;
+      for (let i = 0; i < parts.length - 1; i++) {
+        target[parts[i]] = { ...target[parts[i]] };
+        target = target[parts[i]];
+      }
+      target[parts[parts.length - 1]] = value;
+      return next;
+    });
+  };
+
+  // Auto-calcola totale
+  useEffect(() => {
+    const total = Number(form.mooring_amount || 0) + Number(form.extras_total || 0);
+    setForm(f => ({ ...f, grand_total: total }));
+  }, [form.mooring_amount, form.extras_total]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/port-quotes/${quote.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast.success('Preventivo aggiornato!');
+      onSaved();
+    } catch (e) { toast.error(e.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Edit className="w-5 h-5 text-amber-600" />Modifica Preventivo {quote.quote_number}</DialogTitle>
+          <DialogDescription>{quote.marina_name}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div>
+            <h3 className="font-semibold text-sm text-primary mb-2">Cliente</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>Nome</Label><Input value={form.customer.name || ''} onChange={e => update('customer.name', e.target.value)} /></div>
+              <div><Label>Cognome</Label><Input value={form.customer.surname || ''} onChange={e => update('customer.surname', e.target.value)} /></div>
+              <div><Label>Email</Label><Input value={form.customer.email || ''} onChange={e => update('customer.email', e.target.value)} /></div>
+              <div><Label>Telefono</Label><Input value={form.customer.phone || ''} onChange={e => update('customer.phone', e.target.value)} /></div>
+              <div className="col-span-2"><Label>CF / P.IVA</Label><Input value={form.customer.tax_code || ''} onChange={e => update('customer.tax_code', e.target.value.toUpperCase())} /></div>
+              <div className="col-span-2"><Label>Indirizzo</Label><Input value={form.customer.address || ''} onChange={e => update('customer.address', e.target.value)} /></div>
+              <div><Label>Città</Label><Input value={form.customer.city || ''} onChange={e => update('customer.city', e.target.value)} /></div>
+              <div><Label>CAP</Label><Input value={form.customer.zip || ''} onChange={e => update('customer.zip', e.target.value)} /></div>
+            </div>
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm text-primary mb-2">Imbarcazione</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>Nome Barca</Label><Input value={form.boat.name || ''} onChange={e => update('boat.name', e.target.value)} /></div>
+              <div><Label>Targa</Label><Input value={form.boat.registration || ''} onChange={e => update('boat.registration', e.target.value)} /></div>
+              <div><Label>Lunghezza (m)</Label><Input type="number" step="0.1" value={form.boat.length || 0} onChange={e => update('boat.length', parseFloat(e.target.value))} /></div>
+              <div>
+                <Label>Tipo</Label>
+                <Select value={form.boat.type || 'motor'} onValueChange={v => update('boat.type', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="motor">Motore</SelectItem>
+                    <SelectItem value="sail">Vela</SelectItem>
+                    <SelectItem value="catamaran">Catamarano</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm text-primary mb-2">Periodo & Tariffa</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label>Dal</Label><Input type="date" value={form.start_date?.slice(0, 10) || ''} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} /></div>
+              <div><Label>Al</Label><Input type="date" value={form.end_date?.slice(0, 10) || ''} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} /></div>
+              <div><Label>Giorni</Label><Input type="number" value={form.days} onChange={e => setForm(f => ({ ...f, days: Number(e.target.value) }))} /></div>
+              <div>
+                <Label>Stato</Label>
+                <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BOZZA">BOZZA</SelectItem>
+                    <SelectItem value="INVIATO">INVIATO</SelectItem>
+                    <SelectItem value="ACCETTATO">ACCETTATO</SelectItem>
+                    <SelectItem value="SCADUTO">SCADUTO</SelectItem>
+                    <SelectItem value="CONVERTITO">CONVERTITO</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2"><Label>Etichetta tariffa</Label><Input value={form.tariff_label} onChange={e => setForm(f => ({ ...f, tariff_label: e.target.value }))} /></div>
+              <div className="col-span-2">
+                <Label>Descrizione tariffa (multiriga)</Label>
+                <textarea rows={4} value={form.tariff_description} onChange={e => setForm(f => ({ ...f, tariff_description: e.target.value }))} className="w-full mt-1 text-sm px-2 py-1.5 border rounded resize-y" placeholder="Dettaglio tariffa personalizzata..." />
+              </div>
+              <div><Label>Importo ormeggio (€)</Label><Input type="number" step="0.01" value={form.mooring_amount} onChange={e => setForm(f => ({ ...f, mooring_amount: parseFloat(e.target.value) || 0 }))} /></div>
+              <div><Label>Subtotale extra (€)</Label><Input type="number" step="0.01" value={form.extras_total} onChange={e => setForm(f => ({ ...f, extras_total: parseFloat(e.target.value) || 0 }))} /></div>
+            </div>
+            <div className="bg-primary text-white rounded p-3 mt-3 flex justify-between items-center">
+              <span className="text-xs uppercase">Totale</span>
+              <span className="text-2xl font-bold">{fmtPrice(form.grand_total)}</span>
+            </div>
+          </div>
+          <div>
+            <Label>Note</Label>
+            <textarea rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="w-full text-sm px-2 py-1.5 border rounded" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annulla</Button>
+          <Button onClick={save} disabled={saving}>{saving ? 'Salvo...' : <><Save className="w-4 h-4 mr-2" />Salva Modifiche</>}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

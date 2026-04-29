@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Anchor, Plus, Edit, Trash2, Save, X, AlertCircle, Ship, Lock, Unlock, RefreshCw, Eye, MapPin, FileText, Map as MapIcon } from 'lucide-react';
+import { Anchor, Plus, Edit, Trash2, Save, X, AlertCircle, Ship, Lock, Unlock, RefreshCw, Eye, MapPin, FileText, Map as MapIcon, Upload, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 const MONTHS = [
@@ -138,7 +138,57 @@ function MarinaEditDialog({ marina, onClose, onSaved }) {
               <div><Label>Posti barca totali</Label><Input type="number" value={form.total_berths || 0} onChange={e => update('total_berths', Number(e.target.value))} /></div>
               <div><Label>Latitudine</Label><Input type="number" step="0.0001" value={form.latitude || ''} onChange={e => update('latitude', parseFloat(e.target.value))} /></div>
               <div><Label>Longitudine</Label><Input type="number" step="0.0001" value={form.longitude || ''} onChange={e => update('longitude', parseFloat(e.target.value))} /></div>
-              <div className="col-span-2"><Label>Cover Image (URL)</Label><Input value={form.cover_image || ''} onChange={e => update('cover_image', e.target.value)} /></div>
+              <div className="col-span-2 space-y-2">
+                <Label>Immagine di copertina</Label>
+                <div className="flex items-start gap-3">
+                  {form.cover_image ? (
+                    <div className="relative">
+                      <img src={form.cover_image} alt="Cover" className="w-32 h-32 rounded-lg border-2 object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => update('cover_image', '')}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      ><X className="w-3 h-3" /></button>
+                    </div>
+                  ) : (
+                    <div className="w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/30">
+                      <ImageIcon className="w-10 h-10 text-muted-foreground/40" />
+                    </div>
+                  )}
+                  <div className="flex-1 space-y-2">
+                    <ImageUploader onUpload={(url) => update('cover_image', url)} />
+                    <Input value={form.cover_image || ''} onChange={e => update('cover_image', e.target.value)} placeholder="oppure incolla URL immagine..." className="text-xs" />
+                    <p className="text-[10px] text-muted-foreground">JPG/PNG max 5MB. Verrà mostrata come banner principale.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-2 space-y-2">
+                <Label>Galleria immagini aggiuntive</Label>
+                <ImageGalleryUploader images={form.images || []} onChange={(imgs) => update('images', imgs)} />
+              </div>
+
+              {/* Google Maps Preview */}
+              {(form.latitude && form.longitude) && (
+                <div className="col-span-2 space-y-1">
+                  <Label className="flex items-center gap-1"><MapIcon className="w-4 h-4" />Anteprima posizione</Label>
+                  <div className="rounded-lg overflow-hidden border-2 shadow-sm">
+                    <iframe
+                      title="Marina position"
+                      width="100%"
+                      height="200"
+                      loading="lazy"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${form.longitude - 0.01}%2C${form.latitude - 0.01}%2C${form.longitude + 0.01}%2C${form.latitude + 0.01}&layer=mapnik&marker=${form.latitude}%2C${form.longitude}`}
+                      style={{ border: 0 }}
+                    />
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps?q=${form.latitude},${form.longitude}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                  ><MapIcon className="w-3 h-3" />Apri in Google Maps</a>
+                </div>
+              )}
               <div className="col-span-2"><Label>Descrizione breve</Label><Input value={form.short_description || ''} onChange={e => update('short_description', e.target.value)} /></div>
               <div className="col-span-2"><Label>Descrizione completa</Label><Textarea rows={4} value={form.description || ''} onChange={e => update('description', e.target.value)} /></div>
               <div className="col-span-2"><Label>Note (una per riga)</Label><Textarea rows={3} value={(form.pricing_notes || []).join('\n')} onChange={e => update('pricing_notes', e.target.value.split('\n').filter(Boolean))} /></div>
@@ -520,3 +570,74 @@ export function BerthsManager() {
     </div>
   );
 }
+
+// =============================================================
+// IMAGE UPLOADER (Sfoglia & Carica)
+// =============================================================
+function ImageUploader({ onUpload }) {
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error('Max 5MB'); return; }
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch('/api/upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: [base64] }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const url = data.urls?.[0];
+      if (url) { onUpload(url); toast.success('Immagine caricata!'); }
+    } catch (err) { toast.error('Errore upload: ' + err.message); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+
+  return (
+    <>
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+      <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
+        {uploading ? 'Carico...' : <><Upload className="w-3 h-3 mr-1" />Sfoglia e carica</>}
+      </Button>
+    </>
+  );
+}
+
+// =============================================================
+// IMAGE GALLERY UPLOADER (galleria multipla)
+// =============================================================
+function ImageGalleryUploader({ images, onChange }) {
+  const handleAdd = (url) => onChange([...(images || []), url]);
+  const handleRemove = (i) => onChange(images.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {(images || []).map((img, i) => (
+          <div key={i} className="relative">
+            <img src={img} alt="" className="w-20 h-20 rounded border-2 object-cover" />
+            <button
+              type="button"
+              onClick={() => handleRemove(i)}
+              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+            ><X className="w-3 h-3" /></button>
+          </div>
+        ))}
+        <div className="w-20 h-20 border-2 border-dashed rounded flex items-center justify-center bg-muted/30">
+          <ImageUploader onUpload={handleAdd} />
+        </div>
+      </div>
+      {(images || []).length > 0 && <p className="text-[10px] text-muted-foreground">{images.length} immagine/i in galleria</p>}
+    </div>
+  );
+}
+

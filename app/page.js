@@ -2588,7 +2588,8 @@ function AdminDashboard({ currentUser, onLogout }) {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs defaultValue="overview" className="space-y-3">
+        {/* Riga 1: Tab Esperienze (sfondo neutro) */}
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="experiences"><Compass className="w-4 h-4 mr-1.5" />{t('experiences')}</TabsTrigger>
           <TabsTrigger value="bookings"><CreditCard className="w-4 h-4 mr-1.5" />{t('bookings')}</TabsTrigger>
@@ -2599,16 +2600,24 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
           <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
           {isSuperAdmin && <TabsTrigger value="companies"><Building2 className="w-4 h-4 mr-1.5" />Multi-Tenant</TabsTrigger>}
-          {isSuperAdmin && <TabsTrigger value="marinas"><Anchor className="w-4 h-4 mr-1.5" />Marine</TabsTrigger>}
-          {isSuperAdmin && <TabsTrigger value="berths"><Ship className="w-4 h-4 mr-1.5" />Posti Barca</TabsTrigger>}
-          {isSuperAdmin && <TabsTrigger value="quotes"><ClipboardList className="w-4 h-4 mr-1.5" />Preventivi</TabsTrigger>}
-          {isSuperAdmin && <TabsTrigger value="transits"><Ship className="w-4 h-4 mr-1.5" />Transiti</TabsTrigger>}
-          {isSuperAdmin && <TabsTrigger value="contracts"><FileSignature className="w-4 h-4 mr-1.5" />Contratti</TabsTrigger>}
-          {isSuperAdmin && <TabsTrigger value="port-settings"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>}
-
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
         </TabsList>
+
+        {/* Riga 2: Tab MARINE (sfondo blu, scritte bianche) - solo Super Admin */}
+        {isSuperAdmin && (
+          <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-blue-700 via-primary to-blue-800 p-2 rounded-lg shadow-md w-full">
+            <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
+              <Anchor className="w-4 h-4" />Modulo Marina
+            </div>
+            <TabsTrigger value="marinas" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Anchor className="w-4 h-4 mr-1.5" />Marine</TabsTrigger>
+            <TabsTrigger value="berths" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Posti Barca</TabsTrigger>
+            <TabsTrigger value="quotes" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><ClipboardList className="w-4 h-4 mr-1.5" />Preventivi</TabsTrigger>
+            <TabsTrigger value="transits" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Transiti</TabsTrigger>
+            <TabsTrigger value="contracts" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><FileSignature className="w-4 h-4 mr-1.5" />Contratti</TabsTrigger>
+            <TabsTrigger value="port-settings" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>
+          </TabsList>
+        )}
 
         {/* Overview */}
         <TabsContent value="overview" className="space-y-6">
