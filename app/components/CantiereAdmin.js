@@ -386,8 +386,9 @@ function CantiereEditor({ quote, templates, onClose, onSaved }) {
   };
 
   return (
+    <>
     <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto" translate="no">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wrench className="w-5 h-5 text-amber-600" />
@@ -643,17 +644,18 @@ function CantiereEditor({ quote, templates, onClose, onSaved }) {
             {form._isNew ? 'Crea Preventivo' : 'Salva Modifiche'}
           </Button>
         </DialogFooter>
-
-        {/* Picker template */}
-        {showTemplatePicker && (
-          <TemplatePicker
-            templates={templates}
-            onClose={() => setShowTemplatePicker(false)}
-            onConfirm={addTemplatesBulk}
-          />
-        )}
       </DialogContent>
     </Dialog>
+
+    {/* Picker template - SIBLING (non annidato) per evitare conflitti React Portal con traduzione browser */}
+    {showTemplatePicker && (
+      <TemplatePicker
+        templates={templates}
+        onClose={() => setShowTemplatePicker(false)}
+        onConfirm={addTemplatesBulk}
+      />
+    )}
+    </>
   );
 }
 
@@ -686,7 +688,7 @@ function TemplatePicker({ templates, onClose, onConfirm }) {
 
   return (
     <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto" translate="no">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-amber-600" />Seleziona servizi dal catalogo
