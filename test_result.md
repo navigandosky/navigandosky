@@ -249,15 +249,30 @@ backend:
         agent: "testing"
         comment: "COMPREHENSIVE CANTIERE TESTING COMPLETED - 15/16 tests passed (93.75% success rate). ✅ WORKING: Templates auto-seeding (23 templates with correct categories), Template CRUD (POST/PUT/DELETE), Quote creation with correct VAT calculations (230 net + 50.6 IVA 22% = 280.6 total), Quote filtering (status, email), Single quote retrieval, Quote updates with item additions (totals recalculate correctly: 380 net + 83.6 IVA = 463.6), Status changes (preserve totals and immutable fields), Quote deletion (returns 204, subsequent GET returns 404), Edge cases (empty items array → all totals 0, discount > amount → net_taxable 0 via Math.max protection, non-existent ID → 404). ❌ CRITICAL BUG FOUND: PUT /api/cantiere/{id} with only iva_rate change does NOT recalculate totals. Root cause: cantiere.js line 114 only recalculates when Array.isArray(update.items) is true. When updating only iva_rate without items array, the recalculation logic is skipped. Expected behavior: changing iva_rate from 22 to 10 should recalculate iva_amount (380 × 10% = 38) and grand_total (380 + 38 = 418), but actual values remain unchanged (83.6 and 463.6). FIX REQUIRED: Add separate recalculation logic when iva_rate changes OR fetch existing items and recalculate when iva_rate is present in update. This is a business-critical calculation bug that affects quote accuracy."
 
+frontend:
+  - task: "Cantiere (Boatyard) Frontend Module - Quote Management UI"
+    implemented: true
+    working: true
+    file: "app/components/CantiereAdmin.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "NEW FRONTEND MODULE: CantiereAdmin component implemented with full quote management UI. Visible only to Super Admin or Marlin Sub Company Admin (isMarlinSub check). Orange band with 'MODULO CANTIERE' and Wrench icon. Features: Quote list with search/filter, 'Nuovo Preventivo' button, editor dialog with sections (Dati Cliente, Dati Barca, Servizi e Prestazioni, Pagamento e Stato, Totali), template picker with search and grouped services, real-time totals calculation, PDF/Word download buttons, edit/delete actions. Files: /app/app/page.js (orange band tabs), /app/app/components/CantiereAdmin.js (main component)."
+      - working: true
+        agent: "testing"
+        comment: "✅ CANTIERE FRONTEND TESTING COMPLETED - All 13 test scenarios passed (100% success rate). COMPREHENSIVE UI VALIDATION: ✅ Login with Marlin credentials successful. ✅ Orange band 'MODULO CANTIERE' visible with Wrench icon and gradient amber-orange background. ✅ 'Preventivi Rimessaggio' tab found and clickable. ✅ Cantiere admin view loaded with 'Nuovo Preventivo' button, search field, and status filter. ✅ New quote dialog opened with all sections visible (Dati Cliente, Dati Barca, Servizi e Prestazioni, Pagamento e Stato, Totali). ✅ Customer data entry working: Nome (Mario), Cognome (Test), P.IVA (RSSMRA80A01H501Z), Email (mario@test.it), Telefono (3331234567). ✅ Boat data entry working: Nome Barca (Stella Maris), Targa (PS123), Lunghezza (7.5), Tipo (Motore). ✅ Template picker opened with 23 services, search for 'alaggio' working, 3 services selected and added to quote. ✅ Item editing working: qty and unit_price fields editable, totals update in real-time (310€ imponibile + 68,20€ IVA 22% = 378,20€ total). ✅ Payment method set to 'Bonifico bancario', notes added. ✅ Quote saved successfully with auto-generated number CANT-2026/0001. ✅ Quote displayed in list with all details: customer (Mario Test + email), boat (Stella Maris · PS123 · 7.5m), total (378,20€), status badge (Bozza in gray), date, and 4 action buttons. ✅ PDF download working: Preventivo_CANT-2026_0001.pdf downloaded with success toast. ✅ Word download working: Preventivo_CANT-2026_0001.docx downloaded with success toast. ✅ Edit dialog opened with prefilled data, new service row added via 'Riga Libera', quote updated successfully. ✅ Delete functionality working: trash button clicked, confirm dialog accepted, quote removed from list with success toast. All UI flows working perfectly as specified in requirements. Screenshots captured at each step for visual verification."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 2
+  test_sequence: 3
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Cantiere (Boatyard) Quotes API with VAT 22% calculation"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -277,3 +292,5 @@ agent_communication:
     message: "🆕 CANTIERE (BOATYARD) MODULE — IMPLEMENTED. New endpoints: GET/POST/PUT/DELETE /api/cantiere (preventivi rimessaggio with auto-numbering CANT-YYYY/NNNN), GET/POST/PUT/DELETE /api/cantiere-templates (auto-seeded list of 22 standard nautical services in 3 categories: Cantiere, Manodopera Motore, Elettrico). Schema cantiere_quotes: customer (name, surname, email, phone, vat_number=free field for P.IVA or CF), boat (name, registration, length, type), items (description, qty, unit_price, discount, calculated amount/net_taxable server-side), iva_rate=22 default, payment_method, payment_status, notes, status (BOZZA/INVIATO/ACCETTATO/RIFIUTATO/COMPLETATO). Auto-calculation server-side: subtotal_net, iva_amount (22%), grand_total. Frontend: new CantiereAdmin component (lazy-loaded), visible only to Super Admin or Marlin Sub Company Admin (detected by company name/slug). Includes editor dialog with customer data, boat data, services checklist (preloaded templates picker + free rows), real-time totals, payment options, status workflow. PDF generation with Maretrek/Trivor logos via jspdf+autoTable, plus EDITABLE Word (.docx) generation via docx library + file-saver. Manual curl test PASSED: POST /api/cantiere creates quote with correct calc (230 net + 50.60 IVA 22% = 280.60). Auto-seed templates returns 22 entries. NEEDS BACKEND TESTING: full CRUD + edge cases on /api/cantiere and /api/cantiere-templates."
   - agent: "testing"
     message: "🔍 CANTIERE BACKEND TESTING COMPLETED - 15/16 tests passed (93.75%). CRITICAL BUG FOUND: IVA rate changes don't recalculate totals. ✅ Working: Templates (23 auto-seeded), Template CRUD, Quote creation (correct VAT calc: 230 net + 50.6 IVA = 280.6), Filtering (status/email), Item additions recalculate correctly (380 net + 83.6 IVA = 463.6), Status changes preserve totals, Deletion works, Edge cases handled (empty items, discount > amount, 404s). ❌ BUG: PUT /api/cantiere/{id} with only {iva_rate: 10} doesn't recalculate. Root cause: cantiere.js:114 only recalculates when update.items is array. Fix needed: Add iva_rate change detection and recalculation logic. Business-critical issue affecting quote accuracy."
+  - agent: "testing"
+    message: "✅ CANTIERE FRONTEND TESTING COMPLETED - All 13 test scenarios passed (100% success rate). Tested with Marlin Sub Company Admin credentials (Marlin/Marlin2026$). Orange band with 'MODULO CANTIERE' visible, Wrench icon present, gradient amber-orange background confirmed. Full quote creation flow working: customer data entry, boat data entry, template picker with 23 services, search functionality, item editing with real-time totals (378,20€ calculated correctly: 310€ + 68,20€ IVA 22%). Quote saved as CANT-2026/0001, displayed in list with all details. PDF download (Preventivo_CANT-2026_0001.pdf) and Word download (Preventivo_CANT-2026_0001.docx) both working. Edit flow working: dialog opens with prefilled data, new rows can be added via 'Riga Libera', changes saved successfully. Delete flow working: trash button, confirm dialog, quote removed from list. All UI components, forms, buttons, dialogs, and integrations working perfectly. 18 screenshots captured for visual verification. Frontend module is production-ready."
