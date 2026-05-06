@@ -121,8 +121,17 @@ export async function handleMarinaQuote(method, body, db) {
   
   // Calcola opzioni alternative
   const options = [];
+
+  // Calcola mesi pieni nel periodo (per logica semestrale)
+  const monthDiff = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + (end.getDate() >= start.getDate() ? 0 : -1) + 1;
+  // Verifica se il periodo cade in stagione estiva (mesi 6-10: giugno-ottobre)
+  const isInBoatingSeason = startMonth >= 6 && endMonth <= 10;
+  // Logica semestrale (Opzione C):
+  //  - applica se il periodo è ≥ 6 mesi (180 giorni)
+  //  - oppure se cade in stagione estiva (giugno-ottobre) e dura ≥ 4 mesi (≈120 giorni)
+  const eligibleSemestral = (days >= 180) || (isInBoatingSeason && days >= 120);
   
-  // Opzione 1: tariffa giornaliera (somma giorni per mese)
+  // Opzione 1: tariffa giornaliera (somma giorni per mese) - SEMPRE mostrata per confronto
   if (pricing.daily_by_month) {
     let dailyTotal = 0;
     let dailyDetail = [];
@@ -152,20 +161,21 @@ export async function handleMarinaQuote(method, body, db) {
     }
   }
   
-  // Opzione 2: tariffa mensile (se >= 28 giorni)
-  if (days >= 28 && pricing.monthly_by_month) {
-    const months = Math.ceil(days / 30);
+  // Opzione 2: tariffa mensile (se >= 28 giorni e periodo NON è semestrale)
+  // Non duplica la semestrale: mostriamo mensile solo se < 5 mesi
+  if (days >= 28 && days < 150 && pricing.monthly_by_month) {
+    // Calcolo corretto dei mesi (non Math.ceil che gonfia il conteggio)
+    const monthsCount = Math.max(1, monthDiff);
     let monthlyTotal = 0;
     let monthlyDetail = [];
-    // Per semplicità usiamo il mese di inizio
     const mo = String(startMonth);
     const monthPrice = findPriceForLength(pricing.monthly_by_month[mo] || [], length);
     if (monthPrice) {
-      monthlyTotal = monthPrice * months;
-      monthlyDetail.push({ month: mo, months, monthly_price: monthPrice, subtotal: monthlyTotal });
+      monthlyTotal = monthPrice * monthsCount;
+      monthlyDetail.push({ month: mo, months: monthsCount, monthly_price: monthPrice, subtotal: monthlyTotal });
       options.push({
         type: 'monthly',
-        label: `Tariffa mensile (${months} mes${months > 1 ? 'i' : 'e'})`,
+        label: `Tariffa mensile (${monthsCount} mes${monthsCount > 1 ? 'i' : 'e'})`,
         total: monthlyTotal,
         detail: monthlyDetail
       });
@@ -185,15 +195,18 @@ export async function handleMarinaQuote(method, body, db) {
     }
   }
   
-  // Opzione 4: tariffa annuale (se >= 300 giorni)
-  if (days >= 300 && pricing.annual?.length > 0) {
-    const annualPrice = findPriceForLength(pricing.annual, length);
-    if (annualPrice) {
+  // Opzione 4: tariffa SEMESTRALE (ex annuale) - Opzione C
+  // Si applica se: ≥ 6 mesi OR (in stagione estiva 6-10 e ≥ 4 mesi)
+  // Nota: il campo nel DB rimane `annual` per retrocompatibilità ma la logica è semestrale
+  const semestralTariffs = pricing.semestral || pricing.annual || [];
+  if (eligibleSemestral && semestralTariffs.length > 0) {
+    const semestralPrice = findPriceForLength(semestralTariffs, length);
+    if (semestralPrice) {
       options.push({
-        type: 'annual',
-        label: 'Tariffa Annuale',
-        total: annualPrice,
-        detail: [{ subtotal: annualPrice }]
+        type: 'semestral',
+        label: 'Tariffa Semestrale',
+        total: semestralPrice,
+        detail: [{ subtotal: semestralPrice }]
       });
     }
   }

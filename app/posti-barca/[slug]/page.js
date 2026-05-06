@@ -313,6 +313,46 @@ export default function MarinaDetailPage() {
     }
   };
 
+  // Genera Word .docx editabile (analogo al PDF, stesso layout, stesso logo company)
+  const generateDOCX = async () => {
+    if (!quote) return;
+    if (!clientData.name || !clientData.email) {
+      toast.error('Nome ed Email sono obbligatori');
+      return;
+    }
+    setGeneratingPdf(true);
+    try {
+      // Trova company emittente
+      let company = null;
+      if (marina?.company_id) {
+        const cRes = await fetch('/api/companies').then(r => r.json());
+        company = (Array.isArray(cRes) ? cRes : []).find(c => c.id === marina.company_id) || null;
+      }
+      const tariffOption = quote.options?.find(o => o.type === tariffChoice) || quote.recommended;
+      const tariffTotal = tariffChoice === 'custom' ? Number(customTotal || 0) : (tariffOption?.total || 0);
+      const tariffLabel = tariffChoice === 'custom' ? `Personalizzata${customDescription ? ' - ' + customDescription : ''}` : (tariffOption?.label || '—');
+      const extras_list = (quote.extras || []).map(ex => ({ ...ex, total: ex.total || ex.subtotal || 0 }));
+      const { downloadMarinaQuoteDOCX } = await import('@/app/lib/marinaDoc');
+      await downloadMarinaQuoteDOCX({
+        marina,
+        customer: { name: clientData.name, surname: clientData.surname, email: clientData.email, phone: clientData.phone },
+        boat: { name: clientData.boat_name, registration: clientData.boat_registration, length: quote.boat?.length, type: quote.boat?.type },
+        period: quote.period,
+        tariff: { label: tariffLabel, total: tariffTotal },
+        extras: extras_list,
+        extras_total: quote.extras_total || 0,
+        grand_total: tariffTotal + (quote.extras_total || 0),
+        notes: '',
+        company,
+      });
+      toast.success('Word (.docx) scaricato!');
+      setShowPdfDialog(false);
+    } catch (e) {
+      console.error(e);
+      toast.error('Errore generazione Word: ' + (e.message || ''));
+    } finally { setGeneratingPdf(false); }
+  };
+
   const saveQuote = async () => {
     if (!quote) { toast.error('Calcola prima il preventivo'); return; }
     if (!clientData.name || !clientData.email) {
@@ -457,10 +497,10 @@ export default function MarinaDetailPage() {
               </Card>
             )}
 
-            {/* Tabella tariffe annuali (se presenti) */}
+            {/* Tabella tariffe semestrali (se presenti) */}
             {marina.pricing?.annual?.length > 0 && (
               <Card>
-                <CardHeader><CardTitle>Tariffe Ormeggio Annuali (IVA inclusa)</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Tariffe Ormeggio Semestrali (IVA inclusa)</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                     {marina.pricing.annual.map((t, i) => (
@@ -679,8 +719,11 @@ export default function MarinaDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPdfDialog(false)}>Annulla</Button>
+            <Button variant="secondary" onClick={generateDOCX} disabled={generatingPdf} className="bg-blue-100 text-blue-700 hover:bg-blue-200">
+              {generatingPdf ? 'Genero...' : <><FileText className="w-4 h-4 mr-2" />Word (.docx)</>}
+            </Button>
             <Button onClick={generatePDF} disabled={generatingPdf}>
-              {generatingPdf ? 'Genero PDF...' : <><FileText className="w-4 h-4 mr-2" />Genera e Scarica</>}
+              {generatingPdf ? 'Genero PDF...' : <><FileText className="w-4 h-4 mr-2" />PDF</>}
             </Button>
           </DialogFooter>
         </DialogContent>

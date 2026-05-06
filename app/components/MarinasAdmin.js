@@ -120,7 +120,7 @@ function MarinaEditDialog({ marina, onClose, onSaved }) {
         <Tabs defaultValue="info" className="mt-2">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="info">Info Generali</TabsTrigger>
-            <TabsTrigger value="annual">Tariffe Annuali</TabsTrigger>
+            <TabsTrigger value="annual">Tariffe Semestrali</TabsTrigger>
             <TabsTrigger value="daily">Tariffe Giornaliere</TabsTrigger>
             <TabsTrigger value="monthly">Tariffe Mensili</TabsTrigger>
             <TabsTrigger value="extra">Servizi Extra</TabsTrigger>
@@ -201,8 +201,8 @@ function MarinaEditDialog({ marina, onClose, onSaved }) {
 
           <TabsContent value="annual" className="pt-3">
             <TariffTable
-              title="Tariffe Annuali per lunghezza"
-              hint="Tariffa fissa per ormeggio annuale (12 mesi)."
+              title="Tariffe Semestrali per lunghezza"
+              hint="Tariffa fissa per ormeggio semestrale (6 mesi). Si applica automaticamente quando il periodo è ≥ 6 mesi oppure cade nella stagione estiva (giu-ott) per ≥ 4 mesi."
               tiers={form.pricing?.annual || []}
               onChange={(tiers) => updatePricing('annual', tiers)}
             />

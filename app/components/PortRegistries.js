@@ -104,6 +104,28 @@ export function QuotesManager() {
       toast.success('PDF generato!');
     } catch (e) { toast.error('Errore PDF: ' + e.message); }
   };
+
+  const downloadDOCX = async (q) => {
+    try {
+      const m = await fetch(`/api/marinas/${q.marina_id}`).then(r => r.json());
+      const company = companies.find(c => c.id === m?.company_id) || null;
+      const { downloadMarinaQuoteDOCX } = await import('../lib/marinaDoc');
+      await downloadMarinaQuoteDOCX({
+        marina: m,
+        customer: q.customer,
+        boat: q.boat,
+        period: { start_date: q.start_date, end_date: q.end_date, days: q.days },
+        tariff: { label: q.tariff_label, total: q.mooring_amount, detail: [{ subtotal: q.mooring_amount }], description: q.tariff_description || '' },
+        extras: q.extras || [],
+        extras_total: q.extras_total || 0,
+        grand_total: q.grand_total,
+        quote_number: q.quote_number,
+        notes: q.notes,
+        company,
+      });
+      toast.success('Word (.docx) generato!');
+    } catch (e) { toast.error('Errore Word: ' + e.message); }
+  };
   
   const [convertingQuote, setConvertingQuote] = useState(null);
   const [editingQuote, setEditingQuote] = useState(null);
@@ -197,6 +219,7 @@ export function QuotesManager() {
                     <Button size="sm" variant="ghost" title="Vedi" onClick={() => setSelected(q)}><Eye className="w-3 h-3" /></Button>
                     <Button size="sm" variant="ghost" title="Modifica" onClick={() => setEditingQuote(q)}><Edit className="w-3 h-3 text-amber-600" /></Button>
                     <Button size="sm" variant="ghost" title="Scarica PDF" onClick={() => downloadPDF(q)}><Download className="w-3 h-3 text-blue-500" /></Button>
+                    <Button size="sm" variant="ghost" title="Scarica Word editabile" onClick={() => downloadDOCX(q)}><FileText className="w-3 h-3 text-blue-700" /></Button>
                     {q.status !== 'CONVERTITO' && (
                       <Button size="sm" variant="ghost" title="Converti in occupazione" onClick={() => setConvertingQuote(q)}><ArrowRightCircle className="w-3 h-3 text-emerald-600" /></Button>
                     )}
