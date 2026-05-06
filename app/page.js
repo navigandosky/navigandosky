@@ -20,6 +20,8 @@ const QuotesManagerLazy = dynamic(() => import('./components/PortRegistries').th
 const TransitsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.TransitsManager })), { ssr: false });
 const ContractsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.ContractsManager })), { ssr: false });
 const PortSettingsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.PortSettingsManager })), { ssr: false });
+// Cantiere (Boatyard) Admin
+const CantiereAdminLazy = dynamic(() => import('./components/CantiereAdmin'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -30,7 +32,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield
+  ClipboardList, FileSignature, Shield, Wrench
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -2158,6 +2160,17 @@ function AdminDashboard({ currentUser, onLogout }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Cantiere visibility: Super Admin OR Company Admin di Marlin Sub
+  const isMarlinSub = useMemo(() => {
+    if (isSuperAdmin) return true;
+    if (!isCompanyAdmin || !currentUser?.company_id) return false;
+    const co = (companies || []).find(c => c.id === currentUser.company_id);
+    if (!co) return false;
+    const name = (co.name || '').toLowerCase();
+    const slug = (co.slug || '').toLowerCase();
+    return name.includes('marlin') || slug.includes('marlin');
+  }, [isSuperAdmin, isCompanyAdmin, currentUser?.company_id, companies]);
+
   const seedData = async () => { setSeeding(true); await api('seed', { method: 'POST' }); toast.success('Dati demo caricati!'); await load(); setSeeding(false); };
   const createItem = async (ep, data) => {
     // Multi-tenant: Company Admin assegna automaticamente company_id alle nuove entità
@@ -2616,6 +2629,18 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="transits" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Transiti</TabsTrigger>
             <TabsTrigger value="contracts" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><FileSignature className="w-4 h-4 mr-1.5" />Contratti</TabsTrigger>
             <TabsTrigger value="port-settings" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>
+          </TabsList>
+        )}
+
+        {/* Riga 3: Tab CANTIERE (sfondo arancione) - Super Admin o Marlin Sub */}
+        {isMarlinSub && (
+          <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-amber-600 via-orange-500 to-amber-700 p-2 rounded-lg shadow-md w-full">
+            <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
+              <Wrench className="w-4 h-4" />Modulo Cantiere
+            </div>
+            <TabsTrigger value="cantiere" className="text-white data-[state=active]:bg-white data-[state=active]:text-amber-800 hover:bg-white/20">
+              <FileSignature className="w-4 h-4 mr-1.5" />Preventivi Rimessaggio
+            </TabsTrigger>
           </TabsList>
         )}
 
@@ -4076,6 +4101,15 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsContent value="port-settings" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Shield className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <PortSettingsManagerLazy />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin / Marlin Sub: Cantiere */}
+        {isMarlinSub && (
+          <TabsContent value="cantiere" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Wrench className="w-8 h-8 mx-auto animate-pulse" /></div>}>
+              <CantiereAdminLazy currentUser={currentUser} />
             </Suspense>
           </TabsContent>
         )}
