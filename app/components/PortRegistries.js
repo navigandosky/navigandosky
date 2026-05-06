@@ -19,6 +19,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—';
 // =====================================================================
 export function QuotesManager() {
   const [quotes, setQuotes] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -27,9 +28,14 @@ export function QuotesManager() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/port-quotes');
-      const data = await res.json();
+      const [qRes, cRes] = await Promise.all([
+        fetch('/api/port-quotes'),
+        fetch('/api/companies'),
+      ]);
+      const data = await qRes.json();
+      const cData = await cRes.json();
       setQuotes(Array.isArray(data) ? data : []);
+      setCompanies(Array.isArray(cData) ? cData : []);
     } catch (e) { toast.error('Errore caricamento'); }
     finally { setLoading(false); }
   }, []);
@@ -81,6 +87,7 @@ export function QuotesManager() {
     try {
       // Fetch marina full data for logos / contacts
       const m = await fetch(`/api/marinas/${q.marina_id}`).then(r => r.json());
+      const company = companies.find(c => c.id === m?.company_id) || null;
       await generateQuotePDF({
         marina: m,
         customer: q.customer,
@@ -92,6 +99,7 @@ export function QuotesManager() {
         grand_total: q.grand_total,
         quote_number: q.quote_number,
         notes: q.notes,
+        company,
       });
       toast.success('PDF generato!');
     } catch (e) { toast.error('Errore PDF: ' + e.message); }
@@ -704,9 +712,12 @@ export function TransitsManager() {
                       <Button size="sm" variant="ghost" title="Scarica Ricevuta PDF" onClick={async () => {
                         try {
                           const m = await fetch(`/api/marinas/${t.marina_id}`).then(r => r.json());
+                          const cRes = await fetch('/api/companies').then(r => r.json());
+                          const company = (Array.isArray(cRes) ? cRes : []).find(c => c.id === m?.company_id) || null;
                           await generateReceiptPDF({
                             marina: m, occupation: t, berth_label: t.berth_label,
                             receipt_number: `R-${new Date().getFullYear()}-${t.berth_label}-${(t.id || '').slice(-6).toUpperCase()}`,
+                            company,
                           });
                           toast.success('Ricevuta scaricata');
                         } catch (e) { toast.error(e.message); }

@@ -276,11 +276,17 @@ export default function MarinaMapPage() {
   const generateReceipt = async () => {
     try {
       const { generateReceiptPDF } = await import('@/app/lib/pdfGen');
+      let company = null;
+      if (marina?.company_id) {
+        const cRes = await fetch('/api/companies').then(r => r.json());
+        company = (Array.isArray(cRes) ? cRes : []).find(c => c.id === marina.company_id) || null;
+      }
       await generateReceiptPDF({
         marina,
         occupation: selectedBerth.current_occupation,
         berth_label: selectedBerth.label,
         receipt_number: `R-${new Date().getFullYear()}-${selectedBerth.label}-${Date.now().toString().slice(-6)}`,
+        company,
       });
       toast.success('Ricevuta scaricata');
     } catch (e) { toast.error('Errore: ' + e.message); }

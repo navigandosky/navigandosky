@@ -98,7 +98,7 @@ export async function handlePortSettings(method, id, body, action, sp, db) {
         id: SETTINGS_ID,
         complimentary_password_hash: null, // Non impostata di default
         complimentary_password_set: false,
-        company_logo_url: '/logos/maretrek.png',
+        company_logo_url: '', // Logo viene preso dalla company emittente
         invoice_prefix: 'BOSA',
         created_at: new Date().toISOString(),
       };

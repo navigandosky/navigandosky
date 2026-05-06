@@ -18,20 +18,18 @@ const fmtPrice = (p) => (p ?? 0).toLocaleString('it-IT', { style: 'currency', cu
 
 // =====================================================================
 // PDF PREVENTIVO (dalla card Preview o dal tab Preventivi admin)
+// company: { name, logo_url } - logo della company che emette il documento
 // =====================================================================
-export async function generateQuotePDF({ marina, customer, boat, period, tariff, extras, extras_total, grand_total, quote_number, notes }) {
+export async function generateQuotePDF({ marina, customer, boat, period, tariff, extras, extras_total, grand_total, quote_number, notes, company }) {
   const { jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF();
   
-  const [trivorLogo, maretrekLogo] = await Promise.all([
-    loadImageAsDataURL('/logos/trivor.png'),
-    loadImageAsDataURL('/logos/maretrek.png'),
-  ]);
+  // Carica unico logo della company che emette
+  const companyLogo = company?.logo_url ? await loadImageAsDataURL(company.logo_url) : null;
 
   // === HEADER ===
-  if (maretrekLogo) try { doc.addImage(maretrekLogo, 'PNG', 14, 10, 25, 25); } catch (e) {}
-  if (trivorLogo) try { doc.addImage(trivorLogo, 'PNG', 165, 12, 30, 22); } catch (e) {}
+  if (companyLogo) try { doc.addImage(companyLogo, 14, 10, 32, 25); } catch (e) {}
   
   doc.setFontSize(16); doc.setTextColor(20, 80, 160);
   doc.text(quote_number ? `PREVENTIVO N° ${quote_number}` : 'PREVIEW POSTO BARCA', 105, 18, { align: 'center' });
@@ -39,6 +37,10 @@ export async function generateQuotePDF({ marina, customer, boat, period, tariff,
   doc.text(marina?.name || '', 105, 25, { align: 'center' });
   doc.setFontSize(9); doc.setTextColor(100);
   doc.text(`Data emissione: ${new Date().toLocaleDateString('it-IT')} · Validità: 30 giorni`, 105, 31, { align: 'center' });
+  if (company?.name) {
+    doc.setFontSize(8); doc.setTextColor(140);
+    doc.text(`Emesso da: ${company.name}`, 196, 36, { align: 'right' });
+  }
   
   doc.setDrawColor(20, 80, 160); doc.setLineWidth(0.6);
   doc.line(14, 40, 196, 40);
@@ -180,19 +182,16 @@ export async function generateQuotePDF({ marina, customer, boat, period, tariff,
 
 // =====================================================================
 // PDF RICEVUTA / VOUCHER POST-PAGAMENTO
+// company: { name, logo_url } - logo della company che emette
 // =====================================================================
-export async function generateReceiptPDF({ marina, occupation, berth_label, receipt_number }) {
+export async function generateReceiptPDF({ marina, occupation, berth_label, receipt_number, company }) {
   const { jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF();
   
-  const [trivorLogo, maretrekLogo] = await Promise.all([
-    loadImageAsDataURL('/logos/trivor.png'),
-    loadImageAsDataURL('/logos/maretrek.png'),
-  ]);
+  const companyLogo = company?.logo_url ? await loadImageAsDataURL(company.logo_url) : null;
 
-  if (maretrekLogo) try { doc.addImage(maretrekLogo, 'PNG', 14, 10, 25, 25); } catch (e) {}
-  if (trivorLogo) try { doc.addImage(trivorLogo, 'PNG', 165, 12, 30, 22); } catch (e) {}
+  if (companyLogo) try { doc.addImage(companyLogo, 14, 10, 32, 25); } catch (e) {}
 
   doc.setFontSize(18); doc.setTextColor(20, 120, 60);
   doc.text(`RICEVUTA DI PAGAMENTO`, 105, 18, { align: 'center' });
@@ -204,6 +203,10 @@ export async function generateReceiptPDF({ marina, occupation, berth_label, rece
   doc.text(`${marina?.name || ''}`, 105, 31, { align: 'center' });
   doc.setFontSize(8); doc.setTextColor(100);
   doc.text(`Data emissione: ${new Date().toLocaleDateString('it-IT')}`, 105, 36, { align: 'center' });
+  if (company?.name) {
+    doc.setFontSize(8); doc.setTextColor(140);
+    doc.text(`Emesso da: ${company.name}`, 196, 36, { align: 'right' });
+  }
 
   doc.setDrawColor(20, 120, 60); doc.setLineWidth(0.8);
   doc.line(14, 41, 196, 41);

@@ -135,20 +135,19 @@ export default function MarinaDetailPage() {
       const autoTable = (await import('jspdf-autotable')).default;
       const doc = new jsPDF();
 
-      // Carica i loghi (Trivor + Maretrek)
-      const [trivorLogo, maretrekLogo] = await Promise.all([
-        loadImageAsDataURL('/logos/trivor.png'),
-        loadImageAsDataURL('/logos/maretrek.png'),
-      ]);
-
-      // === HEADER con loghi ===
-      // Logo Maretrek a sinistra
-      if (maretrekLogo) {
-        try { doc.addImage(maretrekLogo, 'PNG', 14, 10, 25, 25); } catch (e) {}
+      // Carica logo della company che gestisce questa marina (singolo logo)
+      let company = null;
+      if (marina?.company_id) {
+        try {
+          const cRes = await fetch('/api/companies').then(r => r.json());
+          company = (Array.isArray(cRes) ? cRes : []).find(c => c.id === marina.company_id) || null;
+        } catch (e) { /* ignore */ }
       }
-      // Logo Trivor a destra
-      if (trivorLogo) {
-        try { doc.addImage(trivorLogo, 'PNG', 165, 12, 30, 22); } catch (e) {}
+      const companyLogo = company?.logo_url ? await loadImageAsDataURL(company.logo_url) : null;
+
+      // === HEADER con logo company emittente ===
+      if (companyLogo) {
+        try { doc.addImage(companyLogo, 14, 10, 32, 25); } catch (e) {}
       }
 
       // Titolo centrato
@@ -158,6 +157,10 @@ export default function MarinaDetailPage() {
       doc.text(marina.name, 105, 25, { align: 'center' });
       doc.setFontSize(9); doc.setTextColor(100);
       doc.text(`Data emissione: ${new Date().toLocaleDateString('it-IT')} · Validità: 30 giorni`, 105, 31, { align: 'center' });
+      if (company?.name) {
+        doc.setFontSize(8); doc.setTextColor(140);
+        doc.text(`Emesso da: ${company.name}`, 196, 36, { align: 'right' });
+      }
 
       // Linea separatrice
       doc.setDrawColor(20, 80, 160); doc.setLineWidth(0.6);
@@ -293,7 +296,7 @@ export default function MarinaDetailPage() {
       doc.setDrawColor(20, 80, 160); doc.setLineWidth(0.4);
       doc.line(14, pageH - 22, 196, pageH - 22);
       doc.setFontSize(8); doc.setTextColor(80);
-      doc.text(`Maretrek by Trivor S.r.l. — ${marina.contact_email || ''}`, 105, pageH - 16, { align: 'center' });
+      doc.text(`${company?.name || marina.name} — ${marina.contact_email || ''}`, 105, pageH - 16, { align: 'center' });
       doc.text(`Tel. ${marina.contact_phone || ''}  ·  ${marina.address || ''}`, 105, pageH - 12, { align: 'center' });
       doc.setFontSize(7); doc.setTextColor(140);
       doc.text('Documento generato automaticamente. Per accettare il preventivo contattare la Marina.', 105, pageH - 7, { align: 'center' });

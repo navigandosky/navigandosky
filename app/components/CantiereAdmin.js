@@ -51,6 +51,7 @@ const PAYMENT_METHODS = [
 export default function CantiereAdmin({ currentUser }) {
   const [quotes, setQuotes] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [company, setCompany] = useState(null); // company che emette i documenti
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState('');
@@ -59,18 +60,31 @@ export default function CantiereAdmin({ currentUser }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [qRes, tRes] = await Promise.all([
+      const [qRes, tRes, cRes] = await Promise.all([
         fetch('/api/cantiere'),
         fetch('/api/cantiere-templates'),
+        fetch('/api/companies'),
       ]);
       const qData = await qRes.json();
       const tData = await tRes.json();
+      const cData = await cRes.json();
       setQuotes(Array.isArray(qData) ? qData : []);
       setTemplates(Array.isArray(tData) ? tData : []);
+      // Determina company emittente: per Company Admin → la sua company; per Super Admin → cerca Marlin Sub come default
+      const allCompanies = Array.isArray(cData) ? cData : [];
+      let activeCompany = null;
+      if (currentUser?.company_id) {
+        activeCompany = allCompanies.find(c => c.id === currentUser.company_id) || null;
+      }
+      if (!activeCompany) {
+        // Super Admin: usa Marlin Sub come default per il modulo cantiere
+        activeCompany = allCompanies.find(c => /marlin/i.test(c.name || '') || /marlin/i.test(c.slug || '')) || null;
+      }
+      setCompany(activeCompany);
     } catch (e) {
       toast.error('Errore caricamento dati cantiere');
     } finally { setLoading(false); }
-  }, []);
+  }, [currentUser?.company_id]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -125,7 +139,7 @@ export default function CantiereAdmin({ currentUser }) {
   const handleDownloadPDF = async (q) => {
     try {
       const { downloadCantierePDF } = await import('../lib/cantiereDoc');
-      await downloadCantierePDF(q);
+      await downloadCantierePDF(q, company);
       toast.success('PDF generato');
     } catch (e) {
       console.error(e);
@@ -135,7 +149,7 @@ export default function CantiereAdmin({ currentUser }) {
   const handleDownloadDOCX = async (q) => {
     try {
       const { downloadCantiereDOCX } = await import('../lib/cantiereDoc');
-      await downloadCantiereDOCX(q);
+      await downloadCantiereDOCX(q, company);
       toast.success('Word (.docx) generato');
     } catch (e) {
       console.error(e);
@@ -153,7 +167,9 @@ export default function CantiereAdmin({ currentUser }) {
           </div>
           <div>
             <h2 className="text-xl font-bold text-amber-900">Cantiere · Preventivi Rimessaggio</h2>
-            <p className="text-sm text-amber-700">Generatore preventivi per servizi nautici · Marlin Sub</p>
+            <p className="text-sm text-amber-700">
+              Generatore preventivi · {company?.name ? <>Emittente: <strong>{company.name}</strong></> : 'Nessuna company associata'}
+            </p>
           </div>
         </div>
         <div className="flex gap-2">

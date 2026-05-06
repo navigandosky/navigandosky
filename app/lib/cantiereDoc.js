@@ -8,19 +8,16 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '';
 
 // =============================================================================
 // PDF - Preventivo Cantiere (jsPDF + autoTable)
+// company: { name, logo_url } - logo della company che emette
 // =============================================================================
-export async function generateCantierePDF(quote) {
+export async function generateCantierePDF(quote, company) {
   const { jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF();
 
-  const [trivorLogo, maretrekLogo] = await Promise.all([
-    loadImageAsDataURL('/logos/trivor.png'),
-    loadImageAsDataURL('/logos/maretrek.png'),
-  ]);
+  const companyLogo = company?.logo_url ? await loadImageAsDataURL(company.logo_url) : null;
 
-  if (maretrekLogo) try { doc.addImage(maretrekLogo, 'PNG', 14, 10, 25, 25); } catch (e) {}
-  if (trivorLogo) try { doc.addImage(trivorLogo, 'PNG', 165, 12, 30, 22); } catch (e) {}
+  if (companyLogo) try { doc.addImage(companyLogo, 14, 10, 32, 25); } catch (e) {}
 
   doc.setFontSize(15); doc.setTextColor(20, 80, 160);
   doc.text(`PREVENTIVO N° ${quote.quote_number || '—'}`, 105, 18, { align: 'center' });
@@ -31,6 +28,10 @@ export async function generateCantierePDF(quote) {
     `Data emissione: ${fmtDate(quote.created_at)} · Validità fino al: ${fmtDate(quote.valid_until)}`,
     105, 31, { align: 'center' }
   );
+  if (company?.name) {
+    doc.setFontSize(8); doc.setTextColor(140);
+    doc.text(`Emesso da: ${company.name}`, 196, 36, { align: 'right' });
+  }
 
   doc.setDrawColor(20, 80, 160); doc.setLineWidth(0.6);
   doc.line(14, 40, 196, 40);
@@ -43,10 +44,13 @@ export async function generateCantierePDF(quote) {
   y += 5;
   doc.setFontSize(9); doc.setTextColor(0);
   const issuerLines = [
-    'Marlin Sub',
-    'Cantiere Nautico - Servizi Rimessaggio',
-    'Sardegna - Italia',
-  ];
+    company?.name || 'Cantiere Nautico',
+    company?.address || 'Cantiere Nautico - Servizi Rimessaggio',
+    [company?.postal_code, company?.city, company?.country].filter(Boolean).join(' ') || 'Sardegna - Italia',
+    company?.vat_number ? `P.IVA: ${company.vat_number}` : '',
+    company?.email ? `Email: ${company.email}` : '',
+    company?.phone ? `Tel: ${company.phone}` : '',
+  ].filter(Boolean);
   const c = quote.customer || {};
   const b = quote.boat || {};
   const clientLines = [
@@ -142,18 +146,21 @@ export async function generateCantierePDF(quote) {
   doc.line(14, 280, 196, 280);
   doc.setFontSize(7.5); doc.setTextColor(110);
   doc.text(
-    'Preventivo emesso da Marlin Sub · Servizi nautici e rimessaggio · Documento non fiscale',
+    `Preventivo emesso da ${company?.name || 'Cantiere Nautico'} · Documento non fiscale`,
     105, 285, { align: 'center' }
   );
-  doc.text('Maretrek · Trivor S.r.l.', 105, 289, { align: 'center' });
+  if (company?.vat_number) {
+    doc.text(`P.IVA: ${company.vat_number}`, 105, 289, { align: 'center' });
+  }
 
   return doc;
 }
 
 // =============================================================================
 // DOCX - Preventivo Cantiere editabile in Word
+// company: { name, logo_url } - logo della company che emette
 // =============================================================================
-export async function generateCantiereDOCX(quote) {
+export async function generateCantiereDOCX(quote, company) {
   const docx = await import('docx');
   const {
     Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
@@ -167,10 +174,18 @@ export async function generateCantiereDOCX(quote) {
       return ab;
     } catch (e) { return null; }
   };
-  const [maretrekBuf, trivorBuf] = await Promise.all([
-    fetchAsBuffer('/logos/maretrek.png'),
-    fetchAsBuffer('/logos/trivor.png'),
-  ]);
+  // Carica unico logo della company che emette
+  const companyLogoBuf = company?.logo_url ? await fetchAsBuffer(company.logo_url) : null;
+  // Determina il tipo immagine (jpg/png/gif) dall'estensione dell'URL
+  const detectImageType = (url) => {
+    if (!url) return 'png';
+    const u = url.toLowerCase();
+    if (u.includes('.jpg') || u.includes('.jpeg')) return 'jpg';
+    if (u.includes('.gif')) return 'gif';
+    if (u.includes('.bmp')) return 'bmp';
+    return 'png';
+  };
+  const companyLogoType = detectImageType(company?.logo_url);
 
   const noBorders = () => {
     const none = { style: 'none', size: 0, color: 'FFFFFF' };
@@ -201,20 +216,20 @@ export async function generateCantiereDOCX(quote) {
     ],
   });
 
-  // HEADER con loghi
+  // HEADER con UN SOLO logo della company emittente (a sinistra)
   const headerCells = [];
-  if (maretrekBuf) {
+  if (companyLogoBuf) {
     headerCells.push(new TableCell({
-      width: { size: 30, type: WidthType.PERCENTAGE },
+      width: { size: 25, type: WidthType.PERCENTAGE },
       borders: noBorders(),
       children: [new Paragraph({
         alignment: AlignmentType.LEFT,
-        children: [new ImageRun({ data: maretrekBuf, transformation: { width: 80, height: 80 } })],
+        children: [new ImageRun({ data: companyLogoBuf, type: companyLogoType, transformation: { width: 110, height: 90 } })],
       })],
     }));
   }
   headerCells.push(new TableCell({
-    width: { size: maretrekBuf && trivorBuf ? 40 : 70, type: WidthType.PERCENTAGE },
+    width: { size: companyLogoBuf ? 75 : 100, type: WidthType.PERCENTAGE },
     borders: noBorders(),
     children: [
       new Paragraph({
@@ -232,18 +247,12 @@ export async function generateCantiereDOCX(quote) {
           size: 18, color: '666666',
         })],
       }),
+      ...(company?.name ? [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: company.name, size: 18, italics: true, color: '888888' })],
+      })] : []),
     ],
   }));
-  if (trivorBuf) {
-    headerCells.push(new TableCell({
-      width: { size: 30, type: WidthType.PERCENTAGE },
-      borders: noBorders(),
-      children: [new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        children: [new ImageRun({ data: trivorBuf, transformation: { width: 90, height: 70 } })],
-      })],
-    }));
-  }
 
   const c = quote.customer || {};
   const b = quote.boat || {};
@@ -257,9 +266,12 @@ export async function generateCantiereDOCX(quote) {
           shading: { type: ShadingType.SOLID, color: 'E8F0FB', fill: 'E8F0FB' },
           children: [
             new Paragraph({ children: [new TextRun({ text: 'EMITTENTE', bold: true, color: '14509F', size: 20 })] }),
-            new Paragraph({ children: [new TextRun({ text: 'Marlin Sub', size: 20 })] }),
-            new Paragraph({ children: [new TextRun({ text: 'Cantiere Nautico - Servizi Rimessaggio', size: 18 })] }),
-            new Paragraph({ children: [new TextRun({ text: 'Sardegna - Italia', size: 18 })] }),
+            new Paragraph({ children: [new TextRun({ text: company?.name || 'Cantiere Nautico', bold: true, size: 20 })] }),
+            ...(company?.address ? [new Paragraph({ children: [new TextRun({ text: company.address, size: 18 })] })] : []),
+            ...((company?.postal_code || company?.city) ? [new Paragraph({ children: [new TextRun({ text: [company?.postal_code, company?.city].filter(Boolean).join(' '), size: 18 })] })] : []),
+            ...(company?.vat_number ? [new Paragraph({ children: [new TextRun({ text: `P.IVA: ${company.vat_number}`, size: 18 })] })] : []),
+            ...(company?.email ? [new Paragraph({ children: [new TextRun({ text: company.email, size: 18 })] })] : []),
+            ...(company?.phone ? [new Paragraph({ children: [new TextRun({ text: company.phone, size: 18 })] })] : []),
           ],
         }),
         new TableCell({
@@ -370,14 +382,14 @@ export async function generateCantiereDOCX(quote) {
         new Paragraph({
           alignment: AlignmentType.CENTER,
           children: [new TextRun({
-            text: 'Preventivo emesso da Marlin Sub · Servizi nautici e rimessaggio · Documento non fiscale',
+            text: `Preventivo emesso da ${company?.name || 'Cantiere Nautico'} · Documento non fiscale`,
             color: '888888', size: 16, italics: true,
           })],
         }),
-        new Paragraph({
+        ...(company?.vat_number ? [new Paragraph({
           alignment: AlignmentType.CENTER,
-          children: [new TextRun({ text: 'Maretrek · Trivor S.r.l.', color: '888888', size: 16, italics: true })],
-        }),
+          children: [new TextRun({ text: `P.IVA: ${company.vat_number}`, color: '888888', size: 16, italics: true })],
+        })] : []),
       ],
     }],
   });
@@ -386,13 +398,13 @@ export async function generateCantiereDOCX(quote) {
   return blob;
 }
 
-export async function downloadCantiereDOCX(quote) {
-  const blob = await generateCantiereDOCX(quote);
+export async function downloadCantiereDOCX(quote, company) {
+  const blob = await generateCantiereDOCX(quote, company);
   const { saveAs } = await import('file-saver');
   saveAs(blob, `Preventivo_${quote.quote_number || 'cantiere'}.docx`);
 }
 
-export async function downloadCantierePDF(quote) {
-  const doc = await generateCantierePDF(quote);
+export async function downloadCantierePDF(quote, company) {
+  const doc = await generateCantierePDF(quote, company);
   doc.save(`Preventivo_${quote.quote_number || 'cantiere'}.pdf`);
 }
