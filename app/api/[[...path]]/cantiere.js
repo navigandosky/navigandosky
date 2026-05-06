@@ -110,7 +110,7 @@ export async function handleCantiereQuotes(method, id, body, action, sp, db) {
     const update = { ...body, updated_at: new Date().toISOString() };
     delete update.id; delete update._id; delete update.quote_number; delete update.year; delete update.progressive;
     
-    // Se items modificati, ricalcola totali
+    // Se items modificati, ricalcola totali completi
     if (Array.isArray(update.items)) {
       const items = update.items.map(it => {
         const qty = Number(it.qty) || 0;
@@ -126,6 +126,16 @@ export async function handleCantiereQuotes(method, id, body, action, sp, db) {
       update.iva_rate = iva_rate;
       update.iva_amount = update.subtotal_net * iva_rate / 100;
       update.grand_total = update.subtotal_net + update.iva_amount;
+    } else if (update.iva_rate !== undefined) {
+      // Solo iva_rate cambiato, ricalcola IVA e totale partendo dal subtotal salvato
+      const existing = await col.findOne({ id });
+      if (existing) {
+        const subtotal = Number(existing.subtotal_net) || 0;
+        const iva_rate = Number(update.iva_rate) || 0;
+        update.iva_rate = iva_rate;
+        update.iva_amount = subtotal * iva_rate / 100;
+        update.grand_total = subtotal + update.iva_amount;
+      }
     }
     await col.updateOne({ id }, { $set: update });
     const updated = await col.findOne({ id });
