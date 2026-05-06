@@ -245,6 +245,21 @@ backend:
       - working: true
         agent: "main"
         comment: "BUG FIXED: Added recalculation branch in PUT handler (cantiere.js) - when iva_rate is changed without items, fetch existing quote and recompute iva_amount and grand_total using existing subtotal_net. Manual curl test verified: changing iva 22→10 on 200€ subtotal correctly updates to 20€ IVA + 220€ total."
+
+  - task: "Cantiere (Boatyard) Frontend UI - Quote Management"
+    implemented: true
+    working: true
+    file: "app/components/CantiereAdmin.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "New CantiereAdmin component created. Visible only to Super Admin or Marlin Sub Company Admin. Includes editor dialog with customer data (with free P.IVA/CF field), boat data, service templates picker (preloaded 22 services), free-row addition, real-time totals (subtotal/IVA configurable/total), payment method, status workflow, notes, and PDF + Word (.docx) generation with Maretrek/Trivor logos via lib/cantiereDoc.js."
+      - working: true
+        agent: "testing"
+        comment: "✅ ALL 13 frontend test scenarios passed (100%). Verified: login Marlin, orange band visibility, tab Cantiere navigation, full quote creation (Dati Cliente, Dati Barca, Servizi from template + free rows, real-time totals 310€ + 22% IVA = 378.20€), payment/status setup, save with auto-number CANT-2026/0001, PDF download, Word .docx download, edit dialog with prefilled data and new row addition, delete with confirmation. Visual verification via 18 screenshots. All UI components render correctly. Frontend-backend integration working perfectly."
       - working: false
         agent: "testing"
         comment: "COMPREHENSIVE CANTIERE TESTING COMPLETED - 15/16 tests passed (93.75% success rate). ✅ WORKING: Templates auto-seeding (23 templates with correct categories), Template CRUD (POST/PUT/DELETE), Quote creation with correct VAT calculations (230 net + 50.6 IVA 22% = 280.6 total), Quote filtering (status, email), Single quote retrieval, Quote updates with item additions (totals recalculate correctly: 380 net + 83.6 IVA = 463.6), Status changes (preserve totals and immutable fields), Quote deletion (returns 204, subsequent GET returns 404), Edge cases (empty items array → all totals 0, discount > amount → net_taxable 0 via Math.max protection, non-existent ID → 404). ❌ CRITICAL BUG FOUND: PUT /api/cantiere/{id} with only iva_rate change does NOT recalculate totals. Root cause: cantiere.js line 114 only recalculates when Array.isArray(update.items) is true. When updating only iva_rate without items array, the recalculation logic is skipped. Expected behavior: changing iva_rate from 22 to 10 should recalculate iva_amount (380 × 10% = 38) and grand_total (380 + 38 = 418), but actual values remain unchanged (83.6 and 463.6). FIX REQUIRED: Add separate recalculation logic when iva_rate changes OR fetch existing items and recalculate when iva_rate is present in update. This is a business-critical calculation bug that affects quote accuracy."
