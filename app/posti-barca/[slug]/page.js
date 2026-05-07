@@ -497,10 +497,10 @@ export default function MarinaDetailPage() {
               </Card>
             )}
 
-            {/* Tabella tariffe semestrali (se presenti) */}
+            {/* Tabella tariffe stagionali (se presenti) */}
             {marina.pricing?.annual?.length > 0 && (
               <Card>
-                <CardHeader><CardTitle>Tariffe Ormeggio Semestrali (IVA inclusa)</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Tariffe Ormeggio Stagionali · Giugno-Settembre (IVA inclusa)</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                     {marina.pricing.annual.map((t, i) => (
