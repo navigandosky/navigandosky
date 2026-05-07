@@ -208,8 +208,8 @@ function MarinaEditDialog({ marina, onClose, onSaved }) {
             />
             <div className="mt-6">
               <TariffTable
-                title="Forfait Estivo (1 giugno - 30 settembre)"
-                hint="Tariffa fissa per il periodo estivo."
+                title="Prezzo speciale per nuovi utenti - pagamento anticipato"
+                hint="Sconto promozionale per nuovi clienti che pagano in anticipo. Si applica nel periodo estivo (giu-set)."
                 tiers={form.pricing?.summer_flat || []}
                 onChange={(tiers) => updatePricing('summer_flat', tiers)}
               />

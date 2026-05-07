@@ -185,13 +185,13 @@ export async function handleMarinaQuote(method, body, db) {
     }
   }
 
-  // Opzione 3: forfait estivo (se nel periodo 1/6 - 30/9)
+  // Opzione 3: prezzo speciale nuovi utenti / pagamento anticipato (forfait estivo nel DB)
   if (isInSummer && pricing.summer_flat?.length > 0) {
     const flatPrice = findPriceForLength(pricing.summer_flat, length);
     if (flatPrice) {
       options.push({
         type: 'summer_flat',
-        label: 'Forfait Estivo (1 giugno - 30 settembre)',
+        label: 'Prezzo speciale per nuovi utenti - pagamento anticipato',
         total: flatPrice,
         detail: [{ subtotal: flatPrice }]
       });
