@@ -52,10 +52,11 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
       quoteData = await db.collection('port_quotes').findOne({ quote_number: body.quote_number });
     }
 
-    // Recupera company_id dalla marina
-    let company_id = body.company_id || null;
-    if (body.marina_id && !company_id) {
-      const m = await db.collection('marinas').findOne({ id: body.marina_id });
+    // Recupera company_id dalla marina (anche dal preventivo se disponibile)
+    let company_id = body.company_id || quoteData?.company_id || null;
+    const marinaIdForLookup = body.marina_id || quoteData?.marina_id || null;
+    if (marinaIdForLookup && !company_id) {
+      const m = await db.collection('marinas').findOne({ id: marinaIdForLookup });
       company_id = m?.company_id || null;
     }
 

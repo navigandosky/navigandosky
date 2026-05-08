@@ -129,6 +129,43 @@ export function QuotesManager() {
   
   const [convertingQuote, setConvertingQuote] = useState(null);
   const [editingQuote, setEditingQuote] = useState(null);
+  const [convertingToBooking, setConvertingToBooking] = useState(null); // id quote in conversione
+
+  // Converte un preventivo in una richiesta di Prenotazione (BK-XXXX)
+  // POI nel tab "Richieste Prenotazione Marine" si potrà convertire in Contratto (con assegnazione posto)
+  const convertToBooking = async (q) => {
+    if (q.status === 'CONVERTITO') {
+      toast.error('Questo preventivo è già stato convertito');
+      return;
+    }
+    if (!confirm(`Convertire il preventivo ${q.quote_number} in PRENOTAZIONE?\n\nVerrà creata una richiesta di prenotazione (BK-XXXX) nel tab "Richieste Prenotazione Marine". Da lì potrai marcare l'acconto come pagato e infine convertirla in Contratto assegnando il posto barca.`)) return;
+    setConvertingToBooking(q.id);
+    try {
+      const r = await fetch('/api/marina-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quote_id: q.id,
+          quote_number: q.quote_number,
+          source: 'ADMIN',
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Errore creazione prenotazione');
+      // Aggiorna stato preventivo a CONVERTITO
+      try {
+        await fetch(`/api/port-quotes/${q.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'CONVERTITO', converted_to_booking_id: data.id, converted_to_booking_number: data.booking_number, converted_at: new Date().toISOString() }),
+        });
+      } catch (e) { /* non bloccare se fallisce update stato */ }
+      toast.success(`Prenotazione ${data.booking_number} creata! Trovala nel tab "Richieste Prenotazione Marine".`);
+      await load();
+    } catch (e) {
+      toast.error(e.message || 'Errore conversione');
+    } finally { setConvertingToBooking(null); }
+  };
 
   return (
     <div className="space-y-4">
@@ -221,7 +258,17 @@ export function QuotesManager() {
                     <Button size="sm" variant="ghost" title="Scarica PDF" onClick={() => downloadPDF(q)}><Download className="w-3 h-3 text-blue-500" /></Button>
                     <Button size="sm" variant="ghost" title="Scarica Word editabile" onClick={() => downloadDOCX(q)}><FileText className="w-3 h-3 text-blue-700" /></Button>
                     {q.status !== 'CONVERTITO' && (
-                      <Button size="sm" variant="ghost" title="Converti in occupazione" onClick={() => setConvertingQuote(q)}><ArrowRightCircle className="w-3 h-3 text-emerald-600" /></Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        title="Converti in Prenotazione (BK-XXXX)"
+                        disabled={convertingToBooking === q.id}
+                        onClick={() => convertToBooking(q)}
+                      >
+                        {convertingToBooking === q.id
+                          ? <RefreshCw className="w-3 h-3 animate-spin text-emerald-600" />
+                          : <ArrowRightCircle className="w-3 h-3 text-emerald-600" />}
+                      </Button>
                     )}
                     <Button size="sm" variant="ghost" title="Elimina" onClick={() => deleteQuote(q)}><Trash2 className="w-3 h-3 text-red-500" /></Button>
                   </td>
