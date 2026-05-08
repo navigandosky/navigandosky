@@ -2640,8 +2640,8 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
         </TabsList>
 
-        {/* Riga 2: Tab MARINE (sfondo blu, scritte bianche) - solo Super Admin */}
-        {isSuperAdmin && (
+        {/* Riga 2: Tab MARINE (sfondo blu, scritte bianche) - Super Admin o owner marina */}
+        {hasMarinaOwnership && (
           <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-blue-700 via-primary to-blue-800 p-2 rounded-lg shadow-md w-full">
             <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
               <Anchor className="w-4 h-4" />Modulo Marina
@@ -2651,7 +2651,7 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="quotes" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><ClipboardList className="w-4 h-4 mr-1.5" />Preventivi</TabsTrigger>
             <TabsTrigger value="transits" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Transiti</TabsTrigger>
             <TabsTrigger value="contracts" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><FileSignature className="w-4 h-4 mr-1.5" />Contratti</TabsTrigger>
-            <TabsTrigger value="port-settings" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>
+            {isSuperAdmin && <TabsTrigger value="port-settings" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>}
           </TabsList>
         )}
 
@@ -4086,8 +4086,8 @@ function AdminDashboard({ currentUser, onLogout }) {
 
         </TabsContent>
 
-        {/* Super Admin: Marine */}
-        {isSuperAdmin && (
+        {/* Super Admin / Owner Marina: Marine */}
+        {hasMarinaOwnership && (
           <TabsContent value="marinas" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Anchor className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <MarinasManagerLazy />
@@ -4095,8 +4095,8 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsContent>
         )}
 
-        {/* Super Admin: Posti Barca */}
-        {isSuperAdmin && (
+        {/* Super Admin / Owner Marina: Posti Barca */}
+        {hasMarinaOwnership && (
           <TabsContent value="berths" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <BerthsManagerLazy />
@@ -4104,8 +4104,8 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsContent>
         )}
 
-        {/* Super Admin: Preventivi */}
-        {isSuperAdmin && (
+        {/* Super Admin / Owner Marina: Preventivi */}
+        {hasMarinaOwnership && (
           <TabsContent value="quotes" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><ClipboardList className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <QuotesManagerLazy />
@@ -4113,8 +4113,8 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsContent>
         )}
 
-        {/* Super Admin: Transiti */}
-        {isSuperAdmin && (
+        {/* Super Admin / Owner Marina: Transiti */}
+        {hasMarinaOwnership && (
           <TabsContent value="transits" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <TransitsManagerLazy />
@@ -4122,8 +4122,8 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsContent>
         )}
 
-        {/* Super Admin: Contratti */}
-        {isSuperAdmin && (
+        {/* Super Admin / Owner Marina: Contratti */}
+        {hasMarinaOwnership && (
           <TabsContent value="contracts" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><FileSignature className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <ContractsManagerLazy />
