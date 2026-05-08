@@ -14,6 +14,7 @@ import {
   Users, Mail, Phone, FileText, Calendar as CalIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { friendlyError } from '@/app/lib/safeFetch';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '';
 
@@ -81,17 +82,28 @@ export default function MarinaMapPage() {
   const [authReason, setAuthReason] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
+  // Tracking unmount per evitare toast/state update dopo navigazione
+  const unmountedRef = useRef(false);
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => { unmountedRef.current = true; };
+  }, []);
+  const safeToastError = (e) => {
+    if (unmountedRef.current) return;
+    const msg = friendlyError(e);
+    if (msg) toast.error(msg);
+  };
+
   const loadData = async () => {
     try {
-      const mRes = await fetch(`/api/marinas/${slug}`);
-      const m = await mRes.json();
-      if (m?.error) { router.push('/posti-barca'); return; }
+      const { safeFetchJson } = await import('@/app/lib/safeFetch');
+      const m = await safeFetchJson(`/api/marinas/${encodeURIComponent(slug)}`);
+      if (!m || m?.error) { router.push('/posti-barca'); return; }
       setMarina(m);
-      const bRes = await fetch(`/api/berths?marina_id=${m.id}`);
-      const b = await bRes.json();
+      const b = await safeFetchJson(`/api/berths?marina_id=${m.id}`);
       setBerths(Array.isArray(b) ? b : []);
     } catch (e) {
-      toast.error('Errore caricamento: ' + e.message);
+      safeToastError(e);
     } finally {
       setLoading(false);
     }
@@ -202,7 +214,7 @@ export default function MarinaMapPage() {
         setForm(f => ({ ...f, boat: { ...f.boat, photo_url: url } }));
         toast.success('Foto caricata');
       }
-    } catch (e) { toast.error('Errore upload: ' + e.message); }
+    } catch (e) { safeToastError(e); }
     finally { setUploading(false); }
   };
 
@@ -253,7 +265,7 @@ export default function MarinaMapPage() {
       setForm(initialForm);
       setQuote(null);
       await loadData();
-    } catch (e) { toast.error(e.message); }
+    } catch (e) { safeToastError(e); }
     finally { setSubmitting(false); }
   };
 
@@ -268,7 +280,7 @@ export default function MarinaMapPage() {
       toast.success('Posto liberato');
       setShowInfo(false);
       await loadData();
-    } catch (e) { toast.error(e.message); }
+    } catch (e) { safeToastError(e); }
     finally { setSubmitting(false); }
   };
 
@@ -289,7 +301,7 @@ export default function MarinaMapPage() {
         company,
       });
       toast.success('Ricevuta scaricata');
-    } catch (e) { toast.error('Errore: ' + e.message); }
+    } catch (e) { safeToastError(e); }
   };
 
   // Verifica password autorizzazione tariffa servizio
@@ -315,7 +327,7 @@ export default function MarinaMapPage() {
       setAuthPassword('');
       setAuthReason('');
     } catch (e) {
-      toast.error(e.message);
+      safeToastError(e);
     } finally {
       setAuthLoading(false);
     }

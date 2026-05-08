@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Anchor, MapPin, Phone, Mail, Ship, ArrowLeft, Calculator, FileText, CheckCircle2, MessageCircle, Map, AlertCircle, ClipboardList, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { friendlyError } from '@/app/lib/safeFetch';
 
 const fmtPrice = (p) => (p ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 
@@ -316,7 +317,7 @@ export default function MarinaDetailPage() {
       setShowPdfDialog(false);
     } catch (e) {
       console.error(e);
-      toast.error('Errore generazione PDF: ' + (e.message || ''));
+      toast.error(friendlyError(e) || 'Errore generazione PDF');
     } finally {
       setGeneratingPdf(false);
     }
@@ -358,7 +359,7 @@ export default function MarinaDetailPage() {
       setShowPdfDialog(false);
     } catch (e) {
       console.error(e);
-      toast.error('Errore generazione Word: ' + (e.message || ''));
+      toast.error(friendlyError(e) || 'Errore generazione Word');
     } finally { setGeneratingPdf(false); }
   };
 
@@ -419,7 +420,7 @@ export default function MarinaDetailPage() {
       setSavedQuoteId(data.id);
       toast.success(`Preventivo ${data.quote_number} salvato in archivio!`);
     } catch (e) {
-      toast.error('Errore salvataggio: ' + e.message);
+      toast.error(friendlyError(e) || 'Errore salvataggio');
     } finally {
       setSavingQuote(false);
     }
@@ -463,7 +464,7 @@ export default function MarinaDetailPage() {
       setCreatedBooking(booking);
       toast.success(`Prenotazione ${booking.booking_number} creata!`);
     } catch (e) {
-      toast.error(e.message || 'Errore prenotazione');
+      toast.error(friendlyError(e) || 'Errore prenotazione');
     } finally { setBookingLoading(false); }
   };
 
@@ -482,7 +483,7 @@ export default function MarinaDetailPage() {
       setCreatedBooking(updated);
       toast.success(`Acconto di ${updated.deposit_amount.toLocaleString('it-IT')}€ pagato (MOCK)`);
     } catch (e) {
-      toast.error(e.message);
+      toast.error(friendlyError(e) || 'Errore pagamento');
     } finally { setPayingDeposit(false); }
   };
 
