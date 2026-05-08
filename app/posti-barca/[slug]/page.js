@@ -80,6 +80,15 @@ export default function MarinaDetailPage() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [savingQuote, setSavingQuote] = useState(false);
   const [savedQuoteNumber, setSavedQuoteNumber] = useState('');
+  const [savedQuoteId, setSavedQuoteId] = useState('');
+
+  // Richiedi Prenotazione
+  const [showBookingDialog, setShowBookingDialog] = useState(false);
+  const [bookingMode, setBookingMode] = useState('current'); // 'current' | 'lookup'
+  const [bookingQuoteNumber, setBookingQuoteNumber] = useState('');
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [createdBooking, setCreatedBooking] = useState(null); // booking object dopo creazione
+  const [payingDeposit, setPayingDeposit] = useState(false);
 
   useEffect(() => {
     fetch(`/api/marinas/${slug}`)
@@ -407,12 +416,74 @@ export default function MarinaDetailPage() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setSavedQuoteNumber(data.quote_number);
+      setSavedQuoteId(data.id);
       toast.success(`Preventivo ${data.quote_number} salvato in archivio!`);
     } catch (e) {
       toast.error('Errore salvataggio: ' + e.message);
     } finally {
       setSavingQuote(false);
     }
+  };
+
+  // ============== RICHIESTA PRENOTAZIONE ==============
+  const requestBooking = async () => {
+    if (bookingMode === 'lookup' && !bookingQuoteNumber.trim()) {
+      toast.error('Inserisci il numero del preventivo');
+      return;
+    }
+    if (bookingMode === 'current' && !savedQuoteId) {
+      toast.error('Salva prima il preventivo');
+      return;
+    }
+    setBookingLoading(true);
+    try {
+      let payload = {};
+      if (bookingMode === 'lookup') {
+        // Verifica esistenza preventivo
+        const lookupRes = await fetch(`/api/marina-bookings/lookup-quote?quote_number=${encodeURIComponent(bookingQuoteNumber.trim())}`);
+        if (!lookupRes.ok) {
+          const err = await lookupRes.json();
+          throw new Error(err.error || 'Preventivo non trovato');
+        }
+        const quoteFound = await lookupRes.json();
+        payload = { quote_id: quoteFound.id, quote_number: quoteFound.quote_number, source: 'PUBLIC' };
+      } else {
+        payload = { quote_id: savedQuoteId, quote_number: savedQuoteNumber, source: 'PUBLIC' };
+      }
+      const r = await fetch('/api/marina-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const err = await r.json();
+        throw new Error(err.error || 'Errore creazione prenotazione');
+      }
+      const booking = await r.json();
+      setCreatedBooking(booking);
+      toast.success(`Prenotazione ${booking.booking_number} creata!`);
+    } catch (e) {
+      toast.error(e.message || 'Errore prenotazione');
+    } finally { setBookingLoading(false); }
+  };
+
+  // Pagamento acconto (MOCK SumUp)
+  const payDeposit = async () => {
+    if (!createdBooking) return;
+    setPayingDeposit(true);
+    try {
+      const r = await fetch(`/api/marina-bookings/${createdBooking.id}?action=pay-deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payment_method: 'SUMUP_MOCK' }),
+      });
+      if (!r.ok) throw new Error('Errore pagamento');
+      const updated = await r.json();
+      setCreatedBooking(updated);
+      toast.success(`Acconto di ${updated.deposit_amount.toLocaleString('it-IT')}€ pagato (MOCK)`);
+    } catch (e) {
+      toast.error(e.message);
+    } finally { setPayingDeposit(false); }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Anchor className="w-12 h-12 animate-pulse text-primary" /></div>;
@@ -690,6 +761,9 @@ export default function MarinaDetailPage() {
                     <Button variant="outline" className="w-full bg-emerald-50 border-emerald-400 text-emerald-900 hover:bg-emerald-100" onClick={() => setShowSaveDialog(true)}>
                       <Sparkles className="w-4 h-4 mr-2" />Salva Preventivo in Archivio
                     </Button>
+                    <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-800 text-white hover:from-blue-700 hover:to-blue-900 shadow-md" onClick={() => { setCreatedBooking(null); setBookingMode(savedQuoteId ? 'current' : 'lookup'); setBookingQuoteNumber(''); setShowBookingDialog(true); }}>
+                      <Ship className="w-4 h-4 mr-2" />Richiedi Prenotazione (Step 3/3)
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -793,6 +867,134 @@ export default function MarinaDetailPage() {
                   {savingQuote ? 'Salvo...' : <><Sparkles className="w-4 h-4 mr-2" />Salva Preventivo</>}
                 </Button>
               </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog RICHIEDI PRENOTAZIONE (Step 3) */}
+      <Dialog open={showBookingDialog} onOpenChange={(o) => { setShowBookingDialog(o); if (!o) { setCreatedBooking(null); setBookingQuoteNumber(''); } }}>
+        <DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto" translate="no">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ship className="w-5 h-5 text-blue-600" />
+              {createdBooking ? `Prenotazione ${createdBooking.booking_number}` : 'Richiedi Prenotazione Posto Barca'}
+            </DialogTitle>
+            {!createdBooking && (
+              <DialogDescription>
+                La tua richiesta verrà inviata alla marina e gestita nei tempi previsti. Per confermare il posto è richiesto il pagamento di un acconto del 30%.
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          {!createdBooking ? (
+            <div className="space-y-4">
+              {/* Selettore modalità */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Da quale preventivo vuoi creare la prenotazione?</Label>
+                <div className="space-y-2">
+                  {savedQuoteId && (
+                    <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${bookingMode === 'current' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                      <input type="radio" checked={bookingMode === 'current'} onChange={() => setBookingMode('current')} className="mt-1" />
+                      <div className="flex-1">
+                        <div className="font-semibold text-slate-900">Usa il preventivo appena salvato</div>
+                        <div className="text-xs text-slate-600">{savedQuoteNumber}</div>
+                      </div>
+                    </label>
+                  )}
+                  <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${bookingMode === 'lookup' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                    <input type="radio" checked={bookingMode === 'lookup'} onChange={() => setBookingMode('lookup')} className="mt-1" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-slate-900">Inserisci numero di un preventivo precedente</div>
+                      <div className="text-xs text-slate-600 mb-2">Formato: PQ-2026/0001</div>
+                      <Input
+                        placeholder="PQ-2026/0001"
+                        value={bookingQuoteNumber}
+                        onChange={e => setBookingQuoteNumber(e.target.value)}
+                        disabled={bookingMode !== 'lookup'}
+                        className="font-mono"
+                      />
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {!savedQuoteId && bookingMode === 'current' && (
+                <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm text-amber-900 flex gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <div>Salva prima il preventivo per usare questa opzione, oppure inserisci il numero di un preventivo già esistente.</div>
+                </div>
+              )}
+            </div>
+          ) : (
+            // === BOOKING CREATED - show details + pay deposit ===
+            <div className="space-y-4">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <span className="font-semibold text-emerald-900">Prenotazione registrata!</span>
+                </div>
+                <div className="text-sm text-emerald-800">
+                  Numero: <span className="font-mono font-bold">{createdBooking.booking_number}</span><br />
+                  Cliente: {createdBooking.customer?.name} {createdBooking.customer?.surname}<br />
+                  Periodo: {new Date(createdBooking.start_date).toLocaleDateString('it-IT')} → {new Date(createdBooking.end_date).toLocaleDateString('it-IT')}
+                </div>
+              </div>
+
+              <div className="space-y-2 bg-slate-50 rounded-lg p-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Totale preventivo</span>
+                  <span className="font-medium">€ {createdBooking.grand_total?.toLocaleString('it-IT')}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Acconto richiesto ({createdBooking.deposit_pct}%)</span>
+                  <span className="font-bold text-blue-700">€ {createdBooking.deposit_amount?.toLocaleString('it-IT')}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Saldo</span>
+                  <span className="font-medium">€ {createdBooking.balance_amount?.toLocaleString('it-IT')}</span>
+                </div>
+              </div>
+
+              {/* Stato pagamento */}
+              {createdBooking.deposit_paid ? (
+                <div className="bg-green-100 border-2 border-green-400 rounded-lg p-4 text-center">
+                  <CheckCircle2 className="w-10 h-10 mx-auto text-green-700 mb-2" />
+                  <div className="font-bold text-green-900">Acconto pagato!</div>
+                  <div className="text-xs text-green-700 mt-1">
+                    Riferimento: {createdBooking.deposit_payment_reference}<br />
+                    La marina ti contatterà a breve per la conferma definitiva.
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Button
+                    onClick={payDeposit}
+                    disabled={payingDeposit}
+                    className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800 h-12 text-base font-semibold shadow-md"
+                  >
+                    {payingDeposit ? 'Elaborazione...' : <>💳 Paga Acconto € {createdBooking.deposit_amount?.toLocaleString('it-IT')} (30%)</>}
+                  </Button>
+                  <p className="text-xs text-slate-500 text-center">Pagamento sicuro via SumUp · MOCK demo (in attivazione)</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {!createdBooking ? (
+              <>
+                <Button variant="outline" onClick={() => setShowBookingDialog(false)}>Annulla</Button>
+                <Button
+                  onClick={requestBooking}
+                  disabled={bookingLoading || (bookingMode === 'current' && !savedQuoteId) || (bookingMode === 'lookup' && !bookingQuoteNumber.trim())}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {bookingLoading ? 'Invio richiesta...' : <><Ship className="w-4 h-4 mr-2" />Conferma Richiesta</>}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setShowBookingDialog(false)}>Chiudi</Button>
             )}
           </DialogFooter>
         </DialogContent>

@@ -1702,6 +1702,11 @@ async function handleRoute(request, resolvedParams, method) {
         const db = await getDb();
         return await handleCantiereTemplates(method, id, body, action, searchParams, db);
       }
+      case 'marina-bookings': {
+        const { handleMarinaBookings } = await import('./marina_bookings');
+        const db = await getDb();
+        return await handleMarinaBookings(method, id, body, action, searchParams, db);
+      }
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
       default: return json({ error: 'Endpoint non trovato' }, 404);

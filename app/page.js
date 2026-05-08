@@ -22,6 +22,8 @@ const ContractsManagerLazy = dynamic(() => import('./components/PortRegistries')
 const PortSettingsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.PortSettingsManager })), { ssr: false });
 // Cantiere (Boatyard) Admin
 const CantiereAdminLazy = dynamic(() => import('./components/CantiereAdmin'), { ssr: false });
+// Marina Bookings (Step 3 - richieste prenotazione)
+const MarinaBookingsLazy = dynamic(() => import('./components/MarinaBookings'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -2171,6 +2173,27 @@ function AdminDashboard({ currentUser, onLogout }) {
     return name.includes('marlin') || slug.includes('marlin');
   }, [isSuperAdmin, isCompanyAdmin, currentUser?.company_id, companies]);
 
+  // Marina Bookings visibility: Super Admin OR Company Admin di una company che possiede/condivide marine
+  const [hasMarinaOwnership, setHasMarinaOwnership] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (isSuperAdmin) { setHasMarinaOwnership(true); return; }
+      if (!isCompanyAdmin || !currentUser?.company_id) { setHasMarinaOwnership(false); return; }
+      try {
+        const r = await fetch('/api/marinas');
+        const list = await r.json();
+        if (cancelled) return;
+        const owns = (Array.isArray(list) ? list : []).some(m =>
+          m.company_id === currentUser.company_id ||
+          (Array.isArray(m.shared_with_companies) && m.shared_with_companies.includes(currentUser.company_id))
+        );
+        setHasMarinaOwnership(owns);
+      } catch (e) { setHasMarinaOwnership(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [isSuperAdmin, isCompanyAdmin, currentUser?.company_id]);
+
   const seedData = async () => { setSeeding(true); await api('seed', { method: 'POST' }); toast.success('Dati demo caricati!'); await load(); setSeeding(false); };
   const createItem = async (ep, data) => {
     // Multi-tenant: Company Admin assegna automaticamente company_id alle nuove entità
@@ -2629,6 +2652,18 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="transits" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Transiti</TabsTrigger>
             <TabsTrigger value="contracts" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><FileSignature className="w-4 h-4 mr-1.5" />Contratti</TabsTrigger>
             <TabsTrigger value="port-settings" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>
+          </TabsList>
+        )}
+
+        {/* Riga 2.5: Tab RICHIESTE PRENOTAZIONE (cyan band) - Super Admin o owner marina */}
+        {hasMarinaOwnership && (
+          <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-cyan-600 via-sky-500 to-blue-600 p-2 rounded-lg shadow-md w-full">
+            <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
+              <Ship className="w-4 h-4" />Step 3 - Prenotazioni
+            </div>
+            <TabsTrigger value="marina-bookings" className="text-white data-[state=active]:bg-white data-[state=active]:text-cyan-800 hover:bg-white/20">
+              <Ship className="w-4 h-4 mr-1.5" />Richieste Prenotazione Marine
+            </TabsTrigger>
           </TabsList>
         )}
 
@@ -4110,6 +4145,15 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsContent value="cantiere" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Wrench className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <CantiereAdminLazy currentUser={currentUser} />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin / Owner Marine: Richieste Prenotazione */}
+        {hasMarinaOwnership && (
+          <TabsContent value="marina-bookings" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
+              <MarinaBookingsLazy currentUser={currentUser} />
             </Suspense>
           </TabsContent>
         )}
