@@ -369,6 +369,20 @@ export default function MarinaBookings({ currentUser }) {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 text-sm">
+              {/* Posto barca assegnato (se contratto creato) */}
+              {viewing.berth_label && (
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-lg p-4 flex items-center gap-3">
+                  <div className="bg-purple-600 text-white rounded-lg p-3">
+                    <Anchor className="w-7 h-7" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs uppercase tracking-wider text-purple-700 font-semibold">Posto barca assegnato</div>
+                    <div className="text-2xl font-bold text-purple-900 font-mono">{viewing.berth_label}</div>
+                    <div className="text-xs text-purple-700">Contratto attivo · convertito il {fmtDate(viewing.converted_at)}</div>
+                  </div>
+                  <Badge className="bg-purple-100 text-purple-800">Contratto</Badge>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <Card>
                   <CardHeader className="pb-2"><CardTitle className="text-sm">Cliente</CardTitle></CardHeader>

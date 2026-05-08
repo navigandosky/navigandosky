@@ -61,9 +61,9 @@ export async function handleBerths(method, id, body, action, sp, db) {
     const berth = await col.findOne({ id });
     if (!berth) return new Response(JSON.stringify({ error: 'Posto non trovato' }), { status: 404 });
     
-    // Verifica che non sia attualmente occupato
+    // Verifica che non sia attualmente occupato (skip se force=true)
     const status = computeStatus(berth);
-    if (status === 'occupied' || status === 'releasing') {
+    if ((status === 'occupied' || status === 'releasing') && !body.force) {
       return new Response(JSON.stringify({ 
         error: `Posto ${berth.label} attualmente occupato fino al ${berth.current_occupation.end_date}`,
         current: berth.current_occupation

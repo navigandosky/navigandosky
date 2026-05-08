@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { ClipboardList, Ship, FileSignature, Shield, Save, Eye, Edit, Trash2, Search, RefreshCw, Download, FileText, Lock, Unlock, ArrowRightCircle, Anchor } from 'lucide-react';
+import { ClipboardList, Ship, FileSignature, Shield, Save, Eye, Edit, Trash2, Search, RefreshCw, Download, FileText, Lock, Unlock, ArrowRightCircle, Anchor, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateQuotePDF, generateReceiptPDF } from '@/app/lib/pdfGen';
 
@@ -382,7 +382,7 @@ function EditQuoteDialog({ quote, onClose, onSaved }) {
 }
 
 // =====================================================================
-// Convert Quote → Occupation
+// Convert Quote → Occupation (con UI ricca: clienti esistenti + griglia liberi)
 // =====================================================================
 function ConvertQuoteDialog({ quote, onClose, onDone }) {
   const [berths, setBerths] = useState([]);
@@ -391,20 +391,58 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
   const [paymentStatus, setPaymentStatus] = useState('DA_PAGARE');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [forceOverride, setForceOverride] = useState(false);
 
   useEffect(() => {
     fetch(`/api/berths?marina_id=${quote.marina_id}`).then(r => r.json()).then(data => {
-      const free = (Array.isArray(data) ? data : []).filter(b => b.status === 'free' && b.length_max >= (quote.boat?.length || 0));
-      setBerths(free);
+      // Carica TUTTI i posti (non solo free) per mostrare anche quelli del cliente
+      setBerths(Array.isArray(data) ? data : []);
       setLoading(false);
-    });
-  }, [quote.marina_id, quote.boat?.length]);
+    }).catch(() => setLoading(false));
+  }, [quote.marina_id]);
+
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  const computeStatus = (berth) => {
+    const occ = berth.current_occupation;
+    if (!occ || !occ.end_date) return 'free';
+    const endD = new Date(occ.end_date); endD.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    if (endD < today) return 'free';
+    if (endD <= tomorrow) return 'releasing';
+    return 'occupied';
+  };
+
+  const customerEmail = quote.customer?.email?.toLowerCase();
+  const sameCustomerBerths = useMemo(() => {
+    if (!customerEmail) return [];
+    return berths
+      .filter(b => b.current_occupation?.customer?.email?.toLowerCase() === customerEmail)
+      .map(b => ({ berth: b, occupation: b.current_occupation }));
+  }, [berths, customerEmail]);
+
+  const boatLength = quote.boat?.length || 0;
+  const compatibleFreeBerths = useMemo(() => {
+    return berths
+      .filter(b => computeStatus(b) === 'free')
+      .filter(b => !boatLength || (b.length_max || 999) >= boatLength)
+      .sort((a, b) => ((a.length_max || 999) - boatLength) - ((b.length_max || 999) - boatLength));
+  }, [berths, boatLength, today]);
+
+  const allFreeBerths = useMemo(() => berths.filter(b => computeStatus(b) === 'free'), [berths, today]);
+  const selected = berths.find(b => b.id === selectedBerth);
 
   const submit = async () => {
     if (!selectedBerth) { toast.error('Seleziona un posto barca'); return; }
     setSubmitting(true);
     try {
-      // Crea occupazione
+      // Verifica conflitto se non in modalità force
+      const targetBerth = berths.find(b => b.id === selectedBerth);
+      if (computeStatus(targetBerth) !== 'free' && !forceOverride) {
+        if (!confirm(`Posto ${targetBerth.label} già occupato. Vuoi sovrascrivere?`)) {
+          setSubmitting(false); return;
+        }
+        setForceOverride(true);
+      }
       const occupyRes = await fetch(`/api/berths/${selectedBerth}/occupy`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -424,19 +462,24 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
           },
           payment_status: paymentStatus,
           payment_method: paymentMethod,
+          force: forceOverride,
           created_by: 'admin_convert',
         }),
       });
       const occData = await occupyRes.json();
-      if (occData.error) throw new Error(occData.error);
+      if (!occupyRes.ok || occData.error) throw new Error(occData.error || 'Errore occupazione');
 
-      // Aggiorna stato preventivo
       await fetch(`/api/port-quotes/${quote.id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'CONVERTITO', converted_to_berth_id: selectedBerth, converted_at: new Date().toISOString() }),
+        body: JSON.stringify({
+          status: 'CONVERTITO',
+          converted_to_berth_id: selectedBerth,
+          converted_to_berth_label: targetBerth.label,
+          converted_at: new Date().toISOString(),
+        }),
       });
 
-      toast.success('Preventivo convertito in occupazione!');
+      toast.success(`Preventivo convertito! Posto ${targetBerth.label} assegnato.`);
       onDone();
     } catch (e) { toast.error(e.message); }
     finally { setSubmitting(false); }
@@ -444,70 +487,129 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto" translate="no">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><ArrowRightCircle className="w-5 h-5 text-emerald-600" />Converti Preventivo {quote.quote_number} in Occupazione</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><ArrowRightCircle className="w-5 h-5 text-emerald-600" />Converti Preventivo {quote.quote_number} - Assegna Posto Barca</DialogTitle>
           <DialogDescription>
-            Seleziona un posto barca libero adatto. Solo posti con lunghezza ≥ {quote.boat?.length || 0}m sono mostrati.
+            Cliente: <strong>{quote.customer?.name} {quote.customer?.surname}</strong> · Barca: <strong>{quote.boat?.name || '—'}</strong> ({boatLength}m) · Periodo: {fmtDate(quote.start_date)} → {fmtDate(quote.end_date)}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="bg-blue-50 rounded p-2 text-xs">
-            <p><strong>Cliente:</strong> {quote.customer?.name} {quote.customer?.surname}</p>
-            <p><strong>Barca:</strong> {quote.boat?.name} · {quote.boat?.length}m {quote.boat?.type}</p>
-            <p><strong>Periodo:</strong> {fmtDate(quote.start_date)} → {fmtDate(quote.end_date)}</p>
-            <p><strong>Tariffa:</strong> {quote.tariff_label} · <strong>{fmtPrice(quote.grand_total)}</strong></p>
-          </div>
-          <div>
-            <Label>Posto barca disponibile *</Label>
-            {loading ? (
-              <p className="text-xs text-muted-foreground">Carico posti...</p>
-            ) : berths.length === 0 ? (
-              <p className="text-xs text-red-600">Nessun posto libero disponibile per questa lunghezza barca.</p>
-            ) : (
-              <Select value={selectedBerth} onValueChange={setSelectedBerth}>
-                <SelectTrigger><SelectValue placeholder="Seleziona posto" /></SelectTrigger>
-                <SelectContent>
-                  {berths.map(b => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.label} · max {b.length_max}m · Pontile {b.pontoon} {b.side === 'left' ? 'SX' : 'DX'}
-                    </SelectItem>
+
+        {loading ? (
+          <div className="py-6 text-center text-muted-foreground">Caricamento posti...</div>
+        ) : (
+          <div className="space-y-4">
+            {/* Sezione: Posti già del cliente */}
+            {sameCustomerBerths.length > 0 && (
+              <Card className="border-emerald-300">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2 text-emerald-700">
+                    <CheckCircle2 className="w-4 h-4" />Posti già assegnati a questo cliente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {sameCustomerBerths.map(({ berth, occupation }) => (
+                    <label key={berth.id} className={`flex items-start gap-3 p-3 rounded border-2 cursor-pointer transition ${selectedBerth === berth.id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:bg-emerald-50/30'}`}>
+                      <input type="radio" checked={selectedBerth === berth.id} onChange={() => setSelectedBerth(berth.id)} className="mt-1" />
+                      <div className="flex-1">
+                        <div className="font-bold text-emerald-900">Posto {berth.label}</div>
+                        <div className="text-xs text-slate-600">Pontile {berth.pontoon} · Lato {berth.side === 'left' ? 'SX' : 'DX'} · max {berth.length_max}m</div>
+                        <div className="text-xs text-emerald-700 mt-1">
+                          Occupato fino al {new Date(occupation.end_date).toLocaleDateString('it-IT')} · {occupation.boat?.name}
+                        </div>
+                      </div>
+                    </label>
                   ))}
-                </SelectContent>
-              </Select>
+                  <p className="text-xs text-emerald-700 italic flex gap-1 items-start">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    Selezionando uno di questi sovrascriverai l'occupazione esistente con la nuova.
+                  </p>
+                </CardContent>
+              </Card>
             )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Stato pagamento</Label>
-              <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DA_PAGARE">Da pagare</SelectItem>
-                  <SelectItem value="PAGATO_PARZIALE">Pagato parziale</SelectItem>
-                  <SelectItem value="PAGATO">Pagato</SelectItem>
-                </SelectContent>
-              </Select>
+
+            {/* Sezione: Posti liberi compatibili */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Ship className="w-4 h-4" />Posti liberi compatibili (lunghezza ≥ {boatLength}m)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {compatibleFreeBerths.length === 0 ? (
+                  <p className="text-sm text-amber-700 italic">Nessun posto libero compatibile per questa lunghezza barca.</p>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-72 overflow-y-auto">
+                    {compatibleFreeBerths.map(b => (
+                      <label key={b.id} className={`flex flex-col items-center gap-0.5 p-2 rounded border-2 cursor-pointer transition text-xs ${selectedBerth === b.id ? 'border-blue-500 bg-blue-50 shadow' : 'border-slate-200 hover:bg-blue-50/30'}`}>
+                        <input type="radio" checked={selectedBerth === b.id} onChange={() => setSelectedBerth(b.id)} className="hidden" />
+                        <div className="font-bold text-blue-700">{b.label}</div>
+                        <div className="text-[10px] text-slate-600">P{b.pontoon}/{b.side === 'left' ? 'SX' : 'DX'}</div>
+                        <div className="text-[10px] text-slate-500">max {b.length_max}m</div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {compatibleFreeBerths.length === 0 && allFreeBerths.length > 0 && (
+              <details>
+                <summary className="text-xs text-slate-600 cursor-pointer">Mostra tutti i posti liberi ({allFreeBerths.length}) anche più piccoli</summary>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-2 max-h-60 overflow-y-auto">
+                  {allFreeBerths.map(b => (
+                    <label key={b.id} className={`flex flex-col items-center gap-0.5 p-2 rounded border-2 cursor-pointer transition text-xs ${selectedBerth === b.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-100'}`}>
+                      <input type="radio" checked={selectedBerth === b.id} onChange={() => setSelectedBerth(b.id)} className="hidden" />
+                      <div className="font-bold text-blue-700">{b.label}</div>
+                      <div className="text-[10px] text-slate-500">max {b.length_max}m</div>
+                    </label>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            {selected && (
+              <Card className="border-blue-400 bg-blue-50">
+                <CardContent className="p-3 text-sm">
+                  <div className="font-semibold text-blue-900">Posto selezionato: {selected.label}</div>
+                  <div className="text-xs text-blue-700">Pontile {selected.pontoon} · Lato {selected.side === 'left' ? 'SX' : 'DX'} · Posizione {selected.position} · Lunghezza max {selected.length_max}m</div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Stato pagamento */}
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+              <div>
+                <Label className="text-xs">Stato pagamento</Label>
+                <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DA_PAGARE">Da pagare</SelectItem>
+                    <SelectItem value="PAGATO_PARZIALE">Pagato parziale</SelectItem>
+                    <SelectItem value="PAGATO">Pagato</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Metodo pagamento</Label>
+                <Select value={paymentMethod || 'NESSUNO'} onValueChange={v => setPaymentMethod(v === 'NESSUNO' ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NESSUNO">Non specificato</SelectItem>
+                    <SelectItem value="CONTANTI">Contanti</SelectItem>
+                    <SelectItem value="BONIFICO">Bonifico</SelectItem>
+                    <SelectItem value="POS">POS / Carta</SelectItem>
+                    <SelectItem value="STRIPE">Stripe online</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label>Metodo pagamento</Label>
-              <Select value={paymentMethod || 'NESSUNO'} onValueChange={v => setPaymentMethod(v === 'NESSUNO' ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NESSUNO">Non specificato</SelectItem>
-                  <SelectItem value="CONTANTI">Contanti</SelectItem>
-                  <SelectItem value="BONIFICO">Bonifico</SelectItem>
-                  <SelectItem value="POS">POS / Carta</SelectItem>
-                  <SelectItem value="STRIPE">Stripe online</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
-        </div>
+        )}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annulla</Button>
-          <Button onClick={submit} disabled={submitting || !selectedBerth || berths.length === 0}>
-            {submitting ? 'Converto...' : <><ArrowRightCircle className="w-4 h-4 mr-2" />Crea Occupazione</>}
+          <Button variant="outline" onClick={onClose} disabled={submitting}>Annulla</Button>
+          <Button onClick={submit} disabled={submitting || !selectedBerth} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            {submitting ? 'Converto...' : <><ArrowRightCircle className="w-4 h-4 mr-2" />Crea Occupazione e Assegna</>}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -518,7 +620,7 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
 function QuoteDetailDialog({ quote, onClose }) {
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" translate="no">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardList className="w-5 h-5" />Preventivo {quote.quote_number}
@@ -527,6 +629,20 @@ function QuoteDetailDialog({ quote, onClose }) {
           <DialogDescription>{quote.marina_name} · {fmtDate(quote.created_at)}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 text-sm">
+          {/* Posto barca assegnato (se contratto/converted) */}
+          {quote.converted_to_berth_label && (
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-lg p-4 flex items-center gap-3">
+              <div className="bg-purple-600 text-white rounded-lg p-3">
+                <Anchor className="w-7 h-7" />
+              </div>
+              <div className="flex-1">
+                <div className="text-xs uppercase tracking-wider text-purple-700 font-semibold">Posto barca assegnato</div>
+                <div className="text-2xl font-bold text-purple-900 font-mono">{quote.converted_to_berth_label}</div>
+                <div className="text-xs text-purple-700">Convertito in occupazione il {fmtDate(quote.converted_at)}</div>
+              </div>
+              <Badge className="bg-purple-100 text-purple-800">Convertito</Badge>
+            </div>
+          )}
           <Card><CardContent className="p-3">
             <p className="font-semibold mb-1">Cliente</p>
             <p>{quote.customer?.name} {quote.customer?.surname}</p>
