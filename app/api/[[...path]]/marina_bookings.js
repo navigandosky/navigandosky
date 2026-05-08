@@ -167,15 +167,80 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
   }
 
   // === ACTION: convert-to-contract (admin) ===
+  // body: { berth_id, notes? }
+  // Occupa il posto barca selezionato e marca la prenotazione come CONTRACT
   if (method === 'POST' && id && action === 'convert-to-contract') {
     const b = await col.findOne({ id });
     if (!b) return new Response(JSON.stringify({ error: 'Prenotazione non trovata' }), { status: 404 });
     
-    // Marca come convertito
+    if (!body.berth_id) {
+      return new Response(JSON.stringify({ error: 'berth_id richiesto per assegnare il posto barca' }), { status: 400 });
+    }
+
+    // Verifica posto disponibile e occupalo
+    const berthsCol = db.collection('berths');
+    const berth = await berthsCol.findOne({ id: body.berth_id });
+    if (!berth) return new Response(JSON.stringify({ error: 'Posto barca non trovato' }), { status: 404 });
+
+    // Calcola stato corrente
+    const today = new Date(); today.setHours(0,0,0,0);
+    const occ = berth.current_occupation;
+    let isOccupied = false;
+    if (occ && occ.end_date) {
+      const endD = new Date(occ.end_date); endD.setHours(0,0,0,0);
+      if (endD >= today) isOccupied = true;
+    }
+    if (isOccupied && !body.force) {
+      return new Response(JSON.stringify({
+        error: `Posto ${berth.label} già occupato fino al ${occ.end_date}`,
+        current: occ,
+      }), { status: 409 });
+    }
+
+    // Crea occupazione
+    const { v4: uuidv4_ } = await import('uuid');
+    const occupation = {
+      id: uuidv4_(),
+      booking_id: b.id,
+      booking_number: b.booking_number,
+      customer: { ...b.customer },
+      boat: { ...b.boat },
+      start_date: b.start_date,
+      end_date: b.end_date,
+      total_amount: b.grand_total,
+      tariff_applied: { type: b.tariff_type, label: b.tariff_label, total: b.mooring_amount },
+      payment_status: b.balance_paid ? 'PAGATO' : (b.deposit_paid ? 'PAGATO_PARZIALE' : 'DA_PAGARE'),
+      payment_amount: (b.deposit_paid ? b.deposit_amount : 0) + (b.balance_paid ? b.balance_amount : 0),
+      payment_method: b.deposit_payment_method || '',
+      payment_date: b.deposit_payment_date || null,
+      notes: body.notes || `Da prenotazione ${b.booking_number}`,
+      created_at: new Date().toISOString(),
+      created_by: 'contract',
+    };
+
+    const history = berth.occupation_history || [];
+    if (berth.current_occupation) history.push(berth.current_occupation);
+    await berthsCol.updateOne(
+      { id: body.berth_id },
+      { $set: { current_occupation: occupation, occupation_history: history, updated_at: new Date().toISOString() } }
+    );
+
+    // Marca booking come CONTRACT
     await col.updateOne({ id }, {
-      $set: { status: 'CONTRACT', converted_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+      $set: {
+        status: 'CONTRACT',
+        berth_id: body.berth_id,
+        berth_label: berth.label,
+        contract_occupation_id: occupation.id,
+        converted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
     });
-    return new Response(JSON.stringify({ ok: true, booking_id: id }), { headers: { 'Content-Type': 'application/json' } });
+
+    const updated = await col.findOne({ id });
+    return new Response(JSON.stringify({
+      ok: true, booking: updated, berth_id: body.berth_id, berth_label: berth.label,
+    }), { headers: { 'Content-Type': 'application/json' } });
   }
 
   // === UPDATE generico ===

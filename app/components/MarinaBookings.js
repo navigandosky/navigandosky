@@ -36,6 +36,13 @@ export default function MarinaBookings({ currentUser }) {
   const [viewing, setViewing] = useState(null);
   const [rejecting, setRejecting] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  // Assegnazione posto barca
+  const [assigning, setAssigning] = useState(null); // booking corrente da assegnare
+  const [berths, setBerths] = useState([]);
+  const [loadingBerths, setLoadingBerths] = useState(false);
+  const [selectedBerthId, setSelectedBerthId] = useState('');
+  const [forceOverride, setForceOverride] = useState(false);
+  const [submittingAssign, setSubmittingAssign] = useState(false);
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
@@ -119,8 +126,50 @@ export default function MarinaBookings({ currentUser }) {
   };
 
   const convertToContract = async (b) => {
-    if (!confirm(`Convertire la prenotazione ${b.booking_number} in contratto attivo?`)) return;
-    await doAction(b, 'convert-to-contract');
+    // Apri dialog assegnazione posto barca
+    setAssigning(b);
+    setSelectedBerthId('');
+    setForceOverride(false);
+    setLoadingBerths(true);
+    try {
+      const r = await fetch(`/api/berths?marina_id=${b.marina_id}`);
+      const data = await r.json();
+      setBerths(Array.isArray(data) ? data : []);
+    } catch (e) {
+      toast.error('Errore caricamento posti');
+    } finally { setLoadingBerths(false); }
+  };
+
+  const submitAssignBerth = async () => {
+    if (!assigning || !selectedBerthId) {
+      toast.error('Seleziona un posto barca');
+      return;
+    }
+    setSubmittingAssign(true);
+    try {
+      const r = await fetch(`/api/marina-bookings/${assigning.id}?action=convert-to-contract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ berth_id: selectedBerthId, force: forceOverride }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        if (data.error?.includes('già occupato') && !forceOverride) {
+          if (confirm(`${data.error}\n\nVuoi assegnarlo lo stesso (sovrascrivi)?`)) {
+            setForceOverride(true);
+            setSubmittingAssign(false);
+            return; // L'utente cliccherà di nuovo
+          }
+        }
+        throw new Error(data.error || 'Errore');
+      }
+      toast.success(`Contratto creato! Posto ${data.berth_label} assegnato.`);
+      setAssigning(null);
+      setSelectedBerthId('');
+      await load();
+    } catch (e) {
+      toast.error(e.message);
+    } finally { setSubmittingAssign(false); }
   };
 
   const handleReject = async () => {
@@ -402,6 +451,195 @@ export default function MarinaBookings({ currentUser }) {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Dialog Assegna Posto Barca (Conversione in Contratto) */}
+      {assigning && (
+        <AssignBerthDialog
+          booking={assigning}
+          berths={berths}
+          loading={loadingBerths}
+          allBookings={bookings}
+          selectedBerthId={selectedBerthId}
+          setSelectedBerthId={setSelectedBerthId}
+          forceOverride={forceOverride}
+          setForceOverride={setForceOverride}
+          onClose={() => { setAssigning(null); setBerths([]); setSelectedBerthId(''); }}
+          onConfirm={submitAssignBerth}
+          submitting={submittingAssign}
+        />
+      )}
     </div>
   );
 }
+
+// =============================================================
+// SOTTO-COMPONENTE: Dialog Assegna Posto Barca
+// =============================================================
+function AssignBerthDialog({ booking, berths, loading, allBookings, selectedBerthId, setSelectedBerthId, forceOverride, setForceOverride, onClose, onConfirm, submitting }) {
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  const computeStatus = (berth) => {
+    const occ = berth.current_occupation;
+    if (!occ || !occ.end_date) return 'free';
+    const endD = new Date(occ.end_date); endD.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+    if (endD < today) return 'free';
+    if (endD <= tomorrow) return 'releasing';
+    return 'occupied';
+  };
+
+  // Berths esistenti dello stesso cliente (in altre prenotazioni o occupazioni in corso)
+  const customerEmail = booking?.customer?.email?.toLowerCase();
+  const sameCustomerBerths = useMemo(() => {
+    if (!customerEmail) return [];
+    const result = [];
+    for (const b of berths) {
+      const occ = b.current_occupation;
+      if (occ?.customer?.email?.toLowerCase() === customerEmail) {
+        result.push({ berth: b, occupation: occ });
+      }
+    }
+    return result;
+  }, [berths, customerEmail]);
+
+  // Berths liberi compatibili con la lunghezza barca
+  const boatLength = booking?.boat?.length || 0;
+  const compatibleFreeBerths = useMemo(() => {
+    return berths
+      .filter(b => computeStatus(b) === 'free')
+      .filter(b => !boatLength || (b.length_max || 999) >= boatLength)
+      .sort((a, b) => {
+        // Priorità: stesso pontile, lunghezza max più piccola (best fit)
+        const lenDiffA = (a.length_max || 999) - boatLength;
+        const lenDiffB = (b.length_max || 999) - boatLength;
+        return lenDiffA - lenDiffB;
+      });
+  }, [berths, boatLength, today]);
+
+  const allFreeBerths = useMemo(() => berths.filter(b => computeStatus(b) === 'free'), [berths, today]);
+
+  const selectedBerth = berths.find(b => b.id === selectedBerthId);
+
+  return (
+    <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" translate="no">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Anchor className="w-5 h-5 text-blue-600" />Assegna Posto Barca · {booking.booking_number}
+          </DialogTitle>
+          <DialogDescription>
+            Seleziona un posto barca da assegnare al contratto. Cliente: <strong>{booking.customer?.name} {booking.customer?.surname}</strong> · Barca: <strong>{booking.boat?.name || '—'}</strong> ({boatLength}m)
+          </DialogDescription>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="py-6 text-center text-muted-foreground">
+            <RefreshCw className="w-6 h-6 mx-auto animate-spin mb-2" />Caricamento posti...
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Sezione: Posti già del cliente */}
+            {sameCustomerBerths.length > 0 && (
+              <Card className="border-emerald-300">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2 text-emerald-700">
+                    <CheckCircle2 className="w-4 h-4" />Posti già assegnati a questo cliente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {sameCustomerBerths.map(({ berth, occupation }) => (
+                    <label key={berth.id} className={`flex items-start gap-3 p-3 rounded border-2 cursor-pointer transition ${selectedBerthId === berth.id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:bg-emerald-50/30'}`}>
+                      <input type="radio" checked={selectedBerthId === berth.id} onChange={() => setSelectedBerthId(berth.id)} className="mt-1" />
+                      <div className="flex-1">
+                        <div className="font-bold text-emerald-900">Posto {berth.label}</div>
+                        <div className="text-xs text-slate-600">Pontile {berth.pontoon} · Lato {berth.side} · max {berth.length_max}m</div>
+                        <div className="text-xs text-emerald-700 mt-1">
+                          Occupato fino al {new Date(occupation.end_date).toLocaleDateString('it-IT')} · {occupation.boat?.name}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                  <p className="text-xs text-emerald-700 italic flex gap-1 items-start">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    Selezionando uno di questi sovrascriverai l'occupazione esistente con la nuova prenotazione.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Sezione: Posti liberi compatibili */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Ship className="w-4 h-4" />Posti liberi compatibili (lunghezza ≥ {boatLength}m)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {compatibleFreeBerths.length === 0 ? (
+                  <p className="text-sm text-amber-700 italic">Nessun posto libero compatibile per questa lunghezza barca.</p>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-72 overflow-y-auto">
+                    {compatibleFreeBerths.map(b => (
+                      <label key={b.id} className={`flex flex-col items-center gap-0.5 p-2 rounded border-2 cursor-pointer transition text-xs ${selectedBerthId === b.id ? 'border-blue-500 bg-blue-50 shadow' : 'border-slate-200 hover:bg-blue-50/30'}`}>
+                        <input type="radio" checked={selectedBerthId === b.id} onChange={() => setSelectedBerthId(b.id)} className="hidden" />
+                        <div className="font-bold text-blue-700">{b.label}</div>
+                        <div className="text-[10px] text-slate-600">P{b.pontoon}/{b.side}</div>
+                        <div className="text-[10px] text-slate-500">max {b.length_max}m</div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Sezione: Tutti i posti liberi (anche non compatibili) - opzionale */}
+            {compatibleFreeBerths.length === 0 && allFreeBerths.length > 0 && (
+              <details>
+                <summary className="text-xs text-slate-600 cursor-pointer">Mostra tutti i posti liberi ({allFreeBerths.length}) anche se più piccoli</summary>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-2 max-h-60 overflow-y-auto">
+                  {allFreeBerths.map(b => (
+                    <label key={b.id} className={`flex flex-col items-center gap-0.5 p-2 rounded border-2 cursor-pointer transition text-xs ${selectedBerthId === b.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-100'}`}>
+                      <input type="radio" checked={selectedBerthId === b.id} onChange={() => setSelectedBerthId(b.id)} className="hidden" />
+                      <div className="font-bold text-blue-700">{b.label}</div>
+                      <div className="text-[10px] text-slate-500">max {b.length_max}m</div>
+                    </label>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            {selectedBerth && (
+              <Card className="border-blue-400 bg-blue-50">
+                <CardContent className="p-3 text-sm">
+                  <div className="font-semibold text-blue-900">Posto selezionato: {selectedBerth.label}</div>
+                  <div className="text-xs text-blue-700">
+                    Pontile {selectedBerth.pontoon} · Lato {selectedBerth.side} · Posizione {selectedBerth.position} · Lunghezza max {selectedBerth.length_max}m
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {forceOverride && (
+              <div className="bg-amber-50 border border-amber-300 rounded p-3 text-sm text-amber-900 flex gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div>Modalità sovrascrittura ATTIVA. L'occupazione esistente verrà sostituita.</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>Annulla</Button>
+          <Button
+            onClick={onConfirm}
+            disabled={!selectedBerthId || submitting}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            {submitting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <FileSignature className="w-4 h-4 mr-2" />}
+            Crea Contratto e Assegna
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
