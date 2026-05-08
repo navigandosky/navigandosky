@@ -24,6 +24,8 @@ const PortSettingsManagerLazy = dynamic(() => import('./components/PortRegistrie
 const CantiereAdminLazy = dynamic(() => import('./components/CantiereAdmin'), { ssr: false });
 // Marina Bookings (Step 3 - richieste prenotazione)
 const MarinaBookingsLazy = dynamic(() => import('./components/MarinaBookings'), { ssr: false });
+// Nuovo Preventivo Posto Barca (dialog admin)
+const NewQuoteDialogLazy = dynamic(() => import('./components/NewQuoteDialog'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -2175,6 +2177,8 @@ function AdminDashboard({ currentUser, onLogout }) {
 
   // Marina Bookings visibility: Super Admin OR Company Admin di una company che possiede/condivide marine
   const [hasMarinaOwnership, setHasMarinaOwnership] = useState(false);
+  // Nuovo Preventivo (dialog admin) - apertura
+  const [showNewQuoteDialog, setShowNewQuoteDialog] = useState(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -2664,6 +2668,15 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="marina-bookings" className="text-white data-[state=active]:bg-white data-[state=active]:text-cyan-800 hover:bg-white/20">
               <Ship className="w-4 h-4 mr-1.5" />Richieste Prenotazione Marine
             </TabsTrigger>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowNewQuoteDialog(true)}
+              className="ml-auto bg-emerald-500 hover:bg-emerald-600 text-white border border-white/30 shadow-sm h-8"
+              title="Crea un nuovo preventivo dall'area admin"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />Nuovo Preventivo
+            </Button>
           </TabsList>
         )}
 
@@ -4159,6 +4172,18 @@ function AdminDashboard({ currentUser, onLogout }) {
         )}
 
       </Tabs>
+
+      {/* Nuovo Preventivo Posto Barca - Admin Dialog */}
+      {showNewQuoteDialog && (
+        <Suspense fallback={null}>
+          <NewQuoteDialogLazy
+            open={showNewQuoteDialog}
+            onClose={() => setShowNewQuoteDialog(false)}
+            currentUser={currentUser}
+            onCreated={() => { /* il preventivo è già visibile nel tab Preventivi */ }}
+          />
+        </Suspense>
+      )}
 
       {/* Create Dialogs */}
       <Dialog open={showDialog==='experience'} onOpenChange={v=>!v&&setShowDialog(null)}>
