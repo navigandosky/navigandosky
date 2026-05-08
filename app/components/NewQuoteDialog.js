@@ -368,9 +368,8 @@ export default function NewQuoteDialog({ open, onClose, currentUser, onCreated }
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold">{opt.label}</span>
-                        {opt.recommended && <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Consigliata</Badge>}
+                        {quote.recommended?.type === opt.type && <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Consigliata ★</Badge>}
                       </div>
-                      {opt.detail && <div className="text-xs text-muted-foreground">{opt.detail}</div>}
                     </div>
                     <div className="text-right">
                       <div className="font-bold text-blue-700">{fmtEur(opt.total)}</div>
@@ -410,8 +409,13 @@ export default function NewQuoteDialog({ open, onClose, currentUser, onCreated }
                 <CardContent className="space-y-1 text-sm">
                   {quote.extras.map((ex, i) => (
                     <div key={i} className="flex justify-between">
-                      <span>{ex.label || ex.type}</span>
-                      <span>{fmtEur(ex.total || ex.subtotal || 0)}</span>
+                      <span>
+                        {ex.name || ex.label || ex.type}
+                        {typeof ex.detail === 'string' && ex.detail && (
+                          <span className="text-xs text-muted-foreground ml-1">({ex.detail})</span>
+                        )}
+                      </span>
+                      <span>{fmtEur(ex.subtotal || ex.total || 0)}</span>
                     </div>
                   ))}
                   <Separator className="my-1" />
