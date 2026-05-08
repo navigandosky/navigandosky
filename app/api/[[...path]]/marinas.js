@@ -185,17 +185,26 @@ export async function handleMarinaQuote(method, body, db) {
     }
   }
 
-  // Opzione 3: prezzo speciale nuovi utenti / pagamento anticipato (forfait estivo nel DB)
-  if (isInSummer && pricing.summer_flat?.length > 0) {
-    const flatPrice = findPriceForLength(pricing.summer_flat, length);
-    if (flatPrice) {
-      options.push({
-        type: 'summer_flat',
-        label: 'Prezzo speciale per nuovi utenti - pagamento anticipato',
-        total: flatPrice,
-        detail: [{ subtotal: flatPrice }]
-      });
-    }
+  // Opzione 3: prezzo speciale nuovi utenti / pagamento anticipato
+  // Calcolato come SCONTO 5% sulla tariffa mensile applicabile
+  // Si applica solo se il periodo è in stagione estiva ed è disponibile la tariffa mensile
+  const monthlyOption = options.find(o => o.type === 'monthly');
+  if (isInSummer && monthlyOption && monthlyOption.total > 0) {
+    const baseAmount = monthlyOption.total;
+    const discountPct = 5;
+    const specialPrice = Math.round(baseAmount * (100 - discountPct) / 100 * 100) / 100;
+    options.push({
+      type: 'summer_flat',
+      label: 'Prezzo speciale per nuovi utenti - pagamento anticipato (-5%)',
+      total: specialPrice,
+      detail: [{
+        subtotal: specialPrice,
+        base_monthly: baseAmount,
+        discount_pct: discountPct,
+        discount_amount: Math.round((baseAmount - specialPrice) * 100) / 100,
+        note: `Sconto del ${discountPct}% sulla tariffa mensile (${baseAmount}€)`,
+      }]
+    });
   }
   
   // Opzione 4: tariffa STAGIONALE (Giugno-Settembre)
