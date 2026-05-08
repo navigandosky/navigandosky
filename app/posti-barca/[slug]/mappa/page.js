@@ -32,22 +32,40 @@ export default function MarinaMapPage() {
   const [submitting, setSubmitting] = useState(false);
   const [zoom, setZoom] = useState(1);
   
-  // Auth check: solo SUPER_ADMIN può accedere a questa pagina
+  // Auth check: SUPER_ADMIN o COMPANY_ADMIN proprietario della marina
   useEffect(() => {
-    try {
-      const u = JSON.parse(localStorage.getItem('user') || 'null');
-      if (u?.role === 'SUPER_ADMIN') {
-        setIsSuperAdmin(true);
-      } else {
-        // Redirect a versione pubblica
+    // Verifica auth: SUPER_ADMIN sempre, COMPANY_ADMIN se la marina è della sua company
+    const checkAuth = async () => {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || 'null');
+        if (!u) {
+          router.replace(`/posti-barca/${slug}/mappa-pubblica`);
+          return;
+        }
+        if (u?.role === 'SUPER_ADMIN') {
+          setIsSuperAdmin(true);
+          setAuthChecked(true);
+          return;
+        }
+        // COMPANY_ADMIN: controlla se la marina è della sua company
+        if (u?.role === 'COMPANY_ADMIN' && u?.company_id) {
+          try {
+            const r = await fetch(`/api/marinas/${encodeURIComponent(slug)}`);
+            const m = await r.json();
+            if (r.ok && m?.company_id === u.company_id) {
+              setIsSuperAdmin(true); // riusa il flag per abilitare la gestione
+              setAuthChecked(true);
+              return;
+            }
+          } catch (e) { /* */ }
+        }
+        // Default: redirect a pubblica
         router.replace(`/posti-barca/${slug}/mappa-pubblica`);
-        return;
+      } catch (e) {
+        router.replace(`/posti-barca/${slug}/mappa-pubblica`);
       }
-    } catch (e) {
-      router.replace(`/posti-barca/${slug}/mappa-pubblica`);
-      return;
-    }
-    setAuthChecked(true);
+    };
+    checkAuth();
     /* eslint-disable-next-line */
   }, []);
   
@@ -1099,7 +1117,11 @@ function PontoonRealistic({ pontoonNum, data, onClick }) {
 function BerthSlotRealistic({ berth, side, onClick }) {
   const isOccupied = berth.status !== 'free';
   const boat = berth.current_occupation?.boat;
+  const customer = berth.current_occupation?.customer;
   const boatType = boat?.type || 'motor';
+  
+  // Etichetta cliente: cognome (o nome se cognome vuoto), max 10 char
+  const customerLabel = (customer?.surname || customer?.name || '').toUpperCase().slice(0, 10);
   
   // Larghezza dello slot proporzionale alla lunghezza max
   const slotWidth = berth.length_max >= 12 ? 60 : berth.length_max >= 10 ? 52 : berth.length_max >= 8 ? 46 : 40;
@@ -1112,14 +1134,36 @@ function BerthSlotRealistic({ berth, side, onClick }) {
   return (
     <button
       onClick={() => onClick(berth)}
-      title={`${berth.label} · max ${berth.length_max}m · ${berth.status === 'free' ? 'LIBERO' : berth.status === 'releasing' ? 'IN LIBERAZIONE' : `OCCUPATO da ${boat?.name || ''}`}`}
+      title={`${berth.label} · max ${berth.length_max}m · ${berth.status === 'free' ? 'LIBERO' : berth.status === 'releasing' ? 'IN LIBERAZIONE' : `OCCUPATO da ${customer?.name || ''} ${customer?.surname || ''} · barca: ${boat?.name || ''}`}`}
       className="group relative cursor-pointer transition-all hover:scale-105 hover:z-10"
-      style={{ width: `${slotWidth}px`, height: `${slotHeight}px` }}
+      style={{ width: `${slotWidth}px`, height: `${slotHeight + (isOccupied && customerLabel ? 12 : 0)}px` }}
     >
+      {/* Etichetta CLIENTE (top, fuori slot) - solo per occupati nella vista admin */}
+      {isOccupied && customerLabel && (
+        <div
+          className="absolute -top-3 left-0 right-0 text-center z-10 pointer-events-none"
+          style={{
+            fontSize: '8px',
+            fontWeight: 800,
+            color: 'white',
+            background: berth.status === 'releasing' ? 'rgba(245,158,11,0.95)' : 'rgba(168,85,247,0.95)',
+            borderRadius: '3px',
+            padding: '1px 2px',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+            letterSpacing: '0.3px',
+            border: '1px solid white',
+          }}
+        >
+          {customerLabel}
+        </div>
+      )}
+
       {/* Slot di acqua (cornice) */}
       <div
-        className="absolute inset-0 rounded-sm border-2 transition-all group-hover:shadow-2xl"
+        className="absolute left-0 right-0 rounded-sm border-2 transition-all group-hover:shadow-2xl"
         style={{
+          top: isOccupied && customerLabel ? '12px' : '0',
+          bottom: '0',
           backgroundColor: slotBgColor,
           borderColor: slotBorderColor,
           borderStyle: berth.status === 'free' ? 'dashed' : 'solid',
@@ -1130,7 +1174,10 @@ function BerthSlotRealistic({ berth, side, onClick }) {
       />
       
       {/* Numero posto (in alto) */}
-      <span className="absolute top-0.5 left-0.5 text-[8px] font-bold text-white/80 bg-black/30 rounded px-1">
+      <span
+        className="absolute left-0.5 text-[8px] font-bold text-white/80 bg-black/30 rounded px-1"
+        style={{ top: isOccupied && customerLabel ? '14px' : '2px' }}
+      >
         {berth.position}
       </span>
 
