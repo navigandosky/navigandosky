@@ -443,7 +443,7 @@ export default function MarinaMapPage() {
 
       {/* Dialog: Occupa posto libero */}
       <Dialog open={showOccupy} onOpenChange={setShowOccupy}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" translate="no">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Lock className="w-5 h-5 text-primary" />Registra occupazione — {selectedBerth?.label}
@@ -764,7 +764,7 @@ export default function MarinaMapPage() {
 
       {/* Dialog: Info posto occupato */}
       <Dialog open={showInfo} onOpenChange={setShowInfo}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" translate="no">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               {selectedBerth?.status === 'releasing' ? <Clock className="w-6 h-6 text-amber-500" /> : <Lock className="w-6 h-6 text-red-500" />}
@@ -969,7 +969,7 @@ export default function MarinaMapPage() {
       </Dialog>
       {/* Dialog: Autorizzazione tariffa servizio */}
       <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" translate="no">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
               🎁 Autorizzazione Tariffa Servizio

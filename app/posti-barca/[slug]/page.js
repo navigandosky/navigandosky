@@ -592,7 +592,7 @@ export default function MarinaDetailPage() {
           </div>
 
           {/* Calcolatore preventivo */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1" translate="no">
             <Card className="sticky top-4 border-2 border-primary shadow-2xl">
               <CardHeader className="bg-gradient-to-br from-primary via-blue-700 to-blue-900 text-white">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -774,7 +774,7 @@ export default function MarinaDetailPage() {
 
       {/* Dialog dati cliente per PDF */}
       <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" translate="no">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><FileText className="w-5 h-5 text-primary" />Dati per il preventivo PDF</DialogTitle>
             <DialogDescription>Compila i tuoi dati per personalizzare il documento</DialogDescription>
@@ -804,7 +804,7 @@ export default function MarinaDetailPage() {
       </Dialog>
       {/* Dialog Salva Preventivo in Archivio */}
       <Dialog open={showSaveDialog} onOpenChange={(o) => { setShowSaveDialog(o); if (!o) setSavedQuoteNumber(''); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" translate="no">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-emerald-600" />Salva Preventivo in Archivio</DialogTitle>
             <DialogDescription>
