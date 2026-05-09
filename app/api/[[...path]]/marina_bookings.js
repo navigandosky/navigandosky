@@ -177,6 +177,39 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
       return new Response(JSON.stringify({ error: 'Importo non valido' }), { status: 400 });
     }
     const { v4: uuidv4_ } = await import('uuid');
+    let payments = Array.isArray(existing.payments) ? [...existing.payments] : [];
+
+    // CONSOLIDATION: se è il primo payment custom e ci sono pagamenti legacy
+    // (deposit_paid/balance_paid registrati nel vecchio flusso), li migriamo in payments[]
+    // così l'incassato totale rimane corretto e visibile nello storico.
+    if (payments.length === 0) {
+      if (existing.deposit_paid && Number(existing.deposit_amount || 0) > 0) {
+        payments.push({
+          id: uuidv4_(),
+          amount: Number(existing.deposit_amount),
+          method: existing.deposit_payment_method || 'MANUALE',
+          date: existing.deposit_payment_date || existing.created_at || new Date().toISOString(),
+          reference: existing.deposit_payment_reference || '',
+          notes: 'Acconto (migrato da prenotazione)',
+          migrated_from_legacy: true,
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (existing.balance_paid && Number(existing.balance_amount || 0) > 0) {
+        payments.push({
+          id: uuidv4_(),
+          amount: Number(existing.balance_amount),
+          method: existing.balance_payment_method || 'MANUALE',
+          date: existing.balance_payment_date || new Date().toISOString(),
+          reference: '',
+          notes: 'Saldo (migrato da prenotazione)',
+          migrated_from_legacy: true,
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Aggiungi il nuovo pagamento
     const payment = {
       id: uuidv4_(),
       amount,
@@ -186,12 +219,13 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
       notes: body.notes || '',
       created_at: new Date().toISOString(),
     };
-    const payments = Array.isArray(existing.payments) ? [...existing.payments, payment] : [payment];
+    payments.push(payment);
+
     const paid_total = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
     const grand = Number(existing.grand_total || 0);
     const balance_remaining = Math.max(0, Math.round((grand - paid_total) * 100) / 100);
     let payment_status = 'DA_PAGARE';
-    if (paid_total >= grand) payment_status = 'SALDATO';
+    if (paid_total >= grand && grand > 0) payment_status = 'SALDATO';
     else if (paid_total > 0) payment_status = 'ACCONTO';
     await col.updateOne({ id }, { $set: { payments, paid_total, balance_remaining, payment_status, updated_at: new Date().toISOString() } });
     return new Response(JSON.stringify(await col.findOne({ id })), { headers: { 'Content-Type': 'application/json' } });
