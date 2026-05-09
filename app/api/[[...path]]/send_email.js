@@ -109,10 +109,12 @@ export async function handleSendReceiptEmail(method, body) {
 
     const marinaCfg = marina?.payment_config || {};
 
-    // Email From: priorità marina.smtp_user > marina.smtp_from_name > company.name > env
-    const fromEmail = marinaCfg.smtp_user || process.env.RESEND_FROM_EMAIL || process.env.SMTP_USER || process.env.SMTP_FROM_EMAIL;
+    // FROM email: 
+    // - per Resend, usa RESEND_FROM_EMAIL (deve essere su dominio verificato)
+    // - per SMTP, usa marina.smtp_user (override) o env SMTP_USER
+    const resendFromEmail = process.env.RESEND_FROM_EMAIL || process.env.SMTP_USER;
+    const smtpFromEmail = marinaCfg.smtp_user || process.env.SMTP_USER || process.env.SMTP_FROM_EMAIL;
     const fromName = marinaCfg.smtp_from_name || company?.name || marina?.name || process.env.SMTP_FROM_NAME || 'Marina';
-    const fromAddress = `"${fromName}" <${fromEmail}>`;
 
     // Pulisci data URL prefix se presente
     let cleanBase64 = pdf_base64;
@@ -156,17 +158,21 @@ export async function handleSendReceiptEmail(method, body) {
       contentType: 'application/pdf',
     }];
 
-    const emailPayload = { from: fromAddress, to: to_email, subject: subj, html, attachments };
-
     let result;
     let providerUsed;
     let primaryError = null;
+    let usedFromEmail;
 
     // STEP 1: Prova Resend (provider primario, se configurato)
     if (process.env.RESEND_API_KEY) {
       try {
-        result = await sendViaResend(emailPayload);
+        const resendFromAddress = `${fromName} <${resendFromEmail}>`;
+        result = await sendViaResend({
+          from: resendFromAddress,
+          to: to_email, subject: subj, html, attachments,
+        });
         providerUsed = 'resend';
+        usedFromEmail = resendFromEmail;
       } catch (e) {
         primaryError = e.message;
         console.warn('[send-receipt-email] Resend fallito, fallback SMTP:', e.message);
@@ -176,8 +182,14 @@ export async function handleSendReceiptEmail(method, body) {
     // STEP 2: Fallback SMTP (Aruba)
     if (!result) {
       try {
-        result = await sendViaSMTP({ ...emailPayload, marinaCfg });
+        const smtpFromAddress = `"${fromName}" <${smtpFromEmail}>`;
+        result = await sendViaSMTP({
+          from: smtpFromAddress,
+          to: to_email, subject: subj, html, attachments,
+          marinaCfg,
+        });
         providerUsed = 'smtp';
+        usedFromEmail = smtpFromEmail;
       } catch (e) {
         const composedError = primaryError ? `Resend: ${primaryError} · SMTP: ${e.message}` : `SMTP: ${e.message}`;
         return new Response(JSON.stringify({ error: composedError, detail: e.code || e.responseCode || null }), {
@@ -196,7 +208,7 @@ export async function handleSendReceiptEmail(method, body) {
               type: 'receipt',
               receipt_number,
               to: to_email,
-              from: fromEmail,
+              from: usedFromEmail,
               provider: providerUsed,
               sent_at: new Date().toISOString(),
               message_id: result.message_id,
@@ -211,7 +223,7 @@ export async function handleSendReceiptEmail(method, body) {
       ok: true,
       message_id: result.message_id,
       to: to_email,
-      from: fromEmail,
+      from: usedFromEmail,
       provider: providerUsed,
     }), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
