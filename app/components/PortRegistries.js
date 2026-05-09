@@ -17,7 +17,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—';
 // =====================================================================
 // PREVENTIVI MANAGER
 // =====================================================================
-export function QuotesManager() {
+export function QuotesManager({ marinaFilterId } = {}) {
   const [quotes, setQuotes] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +43,8 @@ export function QuotesManager() {
 
   const filtered = useMemo(() => {
     return quotes.filter(q => {
+      // Filtro Marina globale
+      if (marinaFilterId && marinaFilterId !== 'ALL' && q.marina_id !== marinaFilterId) return false;
       if (statusFilter !== 'all' && q.status !== statusFilter) return false;
       if (search) {
         const s = search.toLowerCase();
@@ -55,16 +57,21 @@ export function QuotesManager() {
       }
       return true;
     });
-  }, [quotes, statusFilter, search]);
+  }, [quotes, statusFilter, search, marinaFilterId]);
 
-  const stats = useMemo(() => ({
-    total: quotes.length,
-    bozza: quotes.filter(q => q.status === 'BOZZA').length,
-    inviato: quotes.filter(q => q.status === 'INVIATO').length,
-    accettato: quotes.filter(q => q.status === 'ACCETTATO').length,
-    convertito: quotes.filter(q => q.status === 'CONVERTITO').length,
-    valore_totale: quotes.reduce((s, q) => s + (q.grand_total || 0), 0),
-  }), [quotes]);
+  const stats = useMemo(() => {
+    const filteredByMarina = (marinaFilterId && marinaFilterId !== 'ALL')
+      ? quotes.filter(q => q.marina_id === marinaFilterId)
+      : quotes;
+    return {
+      total: filteredByMarina.length,
+      bozza: filteredByMarina.filter(q => q.status === 'BOZZA').length,
+      inviato: filteredByMarina.filter(q => q.status === 'INVIATO').length,
+      accettato: filteredByMarina.filter(q => q.status === 'ACCETTATO').length,
+      convertito: filteredByMarina.filter(q => q.status === 'CONVERTITO').length,
+      valore_totale: filteredByMarina.reduce((s, q) => s + (q.grand_total || 0), 0),
+    };
+  }, [quotes, marinaFilterId]);
 
   const updateStatus = async (q, newStatus) => {
     try {
@@ -735,7 +742,7 @@ function QuoteDetailDialog({ quote, onClose }) {
 // =====================================================================
 // TRANSITI MANAGER (occupazioni current + history)
 // =====================================================================
-export function TransitsManager() {
+export function TransitsManager({ marinaFilterId } = {}) {
   const [transits, setTransits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('current'); // current|history|all
@@ -789,6 +796,8 @@ export function TransitsManager() {
 
   const filtered = useMemo(() => {
     return transits.filter(t => {
+      // Filtro Marina globale
+      if (marinaFilterId && marinaFilterId !== 'ALL' && t.marina_id !== marinaFilterId) return false;
       if (statusFilter === 'current' && !t.is_active) return false;
       if (statusFilter === 'history' && t.is_active) return false;
       if (search) {
@@ -802,14 +811,19 @@ export function TransitsManager() {
       }
       return true;
     });
-  }, [transits, statusFilter, search]);
+  }, [transits, statusFilter, search, marinaFilterId]);
 
-  const stats = useMemo(() => ({
-    total: transits.length,
-    active: transits.filter(t => t.is_active).length,
-    historical: transits.filter(t => !t.is_active).length,
-    revenue: transits.reduce((s, t) => s + (t.tariff_applied?.grand_total || t.total_amount || 0), 0),
-  }), [transits]);
+  const stats = useMemo(() => {
+    const filteredByMarina = (marinaFilterId && marinaFilterId !== 'ALL')
+      ? transits.filter(t => t.marina_id === marinaFilterId)
+      : transits;
+    return {
+      total: filteredByMarina.length,
+      active: filteredByMarina.filter(t => t.is_active).length,
+      historical: filteredByMarina.filter(t => !t.is_active).length,
+      revenue: filteredByMarina.reduce((s, t) => s + (t.tariff_applied?.grand_total || t.total_amount || 0), 0),
+    };
+  }, [transits, marinaFilterId]);
 
   return (
     <div className="space-y-4">

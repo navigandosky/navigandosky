@@ -379,7 +379,7 @@ function MonthTariffEditor({ title, data, onChange }) {
 // =============================================================
 // SECTION: BERTHS MANAGER (Super Admin)
 // =============================================================
-export function BerthsManager() {
+export function BerthsManager({ marinaFilterId } = {}) {
   const [marinas, setMarinas] = useState([]);
   const [selectedMarinaId, setSelectedMarinaId] = useState('');
   const [berths, setBerths] = useState([]);
@@ -390,10 +390,23 @@ export function BerthsManager() {
 
   useEffect(() => {
     fetch('/api/marinas').then(r => r.json()).then(d => {
-      setMarinas(Array.isArray(d) ? d : []);
-      if (d?.[0]?.id) setSelectedMarinaId(d[0].id);
+      const arr = Array.isArray(d) ? d : [];
+      setMarinas(arr);
+      // Se è impostato un filtro globale e valido, usalo
+      if (marinaFilterId && marinaFilterId !== 'ALL' && arr.find(m => m.id === marinaFilterId)) {
+        setSelectedMarinaId(marinaFilterId);
+      } else if (arr?.[0]?.id) {
+        setSelectedMarinaId(arr[0].id);
+      }
     });
-  }, []);
+  }, [marinaFilterId]);
+
+  // Quando cambia il filtro globale (e non è 'ALL'), forza la selezione
+  useEffect(() => {
+    if (marinaFilterId && marinaFilterId !== 'ALL' && marinas.find(m => m.id === marinaFilterId)) {
+      setSelectedMarinaId(marinaFilterId);
+    }
+  }, [marinaFilterId, marinas]);
 
   const loadBerths = useCallback(async () => {
     if (!selectedMarinaId) return;

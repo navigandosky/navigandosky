@@ -55,7 +55,7 @@ function computePaymentStatus(c) {
   return { paid_total: paid, balance_remaining: balance, status };
 }
 
-export default function ContractsRegistry({ currentUser }) {
+export default function ContractsRegistry({ currentUser, marinaFilterId }) {
   const [contracts, setContracts] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +93,8 @@ export default function ContractsRegistry({ currentUser }) {
 
   const filtered = useMemo(() => {
     return contracts.filter(c => {
+      // Filtro Marina globale
+      if (marinaFilterId && marinaFilterId !== 'ALL' && c.marina_id !== marinaFilterId) return false;
       const ps = computePaymentStatus(c);
       if (statusFilter !== 'ALL' && ps.status !== statusFilter) return false;
       if (search) {
@@ -106,11 +108,14 @@ export default function ContractsRegistry({ currentUser }) {
       }
       return true;
     });
-  }, [contracts, search, statusFilter]);
+  }, [contracts, search, statusFilter, marinaFilterId]);
 
   const stats = useMemo(() => {
+    const filteredByMarina = (marinaFilterId && marinaFilterId !== 'ALL')
+      ? contracts.filter(c => c.marina_id === marinaFilterId)
+      : contracts;
     const s = { total: 0, da_pagare: 0, acconto: 0, saldato: 0, valore_totale: 0, incassato: 0, da_incassare: 0 };
-    for (const c of contracts) {
+    for (const c of filteredByMarina) {
       const ps = computePaymentStatus(c);
       s.total++;
       if (ps.status === 'DA_PAGARE') s.da_pagare++;
@@ -121,7 +126,7 @@ export default function ContractsRegistry({ currentUser }) {
       s.da_incassare += ps.balance_remaining;
     }
     return s;
-  }, [contracts]);
+  }, [contracts, marinaFilterId]);
 
   return (
     <div className="space-y-4">

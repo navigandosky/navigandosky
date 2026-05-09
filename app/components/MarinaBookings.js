@@ -26,7 +26,7 @@ const STATUSES = [
   { value: 'CANCELLED', label: 'Annullata', color: 'bg-slate-100 text-slate-700' },
 ];
 
-export default function MarinaBookings({ currentUser }) {
+export default function MarinaBookings({ currentUser, marinaFilterId }) {
   const [bookings, setBookings] = useState([]);
   const [marinas, setMarinas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +43,13 @@ export default function MarinaBookings({ currentUser }) {
   const [selectedBerthId, setSelectedBerthId] = useState('');
   const [forceOverride, setForceOverride] = useState(false);
   const [submittingAssign, setSubmittingAssign] = useState(false);
+
+  // Sincronizza il filtro Marina con il filtro globale passato dal parent
+  useEffect(() => {
+    if (typeof marinaFilterId !== 'undefined') {
+      setMarinaFilter(marinaFilterId || 'ALL');
+    }
+  }, [marinaFilterId]);
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 

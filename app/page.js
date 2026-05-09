@@ -2179,23 +2179,40 @@ function AdminDashboard({ currentUser, onLogout }) {
 
   // Marina Bookings visibility: Super Admin OR Company Admin di una company che possiede/condivide marine
   const [hasMarinaOwnership, setHasMarinaOwnership] = useState(false);
+  // Lista marine accessibili per il filtro globale
+  const [ownedMarinas, setOwnedMarinas] = useState([]);
+  // Filtro Marina globale: 'ALL' o ID marina specifico
+  const [globalMarinaFilter, setGlobalMarinaFilter] = useState('ALL');
   // Nuovo Preventivo (dialog admin) - apertura
   const [showNewQuoteDialog, setShowNewQuoteDialog] = useState(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (isSuperAdmin) { setHasMarinaOwnership(true); return; }
-      if (!isCompanyAdmin || !currentUser?.company_id) { setHasMarinaOwnership(false); return; }
       try {
         const r = await fetch('/api/marinas');
         const list = await r.json();
         if (cancelled) return;
-        const owns = (Array.isArray(list) ? list : []).some(m =>
+        const arr = Array.isArray(list) ? list : [];
+        if (isSuperAdmin) {
+          setHasMarinaOwnership(true);
+          setOwnedMarinas(arr);
+          return;
+        }
+        if (!isCompanyAdmin || !currentUser?.company_id) {
+          setHasMarinaOwnership(false);
+          setOwnedMarinas([]);
+          return;
+        }
+        const accessible = arr.filter(m =>
           m.company_id === currentUser.company_id ||
           (Array.isArray(m.shared_with_companies) && m.shared_with_companies.includes(currentUser.company_id))
         );
-        setHasMarinaOwnership(owns);
-      } catch (e) { setHasMarinaOwnership(false); }
+        setHasMarinaOwnership(accessible.length > 0);
+        setOwnedMarinas(accessible);
+      } catch (e) {
+        setHasMarinaOwnership(false);
+        setOwnedMarinas([]);
+      }
     })();
     return () => { cancelled = true; };
   }, [isSuperAdmin, isCompanyAdmin, currentUser?.company_id]);
@@ -2645,6 +2662,46 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
         </TabsList>
+
+        {/* Filtro Marina Globale - sopra le sezioni Marina */}
+        {hasMarinaOwnership && ownedMarinas.length > 1 && (
+          <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-2 border-blue-200 rounded-lg p-3 flex flex-wrap items-center gap-2 shadow-sm">
+            <div className="flex items-center gap-2 px-2 text-blue-900 font-semibold text-xs uppercase tracking-wider border-r border-blue-300 pr-3">
+              <Anchor className="w-4 h-4" />Filtro Marina
+            </div>
+            <button
+              type="button"
+              onClick={() => setGlobalMarinaFilter('ALL')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                globalMarinaFilter === 'ALL'
+                  ? 'bg-blue-700 text-white shadow-md ring-2 ring-blue-300'
+                  : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-200'
+              }`}
+            >
+              🌊 Tutte le Marine ({ownedMarinas.length})
+            </button>
+            {ownedMarinas.map(m => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setGlobalMarinaFilter(m.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  globalMarinaFilter === m.id
+                    ? 'bg-blue-700 text-white shadow-md ring-2 ring-blue-300'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-200'
+                }`}
+                title={m.location || m.name}
+              >
+                ⚓ {m.name}
+              </button>
+            ))}
+            {globalMarinaFilter !== 'ALL' && (
+              <Badge className="ml-auto bg-amber-500 text-white text-xs">
+                Filtro attivo: visualizzando solo {ownedMarinas.find(m => m.id === globalMarinaFilter)?.name || ''}
+              </Badge>
+            )}
+          </div>
+        )}
 
         {/* Riga 2: Tab MARINE (sfondo blu, scritte bianche) - Super Admin o owner marina */}
         {hasMarinaOwnership && (
@@ -4125,7 +4182,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         {hasMarinaOwnership && (
           <TabsContent value="berths" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
-              <BerthsManagerLazy />
+              <BerthsManagerLazy marinaFilterId={globalMarinaFilter} />
             </Suspense>
           </TabsContent>
         )}
@@ -4134,7 +4191,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         {hasMarinaOwnership && (
           <TabsContent value="quotes" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><ClipboardList className="w-8 h-8 mx-auto animate-pulse" /></div>}>
-              <QuotesManagerLazy />
+              <QuotesManagerLazy marinaFilterId={globalMarinaFilter} />
             </Suspense>
           </TabsContent>
         )}
@@ -4143,7 +4200,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         {hasMarinaOwnership && (
           <TabsContent value="transits" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
-              <TransitsManagerLazy />
+              <TransitsManagerLazy marinaFilterId={globalMarinaFilter} />
             </Suspense>
           </TabsContent>
         )}
@@ -4152,7 +4209,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         {hasMarinaOwnership && (
           <TabsContent value="contracts-registry" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><FileSignature className="w-8 h-8 mx-auto animate-pulse" /></div>}>
-              <ContractsRegistryLazy currentUser={currentUser} />
+              <ContractsRegistryLazy currentUser={currentUser} marinaFilterId={globalMarinaFilter} />
             </Suspense>
           </TabsContent>
         )}
@@ -4179,7 +4236,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         {hasMarinaOwnership && (
           <TabsContent value="marina-bookings" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
-              <MarinaBookingsLazy currentUser={currentUser} />
+              <MarinaBookingsLazy currentUser={currentUser} marinaFilterId={globalMarinaFilter} />
             </Suspense>
           </TabsContent>
         )}
