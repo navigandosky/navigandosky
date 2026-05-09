@@ -1,5 +1,7 @@
 // Endpoint per invio email ricevute (e altre notifiche)
-// Usa nodemailer + SMTP. Default da ENV, override opzionale per-marina via marina.payment_config.smtp_*
+// Provider primario: Resend (https://resend.com/) - configurabile via env RESEND_API_KEY
+// Fallback automatico: SMTP nodemailer (default Aruba) per ambienti dove Resend non è configurato
+// Override per-marina via marina.payment_config.smtp_*
 import nodemailer from 'nodemailer';
 import { MongoClient } from 'mongodb';
 
@@ -12,9 +14,6 @@ async function getDb() {
   return _client.db();
 }
 
-/**
- * Crea un transporter SMTP. Usa marina.payment_config.smtp_* se valorizzato, altrimenti env.
- */
 function buildTransporter(marinaConfig = {}) {
   const host = marinaConfig.smtp_host || process.env.SMTP_HOST;
   const port = Number(marinaConfig.smtp_port || process.env.SMTP_PORT || 465);
@@ -27,28 +26,58 @@ function buildTransporter(marinaConfig = {}) {
   }
 
   return nodemailer.createTransport({
-    host,
-    port,
-    secure,
+    host, port, secure,
     auth: { user, pass },
-    // Aruba richiede TLS senza verifica troppo stretta in alcuni casi
     tls: { rejectUnauthorized: false },
   });
 }
 
 /**
- * POST /api/send-receipt-email
- * body: {
- *   booking_id: string,                    // marina_booking id (contratto)
- *   receipt_number: string,                // RIC-...
- *   receipt_amount: number,                // importo ricevuta
- *   to_email: string,                      // destinatario (di default cust.email)
- *   subject?: string,
- *   message?: string,                      // testo aggiuntivo
- *   pdf_base64: string,                    // ricevuta PDF in base64 (data:URL o pure base64)
- *   pdf_filename?: string,
- * }
+ * Invia email con Resend (provider primario)
+ * Ritorna { ok, message_id, provider: 'resend' } o lancia errore
  */
+async function sendViaResend({ from, to, subject, html, attachments }) {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY non configurata');
+  }
+  const { Resend } = await import('resend');
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const result = await resend.emails.send({
+    from,
+    to: Array.isArray(to) ? to : [to],
+    subject,
+    html,
+    attachments: (attachments || []).map(a => ({
+      filename: a.filename,
+      content: a.content, // base64 string (senza prefix data:)
+    })),
+  });
+  if (result.error) {
+    throw new Error(`Resend: ${result.error.message || JSON.stringify(result.error)}`);
+  }
+  return { ok: true, message_id: result.data?.id, provider: 'resend' };
+}
+
+/**
+ * Invia email via SMTP Nodemailer (fallback Aruba)
+ */
+async function sendViaSMTP({ from, to, subject, html, attachments, marinaCfg }) {
+  const transporter = buildTransporter(marinaCfg || {});
+  const info = await transporter.sendMail({
+    from,
+    to,
+    subject,
+    html,
+    attachments: (attachments || []).map(a => ({
+      filename: a.filename,
+      content: a.content,
+      encoding: 'base64',
+      contentType: a.contentType || 'application/pdf',
+    })),
+  });
+  return { ok: true, message_id: info.messageId, provider: 'smtp' };
+}
+
 export async function handleSendReceiptEmail(method, body) {
   if (method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Use POST' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
@@ -78,12 +107,12 @@ export async function handleSendReceiptEmail(method, body) {
       }
     }
 
-    const marinaSmtp = marina?.payment_config || {};
-    const transporter = buildTransporter(marinaSmtp);
+    const marinaCfg = marina?.payment_config || {};
 
-    // From: usa company name + email da config marina (override) o env
-    const fromEmail = marinaSmtp.smtp_user || process.env.SMTP_USER || process.env.SMTP_FROM_EMAIL;
-    const fromName = marinaSmtp.smtp_from_name || company?.name || marina?.name || process.env.SMTP_FROM_NAME || 'Marina';
+    // Email From: priorità marina.smtp_user > marina.smtp_from_name > company.name > env
+    const fromEmail = marinaCfg.smtp_user || process.env.RESEND_FROM_EMAIL || process.env.SMTP_USER || process.env.SMTP_FROM_EMAIL;
+    const fromName = marinaCfg.smtp_from_name || company?.name || marina?.name || process.env.SMTP_FROM_NAME || 'Marina';
+    const fromAddress = `"${fromName}" <${fromEmail}>`;
 
     // Pulisci data URL prefix se presente
     let cleanBase64 = pdf_base64;
@@ -91,7 +120,6 @@ export async function handleSendReceiptEmail(method, body) {
       cleanBase64 = cleanBase64.split(',')[1] || cleanBase64;
     }
 
-    // Build HTML body
     const cust = contract?.customer || {};
     const subj = subject || `Ricevuta ${receipt_number || ''} - ${marina?.name || company?.name || 'Marina'}`;
     const html = `
@@ -113,9 +141,7 @@ export async function handleSendReceiptEmail(method, body) {
               <tr><td style="padding: 4px 0; color: #6b7280;">Periodo:</td><td style="padding: 4px 0;">${contract.start_date ? new Date(contract.start_date).toLocaleDateString('it-IT') : ''} → ${contract.end_date ? new Date(contract.end_date).toLocaleDateString('it-IT') : ''}</td></tr>
             </table>
           ` : ''}
-          <p style="margin-top: 24px; font-size: 13px; color: #6b7280;">
-            Per qualsiasi necessità, può contattarci rispondendo a questa email.
-          </p>
+          <p style="margin-top: 24px; font-size: 13px; color: #6b7280;">Per qualsiasi necessità, può contattarci rispondendo a questa email.</p>
           <p style="margin-top: 24px; font-size: 14px;">Cordiali saluti,<br><strong>${fromName}</strong></p>
         </div>
         <div style="text-align: center; padding: 12px; font-size: 11px; color: #9ca3af;">
@@ -124,23 +150,44 @@ export async function handleSendReceiptEmail(method, body) {
       </body></html>
     `;
 
-    const info = await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
-      to: to_email,
-      subject: subj,
-      html,
-      attachments: [
-        {
-          filename: pdf_filename || `Ricevuta_${receipt_number || 'documento'}.pdf`,
-          content: cleanBase64,
-          encoding: 'base64',
-          contentType: 'application/pdf',
-        },
-      ],
-    });
+    const attachments = [{
+      filename: pdf_filename || `Ricevuta_${receipt_number || 'documento'}.pdf`,
+      content: cleanBase64,
+      contentType: 'application/pdf',
+    }];
 
-    // Log invio nel contratto (storico email)
-    if (contract) {
+    const emailPayload = { from: fromAddress, to: to_email, subject: subj, html, attachments };
+
+    let result;
+    let providerUsed;
+    let primaryError = null;
+
+    // STEP 1: Prova Resend (provider primario, se configurato)
+    if (process.env.RESEND_API_KEY) {
+      try {
+        result = await sendViaResend(emailPayload);
+        providerUsed = 'resend';
+      } catch (e) {
+        primaryError = e.message;
+        console.warn('[send-receipt-email] Resend fallito, fallback SMTP:', e.message);
+      }
+    }
+
+    // STEP 2: Fallback SMTP (Aruba)
+    if (!result) {
+      try {
+        result = await sendViaSMTP({ ...emailPayload, marinaCfg });
+        providerUsed = 'smtp';
+      } catch (e) {
+        const composedError = primaryError ? `Resend: ${primaryError} · SMTP: ${e.message}` : `SMTP: ${e.message}`;
+        return new Response(JSON.stringify({ error: composedError, detail: e.code || e.responseCode || null }), {
+          status: 500, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Log invio nel contratto
+    if (contract && result?.ok) {
       await db.collection('marina_bookings').updateOne(
         { id: contract.id },
         {
@@ -150,8 +197,9 @@ export async function handleSendReceiptEmail(method, body) {
               receipt_number,
               to: to_email,
               from: fromEmail,
+              provider: providerUsed,
               sent_at: new Date().toISOString(),
-              message_id: info.messageId,
+              message_id: result.message_id,
             },
           },
           $set: { updated_at: new Date().toISOString() },
@@ -161,9 +209,10 @@ export async function handleSendReceiptEmail(method, body) {
 
     return new Response(JSON.stringify({
       ok: true,
-      message_id: info.messageId,
+      message_id: result.message_id,
       to: to_email,
       from: fromEmail,
+      provider: providerUsed,
     }), { headers: { 'Content-Type': 'application/json' } });
   } catch (e) {
     console.error('[send-receipt-email] Error:', e);

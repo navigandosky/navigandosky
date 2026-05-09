@@ -153,7 +153,7 @@ export async function downloadContractDOCX(contract, company, marina = null) {
           bold: true, size: 20,
         }),
         new TextRun({
-          text: `, con sede in ${company?.address || 'Siniscola Loc. "Janna & Flores"'}, ${company?.city || '08029 Siniscola NU'}, P.IVA ${company?.vat_number || '01216190919'}, in persona del legale rappresentante pro tempore;`,
+          text: `, con sede in ${company?.address || 'Siniscola Loc. "Janna & Flores"'}, ${company?.city || '08029 Siniscola NU'}, P.IVA ${company?.vat_number || '01216190916'}, in persona del legale rappresentante pro tempore;`,
           size: 20,
         }),
       ],
