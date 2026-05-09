@@ -118,12 +118,13 @@ function MarinaEditDialog({ marina, onClose, onSaved }) {
         </DialogHeader>
 
         <Tabs defaultValue="info" className="mt-2">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="info">Info Generali</TabsTrigger>
             <TabsTrigger value="annual">Tariffe Stagionali (Giu-Set)</TabsTrigger>
             <TabsTrigger value="daily">Tariffe Giornaliere</TabsTrigger>
             <TabsTrigger value="monthly">Tariffe Mensili</TabsTrigger>
             <TabsTrigger value="extra">Servizi Extra</TabsTrigger>
+            <TabsTrigger value="payments">💳 Pagamenti</TabsTrigger>
           </TabsList>
 
           <TabsContent value="info" className="space-y-3 pt-3">
@@ -249,6 +250,14 @@ function MarinaEditDialog({ marina, onClose, onSaved }) {
                 onChange={(tiers) => updatePricing('yard_services', { ...(form.pricing?.yard_services || {}), [svc.key]: tiers })}
               />
             ))}
+          </TabsContent>
+
+          {/* ====================== TAB PAGAMENTI ====================== */}
+          <TabsContent value="payments" className="pt-3 space-y-4">
+            <PaymentsConfigEditor
+              config={form.payment_config || {}}
+              onChange={(cfg) => update('payment_config', cfg)}
+            />
           </TabsContent>
         </Tabs>
 
@@ -640,6 +649,144 @@ function ImageGalleryUploader({ images, onChange }) {
         </div>
       </div>
       {(images || []).length > 0 && <p className="text-[10px] text-muted-foreground">{images.length} immagine/i in galleria</p>}
+    </div>
+  );
+}
+
+
+// =====================================================================
+// PaymentsConfigEditor — configurazione SumUp/Stripe + metodi manuali
+// =====================================================================
+function PaymentsConfigEditor({ config, onChange }) {
+  const c = config || {};
+  const provider = c.online_provider || 'none';
+  const set = (k, v) => onChange({ ...c, [k]: v });
+
+  const adminMethods = c.admin_methods || { contanti: true, bonifico: true, pos: true, carta: true, assegno: true };
+  const setAdminMethod = (k, v) => set('admin_methods', { ...adminMethods, [k]: v });
+
+  return (
+    <div className="space-y-5">
+      {/* Banner info */}
+      <div className="bg-blue-50 border border-blue-300 rounded p-3 text-sm flex items-start gap-2">
+        <div className="text-blue-600 mt-0.5">💳</div>
+        <div className="text-blue-900">
+          Configurazione dei metodi di pagamento per questa marina (multi-tenant).
+          Le impostazioni si applicano automaticamente al checkout pubblico (utente non loggato) e al registro contratti (admin loggato).
+        </div>
+      </div>
+
+      {/* Online Provider */}
+      <div className="border rounded-lg p-4 space-y-3 bg-card">
+        <div>
+          <h3 className="font-semibold text-sm">Pagamenti Online (utente non loggato · checkout B2C)</h3>
+          <p className="text-xs text-muted-foreground">Provider per accettare pagamenti online dal pubblico (acconto 30% prenotazioni).</p>
+        </div>
+        <div>
+          <Label className="text-xs">Provider</Label>
+          <select
+            className="w-full border rounded h-9 px-2 text-sm"
+            value={provider}
+            onChange={(e) => set('online_provider', e.target.value)}
+          >
+            <option value="none">Nessuno (pagamento solo offline)</option>
+            <option value="sumup">SumUp (POS Web)</option>
+            <option value="stripe">Stripe</option>
+          </select>
+        </div>
+
+        {provider === 'sumup' && (
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+            <div className="col-span-2 text-xs bg-amber-50 border border-amber-300 rounded p-2 text-amber-900">
+              ⚠️ <strong>SumUp:</strong> ottieni le credenziali dal pannello SumUp Developer (<a href="https://developer.sumup.com/" target="_blank" rel="noopener" className="underline">developer.sumup.com</a>) → API Keys.
+            </div>
+            <div><Label className="text-xs">SumUp Merchant Code</Label><Input value={c.sumup_merchant_code || ''} onChange={(e) => set('sumup_merchant_code', e.target.value)} placeholder="MXXXXXXX" /></div>
+            <div><Label className="text-xs">API Key (Secret)</Label><Input type="password" value={c.sumup_api_key || ''} onChange={(e) => set('sumup_api_key', e.target.value)} placeholder="sup_sk_..." /></div>
+            <div className="col-span-2">
+              <Label className="text-xs">Modalità</Label>
+              <select className="w-full border rounded h-9 px-2 text-sm" value={c.sumup_mode || 'sandbox'} onChange={(e) => set('sumup_mode', e.target.value)}>
+                <option value="sandbox">Sandbox (test)</option>
+                <option value="live">Live (produzione)</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {provider === 'stripe' && (
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+            <div className="col-span-2 text-xs bg-amber-50 border border-amber-300 rounded p-2 text-amber-900">
+              ⚠️ <strong>Stripe:</strong> ottieni le chiavi da <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener" className="underline">dashboard.stripe.com/apikeys</a>.
+            </div>
+            <div><Label className="text-xs">Publishable Key</Label><Input value={c.stripe_publishable_key || ''} onChange={(e) => set('stripe_publishable_key', e.target.value)} placeholder="pk_test_..." /></div>
+            <div><Label className="text-xs">Secret Key</Label><Input type="password" value={c.stripe_secret_key || ''} onChange={(e) => set('stripe_secret_key', e.target.value)} placeholder="sk_test_..." /></div>
+            <div className="col-span-2">
+              <Label className="text-xs">Modalità</Label>
+              <select className="w-full border rounded h-9 px-2 text-sm" value={c.stripe_mode || 'test'} onChange={(e) => set('stripe_mode', e.target.value)}>
+                <option value="test">Test</option>
+                <option value="live">Live (produzione)</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {provider !== 'none' && (
+          <label className="flex items-center gap-2 text-sm pt-2 border-t">
+            <input type="checkbox" checked={c.online_enabled !== false} onChange={(e) => set('online_enabled', e.target.checked)} />
+            <span>Abilita pagamenti online B2C (checkout pubblico)</span>
+          </label>
+        )}
+      </div>
+
+      {/* Admin manual methods */}
+      <div className="border rounded-lg p-4 space-y-3 bg-card">
+        <div>
+          <h3 className="font-semibold text-sm">Metodi Manuali (Super Admin · Company Admin Marina)</h3>
+          <p className="text-xs text-muted-foreground">Metodi disponibili nel "Registro Contratti → Pagamento" per registrare manualmente incassi.</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {[
+            { key: 'contanti', label: '💰 Contanti' },
+            { key: 'bonifico', label: '🏦 Bonifico' },
+            { key: 'pos', label: '🟦 POS fisico' },
+            { key: 'carta', label: '💳 Carta credito/debito' },
+            { key: 'assegno', label: '📃 Assegno' },
+            { key: 'altro', label: 'Altro' },
+          ].map(m => (
+            <label key={m.key} className={`flex items-center gap-2 border rounded p-2 cursor-pointer text-sm ${adminMethods[m.key] ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}`}>
+              <input type="checkbox" checked={!!adminMethods[m.key]} onChange={(e) => setAdminMethod(m.key, e.target.checked)} />
+              <span>{m.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Acconto richiesto */}
+      <div className="border rounded-lg p-4 space-y-3 bg-card">
+        <div>
+          <h3 className="font-semibold text-sm">Acconto B2C</h3>
+          <p className="text-xs text-muted-foreground">Percentuale di acconto richiesta al cliente B2C in fase di prenotazione.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs whitespace-nowrap">Acconto %</Label>
+          <Input
+            type="number"
+            min="0" max="100" step="5"
+            className="w-24"
+            value={c.deposit_percentage ?? 30}
+            onChange={(e) => set('deposit_percentage', Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+          />
+          <span className="text-sm text-muted-foreground">% (default 30%)</span>
+        </div>
+      </div>
+
+      <div className="bg-emerald-50 border border-emerald-300 rounded p-3 text-xs text-emerald-900">
+        <strong>📌 Riepilogo configurazione attuale:</strong>
+        <ul className="mt-1 space-y-0.5 list-disc list-inside">
+          <li>Pagamenti online: <strong>{provider === 'none' ? 'Disabilitati' : provider.toUpperCase() + (c.online_enabled !== false ? ' (attivi)' : ' (configurati ma disabilitati)')}</strong></li>
+          <li>Metodi admin abilitati: <strong>{Object.entries(adminMethods).filter(([_, v]) => v).map(([k]) => k).join(', ') || 'Nessuno'}</strong></li>
+          <li>Acconto richiesto: <strong>{c.deposit_percentage ?? 30}%</strong></li>
+        </ul>
+      </div>
     </div>
   );
 }

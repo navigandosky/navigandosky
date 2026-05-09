@@ -969,14 +969,44 @@ export default function MarinaDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Button
-                    onClick={payDeposit}
-                    disabled={payingDeposit}
-                    className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800 h-12 text-base font-semibold shadow-md"
-                  >
-                    {payingDeposit ? 'Elaborazione...' : <>💳 Paga Acconto € {createdBooking.deposit_amount?.toLocaleString('it-IT')} (30%)</>}
-                  </Button>
-                  <p className="text-xs text-slate-500 text-center">Pagamento sicuro via SumUp · MOCK demo (in attivazione)</p>
+                  {(() => {
+                    const provider = marina?.payment_config?.online_provider || 'none';
+                    const onlineEnabled = marina?.payment_config?.online_enabled !== false;
+                    if (provider === 'none' || !onlineEnabled) {
+                      return (
+                        <>
+                          <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm text-amber-900 text-center">
+                            ⚠️ Pagamenti online non disponibili per questa marina.
+                            <br />
+                            <span className="text-xs">Contatta la marina per concordare la modalità di pagamento dell'acconto.</span>
+                          </div>
+                          {marina?.contact_email && (
+                            <a href={`mailto:${marina.contact_email}?subject=Richiesta pagamento acconto ${createdBooking.booking_number}`}
+                               className="block text-xs text-center text-blue-700 hover:underline">
+                              📧 Scrivi a {marina.contact_email}
+                            </a>
+                          )}
+                        </>
+                      );
+                    }
+                    const providerLabel = provider === 'sumup' ? 'SumUp · POS Web' : provider === 'stripe' ? 'Stripe' : 'Pagamento online';
+                    const isMock = (provider === 'sumup' && !marina?.payment_config?.sumup_api_key) || (provider === 'stripe' && !marina?.payment_config?.stripe_secret_key);
+                    return (
+                      <>
+                        <Button
+                          onClick={payDeposit}
+                          disabled={payingDeposit}
+                          className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800 h-12 text-base font-semibold shadow-md"
+                        >
+                          {payingDeposit ? 'Elaborazione...' : <>💳 Paga Acconto € {createdBooking.deposit_amount?.toLocaleString('it-IT')} ({createdBooking.deposit_pct || 30}%)</>}
+                        </Button>
+                        <p className="text-xs text-slate-500 text-center">
+                          🔒 Pagamento sicuro via <strong>{providerLabel}</strong>
+                          {isMock && <> · <span className="text-amber-700">MOCK demo (in attivazione)</span></>}
+                        </p>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>

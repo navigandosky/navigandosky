@@ -60,8 +60,15 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
       company_id = m?.company_id || null;
     }
 
+    // Carica eventuale config pagamenti dalla marina (per default deposit_pct)
+    let marinaPaymentCfg = null;
+    if (marinaIdForLookup) {
+      const m = await db.collection('marinas').findOne({ id: marinaIdForLookup });
+      marinaPaymentCfg = m?.payment_config || null;
+    }
+
     const grand_total = Number(body.grand_total ?? quoteData?.grand_total ?? 0);
-    const deposit_pct = Number(body.deposit_pct ?? 30);
+    const deposit_pct = Number(body.deposit_pct ?? marinaPaymentCfg?.deposit_percentage ?? 30);
     const deposit_amount = Math.round(grand_total * deposit_pct / 100 * 100) / 100;
     const balance_amount = Math.round((grand_total - deposit_amount) * 100) / 100;
 

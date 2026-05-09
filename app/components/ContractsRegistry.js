@@ -589,6 +589,9 @@ function DocumentField({ label, which, docs, uploading, onUpload, onRemove, high
   const filename = docs[`${which}_filename`];
   const inputRef = useRef(null);
   const isUploading = uploading === which;
+  const [showPreview, setShowPreview] = useState(false);
+  const isPdf = !!filename?.toLowerCase().endsWith('.pdf') || !!url?.toLowerCase().includes('.pdf');
+  const isImage = !!filename?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) || !!url?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)/);
 
   return (
     <div className={`border rounded p-3 ${highlight ? (url ? 'bg-emerald-50 border-emerald-300' : 'bg-blue-50/40 border-blue-300 border-dashed') : 'bg-muted/30'}`}>
@@ -607,6 +610,12 @@ function DocumentField({ label, which, docs, uploading, onUpload, onRemove, high
                 <FileText className="w-3 h-3" />
                 {filename || 'Visualizza file'}
               </a>
+              {(isPdf || isImage) && (
+                <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setShowPreview(p => !p)} title="Anteprima">
+                  {showPreview ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  {showPreview ? 'Nascondi' : 'Anteprima'}
+                </Button>
+              )}
               <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => onRemove(which)}>
                 <Trash2 className="w-3 h-3 text-red-500" />
               </Button>
@@ -627,6 +636,18 @@ function DocumentField({ label, which, docs, uploading, onUpload, onRemove, high
           {url ? 'Sostituisci' : 'Carica file'}
         </Button>
       </div>
+      {/* Anteprima inline */}
+      {showPreview && url && (
+        <div className="mt-3 border rounded overflow-hidden bg-white">
+          {isPdf ? (
+            <iframe src={url} title={`Anteprima ${filename || which}`} className="w-full" style={{ height: '500px' }} />
+          ) : isImage ? (
+            <img src={url} alt={filename || which} className="w-full max-h-[500px] object-contain" />
+          ) : (
+            <div className="p-4 text-sm text-muted-foreground">Anteprima non disponibile per questo formato.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -636,6 +657,7 @@ function DocumentField({ label, which, docs, uploading, onUpload, onRemove, high
 // =====================================================================
 function PaymentDialog({ contract: initial, onClose, onChange }) {
   const [contract, setContract] = useState(initial);
+  const [marina, setMarina] = useState(null);
   const [form, setForm] = useState({
     amount: '',
     method: 'BONIFICO',
@@ -645,6 +667,45 @@ function PaymentDialog({ contract: initial, onClose, onChange }) {
   });
   const [saving, setSaving] = useState(false);
   const ps = computePaymentStatus(contract);
+
+  // Carica config pagamenti del marina
+  useEffect(() => {
+    if (!contract.marina_id) return;
+    fetch(`/api/marinas/${contract.marina_id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setMarina(d))
+      .catch(() => {});
+  }, [contract.marina_id]);
+
+  // Metodi disponibili per admin in base alla config marina (default: tutti)
+  const availableMethods = useMemo(() => {
+    const cfg = marina?.payment_config?.admin_methods || { contanti: true, bonifico: true, pos: true, carta: true, assegno: true, altro: true };
+    const all = [
+      { value: 'CONTANTI', label: '💰 Contanti', key: 'contanti' },
+      { value: 'BONIFICO', label: '🏦 Bonifico', key: 'bonifico' },
+      { value: 'POS', label: '🟦 POS fisico', key: 'pos' },
+      { value: 'CARTA', label: '💳 Carta credito/debito', key: 'carta' },
+      { value: 'ASSEGNO', label: '📃 Assegno', key: 'assegno' },
+      { value: 'ALTRO', label: 'Altro', key: 'altro' },
+    ];
+    const filtered = all.filter(m => cfg[m.key] !== false);
+    // Se la marina ha provider online attivo, aggiungi opzione SUMUP_ONLINE / STRIPE_ONLINE
+    const provider = marina?.payment_config?.online_provider;
+    const onlineEnabled = marina?.payment_config?.online_enabled !== false;
+    if (provider === 'sumup' && onlineEnabled) {
+      filtered.push({ value: 'SUMUP_ONLINE', label: '🌐 SumUp POS Web (online)', key: 'sumup_online' });
+    } else if (provider === 'stripe' && onlineEnabled) {
+      filtered.push({ value: 'STRIPE_ONLINE', label: '🌐 Stripe (online)', key: 'stripe_online' });
+    }
+    return filtered.length > 0 ? filtered : all;
+  }, [marina]);
+
+  // Se il metodo corrente non è più disponibile, ripiega sul primo disponibile
+  useEffect(() => {
+    if (!availableMethods.find(m => m.value === form.method)) {
+      setForm(f => ({ ...f, method: availableMethods[0]?.value || 'BONIFICO' }));
+    }
+  }, [availableMethods, form.method]);
 
   const refresh = async () => {
     try {
@@ -810,9 +871,14 @@ function PaymentDialog({ contract: initial, onClose, onChange }) {
                   <Select value={form.method} onValueChange={(v) => setForm({ ...form, method: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                      {availableMethods.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {marina?.payment_config?.online_provider && marina.payment_config.online_provider !== 'none' && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      ℹ️ Provider online configurato: <strong>{marina.payment_config.online_provider.toUpperCase()}</strong>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs">Data</Label>
