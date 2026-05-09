@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import {
   FileSignature, Edit, Receipt, Wallet, Search, RefreshCw, Anchor, Ship, Calendar,
   Trash2, FileText, Download, Mail, CheckCircle2, Plus, AlertCircle, User, Euro,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Upload, Paperclip, ScrollText, Building2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { friendlyError } from '@/app/lib/safeFetch';
@@ -65,6 +65,7 @@ export default function ContractsRegistry({ currentUser }) {
   const [editing, setEditing] = useState(null);
   const [paying, setPaying] = useState(null);
   const [issuingReceipt, setIssuingReceipt] = useState(null);
+  const [generatingContract, setGeneratingContract] = useState(null);
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
@@ -269,6 +270,9 @@ export default function ContractsRegistry({ currentUser }) {
                             <Button size="sm" variant="outline" className="h-7 px-2 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-300" title="Ricevuta" onClick={() => setIssuingReceipt(c)}>
                               <Receipt className="w-3 h-3 mr-1" />Ricevuta
                             </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300" title="Genera Contratto Word" onClick={() => setGeneratingContract(c)}>
+                              <ScrollText className="w-3 h-3 mr-1" />Contratto
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -285,6 +289,7 @@ export default function ContractsRegistry({ currentUser }) {
       {editing && <EditContractDialog contract={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
       {paying && <PaymentDialog contract={paying} onClose={() => setPaying(null)} onChange={load} />}
       {issuingReceipt && <ReceiptDialog contract={issuingReceipt} companies={companies} onClose={() => setIssuingReceipt(null)} />}
+      {generatingContract && <ContractDocDialog contract={generatingContract} companies={companies} onClose={() => setGeneratingContract(null)} />}
     </div>
   );
 }
@@ -295,7 +300,11 @@ export default function ContractsRegistry({ currentUser }) {
 function EditContractDialog({ contract, onClose, onSaved }) {
   const [data, setData] = useState({
     customer: { ...(contract.customer || {}) },
+    customer_extras: { ...(contract.customer_extras || {}) },
     boat: { ...(contract.boat || {}) },
+    boat_extras: { ...(contract.boat_extras || {}) },
+    boat_class: contract.boat_class || (contract.boat?.length && Number(contract.boat.length) >= 10 ? 'diporto' : 'natante'),
+    documents: { ...(contract.documents || {}) },
     start_date: contract.start_date?.slice(0, 10) || '',
     end_date: contract.end_date?.slice(0, 10) || '',
     tariff_label: contract.tariff_label || '',
@@ -303,14 +312,66 @@ function EditContractDialog({ contract, onClose, onSaved }) {
     notes: contract.notes || '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(null); // 'libretto' | 'assicurazione' | null
 
   const setCust = (k, v) => setData(d => ({ ...d, customer: { ...d.customer, [k]: v } }));
+  const setCustEx = (k, v) => setData(d => ({ ...d, customer_extras: { ...d.customer_extras, [k]: v } }));
   const setBoat = (k, v) => setData(d => ({ ...d, boat: { ...d.boat, [k]: v } }));
+  const setBoatEx = (k, v) => setData(d => ({ ...d, boat_extras: { ...d.boat_extras, [k]: v } }));
+
+  const isCompany = !!data.customer_extras?.is_company;
+
+  const uploadFile = async (which, file) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error('Max 10MB'); return; }
+    setUploading(which);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise((res, rej) => {
+        reader.onload = () => res(reader.result);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      // Usa /api/upload-pdf (accetta anche immagini convertendo l'estensione - sennò usa /api/upload per immagini)
+      const isImage = file.type.startsWith('image/');
+      const endpoint = isImage ? '/api/upload' : '/api/upload-pdf';
+      const body = isImage ? { images: [base64] } : { pdf: base64, filename: file.name };
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const result = await r.json();
+      if (!r.ok || result.error) throw new Error(result.error || 'Errore upload');
+      const url = isImage ? result.urls?.[0] : result.url;
+      if (!url) throw new Error('URL non ricevuto');
+      setData(d => ({
+        ...d,
+        documents: {
+          ...d.documents,
+          [`${which}_url`]: url,
+          [`${which}_filename`]: file.name,
+        },
+      }));
+      toast.success(`${which === 'libretto' ? 'Libretto' : 'Certificato assicurazione'} caricato`);
+    } catch (e) { toast.error(e.message); }
+    finally { setUploading(null); }
+  };
+
+  const removeDoc = (which) => {
+    setData(d => ({
+      ...d,
+      documents: {
+        ...d.documents,
+        [`${which}_url`]: '',
+        [`${which}_filename`]: '',
+      },
+    }));
+  };
 
   const save = async () => {
     setSaving(true);
     try {
-      // Calcola days se cambiate le date
       let days = contract.days;
       if (data.start_date && data.end_date) {
         const ms = new Date(data.end_date) - new Date(data.start_date);
@@ -331,31 +392,88 @@ function EditContractDialog({ contract, onClose, onSaved }) {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto" translate="no">
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto" translate="no">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Edit className="w-5 h-5 text-amber-600" />Edita Contratto {contract.booking_number}</DialogTitle>
           <DialogDescription>Posto barca: <strong>{contract.berth_label}</strong> · Marina: <strong>{contract.marina_name}</strong></DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Tipologia cliente */}
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><User className="w-4 h-4" />Cliente</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Nome</Label><Input value={data.customer.name || ''} onChange={(e) => setCust('name', e.target.value)} /></div>
-              <div><Label className="text-xs">Cognome</Label><Input value={data.customer.surname || ''} onChange={(e) => setCust('surname', e.target.value)} /></div>
-              <div><Label className="text-xs">Email</Label><Input type="email" value={data.customer.email || ''} onChange={(e) => setCust('email', e.target.value)} /></div>
-              <div><Label className="text-xs">Telefono</Label><Input value={data.customer.phone || ''} onChange={(e) => setCust('phone', e.target.value)} /></div>
-              <div><Label className="text-xs">CF/P.IVA</Label><Input value={data.customer.tax_code || ''} onChange={(e) => setCust('tax_code', e.target.value)} /></div>
-              <div><Label className="text-xs">Città</Label><Input value={data.customer.city || ''} onChange={(e) => setCust('city', e.target.value)} /></div>
-              <div className="col-span-2"><Label className="text-xs">Indirizzo</Label><Input value={data.customer.address || ''} onChange={(e) => setCust('address', e.target.value)} /></div>
+            <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><User className="w-4 h-4" />Tipologia Cliente</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={!isCompany} onChange={() => setCustEx('is_company', false)} />
+                  <span className="text-sm">Persona fisica</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={isCompany} onChange={() => setCustEx('is_company', true)} />
+                  <span className="text-sm">Persona giuridica (azienda)</span>
+                </label>
+              </div>
             </CardContent>
           </Card>
 
+          {/* Cliente */}
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Ship className="w-4 h-4" />Imbarcazione</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><User className="w-4 h-4" />Dati Cliente {isCompany ? '(Azienda)' : '(Persona Fisica)'}</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Nome barca</Label><Input value={data.boat.name || ''} onChange={(e) => setBoat('name', e.target.value)} /></div>
-              <div><Label className="text-xs">Targa</Label><Input value={data.boat.registration || ''} onChange={(e) => setBoat('registration', e.target.value)} /></div>
+              <div><Label className="text-xs">{isCompany ? 'Ragione sociale' : 'Nome'}</Label><Input value={data.customer.name || ''} onChange={(e) => setCust('name', e.target.value)} /></div>
+              <div><Label className="text-xs">{isCompany ? '' : 'Cognome'}</Label><Input value={data.customer.surname || ''} onChange={(e) => setCust('surname', e.target.value)} disabled={isCompany} /></div>
+              <div><Label className="text-xs">Email</Label><Input type="email" value={data.customer.email || ''} onChange={(e) => setCust('email', e.target.value)} /></div>
+              <div><Label className="text-xs">Telefono</Label><Input value={data.customer.phone || ''} onChange={(e) => setCust('phone', e.target.value)} /></div>
+              <div><Label className="text-xs">{isCompany ? 'P.IVA' : 'Codice Fiscale'}</Label><Input value={data.customer.tax_code || ''} onChange={(e) => setCust('tax_code', e.target.value)} /></div>
+              <div><Label className="text-xs">Città / Comune</Label><Input value={data.customer.city || ''} onChange={(e) => setCust('city', e.target.value)} /></div>
+              <div className="col-span-2"><Label className="text-xs">Indirizzo</Label><Input value={data.customer.address || ''} onChange={(e) => setCust('address', e.target.value)} /></div>
+
+              {!isCompany && (
+                <>
+                  <div><Label className="text-xs">Luogo di nascita</Label><Input value={data.customer_extras.birth_place || ''} onChange={(e) => setCustEx('birth_place', e.target.value)} /></div>
+                  <div><Label className="text-xs">Data di nascita</Label><Input type="date" value={data.customer_extras.birth_date?.slice(0, 10) || ''} onChange={(e) => setCustEx('birth_date', e.target.value)} /></div>
+                </>
+              )}
+
+              {isCompany && (
+                <>
+                  <div className="col-span-2"><Label className="text-xs">Sede legale</Label><Input value={data.customer_extras.company_legal_seat || ''} onChange={(e) => setCustEx('company_legal_seat', e.target.value)} placeholder="Es. Via Roma 1, 00100 Roma" /></div>
+                  <div><Label className="text-xs">N° iscrizione CCIAA</Label><Input value={data.customer_extras.camera_iscrizione || ''} onChange={(e) => setCustEx('camera_iscrizione', e.target.value)} /></div>
+                  <div><Label className="text-xs">Camera Commercio di</Label><Input value={data.customer_extras.camera_citta || ''} onChange={(e) => setCustEx('camera_citta', e.target.value)} placeholder="Es. Nuoro" /></div>
+                  <div className="col-span-2"><Label className="text-xs font-semibold mt-2">Legale rappresentante</Label></div>
+                  <div><Label className="text-xs">Nome e cognome</Label><Input value={data.customer_extras.legal_rep_name || ''} onChange={(e) => setCustEx('legal_rep_name', e.target.value)} /></div>
+                  <div><Label className="text-xs">Codice fiscale</Label><Input value={data.customer_extras.legal_rep_cf || ''} onChange={(e) => setCustEx('legal_rep_cf', e.target.value)} /></div>
+                  <div><Label className="text-xs">Luogo di nascita</Label><Input value={data.customer_extras.legal_rep_birth_place || ''} onChange={(e) => setCustEx('legal_rep_birth_place', e.target.value)} /></div>
+                  <div><Label className="text-xs">Data di nascita</Label><Input type="date" value={data.customer_extras.legal_rep_birth_date?.slice(0, 10) || ''} onChange={(e) => setCustEx('legal_rep_birth_date', e.target.value)} /></div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Categoria imbarcazione */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Ship className="w-4 h-4" />Categoria Imbarcazione</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={data.boat_class === 'natante'} onChange={() => setData(d => ({ ...d, boat_class: 'natante' }))} />
+                  <span className="text-sm font-medium">☐ Natante</span>
+                  <span className="text-xs text-muted-foreground">(piccola imbarcazione, no immatricolazione)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" checked={data.boat_class === 'diporto'} onChange={() => setData(d => ({ ...d, boat_class: 'diporto' }))} />
+                  <span className="text-sm font-medium">☐ Diporto</span>
+                  <span className="text-xs text-muted-foreground">(imbarcazione iscritta ai R.I.D.)</span>
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Dati barca COMUNI */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Ship className="w-4 h-4" />Dati Imbarcazione</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">{data.boat_class === 'diporto' ? 'Denominazione (nome)' : 'Nome barca'}</Label><Input value={data.boat.name || ''} onChange={(e) => setBoat('name', e.target.value)} /></div>
               <div><Label className="text-xs">Tipo</Label>
                 <Select value={data.boat.type || 'motor'} onValueChange={(v) => setBoat('type', v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -366,10 +484,61 @@ function EditContractDialog({ contract, onClose, onSaved }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs">Lunghezza (m)</Label><Input type="number" step="0.5" value={data.boat.length || 0} onChange={(e) => setBoat('length', parseFloat(e.target.value) || 0)} /></div>
+              <div><Label className="text-xs">Lunghezza max (m)</Label><Input type="number" step="0.1" value={data.boat.length || 0} onChange={(e) => setBoat('length', parseFloat(e.target.value) || 0)} /></div>
+              <div><Label className="text-xs">Larghezza max (m)</Label><Input type="number" step="0.1" value={data.boat.beam || 0} onChange={(e) => setBoat('beam', parseFloat(e.target.value) || 0)} /></div>
+              <div><Label className="text-xs">Colore scafo</Label><Input value={data.boat_extras.hull_color || ''} onChange={(e) => setBoatEx('hull_color', e.target.value)} placeholder="Es. bianco" /></div>
+
+              {data.boat_class === 'natante' && (
+                <>
+                  <div><Label className="text-xs">Note sovrastruttura</Label><Input value={data.boat_extras.superstructure_notes || ''} onChange={(e) => setBoatEx('superstructure_notes', e.target.value)} /></div>
+                  <div className="col-span-2 grid grid-cols-3 gap-3 pt-2 border-t">
+                    <div><Label className="text-xs">Motore tipo</Label><Input value={data.boat_extras.engine_type || ''} onChange={(e) => setBoatEx('engine_type', e.target.value)} placeholder="Es. fuoribordo" /></div>
+                    <div><Label className="text-xs">Marca</Label><Input value={data.boat_extras.engine_brand || ''} onChange={(e) => setBoatEx('engine_brand', e.target.value)} placeholder="Es. Yamaha" /></div>
+                    <div><Label className="text-xs">HP</Label><Input type="number" value={data.boat_extras.engine_hp || ''} onChange={(e) => setBoatEx('engine_hp', e.target.value)} placeholder="Es. 40" /></div>
+                  </div>
+                </>
+              )}
+
+              {data.boat_class === 'diporto' && (
+                <>
+                  <div><Label className="text-xs">Colore sovrastruttura</Label><Input value={data.boat_extras.superstructure_color || ''} onChange={(e) => setBoatEx('superstructure_color', e.target.value)} /></div>
+                  <div><Label className="text-xs">Modello</Label><Input value={data.boat_extras.model || ''} onChange={(e) => setBoatEx('model', e.target.value)} /></div>
+                  <div><Label className="text-xs">N° iscrizione R.I.D.</Label><Input value={data.boat_extras.registration_number || data.boat.registration || ''} onChange={(e) => setBoatEx('registration_number', e.target.value)} /></div>
+                  <div><Label className="text-xs">R.I.D. di (Capitaneria)</Label><Input value={data.boat_extras.registration_office || ''} onChange={(e) => setBoatEx('registration_office', e.target.value)} placeholder="Es. Cagliari" /></div>
+                  <div className="col-span-2 grid grid-cols-2 gap-3 pt-2 border-t">
+                    <div><Label className="text-xs">Tipo motore</Label><Input value={data.boat_extras.engine_type || ''} onChange={(e) => setBoatEx('engine_type', e.target.value)} placeholder="Es. entrobordo diesel" /></div>
+                    <div><Label className="text-xs">Potenza</Label><Input value={data.boat_extras.engine_power || ''} onChange={(e) => setBoatEx('engine_power', e.target.value)} placeholder="Es. 250 HP" /></div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
+          {/* Documenti allegati */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Paperclip className="w-4 h-4" />Documenti Allegati</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <DocumentField
+                label="Libretto motore / imbarcazione"
+                which="libretto"
+                docs={data.documents}
+                uploading={uploading}
+                onUpload={uploadFile}
+                onRemove={removeDoc}
+              />
+              <DocumentField
+                label="Certificato di assicurazione obbligatoria"
+                which="assicurazione"
+                docs={data.documents}
+                uploading={uploading}
+                onUpload={uploadFile}
+                onRemove={removeDoc}
+              />
+              <p className="text-[11px] text-muted-foreground italic">Formati ammessi: PDF, JPG, PNG · Max 10MB per file. I documenti sono allegati al contratto e citati come allegati nella generazione del file Word.</p>
+            </CardContent>
+          </Card>
+
+          {/* Periodo & Tariffa */}
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Calendar className="w-4 h-4" />Periodo & Tariffa</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-2 gap-3">
@@ -395,6 +564,51 @@ function EditContractDialog({ contract, onClose, onSaved }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Sotto-componente per upload documento
+function DocumentField({ label, which, docs, uploading, onUpload, onRemove }) {
+  const url = docs[`${which}_url`];
+  const filename = docs[`${which}_filename`];
+  const inputRef = useRef(null);
+  const isUploading = uploading === which;
+
+  return (
+    <div className="border rounded p-3 bg-muted/30">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Paperclip className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium">{label}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {url ? (
+            <>
+              <a href={url} target="_blank" rel="noopener" className="text-xs text-blue-700 hover:underline flex items-center gap-1">
+                <FileText className="w-3 h-3" />
+                {filename || 'Visualizza file'}
+              </a>
+              <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => onRemove(which)}>
+                <Trash2 className="w-3 h-3 text-red-500" />
+              </Button>
+            </>
+          ) : <span className="text-xs text-muted-foreground italic">Nessun file caricato</span>}
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png"
+          className="hidden"
+          onChange={(e) => onUpload(which, e.target.files?.[0])}
+        />
+        <Button type="button" size="sm" variant="outline" disabled={isUploading} onClick={() => inputRef.current?.click()}>
+          {isUploading ? <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> : <Upload className="w-3 h-3 mr-1" />}
+          {url ? 'Sostituisci' : 'Carica file'}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -747,3 +961,116 @@ function ReceiptDialog({ contract, companies, onClose }) {
     </Dialog>
   );
 }
+
+// =====================================================================
+// CONTRACT DOC DIALOG (genera Word del contratto compilato)
+// =====================================================================
+function ContractDocDialog({ contract, companies, onClose }) {
+  const [generating, setGenerating] = useState(false);
+  const [marina, setMarina] = useState(null);
+
+  const company = useMemo(() => (companies || []).find(c => c.id === contract.company_id) || null, [companies, contract.company_id]);
+
+  useEffect(() => {
+    if (!contract.marina_id) return;
+    fetch(`/api/marinas/${contract.marina_id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setMarina(d))
+      .catch(() => {});
+  }, [contract.marina_id]);
+
+  const generate = async () => {
+    setGenerating(true);
+    try {
+      const { downloadContractDOCX } = await import('@/app/lib/contractDoc');
+      await downloadContractDOCX(contract, company, marina);
+      toast.success('Contratto Word generato');
+    } catch (e) { toast.error(friendlyError(e) || 'Errore generazione contratto'); }
+    finally { setGenerating(false); }
+  };
+
+  // Verifica completezza dati per warning
+  const cust = contract.customer || {};
+  const custEx = contract.customer_extras || {};
+  const isCompany = !!custEx.is_company;
+  const boat = contract.boat || {};
+  const boatEx = contract.boat_extras || {};
+  const docs = contract.documents || {};
+  const boatClass = contract.boat_class || (boat.length && Number(boat.length) >= 10 ? 'diporto' : 'natante');
+
+  const missing = [];
+  if (!cust.name) missing.push('Nome cliente');
+  if (!cust.tax_code) missing.push(isCompany ? 'P.IVA' : 'Codice fiscale');
+  if (!cust.address && !cust.city) missing.push('Indirizzo cliente');
+  if (!isCompany && !custEx.birth_place) missing.push('Luogo nascita cliente');
+  if (!isCompany && !custEx.birth_date) missing.push('Data nascita cliente');
+  if (isCompany && !custEx.legal_rep_name) missing.push('Legale rappresentante');
+  if (!boat.length) missing.push('Lunghezza barca');
+  if (boatClass === 'natante' && !boatEx.engine_type) missing.push('Motore (tipo)');
+  if (boatClass === 'diporto' && !boatEx.registration_number && !boat.registration) missing.push('N° R.I.D.');
+
+  return (
+    <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto" translate="no">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><ScrollText className="w-5 h-5 text-emerald-600" />Genera Contratto · {contract.booking_number}</DialogTitle>
+          <DialogDescription>
+            Contratto di servizi di ormeggio compilato con i dati del cliente, dell'imbarcazione e del posto barca.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Riepilogo dati</CardTitle></CardHeader>
+            <CardContent className="text-sm space-y-1">
+              <div><strong>Tipo cliente:</strong> {isCompany ? 'Persona giuridica' : 'Persona fisica'}</div>
+              <div><strong>Cliente:</strong> {cust.name} {cust.surname}</div>
+              <div><strong>Categoria barca:</strong> {boatClass === 'natante' ? '☐ Natante' : '☐ Diporto'}</div>
+              <div><strong>Imbarcazione:</strong> {boat.name || '—'} ({boat.type}, {boat.length}m × {boat.beam || 0}m)</div>
+              <div><strong>Posto barca:</strong> {contract.berth_label || '—'}</div>
+              <div><strong>Periodo:</strong> {fmtDate(contract.start_date)} → {fmtDate(contract.end_date)} ({contract.days} gg)</div>
+              <div><strong>Corrispettivo:</strong> {fmtEur(contract.grand_total)}</div>
+              <div className="flex gap-3 mt-1">
+                <span className={docs.libretto_url ? 'text-emerald-700' : 'text-amber-700'}>
+                  {docs.libretto_url ? '✓' : '○'} Libretto motore
+                </span>
+                <span className={docs.assicurazione_url ? 'text-emerald-700' : 'text-amber-700'}>
+                  {docs.assicurazione_url ? '✓' : '○'} Cert. assicurazione
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {missing.length > 0 && (
+            <div className="bg-amber-50 border border-amber-300 rounded p-3 text-sm flex gap-2 text-amber-900">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <div>
+                <div className="font-semibold mb-1">Campi mancanti (verranno mostrati come "_____"):</div>
+                <ul className="text-xs list-disc list-inside space-y-0.5">
+                  {missing.map((m, i) => <li key={i}>{m}</li>)}
+                </ul>
+                <div className="text-xs italic mt-1">Suggerimento: clicca su "Edita" per completare i dati prima di generare il contratto.</div>
+              </div>
+            </div>
+          )}
+
+          {!company && (
+            <div className="bg-amber-50 border border-amber-300 rounded p-3 text-sm flex items-center gap-2 text-amber-900">
+              <AlertCircle className="w-5 h-5" />
+              <div>Company emittente non trovata. Il contratto sarà generato senza logo.</div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={generating}>Chiudi</Button>
+          <Button onClick={generate} disabled={generating} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            {generating ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            Scarica Contratto Word
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
