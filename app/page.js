@@ -2650,7 +2650,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         {hasMarinaOwnership && (
           <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-blue-700 via-primary to-blue-800 p-2 rounded-lg shadow-md w-full">
             <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
-              <Anchor className="w-4 h-4" />Modulo Marina
+              <Anchor className="w-4 h-4" />Step 2 - Modulo Marina
             </div>
             <TabsTrigger value="marinas" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Anchor className="w-4 h-4 mr-1.5" />Marine</TabsTrigger>
             <TabsTrigger value="berths" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Posti Barca</TabsTrigger>

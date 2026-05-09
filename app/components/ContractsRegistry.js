@@ -228,7 +228,14 @@ export default function ContractsRegistry({ currentUser }) {
                     const stCfg = PAY_STATUS[ps.status];
                     return (
                       <tr key={c.id} className="border-t hover:bg-muted/30">
-                        <td className="p-2 font-mono font-bold text-emerald-700">{c.booking_number}</td>
+                        <td className="p-2 font-mono font-bold text-emerald-700">
+                          {c.booking_number}
+                          {c.documents?.contratto_firmato_url && (
+                            <a href={c.documents.contratto_firmato_url} target="_blank" rel="noopener" title={`Contratto firmato archiviato: ${c.documents.contratto_firmato_filename || 'PDF'}`} className="ml-1 inline-block">
+                              <Badge className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-[9px] px-1 py-0 hover:bg-emerald-200 cursor-pointer">📎 Firmato</Badge>
+                            </a>
+                          )}
+                        </td>
                         <td className="p-2"><Badge variant="outline" className="font-mono bg-purple-50 text-purple-700 border-purple-300">{c.berth_label || '—'}</Badge></td>
                         <td className="p-2">
                           <div className="font-medium">{c.customer?.name} {c.customer?.surname}</div>
@@ -534,6 +541,15 @@ function EditContractDialog({ contract, onClose, onSaved }) {
                 onUpload={uploadFile}
                 onRemove={removeDoc}
               />
+              <DocumentField
+                label="Contratto firmato (PDF)"
+                which="contratto_firmato"
+                docs={data.documents}
+                uploading={uploading}
+                onUpload={uploadFile}
+                onRemove={removeDoc}
+                highlight
+              />
               <p className="text-[11px] text-muted-foreground italic">Formati ammessi: PDF, JPG, PNG · Max 10MB per file. I documenti sono allegati al contratto e citati come allegati nella generazione del file Word.</p>
             </CardContent>
           </Card>
@@ -568,18 +584,21 @@ function EditContractDialog({ contract, onClose, onSaved }) {
 }
 
 // Sotto-componente per upload documento
-function DocumentField({ label, which, docs, uploading, onUpload, onRemove }) {
+function DocumentField({ label, which, docs, uploading, onUpload, onRemove, highlight = false }) {
   const url = docs[`${which}_url`];
   const filename = docs[`${which}_filename`];
   const inputRef = useRef(null);
   const isUploading = uploading === which;
 
   return (
-    <div className="border rounded p-3 bg-muted/30">
+    <div className={`border rounded p-3 ${highlight ? (url ? 'bg-emerald-50 border-emerald-300' : 'bg-blue-50/40 border-blue-300 border-dashed') : 'bg-muted/30'}`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
-          <Paperclip className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{label}</span>
+          <Paperclip className={`w-4 h-4 ${highlight && url ? 'text-emerald-600' : 'text-muted-foreground'}`} />
+          <span className={`text-sm font-medium ${highlight && url ? 'text-emerald-900' : ''}`}>
+            {label}
+            {highlight && url && <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-300">✓ Archiviato</span>}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {url ? (
@@ -1030,12 +1049,15 @@ function ContractDocDialog({ contract, companies, onClose }) {
               <div><strong>Posto barca:</strong> {contract.berth_label || '—'}</div>
               <div><strong>Periodo:</strong> {fmtDate(contract.start_date)} → {fmtDate(contract.end_date)} ({contract.days} gg)</div>
               <div><strong>Corrispettivo:</strong> {fmtEur(contract.grand_total)}</div>
-              <div className="flex gap-3 mt-1">
+              <div className="flex gap-3 mt-1 flex-wrap">
                 <span className={docs.libretto_url ? 'text-emerald-700' : 'text-amber-700'}>
                   {docs.libretto_url ? '✓' : '○'} Libretto motore
                 </span>
                 <span className={docs.assicurazione_url ? 'text-emerald-700' : 'text-amber-700'}>
                   {docs.assicurazione_url ? '✓' : '○'} Cert. assicurazione
+                </span>
+                <span className={docs.contratto_firmato_url ? 'text-emerald-700 font-semibold' : 'text-amber-700'}>
+                  {docs.contratto_firmato_url ? '📎 Contratto firmato archiviato' : '○ Contratto firmato'}
                 </span>
               </div>
             </CardContent>

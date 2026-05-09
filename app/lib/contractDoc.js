@@ -389,7 +389,7 @@ export async function downloadContractDOCX(contract, company, marina = null) {
   // Allegati documenti se presenti
   const docs = contract.documents || {};
   const allegatiBlock = [];
-  if (docs.libretto_url || docs.assicurazione_url) {
+  if (docs.libretto_url || docs.assicurazione_url || docs.contratto_firmato_url) {
     allegatiBlock.push(
       new Paragraph({ spacing: { before: 400 }, alignment: AlignmentType.LEFT, children: [new TextRun({ text: 'ALLEGATI:', bold: true, size: 20, color: '14509F' })] }),
     );
@@ -403,6 +403,12 @@ export async function downloadContractDOCX(contract, company, marina = null) {
       allegatiBlock.push(new Paragraph({ children: [
         new TextRun({ text: '• Certificato di assicurazione obbligatoria: ', size: 18 }),
         new TextRun({ text: docs.assicurazione_filename || 'allegato', size: 18, italics: true, color: '14509F' }),
+      ] }));
+    }
+    if (docs.contratto_firmato_url) {
+      allegatiBlock.push(new Paragraph({ children: [
+        new TextRun({ text: '• Copia del contratto firmato (archiviata): ', size: 18 }),
+        new TextRun({ text: docs.contratto_firmato_filename || 'allegato', size: 18, italics: true, color: '0E8C44', bold: true }),
       ] }));
     }
   }
