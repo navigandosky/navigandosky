@@ -779,6 +779,26 @@ function PaymentsConfigEditor({ config, onChange }) {
         </div>
       </div>
 
+      {/* SMTP Override (opzionale) */}
+      <div className="border rounded-lg p-4 space-y-3 bg-card">
+        <div>
+          <h3 className="font-semibold text-sm">📧 Email (SMTP)</h3>
+          <p className="text-xs text-muted-foreground">
+            Configurazione SMTP per invio ricevute. Se non valorizzato, usa la configurazione globale (.env).
+          </p>
+        </div>
+        <div className="text-xs bg-blue-50 border border-blue-200 rounded p-2 text-blue-900">
+          ℹ️ <strong>Configurazione globale attiva:</strong> Aruba SMTP (smtps.aruba.it). Override solo se questa marina usa un'altra casella email.
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label className="text-xs">SMTP Host</Label><Input value={c.smtp_host || ''} onChange={(e) => set('smtp_host', e.target.value)} placeholder="smtps.aruba.it (default)" /></div>
+          <div><Label className="text-xs">SMTP Port</Label><Input type="number" value={c.smtp_port || ''} onChange={(e) => set('smtp_port', e.target.value)} placeholder="465" /></div>
+          <div><Label className="text-xs">User (email)</Label><Input value={c.smtp_user || ''} onChange={(e) => set('smtp_user', e.target.value)} placeholder="info@miamarina.com" /></div>
+          <div><Label className="text-xs">Password</Label><Input type="password" value={c.smtp_password || ''} onChange={(e) => set('smtp_password', e.target.value)} placeholder="••••••" /></div>
+          <div className="col-span-2"><Label className="text-xs">Nome mittente (display)</Label><Input value={c.smtp_from_name || ''} onChange={(e) => set('smtp_from_name', e.target.value)} placeholder="Marina Resort (default = nome marina)" /></div>
+        </div>
+      </div>
+
       <div className="bg-emerald-50 border border-emerald-300 rounded p-3 text-xs text-emerald-900">
         <strong>📌 Riepilogo configurazione attuale:</strong>
         <ul className="mt-1 space-y-0.5 list-disc list-inside">

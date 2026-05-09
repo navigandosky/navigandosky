@@ -80,7 +80,7 @@ export function buildReceiptData(contract, payment = null) {
 // =====================================================================
 // PDF: Ricevuta
 // =====================================================================
-export async function downloadReceiptPDF(contract, company, payment = null) {
+async function buildReceiptPdfDoc(contract, company, payment = null) {
   const { jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF();
@@ -194,7 +194,18 @@ export async function downloadReceiptPDF(contract, company, payment = null) {
   }
   doc.text('Documento generato elettronicamente.', 105, 291, { align: 'center' });
 
+  return { doc, data };
+}
+
+export async function downloadReceiptPDF(contract, company, payment = null) {
+  const { doc, data } = await buildReceiptPdfDoc(contract, company, payment);
   doc.save(`Ricevuta_${data.receipt_number}.pdf`);
+}
+
+/** Genera ricevuta come Blob (per allegarla a email) */
+export async function generateReceiptPDFBlob(contract, company, payment = null) {
+  const { doc } = await buildReceiptPdfDoc(contract, company, payment);
+  return doc.output('blob');
 }
 
 // =====================================================================

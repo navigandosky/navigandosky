@@ -927,6 +927,10 @@ function PaymentDialog({ contract: initial, onClose, onChange }) {
 // =====================================================================
 function ReceiptDialog({ contract, companies, onClose }) {
   const [issuing, setIssuing] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailTo, setEmailTo] = useState(contract.customer?.email || '');
+  const [emailMessage, setEmailMessage] = useState('');
   const [selectedPaymentId, setSelectedPaymentId] = useState('TOTAL'); // 'TOTAL' o id specifico
 
   const company = useMemo(() => {
@@ -959,6 +963,43 @@ function ReceiptDialog({ contract, companies, onClose }) {
       toast.success('Ricevuta Word (.docx) generata');
     } catch (e) { toast.error(friendlyError(e) || 'Errore Word'); }
     finally { setIssuing(false); }
+  };
+
+  // Invio email: genera PDF in memoria, lo converte in base64, invia al backend
+  const sendEmail = async () => {
+    if (!emailTo || !emailTo.includes('@')) { toast.error('Email destinatario non valida'); return; }
+    setSendingEmail(true);
+    try {
+      // Genera PDF in memoria (blob)
+      const { generateReceiptPDFBlob, buildReceiptData } = await import('@/app/lib/receiptDoc');
+      const blob = await generateReceiptPDFBlob(contract, company, selectedPayment);
+      // Converti blob → base64
+      const base64 = await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result);
+        fr.onerror = rej;
+        fr.readAsDataURL(blob);
+      });
+      const data = buildReceiptData(contract, selectedPayment);
+      const r = await fetch('/api/send-receipt-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          booking_id: contract.id,
+          receipt_number: data.receipt_number,
+          receipt_amount: data.receipt_amount,
+          to_email: emailTo,
+          message: emailMessage,
+          pdf_base64: base64,
+          pdf_filename: `Ricevuta_${data.receipt_number}.pdf`,
+        }),
+      });
+      const result = await r.json();
+      if (!r.ok) throw new Error(result.error || 'Errore invio');
+      toast.success(`Email inviata a ${emailTo}`);
+      setShowEmailForm(false);
+    } catch (e) { toast.error(friendlyError(e) || 'Errore invio email'); }
+    finally { setSendingEmail(false); }
   };
 
   // Calcolo preview
@@ -1010,6 +1051,33 @@ function ReceiptDialog({ contract, companies, onClose }) {
             </CardContent>
           </Card>
 
+          {/* Form invio email (inline) */}
+          {showEmailForm && (
+            <Card className="border-blue-300 bg-blue-50/40">
+              <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2 text-blue-900"><Mail className="w-4 h-4" />Invia ricevuta via email</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label className="text-xs">Destinatario *</Label>
+                  <Input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="cliente@esempio.it" />
+                </div>
+                <div>
+                  <Label className="text-xs">Messaggio aggiuntivo (opzionale)</Label>
+                  <Textarea rows={3} value={emailMessage} onChange={(e) => setEmailMessage(e.target.value)} placeholder="Eventuale testo extra da includere nell'email..." />
+                </div>
+                <p className="text-[11px] text-muted-foreground italic">
+                  La ricevuta verrà allegata in formato PDF. Mittente: configurazione SMTP della marina o globale (Aruba).
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowEmailForm(false)} disabled={sendingEmail}>Annulla</Button>
+                  <Button size="sm" onClick={sendEmail} disabled={sendingEmail || !emailTo} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    {sendingEmail ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                    Invia ora
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Avviso se nessun pagamento */}
           {ps.paid_total === 0 && (
             <div className="bg-amber-50 border border-amber-300 rounded p-3 text-sm flex items-center gap-2 text-amber-900">
@@ -1031,14 +1099,19 @@ function ReceiptDialog({ contract, companies, onClose }) {
         </div>
 
         <DialogFooter className="flex-wrap gap-2">
-          <Button variant="outline" onClick={onClose} disabled={issuing}>Chiudi</Button>
-          <Button variant="outline" disabled title="Funzionalità in arrivo (richiede SendGrid/SMTP)" className="opacity-60 cursor-not-allowed">
-            <Mail className="w-4 h-4 mr-2" />Invia via Email <Badge variant="outline" className="ml-2 text-[9px]">soon</Badge>
+          <Button variant="outline" onClick={onClose} disabled={issuing || sendingEmail}>Chiudi</Button>
+          <Button
+            onClick={() => setShowEmailForm(s => !s)}
+            disabled={issuing || sendingEmail || receiptAmount === 0}
+            variant="outline"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+          >
+            <Mail className="w-4 h-4 mr-2" />Invia via Email
           </Button>
-          <Button onClick={generateDOCX} disabled={issuing || receiptAmount === 0} variant="outline" className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300">
+          <Button onClick={generateDOCX} disabled={issuing || sendingEmail || receiptAmount === 0} variant="outline" className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300">
             {issuing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}Word
           </Button>
-          <Button onClick={generatePDF} disabled={issuing || receiptAmount === 0} className="bg-amber-600 hover:bg-amber-700 text-white">
+          <Button onClick={generatePDF} disabled={issuing || sendingEmail || receiptAmount === 0} className="bg-amber-600 hover:bg-amber-700 text-white">
             {issuing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}PDF
           </Button>
         </DialogFooter>
