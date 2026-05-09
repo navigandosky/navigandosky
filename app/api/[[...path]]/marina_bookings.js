@@ -37,7 +37,7 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
   }
 
   // === CREATE prenotazione ===
-  if (method === 'POST' && !id) {
+  if (method === 'POST' && !id && !action) {
     // Genera booking_number progressivo BK-YYYY/NNNN
     const year = new Date().getFullYear();
     const last = await col.find({ year }).sort({ progressive: -1 }).limit(1).toArray();
@@ -174,6 +174,47 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     return new Response(JSON.stringify(await col.findOne({ id })), { headers: { 'Content-Type': 'application/json' } });
   }
 
+  // === ACTION: sync-berth-payments (admin) - ri-sincronizza payment_status del berth con quello del booking ===
+  if (method === 'POST' && !id && action === 'sync-berth-payments') {
+    const berthsCol = db.collection('berths');
+    const contracts = await col.find({ status: 'CONTRACT', berth_id: { $exists: true, $ne: null } }).toArray();
+    let updated = 0, skipped = 0;
+    for (const b of contracts) {
+      try {
+        const berth = await berthsCol.findOne({ id: b.berth_id });
+        if (!berth?.current_occupation || berth.current_occupation.booking_id !== b.id) {
+          skipped++; continue;
+        }
+        const fromPayments = (b.payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
+        const fromLegacy = (b.payments?.length === 0)
+          ? ((b.deposit_paid ? Number(b.deposit_amount || 0) : 0) + (b.balance_paid ? Number(b.balance_amount || 0) : 0))
+          : 0;
+        const paid_total = fromPayments + fromLegacy;
+        const grand = Number(b.grand_total || 0);
+        let bookingStatus = 'DA_PAGARE';
+        if (paid_total >= grand && grand > 0) bookingStatus = 'SALDATO';
+        else if (paid_total > 0) bookingStatus = 'ACCONTO';
+        const occupationStatus = bookingStatus === 'SALDATO' ? 'PAGATO'
+          : bookingStatus === 'ACCONTO' ? 'PAGATO_PARZIALE'
+          : 'DA_PAGARE';
+        const currentOccStatus = berth.current_occupation.payment_status;
+        if (currentOccStatus === 'GRATUITO' || currentOccStatus === 'STORNATO') { skipped++; continue; }
+        if (currentOccStatus === occupationStatus
+          && Number(berth.current_occupation.payment_amount || 0) === paid_total) { skipped++; continue; }
+        await berthsCol.updateOne(
+          { id: b.berth_id },
+          { $set: {
+            'current_occupation.payment_status': occupationStatus,
+            'current_occupation.payment_amount': paid_total,
+            updated_at: new Date().toISOString(),
+          } }
+        );
+        updated++;
+      } catch (e) { console.error('[sync-berth-payments] error on booking', b.id, e); skipped++; }
+    }
+    return new Response(JSON.stringify({ ok: true, total_contracts: contracts.length, updated, skipped }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
   // === ACTION: add-payment (registra pagamento contratto: acconto/saldo/altro) ===
   // body: { amount, method, date?, reference?, notes? }
   if (method === 'POST' && id && action === 'add-payment') {
@@ -235,6 +276,31 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     if (paid_total >= grand && grand > 0) payment_status = 'SALDATO';
     else if (paid_total > 0) payment_status = 'ACCONTO';
     await col.updateOne({ id }, { $set: { payments, paid_total, balance_remaining, payment_status, updated_at: new Date().toISOString() } });
+
+    // Sincronizza il pagamento con il posto barca (current_occupation)
+    if (existing.berth_id) {
+      try {
+        const berthsCol = db.collection('berths');
+        const berth = await berthsCol.findOne({ id: existing.berth_id });
+        if (berth?.current_occupation?.booking_id === id) {
+          // Mappa lo stato dal modello booking a quello berth
+          const occupationStatus = payment_status === 'SALDATO' ? 'PAGATO'
+            : payment_status === 'ACCONTO' ? 'PAGATO_PARZIALE'
+            : 'DA_PAGARE';
+          await berthsCol.updateOne(
+            { id: existing.berth_id },
+            { $set: {
+              'current_occupation.payment_status': occupationStatus,
+              'current_occupation.payment_amount': paid_total,
+              'current_occupation.payment_method': payment.method,
+              'current_occupation.payment_date': payment.date,
+              updated_at: new Date().toISOString(),
+            } }
+          );
+        }
+      } catch (e) { console.error('[add-payment] berth sync error:', e); }
+    }
+
     return new Response(JSON.stringify(await col.findOne({ id })), { headers: { 'Content-Type': 'application/json' } });
   }
 
@@ -253,6 +319,28 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     if (paid_total >= grand && grand > 0) payment_status = 'SALDATO';
     else if (paid_total > 0) payment_status = 'ACCONTO';
     await col.updateOne({ id }, { $set: { payments, paid_total, balance_remaining, payment_status, updated_at: new Date().toISOString() } });
+
+    // Sincronizza il pagamento con il posto barca (current_occupation)
+    if (existing.berth_id) {
+      try {
+        const berthsCol = db.collection('berths');
+        const berth = await berthsCol.findOne({ id: existing.berth_id });
+        if (berth?.current_occupation?.booking_id === id) {
+          const occupationStatus = payment_status === 'SALDATO' ? 'PAGATO'
+            : payment_status === 'ACCONTO' ? 'PAGATO_PARZIALE'
+            : 'DA_PAGARE';
+          await berthsCol.updateOne(
+            { id: existing.berth_id },
+            { $set: {
+              'current_occupation.payment_status': occupationStatus,
+              'current_occupation.payment_amount': paid_total,
+              updated_at: new Date().toISOString(),
+            } }
+          );
+        }
+      } catch (e) { console.error('[delete-payment] berth sync error:', e); }
+    }
+
     return new Response(JSON.stringify(await col.findOne({ id })), { headers: { 'Content-Type': 'application/json' } });
   }
 
