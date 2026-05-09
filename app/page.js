@@ -26,6 +26,8 @@ const CantiereAdminLazy = dynamic(() => import('./components/CantiereAdmin'), { 
 const MarinaBookingsLazy = dynamic(() => import('./components/MarinaBookings'), { ssr: false });
 // Nuovo Preventivo Posto Barca (dialog admin)
 const NewQuoteDialogLazy = dynamic(() => import('./components/NewQuoteDialog'), { ssr: false });
+// Registro Contratti (gestione contabile + pagamenti + ricevute)
+const ContractsRegistryLazy = dynamic(() => import('./components/ContractsRegistry'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -2654,7 +2656,6 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="berths" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Posti Barca</TabsTrigger>
             <TabsTrigger value="quotes" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><ClipboardList className="w-4 h-4 mr-1.5" />Preventivi</TabsTrigger>
             <TabsTrigger value="transits" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Transiti</TabsTrigger>
-            <TabsTrigger value="contracts" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><FileSignature className="w-4 h-4 mr-1.5" />Contratti</TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="port-settings" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>}
           </TabsList>
         )}
@@ -2677,6 +2678,18 @@ function AdminDashboard({ currentUser, onLogout }) {
             >
               <Plus className="w-4 h-4 mr-1.5" />Nuovo Preventivo
             </Button>
+          </TabsList>
+        )}
+
+        {/* Riga 2.6: Tab REGISTRO CONTRATTI (yellow-emerald band) - Super Admin o owner marina */}
+        {hasMarinaOwnership && (
+          <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-500 p-2 rounded-lg shadow-md w-full">
+            <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/40 pr-3 drop-shadow">
+              <FileSignature className="w-4 h-4" />Step 4 - Contratti
+            </div>
+            <TabsTrigger value="contracts-registry" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold drop-shadow">
+              <FileSignature className="w-4 h-4 mr-1.5" />Registro Contratti
+            </TabsTrigger>
           </TabsList>
         )}
 
@@ -4135,11 +4148,11 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsContent>
         )}
 
-        {/* Super Admin / Owner Marina: Contratti */}
+        {/* Super Admin / Owner Marina: REGISTRO CONTRATTI (Step 4) */}
         {hasMarinaOwnership && (
-          <TabsContent value="contracts" className="space-y-4">
+          <TabsContent value="contracts-registry" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><FileSignature className="w-8 h-8 mx-auto animate-pulse" /></div>}>
-              <ContractsManagerLazy />
+              <ContractsRegistryLazy currentUser={currentUser} />
             </Suspense>
           </TabsContent>
         )}

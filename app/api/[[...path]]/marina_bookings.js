@@ -167,9 +167,55 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     return new Response(JSON.stringify(await col.findOne({ id })), { headers: { 'Content-Type': 'application/json' } });
   }
 
+  // === ACTION: add-payment (registra pagamento contratto: acconto/saldo/altro) ===
+  // body: { amount, method, date?, reference?, notes? }
+  if (method === 'POST' && id && action === 'add-payment') {
+    const existing = await col.findOne({ id });
+    if (!existing) return new Response(JSON.stringify({ error: 'Prenotazione non trovata' }), { status: 404 });
+    const amount = Number(body.amount || 0);
+    if (!amount || amount <= 0) {
+      return new Response(JSON.stringify({ error: 'Importo non valido' }), { status: 400 });
+    }
+    const { v4: uuidv4_ } = await import('uuid');
+    const payment = {
+      id: uuidv4_(),
+      amount,
+      method: body.method || 'CONTANTI',
+      date: body.date || new Date().toISOString(),
+      reference: body.reference || '',
+      notes: body.notes || '',
+      created_at: new Date().toISOString(),
+    };
+    const payments = Array.isArray(existing.payments) ? [...existing.payments, payment] : [payment];
+    const paid_total = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const grand = Number(existing.grand_total || 0);
+    const balance_remaining = Math.max(0, Math.round((grand - paid_total) * 100) / 100);
+    let payment_status = 'DA_PAGARE';
+    if (paid_total >= grand) payment_status = 'SALDATO';
+    else if (paid_total > 0) payment_status = 'ACCONTO';
+    await col.updateOne({ id }, { $set: { payments, paid_total, balance_remaining, payment_status, updated_at: new Date().toISOString() } });
+    return new Response(JSON.stringify(await col.findOne({ id })), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // === ACTION: delete-payment ===
+  // body: { payment_id }
+  if (method === 'POST' && id && action === 'delete-payment') {
+    const existing = await col.findOne({ id });
+    if (!existing) return new Response(JSON.stringify({ error: 'Prenotazione non trovata' }), { status: 404 });
+    const pid = body.payment_id;
+    if (!pid) return new Response(JSON.stringify({ error: 'payment_id richiesto' }), { status: 400 });
+    const payments = (existing.payments || []).filter(p => p.id !== pid);
+    const paid_total = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const grand = Number(existing.grand_total || 0);
+    const balance_remaining = Math.max(0, Math.round((grand - paid_total) * 100) / 100);
+    let payment_status = 'DA_PAGARE';
+    if (paid_total >= grand && grand > 0) payment_status = 'SALDATO';
+    else if (paid_total > 0) payment_status = 'ACCONTO';
+    await col.updateOne({ id }, { $set: { payments, paid_total, balance_remaining, payment_status, updated_at: new Date().toISOString() } });
+    return new Response(JSON.stringify(await col.findOne({ id })), { headers: { 'Content-Type': 'application/json' } });
+  }
+
   // === ACTION: convert-to-contract (admin) ===
-  // body: { berth_id, notes? }
-  // Occupa il posto barca selezionato e marca la prenotazione come CONTRACT
   if (method === 'POST' && id && action === 'convert-to-contract') {
     const b = await col.findOne({ id });
     if (!b) return new Response(JSON.stringify({ error: 'Prenotazione non trovata' }), { status: 404 });
