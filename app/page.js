@@ -1146,6 +1146,19 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                   // Usa il primo slot per mostrare data e orario
                   const firstSlot = dateSlots[0];
 
+                  // Calcola il prezzo applicato per questa data (price_override > tier > base)
+                  let slotPrice = experience.price_b2c;
+                  let slotTierName = null;
+                  if (firstSlot.price_override) {
+                    slotPrice = firstSlot.price_override;
+                  } else {
+                    const tier = getPriceTierForDate(experience, firstSlot.start_datetime);
+                    if (tier && tier.price_b2c) {
+                      slotPrice = tier.price_b2c;
+                      slotTierName = tier.tier_name;
+                    }
+                  }
+
                   return (
                     <div 
                       key={date} 
@@ -1164,14 +1177,23 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                             </p>
                           )}
                         </div>
-                        {allFull ? (
-                          <Badge className="bg-red-500 text-white border-red-600 text-xs">Completo</Badge>
-                        ) : (() => {
-                          const totalMax = dateSlots.reduce((sum, s) => sum + s.max_seats, 0);
-                          return (
-                            <Badge className={`text-xs ${seatsBadgeColor(totalAvailable, totalMax)}`}>{totalAvailable} posti</Badge>
-                          );
-                        })()}
+                        <div className="flex flex-col items-end gap-1">
+                          {allFull ? (
+                            <Badge className="bg-red-500 text-white border-red-600 text-xs">Completo</Badge>
+                          ) : (() => {
+                            const totalMax = dateSlots.reduce((sum, s) => sum + s.max_seats, 0);
+                            return (
+                              <Badge className={`text-xs ${seatsBadgeColor(totalAvailable, totalMax)}`}>{totalAvailable} posti</Badge>
+                            );
+                          })()}
+                          {/* Prezzo applicato per questa data */}
+                          <div className="text-right">
+                            <div className="text-base font-bold text-primary leading-none">{fmtPrice(slotPrice)}<span className="text-[10px] font-normal text-muted-foreground ml-0.5">/pers.</span></div>
+                            {slotTierName && (
+                              <div className="text-[10px] text-muted-foreground italic mt-0.5">📊 {slotTierName}</div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       <AvailabilityBar 
                         booked={dateSlots.reduce((sum, s) => sum + s.booked_seats + (s.blocked_seats || 0), 0)} 
