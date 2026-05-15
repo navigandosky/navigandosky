@@ -26,6 +26,7 @@ const CantiereAdminLazy = dynamic(() => import('./components/CantiereAdmin'), { 
 const MarinaBookingsLazy = dynamic(() => import('./components/MarinaBookings'), { ssr: false });
 // Nuovo Preventivo Posto Barca (dialog admin)
 const NewQuoteDialogLazy = dynamic(() => import('./components/NewQuoteDialog'), { ssr: false });
+const NewBookingDialogLazy = dynamic(() => import('./components/NewBookingDialog'), { ssr: false });
 // Registro Contratti (gestione contabile + pagamenti + ricevute)
 const ContractsRegistryLazy = dynamic(() => import('./components/ContractsRegistry'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
@@ -2462,6 +2463,8 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [globalMarinaFilter, setGlobalMarinaFilter] = useState('ALL');
   // Nuovo Preventivo (dialog admin) - apertura
   const [showNewQuoteDialog, setShowNewQuoteDialog] = useState(false);
+  // Nuova Prenotazione Esperienza (dialog admin) - apertura
+  const [showNewBookingDialog, setShowNewBookingDialog] = useState(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -3421,7 +3424,15 @@ function AdminDashboard({ currentUser, onLogout }) {
         {/* Bookings */}
         <TabsContent value="bookings" className="space-y-4">
           <div className="mb-4">
-            <h2 className="text-xl font-semibold mb-4">Prenotazioni ({filteredBookingsTab.length})</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Prenotazioni ({filteredBookingsTab.length})</h2>
+              <Button
+                onClick={() => setShowNewBookingDialog(true)}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
+              >
+                <Plus className="w-4 h-4 mr-2" />Crea Prenotazione
+              </Button>
+            </div>
             
             {/* Filtri Avanzati */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
@@ -4718,6 +4729,18 @@ function AdminDashboard({ currentUser, onLogout }) {
             onClose={() => setShowNewQuoteDialog(false)}
             currentUser={currentUser}
             onCreated={() => { /* il preventivo è già visibile nel tab Preventivi */ }}
+          />
+        </Suspense>
+      )}
+
+      {/* Nuova Prenotazione Esperienza - Admin Dialog */}
+      {showNewBookingDialog && (
+        <Suspense fallback={null}>
+          <NewBookingDialogLazy
+            open={showNewBookingDialog}
+            onClose={() => setShowNewBookingDialog(false)}
+            currentUser={currentUser}
+            onCreated={() => { load(); }}
           />
         </Suspense>
       )}
