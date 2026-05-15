@@ -2533,6 +2533,21 @@ function AdminDashboard({ currentUser, onLogout }) {
       await load();
     } catch (e) { toast.error('Errore rifiuto'); }
   };
+  // Re-invia voucher via email (provvisorio se PENDING, finale se CONFIRMED)
+  const resendVoucherEmail = async (b) => {
+    if (!b.customer_email) { toast.error('Cliente senza email'); return; }
+    const voucherType = b.status === 'CONFIRMED' ? 'FINAL' : 'PROVISIONAL';
+    try {
+      const res = await fetch('/api/send-booking-voucher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: b.id, type: voucherType }),
+      });
+      const data = await res.json();
+      if (data.error) { toast.error('Errore invio: ' + data.error); return; }
+      toast.success(`📧 Voucher ${voucherType === 'FINAL' ? 'definitivo' : 'provvisorio'} inviato a ${b.customer_email}`);
+    } catch (e) { toast.error('Errore invio email'); }
+  };
   const getExpName = (id) => experiences.find(e => e.id === id)?.name || '-';
   
   // Helper: Ottieni nome risorsa da prenotazione (max 6 caratteri)
@@ -3572,6 +3587,12 @@ function AdminDashboard({ currentUser, onLogout }) {
                       <X className="w-3 h-3 mr-1"/>Rifiuta
                     </Button>
                   </>
+                )}
+                {/* Re-invio voucher email */}
+                {b.customer_email && (b.status==='CONFIRMED' || b.status==='PENDING_VERIFICATION') && (
+                  <Button variant="ghost" size="sm" className="text-xs h-7 text-blue-600 hover:bg-blue-50" onClick={()=>resendVoucherEmail(b)} title="Re-invia voucher via email">
+                    📧 Voucher
+                  </Button>
                 )}
                 {(b.status==='CONFIRMED'&&!b.checked_in_at)&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}

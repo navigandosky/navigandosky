@@ -398,6 +398,20 @@ async function handleBookings(method, id, body, action, sp) {
       await db.collection('seat_blocks').deleteMany({ session_id: body.session_id });
     }
 
+    // Invio email automatica: voucher provvisorio se bonifico, voucher finale se già pagato
+    if (booking.customer_email) {
+      const voucherType = (bookingStatus === 'PENDING_VERIFICATION' || bookingStatus === 'PENDING_CONFIRMATION')
+        ? 'PROVISIONAL'
+        : 'FINAL';
+      try {
+        const { sendBookingVoucherInternal } = await import('./send_booking_voucher');
+        // Fire-and-forget: non blocca la response al cliente
+        sendBookingVoucherInternal(booking.id, voucherType).catch(err =>
+          console.error('[voucher email POST] silent error:', err?.message)
+        );
+      } catch (e) { console.error('[voucher email POST] import error:', e?.message); }
+    }
+
     return json(booking, 201);
   }
 
@@ -435,6 +449,15 @@ async function handleBookings(method, id, body, action, sp) {
         bank_transfer_verified_by: body.verified_by || null,
         bank_transfer_note: body.note || null,
       } });
+      // Invia voucher FINALE al cliente
+      if (booking.customer_email) {
+        try {
+          const { sendBookingVoucherInternal } = await import('./send_booking_voucher');
+          sendBookingVoucherInternal(id, 'FINAL').catch(err =>
+            console.error('[voucher final email] silent error:', err?.message)
+          );
+        } catch (e) { console.error('[voucher final email] import error:', e?.message); }
+      }
       return json(await col.findOne({ id }));
     }
     // RIFIUTA pagamento bonifico (admin marca come non ricevuto, libera i posti)
@@ -1823,6 +1846,10 @@ async function handleRoute(request, resolvedParams, method) {
       case 'send-receipt-email': {
         const { handleSendReceiptEmail } = await import('./send_email');
         return await handleSendReceiptEmail(method, body);
+      }
+      case 'send-booking-voucher': {
+        const { handleSendBookingVoucher } = await import('./send_booking_voucher');
+        return await handleSendBookingVoucher(method, body);
       }
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
