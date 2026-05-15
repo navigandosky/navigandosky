@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,9 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass } from 'lucide-react';
+import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+
+const NewBookingDialog = dynamic(() => import('@/app/components/NewBookingDialog'), { ssr: false });
 
 const API_BASE = '/api';
 
@@ -26,6 +29,7 @@ export default function AgencyB2BPortal() {
   const [experiences, setExperiences] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({});
+  const [showNewBookingDialog, setShowNewBookingDialog] = useState(false);
 
   // Carica dati società
   useEffect(() => {
@@ -440,8 +444,18 @@ export default function AgencyB2BPortal() {
           <TabsContent value="bookings" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Le Tue Prenotazioni ({bookings.length})</CardTitle>
-                <CardDescription>Storico prenotazioni effettuate</CardDescription>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <CardTitle>Le Tue Prenotazioni ({bookings.length})</CardTitle>
+                    <CardDescription>Storico prenotazioni effettuate</CardDescription>
+                  </div>
+                  <Button
+                    onClick={() => setShowNewBookingDialog(true)}
+                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />Crea Prenotazione
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -489,6 +503,25 @@ export default function AgencyB2BPortal() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Dialog Nuova Prenotazione Agenzia */}
+      {showNewBookingDialog && (
+        <NewBookingDialog
+          open={showNewBookingDialog}
+          onClose={() => setShowNewBookingDialog(false)}
+          companyId={agency?.company_id}
+          agencyId={agency?.id}
+          currentUser={{ username: agency?.name || 'agency', company_id: agency?.company_id }}
+          onCreated={() => {
+            // Ricarica prenotazioni
+            if (agency?.id) {
+              fetch(`${API_BASE}/bookings?agency_id=${agency.id}`)
+                .then(r => r.json())
+                .then(d => setBookings(Array.isArray(d) ? d : []));
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -24,7 +24,12 @@ function getPriceTierForDate(experience, date) {
   return null;
 }
 
-export default function NewBookingDialog({ open, onClose, currentUser, onCreated }) {
+export default function NewBookingDialog({ open, onClose, currentUser, companyId: propCompanyId, agencyId: propAgencyId, onCreated }) {
+  // Risolvi company_id: priorità a prop, poi a currentUser
+  const companyId = propCompanyId || currentUser?.company_id || null;
+  const agencyId = propAgencyId || null;
+  const userLabel = currentUser?.username || 'admin';
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [experiences, setExperiences] = useState([]);
@@ -59,19 +64,19 @@ export default function NewBookingDialog({ open, onClose, currentUser, onCreated
     (async () => {
       try {
         const params = new URLSearchParams();
-        if (currentUser?.company_id) params.set('company_id', currentUser.company_id);
+        if (companyId) params.set('company_id', companyId);
         const r = await fetch(`/api/experiences?${params.toString()}`);
         const data = await r.json();
         setExperiences(Array.isArray(data) ? data.filter(e => e.is_active !== false) : []);
         // Carica metodi di pagamento configurati per questa company
-        if (currentUser?.company_id) {
-          const pmRes = await fetch(`/api/companies/${currentUser.company_id}/payment-methods`);
+        if (companyId) {
+          const pmRes = await fetch(`/api/companies/${companyId}/payment-methods`);
           const pmData = await pmRes.json();
           setPaymentMethods(Array.isArray(pmData?.methods) ? pmData.methods : []);
         }
       } catch (e) { console.error(e); }
     })();
-  }, [open, currentUser?.company_id]);
+  }, [open, companyId]);
 
   // Carica slot quando si sceglie un'esperienza
   useEffect(() => {
@@ -131,7 +136,8 @@ export default function NewBookingDialog({ open, onClose, currentUser, onCreated
           total_amount: total,
           special_requests: customer.notes,
           payment_method: pmForBackend,
-          company_id: currentUser?.company_id,
+          company_id: companyId,
+          agency_id: agencyId,
           // Flag che indica all'admin la modalità desiderata (post-process)
           admin_created: true,
           admin_payment_intent: paymentMethod,
@@ -147,7 +153,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, onCreated
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'confirm-bank-transfer', // riusa la stessa logica: passa a CONFIRMED + PAID
-            verified_by: currentUser?.username || 'admin',
+            verified_by: userLabel,
             note: paymentMethod === 'CASH' ? 'Pagamento contanti/POS in loco' : 'Pagamento online confermato',
           }),
         });
