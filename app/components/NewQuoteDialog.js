@@ -354,28 +354,89 @@ export default function NewQuoteDialog({ open, onClose, currentUser, onCreated }
                 <CardTitle className="text-sm">Scegli tariffa</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {(quote.options || []).map(opt => (
-                  <label
-                    key={opt.type}
-                    className={`flex items-start gap-3 p-3 rounded border-2 cursor-pointer transition ${tariffChoice === opt.type ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}
-                  >
-                    <input
-                      type="radio"
-                      checked={tariffChoice === opt.type}
-                      onChange={() => setTariffChoice(opt.type)}
-                      className="mt-1"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold">{opt.label}</span>
-                        {quote.recommended?.type === opt.type && <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Consigliata ★</Badge>}
+                {(quote.options || []).map(opt => {
+                  const hasMonthlyDetail = Array.isArray(opt.detail) && opt.detail.length > 0 && opt.detail.some(d => d.month_name || d.days);
+                  const isSelected = tariffChoice === opt.type;
+                  return (
+                    <label
+                      key={opt.type}
+                      className={`flex flex-col gap-2 p-3 rounded border-2 cursor-pointer transition ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="radio"
+                          checked={isSelected}
+                          onChange={() => setTariffChoice(opt.type)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold">{opt.label}</span>
+                            {quote.recommended?.type === opt.type && <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">Consigliata ★</Badge>}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-blue-700">{fmtEur(opt.total)}</div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-blue-700">{fmtEur(opt.total)}</div>
-                    </div>
-                  </label>
-                ))}
+
+                      {/* Dettaglio mensile per tariffa giornaliera */}
+                      {hasMonthlyDetail && opt.detail[0]?.month_name && (
+                        <div className={`ml-7 rounded-md border ${isSelected ? 'border-blue-200 bg-white' : 'border-slate-200 bg-slate-50/50'} overflow-hidden`}>
+                          <div className="px-3 py-1.5 bg-blue-50 border-b border-blue-100 text-[11px] font-semibold text-blue-900 uppercase tracking-wider flex items-center gap-1">
+                            📅 Dettaglio per mese
+                          </div>
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="text-left text-muted-foreground bg-slate-50">
+                                <th className="px-3 py-1.5 font-medium">Mese</th>
+                                <th className="px-3 py-1.5 font-medium text-center">Giorni</th>
+                                <th className="px-3 py-1.5 font-medium text-right">Tariffa/giorno</th>
+                                <th className="px-3 py-1.5 font-medium text-right">Subtotale</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {opt.detail.map((d, i) => (
+                                <tr key={i} className="border-t border-slate-100">
+                                  <td className="px-3 py-1.5 font-medium">{d.month_name}</td>
+                                  <td className="px-3 py-1.5 text-center">{d.days}</td>
+                                  <td className="px-3 py-1.5 text-right text-muted-foreground">{fmtEur(d.daily_price)}</td>
+                                  <td className="px-3 py-1.5 text-right font-semibold">{fmtEur(d.subtotal)}</td>
+                                </tr>
+                              ))}
+                              <tr className="border-t-2 border-blue-200 bg-blue-50/60">
+                                <td className="px-3 py-1.5 font-bold" colSpan="3">TOTALE</td>
+                                <td className="px-3 py-1.5 text-right font-bold text-blue-700">{fmtEur(opt.total)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {/* Dettaglio per tariffa mensile (multi-mesi) */}
+                      {hasMonthlyDetail && !opt.detail[0]?.month_name && opt.detail[0]?.months && (
+                        <div className={`ml-7 rounded-md border ${isSelected ? 'border-blue-200 bg-white' : 'border-slate-200 bg-slate-50/50'} overflow-hidden text-xs`}>
+                          <div className="px-3 py-1.5 bg-blue-50 border-b border-blue-100 text-[11px] font-semibold text-blue-900 uppercase tracking-wider flex items-center gap-1">
+                            📅 Calcolo mensile
+                          </div>
+                          {opt.detail.map((d, i) => (
+                            <div key={i} className="px-3 py-1.5 flex justify-between border-t border-slate-100">
+                              <span>{d.months} mes{d.months > 1 ? 'i' : 'e'} × {fmtEur(d.monthly_price)}</span>
+                              <span className="font-semibold">{fmtEur(d.subtotal)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Dettaglio sconto per offerta speciale */}
+                      {opt.type === 'summer_flat' && opt.detail?.[0]?.note && (
+                        <div className={`ml-7 rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-xs text-emerald-800`}>
+                          💡 {opt.detail[0].note}
+                        </div>
+                      )}
+                    </label>
+                  );
+                })}
 
                 {/* Tariffa personalizzata */}
                 <label className={`flex items-start gap-3 p-3 rounded border-2 cursor-pointer transition ${tariffChoice === 'custom' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
