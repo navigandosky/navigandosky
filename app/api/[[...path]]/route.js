@@ -334,6 +334,18 @@ async function handleBookings(method, id, body, action, sp) {
     const count = await col.countDocuments();
     const bookingRef = `MK-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
 
+    // Determina stato/payment_status in base al metodo di pagamento scelto
+    const paymentMethod = body.payment_method || 'ONLINE';
+    let bookingStatus = 'CONFIRMED';
+    let bookingPaymentStatus = 'PAID';
+    if (paymentMethod === 'BANK_TRANSFER') {
+      bookingStatus = 'PENDING_VERIFICATION';
+      bookingPaymentStatus = 'PENDING';
+    } else if (paymentMethod === 'DIRECT') {
+      bookingStatus = 'PENDING_CONFIRMATION';
+      bookingPaymentStatus = 'PENDING';
+    }
+
     const booking = {
       id: uuidv4(),
       booking_ref: bookingRef,
@@ -353,8 +365,12 @@ async function handleBookings(method, id, body, action, sp) {
       commission_amount: body.commission_amount || 0, // Provvigione agenzia (B2C - B2B)
       b2c_price: body.b2c_price || pricePerSeat, // Prezzo cliente finale
       b2b_price: body.b2b_price || null, // Prezzo netto Maretrek (se B2B)
-      status: 'CONFIRMED',
-      payment_status: 'PAID',
+      status: bookingStatus,
+      payment_status: bookingPaymentStatus,
+      payment_method: paymentMethod,
+      bank_transfer_receipt_url: body.bank_transfer_receipt_url || null,
+      bank_transfer_verified_at: null,
+      bank_transfer_verified_by: null,
       special_requests: body.special_requests || '',
       participants: body.participants || [],
       seat_assignments: body.seat_assignments || [],
@@ -407,6 +423,41 @@ async function handleBookings(method, id, body, action, sp) {
         { returnDocument: 'after' }
       );
       return json(result);
+    }
+    // CONFERMA pagamento bonifico (admin marca come ricevuto)
+    if (body.action === 'confirm-bank-transfer') {
+      const booking = await col.findOne({ id });
+      if (!booking) return json({ error: 'Non trovato' }, 404);
+      await col.updateOne({ id }, { $set: {
+        status: 'CONFIRMED',
+        payment_status: 'PAID',
+        bank_transfer_verified_at: new Date().toISOString(),
+        bank_transfer_verified_by: body.verified_by || null,
+        bank_transfer_note: body.note || null,
+      } });
+      return json(await col.findOne({ id }));
+    }
+    // RIFIUTA pagamento bonifico (admin marca come non ricevuto, libera i posti)
+    if (body.action === 'reject-bank-transfer') {
+      const booking = await col.findOne({ id });
+      if (!booking) return json({ error: 'Non trovato' }, 404);
+      await col.updateOne({ id }, { $set: {
+        status: 'CANCELLED',
+        payment_status: 'REFUSED',
+        bank_transfer_verified_at: new Date().toISOString(),
+        bank_transfer_verified_by: body.verified_by || null,
+        bank_transfer_reject_reason: body.reason || 'Bonifico non verificato',
+      } });
+      // Libera i posti
+      await db.collection('slots').updateOne(
+        { id: booking.slot_id },
+        { $inc: { booked_seats: -booking.seats } }
+      );
+      const updatedSlot = await db.collection('slots').findOne({ id: booking.slot_id });
+      if (updatedSlot && updatedSlot.booked_seats < updatedSlot.max_seats && updatedSlot.status === 'FULL') {
+        await db.collection('slots').updateOne({ id: booking.slot_id }, { $set: { status: 'OPEN' } });
+      }
+      return json(await col.findOne({ id }));
     }
     if (body.action === 'reassign') {
       const booking = await col.findOne({ id });
@@ -1455,6 +1506,53 @@ async function handleCompaniesNew(method, id, body, action, sp) {
     return json(items);
   }
   
+  // Endpoint speciale: /api/companies/{id}/payment-methods
+  // Restituisce i metodi di pagamento attivi per il checkout pubblico delle esperienze
+  if (method === 'GET' && id && action === 'payment-methods') {
+    const company = await col.findOne({ id });
+    if (!company) return json({ error: 'Company non trovata' }, 404);
+    const pc = company.payment_config || {};
+    const result = { company_id: id, company_name: company.name, methods: [] };
+    // Bonifico Istantaneo
+    if (pc.enable_bank_transfer && pc.bank_transfer?.iban) {
+      result.methods.push({
+        type: 'BANK_TRANSFER',
+        label: 'Bonifico Istantaneo',
+        icon: '🏦',
+        description: 'Effettua il bonifico e carica la ricevuta. Verifica entro 24h.',
+        bank_transfer: {
+          iban: pc.bank_transfer.iban,
+          account_holder: pc.bank_transfer.account_holder || company.name,
+          bank_name: pc.bank_transfer.bank_name || '',
+          bic_swift: pc.bank_transfer.bic_swift || '',
+          instructions: pc.bank_transfer.instructions || '',
+        },
+      });
+    }
+    // Online payment ereditato dalle marine della company
+    if (pc.enable_online_payment !== false) {
+      const marinas = await db.collection('marinas').find({
+        $or: [{ company_id: id }, { shared_with_companies: id }],
+      }).toArray();
+      for (const m of marinas) {
+        const mpc = m.payment_config || {};
+        if (mpc.online_provider && mpc.online_provider !== 'none' && (mpc.sumup_api_key || mpc.stripe_secret_key)) {
+          result.methods.push({
+            type: 'ONLINE',
+            label: mpc.online_provider === 'sumup' ? 'Carta di Credito (SumUp)' : 'Carta di Credito (Stripe)',
+            icon: '💳',
+            description: 'Paga online con carta di credito in pochi secondi.',
+            provider: mpc.online_provider,
+            source_marina_id: m.id,
+            source_marina_name: m.name,
+          });
+          break;
+        }
+      }
+    }
+    return json(result);
+  }
+
   if (method === 'GET' && id) {
     const item = await col.findOne({ id });
     return item ? json(item) : json({ error: 'Company non trovata' }, 404);
@@ -1486,6 +1584,21 @@ async function handleCompaniesNew(method, id, body, action, sp) {
       max_resources: body.max_resources || 20,
       max_users: body.max_users || 5,
       is_active: body.is_active !== undefined ? body.is_active : true,
+      // Configurazione pagamenti per le esperienze pubbliche
+      // - online: ereditato dalle marine della company (SumUp/Stripe) - non duplicato qui
+      // - bank_transfer: bonifico istantaneo
+      // - direct: pagamento diretto (admin marca come pagato)
+      payment_config: body.payment_config || {
+        enable_online_payment: true,        // Eredita da marina della company
+        enable_bank_transfer: false,
+        bank_transfer: {
+          iban: '',
+          account_holder: '',
+          bank_name: '',
+          bic_swift: '',
+          instructions: 'Effettua il bonifico utilizzando le coordinate sopra indicate. Carica la ricevuta per accelerare la verifica.',
+        },
+      },
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       total_bookings: 0,

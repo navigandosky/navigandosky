@@ -152,8 +152,9 @@ function TypeBadge({ type }) {
   return <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${TYPE_COLORS[type] || 'bg-gray-100'}`}><Icon className="w-3 h-3" />{label}</span>;
 }
 function StatusBadge({ status }) {
-  const c = { OPEN: 'bg-green-100 text-green-800', FULL: 'bg-red-100 text-red-800', CANCELLED: 'bg-gray-100 text-gray-600', CONFIRMED: 'bg-green-100 text-green-800', PENDING: 'bg-yellow-100 text-yellow-800', REFUNDED: 'bg-gray-100 text-gray-600', WAITING: 'bg-blue-100 text-blue-800', NOTIFIED: 'bg-amber-100 text-amber-800', CONVERTED: 'bg-green-100 text-green-800', EXPIRED: 'bg-gray-100 text-gray-600' };
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c[status] || 'bg-gray-100'}`}>{status}</span>;
+  const c = { OPEN: 'bg-green-100 text-green-800', FULL: 'bg-red-100 text-red-800', CANCELLED: 'bg-gray-100 text-gray-600', CONFIRMED: 'bg-green-100 text-green-800', PENDING: 'bg-yellow-100 text-yellow-800', REFUNDED: 'bg-gray-100 text-gray-600', WAITING: 'bg-blue-100 text-blue-800', NOTIFIED: 'bg-amber-100 text-amber-800', CONVERTED: 'bg-green-100 text-green-800', EXPIRED: 'bg-gray-100 text-gray-600', PENDING_VERIFICATION: 'bg-amber-100 text-amber-800 border border-amber-300', PENDING_CONFIRMATION: 'bg-orange-100 text-orange-800 border border-orange-300' };
+  const labels = { PENDING_VERIFICATION: '⏳ Verifica Bonifico', PENDING_CONFIRMATION: '⏳ Da Confermare' };
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c[status] || 'bg-gray-100'}`}>{labels[status] || status}</span>;
 }
 function AvailabilityBar({ booked, max }) {
   const pct = max > 0 ? (booked / max) * 100 : 0;
@@ -1333,6 +1334,30 @@ function BookingWizard({ experience, slot, setView }) {
   const [loading, setLoading] = useState(false);
   const [bookingResult, setBookingResult] = useState(null);
 
+  // Metodi di pagamento - caricati dalla company
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState(null); // 'ONLINE' | 'BANK_TRANSFER'
+  const [bankReceiptFile, setBankReceiptFile] = useState(null);
+  const [bankReceiptDataUrl, setBankReceiptDataUrl] = useState('');
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+
+  // Carica i metodi di pagamento della company al mount
+  useEffect(() => {
+    if (!experience?.company_id) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/companies/${experience.company_id}/payment-methods`);
+        const data = await res.json();
+        const methods = Array.isArray(data?.methods) ? data.methods : [];
+        setPaymentMethods(methods);
+        // Pre-seleziona automaticamente se c'è un solo metodo
+        if (methods.length === 1) setPaymentMethod(methods[0].type);
+      } catch (e) {
+        console.error('Errore caricamento metodi pagamento:', e);
+      }
+    })();
+  }, [experience?.company_id]);
+
   if (!experience || !slot) return null;
   const maxAvail = slot.max_seats - slot.booked_seats - (slot.blocked_seats||0);
   
@@ -1360,23 +1385,89 @@ function BookingWizard({ experience, slot, setView }) {
   const validateVoucher = async () => { if (!voucherCode.trim()) return; const res = await api('vouchers/validate', { method: 'POST', body: { code: voucherCode } }); setVoucherResult(res); if (res.valid) toast.success('Voucher applicato!'); else toast.error(res.error || 'Voucher non valido'); };
 
   const handleBook = async () => {
+    // Validazione metodo di pagamento
+    if (paymentMethods.length > 0 && !paymentMethod) {
+      toast.error('Seleziona un metodo di pagamento');
+      return;
+    }
+    if (paymentMethod === 'BANK_TRANSFER' && !bankReceiptDataUrl) {
+      toast.error('Carica la ricevuta del bonifico per procedere');
+      return;
+    }
     setLoading(true);
     try {
-      const res = await api('bookings', { method: 'POST', body: { slot_id: slot.id, experience_id: experience.id, customer_name: form.name, customer_email: form.email, customer_phone: form.phone, seats, total_amount: subtotal, voucher_code: voucherResult?.valid ? voucherCode : null, special_requests: form.special_requests, participants } });
+      const res = await api('bookings', { method: 'POST', body: {
+        slot_id: slot.id,
+        experience_id: experience.id,
+        customer_name: form.name,
+        customer_email: form.email,
+        customer_phone: form.phone,
+        seats,
+        total_amount: subtotal,
+        voucher_code: voucherResult?.valid ? voucherCode : null,
+        special_requests: form.special_requests,
+        participants,
+        payment_method: paymentMethod || 'ONLINE',
+        bank_transfer_receipt_url: paymentMethod === 'BANK_TRANSFER' ? bankReceiptDataUrl : null,
+      } });
       if (res.error) { safeToastError(res.error); setLoading(false); return; }
-      setBookingResult(res); setStep(5); toast.success('Prenotazione confermata!');
+      setBookingResult(res); setStep(5);
+      if (paymentMethod === 'BANK_TRANSFER') {
+        toast.success('Prenotazione registrata! In attesa di verifica del bonifico.');
+      } else {
+        toast.success('Prenotazione confermata!');
+      }
     } catch { toast.error('Errore nella prenotazione'); }
     setLoading(false);
   };
 
+  // Upload ricevuta bonifico (converte in dataURL come fa il sistema per gli altri upload)
+  const handleReceiptUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File troppo grande (max 5MB)');
+      return;
+    }
+    setUploadingReceipt(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setBankReceiptFile(file);
+      setBankReceiptDataUrl(reader.result);
+      setUploadingReceipt(false);
+      toast.success('Ricevuta caricata');
+    };
+    reader.onerror = () => { setUploadingReceipt(false); toast.error('Errore lettura file'); };
+    reader.readAsDataURL(file);
+  };
+
   if (step === 5 && bookingResult) {
+    const isPending = bookingResult.status === 'PENDING_VERIFICATION' || bookingResult.status === 'PENDING_CONFIRMATION';
     return (
       <div className="container mx-auto px-4 py-12 max-w-2xl">
-        <div className="text-center mb-8"><div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle2 className="w-10 h-10 text-green-600" /></div><h1 className="text-3xl font-bold mb-2">Prenotazione Confermata!</h1></div>
+        <div className="text-center mb-8">
+          <div className={`w-20 h-20 ${isPending ? 'bg-amber-100' : 'bg-green-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+            {isPending
+              ? <Clock className="w-10 h-10 text-amber-600" />
+              : <CheckCircle2 className="w-10 h-10 text-green-600" />}
+          </div>
+          <h1 className="text-3xl font-bold mb-2">
+            {isPending ? 'Prenotazione Registrata!' : 'Prenotazione Confermata!'}
+          </h1>
+          {isPending && (
+            <p className="text-amber-700 max-w-md mx-auto">
+              ⏳ La tua prenotazione è <strong>in attesa di verifica</strong>. Lo staff confermerà il bonifico entro 24 ore e riceverai un'email di conferma definitiva.
+            </p>
+          )}
+        </div>
         <Card className="shadow-lg">
           <CardHeader className="bg-primary/5"><div className="flex justify-between items-center"><div><p className="text-sm text-muted-foreground">Codice prenotazione</p><p className="text-2xl font-bold font-mono text-primary">{bookingResult.booking_ref}</p></div><StatusBadge status={bookingResult.status} /></div></CardHeader>
           <CardContent className="pt-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm"><div><p className="text-muted-foreground">Esperienza</p><p className="font-medium">{experience.name}</p></div><div><p className="text-muted-foreground">Data</p><p className="font-medium capitalize">{fmtDateTime(slot.start_datetime)}</p></div><div><p className="text-muted-foreground">Posti</p><p className="font-medium">{bookingResult.seats}</p></div><div><p className="text-muted-foreground">Totale</p><p className="font-medium text-primary">{fmtPrice(bookingResult.total_amount)}</p></div></div>
+            <div className="grid grid-cols-2 gap-4 text-sm"><div><p className="text-muted-foreground">Esperienza</p><p className="font-medium">{experience.name}</p></div><div><p className="text-muted-foreground">Data</p><p className="font-medium capitalize">{fmtDateTime(slot.start_datetime)}</p></div><div><p className="text-muted-foreground">Posti</p><p className="font-medium">{bookingResult.seats}</p></div><div><p className="text-muted-foreground">Totale</p><p className="font-medium text-primary">{fmtPrice(bookingResult.total_amount)}</p></div>
+              {bookingResult.payment_method && (
+                <div className="col-span-2"><p className="text-muted-foreground">Metodo Pagamento</p><p className="font-medium">{bookingResult.payment_method === 'BANK_TRANSFER' ? '🏦 Bonifico Istantaneo (in verifica)' : bookingResult.payment_method === 'ONLINE' ? '💳 Carta di Credito' : '✋ Pagamento Diretto'}</p></div>
+              )}
+            </div>
           </CardContent>
           <CardFooter className="flex gap-3"><Button onClick={() => setView('catalog')} className="flex-1">Torna alle Esperienze</Button><Button variant="outline" onClick={() => setView('home')}>Home</Button></CardFooter>
         </Card>
@@ -1418,7 +1509,138 @@ function BookingWizard({ experience, slot, setView }) {
           {step===1&&(<div className="space-y-6"><div><Label className="text-base font-semibold">Numero di Partecipanti</Label><p className="text-sm text-muted-foreground mb-3">Max {maxAvail} posti</p><div className="flex items-center gap-4"><Button variant="outline" size="icon" onClick={()=>setSeats(Math.max(1,seats-1))} disabled={seats<=1}>-</Button><span className="text-2xl font-bold w-12 text-center">{seats}</span><Button variant="outline" size="icon" onClick={()=>setSeats(Math.min(maxAvail,seats+1))} disabled={seats>=maxAvail}>+</Button></div></div><Separator /><div className="flex justify-between text-lg"><span>Totale provvisorio</span><span className="font-bold text-primary">{fmtPrice(subtotal)}</span></div></div>)}
           {step===2&&(<div className="space-y-6"><div><h3 className="font-semibold mb-4">Dati del Referente</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><Label>Nome *</Label><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Mario Rossi"/></div><div><Label>Email *</Label><Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="mario@email.com"/></div><div><Label>Telefono *</Label><Input type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="+39 333 1234567"/></div></div></div>{seats>1&&<div><h3 className="font-semibold mb-3">Altri Partecipanti</h3>{Array.from({length:seats-1}).map((_,i)=>(<Input key={i} className="mb-2" placeholder={`Partecipante ${i+2}`} value={participants[i]?.name||''} onChange={e=>{const p=[...participants];p[i]={...p[i],name:e.target.value};setParticipants(p);}}/>))}</div>}<div><Label>Richieste Speciali</Label><Textarea value={form.special_requests} onChange={e=>setForm({...form,special_requests:e.target.value})} placeholder="Allergie, esigenze..."/></div></div>)}
           {step===3&&(<div className="space-y-6"><div><h3 className="font-semibold mb-2">Hai un Codice Sconto?</h3><div className="flex gap-3"><Input value={voucherCode} onChange={e=>setVoucherCode(e.target.value.toUpperCase())} placeholder="ES: BENVENUTO10" className="font-mono"/><Button onClick={validateVoucher} variant="secondary"><Tag className="w-4 h-4 mr-2"/>Applica</Button></div>{voucherResult&&<div className={`mt-3 p-3 rounded-lg text-sm ${voucherResult.valid?'bg-green-50 text-green-800 border border-green-200':'bg-red-50 text-red-800 border border-red-200'}`}>{voucherResult.valid?<p><CheckCircle2 className="w-4 h-4 inline mr-1"/>Risparmi {fmtPrice(discount)}</p>:<p>{voucherResult.error}</p>}</div>}</div><Separator /><div className="space-y-2"><div className="flex justify-between"><span>Subtotale ({seats} pers.)</span><span>{fmtPrice(subtotal)}</span></div>{discount>0&&<div className="flex justify-between text-green-600"><span>Sconto</span><span>-{fmtPrice(discount)}</span></div>}<Separator /><div className="flex justify-between text-lg font-bold"><span>Totale</span><span className="text-primary">{fmtPrice(total)}</span></div></div></div>)}
-          {step===4&&(<div className="space-y-6"><div className="p-4 bg-amber-50 border border-amber-200 rounded-lg"><p className="text-sm text-amber-800 font-medium"><CreditCard className="w-4 h-4 inline mr-2"/>Pagamento Simulato (MOCK)</p></div><div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg text-sm"><div><p className="text-muted-foreground">Esperienza</p><p className="font-medium">{experience.name}</p></div><div><p className="text-muted-foreground">Data</p><p className="font-medium capitalize">{fmtDateTime(slot.start_datetime)}</p></div><div><p className="text-muted-foreground">Partecipanti</p><p className="font-medium">{seats}</p></div><div><p className="text-muted-foreground">Referente</p><p className="font-medium">{form.name}</p></div></div><div className="space-y-1"><div className="flex justify-between"><span>Subtotale</span><span>{fmtPrice(subtotal)}</span></div>{discount>0&&<div className="flex justify-between text-green-600"><span>Sconto</span><span>-{fmtPrice(discount)}</span></div>}<div className="flex justify-between text-xl font-bold pt-2 border-t"><span>Totale</span><span className="text-primary">{fmtPrice(total)}</span></div></div></div>)}
+          {step===4&&(
+            <div className="space-y-6">
+              {/* Riepilogo */}
+              <div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg text-sm">
+                <div><p className="text-muted-foreground">Esperienza</p><p className="font-medium">{experience.name}</p></div>
+                <div><p className="text-muted-foreground">Data</p><p className="font-medium capitalize">{fmtDateTime(slot.start_datetime)}</p></div>
+                <div><p className="text-muted-foreground">Partecipanti</p><p className="font-medium">{seats}</p></div>
+                <div><p className="text-muted-foreground">Referente</p><p className="font-medium">{form.name}</p></div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between"><span>Subtotale</span><span>{fmtPrice(subtotal)}</span></div>
+                {discount>0&&<div className="flex justify-between text-green-600"><span>Sconto</span><span>-{fmtPrice(discount)}</span></div>}
+                <div className="flex justify-between text-xl font-bold pt-2 border-t"><span>Totale</span><span className="text-primary">{fmtPrice(total)}</span></div>
+              </div>
+
+              <Separator />
+
+              {/* Scelta metodo di pagamento */}
+              <div>
+                <h3 className="font-semibold mb-3">Metodo di Pagamento</h3>
+                {paymentMethods.length === 0 ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800 font-medium">
+                      <CreditCard className="w-4 h-4 inline mr-2"/>Nessun metodo online configurato. La prenotazione sarà confermata e il pagamento gestito direttamente con l'organizzatore.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {paymentMethods.map(pm => (
+                      <label
+                        key={pm.type}
+                        className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${paymentMethod === pm.type ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'}`}
+                      >
+                        <input
+                          type="radio"
+                          checked={paymentMethod === pm.type}
+                          onChange={() => setPaymentMethod(pm.type)}
+                          className="mt-1.5"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{pm.icon}</span>
+                            <span className="font-semibold">{pm.label}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">{pm.description}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Dettagli Bonifico Istantaneo */}
+              {paymentMethod === 'BANK_TRANSFER' && (() => {
+                const bt = paymentMethods.find(m => m.type === 'BANK_TRANSFER')?.bank_transfer || {};
+                return (
+                  <div className="space-y-4 p-4 bg-emerald-50/50 border-2 border-emerald-200 rounded-lg">
+                    <h4 className="font-semibold text-emerald-900 flex items-center gap-2">🏦 Coordinate Bancarie</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">IBAN</p>
+                        <p className="font-mono font-semibold tracking-wider break-all">{bt.iban}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Intestatario</p>
+                        <p className="font-medium">{bt.account_holder}</p>
+                      </div>
+                      {bt.bank_name && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Banca</p>
+                          <p className="font-medium">{bt.bank_name}</p>
+                        </div>
+                      )}
+                      {bt.bic_swift && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">BIC/SWIFT</p>
+                          <p className="font-mono font-medium">{bt.bic_swift}</p>
+                        </div>
+                      )}
+                      <div className="md:col-span-2">
+                        <p className="text-xs text-muted-foreground">Importo</p>
+                        <p className="text-xl font-bold text-emerald-700">{fmtPrice(total)}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-xs text-muted-foreground">Causale Consigliata</p>
+                        <p className="font-mono text-sm bg-white p-2 rounded border">Prenotazione {experience.name} - {form.name}</p>
+                      </div>
+                    </div>
+                    {bt.instructions && (
+                      <div className="p-3 bg-white border border-emerald-200 rounded text-xs text-emerald-900">
+                        💡 {bt.instructions}
+                      </div>
+                    )}
+
+                    {/* Upload Ricevuta */}
+                    <div className="space-y-2 pt-2 border-t border-emerald-200">
+                      <Label className="font-semibold flex items-center gap-2">
+                        📎 Carica la Ricevuta del Bonifico *
+                      </Label>
+                      <p className="text-xs text-muted-foreground">PDF, JPG o PNG (max 5MB)</p>
+                      <Input
+                        type="file"
+                        accept="image/png,image/jpeg,application/pdf"
+                        onChange={handleReceiptUpload}
+                        disabled={uploadingReceipt}
+                        className="cursor-pointer"
+                      />
+                      {bankReceiptFile && (
+                        <div className="flex items-center gap-2 p-2 bg-white rounded border border-emerald-200 text-sm">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span className="font-medium">{bankReceiptFile.name}</span>
+                          <span className="text-muted-foreground text-xs">({(bankReceiptFile.size / 1024).toFixed(0)} KB)</span>
+                        </div>
+                      )}
+                      <p className="text-xs text-amber-700">
+                        ⚠️ La prenotazione resterà <strong>IN ATTESA DI VERIFICA</strong> finché lo staff non confermerà il pagamento. Riceverai una conferma via email entro 24h.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Info Pagamento Online */}
+              {paymentMethod === 'ONLINE' && (
+                <div className="p-4 bg-blue-50/50 border-2 border-blue-200 rounded-lg text-sm">
+                  <p className="text-blue-900">
+                    💳 Sarai reindirizzato alla pagina di pagamento sicura per inserire i dati della carta. La prenotazione sarà confermata immediatamente.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex justify-between border-t pt-6 bg-gray-50">
           <Button variant="outline" onClick={()=>step===1?setView('detail',{experience}):setStep(step-1)} className="border-2 border-gray-400 hover:bg-gray-100 font-semibold"><ArrowLeft className="w-4 h-4 mr-2"/>{step===1?'Indietro':'Precedente'}</Button>
@@ -2288,6 +2510,26 @@ function AdminDashboard({ currentUser, onLogout }) {
   const deleteItem = async (ep, id) => { if (!confirm('Eliminare?')) return; await api(`${ep}/${id}`, { method: 'DELETE' }); toast.success('Eliminato!'); await load(); };
   const cancelBooking = async (id) => { await api(`bookings/${id}`, { method: 'PUT', body: { action: 'cancel' } }); toast.success('Cancellata'); await load(); };
   const checkinBooking = async (id) => { await api(`bookings/${id}`, { method: 'PUT', body: { action: 'checkin' } }); toast.success('Check-in!'); await load(); };
+  // Conferma bonifico ricevuto: passa a CONFIRMED/PAID
+  const confirmBankTransfer = async (b) => {
+    const ok = window.confirm(`Confermi di aver ricevuto il bonifico di ${new Intl.NumberFormat('it-IT', { style:'currency', currency:'EUR' }).format(b.total_amount)} per la prenotazione ${b.booking_ref}?\n\nLa prenotazione passerà a CONFERMATA.`);
+    if (!ok) return;
+    try {
+      await api(`bookings/${b.id}`, { method: 'PUT', body: { action: 'confirm-bank-transfer', verified_by: currentUser?.username || 'admin' } });
+      toast.success('✅ Bonifico confermato - prenotazione attiva');
+      await load();
+    } catch (e) { toast.error('Errore conferma'); }
+  };
+  // Rifiuta bonifico: cancella prenotazione, libera posti
+  const rejectBankTransfer = async (b) => {
+    const reason = window.prompt(`Motivo del rifiuto bonifico per ${b.booking_ref}:`, 'Bonifico non ricevuto');
+    if (reason === null) return;
+    try {
+      await api(`bookings/${b.id}`, { method: 'PUT', body: { action: 'reject-bank-transfer', verified_by: currentUser?.username || 'admin', reason } });
+      toast.success('Prenotazione cancellata - posti liberati');
+      await load();
+    } catch (e) { toast.error('Errore rifiuto'); }
+  };
   const getExpName = (id) => experiences.find(e => e.id === id)?.name || '-';
   
   // Helper: Ottieni nome risorsa da prenotazione (max 6 caratteri)
@@ -3302,8 +3544,24 @@ function AdminDashboard({ currentUser, onLogout }) {
           </div>
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th>{isSuperAdmin && <th className="p-3 font-medium">Company</th>}<th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Risorsa</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
             {filteredBookingsTab.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td>{isSuperAdmin && <td className="p-3"><CompanyBadge companyId={b.company_id}/></td>}<td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3 text-xs font-mono font-semibold">{getResourceName(b)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
-              <td className="p-3"><div className="flex gap-1">
+              <td className="p-3"><div className="flex gap-1 flex-wrap">
                 <Button variant="secondary" size="sm" className="text-xs h-7" onClick={()=>setPreviewBk(b)}><Eye className="w-3 h-3 mr-1"/>Anteprima</Button>
+                {/* Azioni per Bonifico in attesa di verifica */}
+                {b.status==='PENDING_VERIFICATION' && (
+                  <>
+                    {b.bank_transfer_receipt_url && (
+                      <Button variant="outline" size="sm" className="text-xs h-7 border-blue-300 text-blue-700 hover:bg-blue-50" onClick={()=>window.open(b.bank_transfer_receipt_url, '_blank')}>
+                        <Eye className="w-3 h-3 mr-1"/>Ricevuta
+                      </Button>
+                    )}
+                    <Button variant="default" size="sm" className="text-xs h-7 bg-emerald-600 hover:bg-emerald-700" onClick={()=>confirmBankTransfer(b)}>
+                      <CheckCircle2 className="w-3 h-3 mr-1"/>Conferma €
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs h-7 border-red-300 text-red-700 hover:bg-red-50" onClick={()=>rejectBankTransfer(b)}>
+                      <X className="w-3 h-3 mr-1"/>Rifiuta
+                    </Button>
+                  </>
+                )}
                 {(b.status==='CONFIRMED'&&!b.checked_in_at)&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id)}>Cancella</Button>}
@@ -3944,6 +4202,160 @@ function AdminDashboard({ currentUser, onLogout }) {
                   </div>
                 </div>
                 
+                {/* Configurazione Metodi di Pagamento (Esperienze pubbliche) */}
+                <div className="space-y-4 pt-4 border-t">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    💳 Configurazione Pagamenti (Esperienze)
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Configura come i clienti possono pagare le prenotazioni delle esperienze sul catalogo pubblico.
+                  </p>
+
+                  {/* Online Payment - ereditato dalle marine */}
+                  <div className="rounded-lg border p-3 bg-blue-50/50">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          id="enable_online_payment"
+                          checked={newCompanyForm.payment_config?.enable_online_payment !== false}
+                          onChange={e => setNewCompanyForm({
+                            ...newCompanyForm,
+                            payment_config: {
+                              ...(newCompanyForm.payment_config || {}),
+                              enable_online_payment: e.target.checked,
+                            }
+                          })}
+                          className="mt-1 w-4 h-4"
+                        />
+                        <div>
+                          <Label htmlFor="enable_online_payment" className="font-semibold cursor-pointer">💳 Carta di Credito (Online)</Label>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Le chiavi SumUp/Stripe vengono ereditate automaticamente dalle <strong>marine della società</strong> (configurabili nella tab Marine → Pagamenti).
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bonifico Istantaneo */}
+                  <div className="rounded-lg border p-3 bg-emerald-50/50">
+                    <div className="flex items-start gap-3 mb-3">
+                      <input
+                        type="checkbox"
+                        id="enable_bank_transfer"
+                        checked={!!newCompanyForm.payment_config?.enable_bank_transfer}
+                        onChange={e => setNewCompanyForm({
+                          ...newCompanyForm,
+                          payment_config: {
+                            ...(newCompanyForm.payment_config || {}),
+                            enable_bank_transfer: e.target.checked,
+                            bank_transfer: newCompanyForm.payment_config?.bank_transfer || {},
+                          }
+                        })}
+                        className="mt-1 w-4 h-4"
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor="enable_bank_transfer" className="font-semibold cursor-pointer">🏦 Bonifico Istantaneo</Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Il cliente vede le coordinate IBAN, effettua il bonifico e carica la ricevuta. La prenotazione resta in <strong>PENDING</strong> finché la società non conferma.
+                        </p>
+                      </div>
+                    </div>
+
+                    {newCompanyForm.payment_config?.enable_bank_transfer && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 pl-7">
+                        <div className="space-y-1 md:col-span-2">
+                          <Label className="text-xs">IBAN *</Label>
+                          <Input
+                            placeholder="IT60X0542811101000000123456"
+                            value={newCompanyForm.payment_config?.bank_transfer?.iban || ''}
+                            onChange={e => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                bank_transfer: {
+                                  ...(newCompanyForm.payment_config?.bank_transfer || {}),
+                                  iban: e.target.value.toUpperCase().replace(/\s/g, ''),
+                                }
+                              }
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Intestatario</Label>
+                          <Input
+                            placeholder="MARLIN SUB SRL"
+                            value={newCompanyForm.payment_config?.bank_transfer?.account_holder || ''}
+                            onChange={e => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                bank_transfer: {
+                                  ...(newCompanyForm.payment_config?.bank_transfer || {}),
+                                  account_holder: e.target.value,
+                                }
+                              }
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Nome Banca</Label>
+                          <Input
+                            placeholder="Banca Intesa Sanpaolo"
+                            value={newCompanyForm.payment_config?.bank_transfer?.bank_name || ''}
+                            onChange={e => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                bank_transfer: {
+                                  ...(newCompanyForm.payment_config?.bank_transfer || {}),
+                                  bank_name: e.target.value,
+                                }
+                              }
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">BIC / SWIFT</Label>
+                          <Input
+                            placeholder="BCITITMM"
+                            value={newCompanyForm.payment_config?.bank_transfer?.bic_swift || ''}
+                            onChange={e => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                bank_transfer: {
+                                  ...(newCompanyForm.payment_config?.bank_transfer || {}),
+                                  bic_swift: e.target.value.toUpperCase(),
+                                }
+                              }
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-1 md:col-span-2">
+                          <Label className="text-xs">Istruzioni per il cliente</Label>
+                          <Textarea
+                            rows={2}
+                            placeholder="Indica nella causale 'Prenotazione [Booking Ref]' e carica la ricevuta..."
+                            value={newCompanyForm.payment_config?.bank_transfer?.instructions || ''}
+                            onChange={e => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                bank_transfer: {
+                                  ...(newCompanyForm.payment_config?.bank_transfer || {}),
+                                  instructions: e.target.value,
+                                }
+                              }
+                            })}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
 
                 {/* Branding */}
                 <div className="space-y-4">
