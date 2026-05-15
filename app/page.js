@@ -201,6 +201,26 @@ function getPriceTierForDate(experience, date) {
   return null;
 }
 
+// Helper: Calcola il "prezzo a partire da" per un'esperienza
+// Logica:
+//  - Se l'esperienza ha price_tiers configurati, prende il MINIMO di price_b2c tra tutte le fasce future/correnti
+//  - Altrimenti torna a price_b2c base
+//  - Restituisce { price, isFromTiers } per poter mostrare "da X €" quando i tiers sono attivi
+function getStartingPrice(experience) {
+  const base = Number(experience?.price_b2c || 0);
+  const tiers = Array.isArray(experience?.price_tiers) ? experience.price_tiers : [];
+  if (tiers.length === 0) return { price: base, isFromTiers: false };
+
+  // Considera solo i tiers la cui fine non sia già scaduta (end_date >= oggi)
+  const today = new Date().toISOString().split('T')[0];
+  const validTiers = tiers.filter(t => t.end_date && t.end_date >= today && Number(t.price_b2c) > 0);
+  const pool = validTiers.length > 0 ? validTiers : tiers.filter(t => Number(t.price_b2c) > 0);
+  if (pool.length === 0) return { price: base, isFromTiers: false };
+
+  const minTierPrice = Math.min(...pool.map(t => Number(t.price_b2c)));
+  return { price: minTierPrice, isFromTiers: true };
+}
+
 // ============ IMAGE UPLOADER ============
 function ImageUploader({ images = [], onChange, maxImages = 3 }) {
   const [previews, setPreviews] = useState(images);
@@ -717,13 +737,16 @@ function HomePage({ setView, experiences, companyBrand }) {
       </section>
       <section className="container mx-auto px-4 -mt-16 relative z-20 mb-20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {featured.map(exp => (
+          {featured.map(exp => {
+            const sp = getStartingPrice(exp);
+            return (
             <Card key={exp.id} className="card-hover overflow-hidden cursor-pointer border-0 shadow-lg" onClick={() => setView('detail', { experience: exp })}>
-              <div className="relative h-48"><img src={getExpImage(exp)} alt={exp.name} className="w-full h-full object-cover" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div><div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-primary">{fmtPrice(exp.price_b2c)}</div></div>
+              <div className="relative h-48"><img src={getExpImage(exp)} alt={exp.name} className="w-full h-full object-cover" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div><div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-primary flex items-baseline gap-1">{sp.isFromTiers && <span className="text-[10px] font-normal opacity-75">da</span>}{fmtPrice(sp.price)}</div></div>
               <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle></CardHeader>
               <CardContent className="pb-4"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex items-center gap-4 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span></div></CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </section>
       <section className="container mx-auto px-4 py-16">
@@ -820,14 +843,17 @@ function CatalogPage({ setView, experiences, currentUser, companies, companyBran
       )}
       {filteredTranslated.length === 0 ? <div className="text-center py-20"><Waves className="w-12 h-12 mx-auto text-muted-foreground/40 mb-4" /><p className="text-muted-foreground">Nessuna esperienza trovata.</p></div> : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTranslated.map(exp => (
+          {filteredTranslated.map(exp => {
+            const sp = getStartingPrice(exp);
+            return (
             <Card key={exp.id} className="card-hover overflow-hidden border shadow-sm cursor-pointer group" onClick={() => setView('detail', { experience: exp })}>
               <div className="relative h-52 overflow-hidden"><img src={getExpImage(exp)} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div></div>
               <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle><CardDescription className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" />{exp.meeting_point}</CardDescription>{isSuperAdmin && exp.company_id && (<div className="mt-2"><Badge className="bg-purple-100 text-purple-800 text-xs">{getCompanyName(exp.company_id)}</Badge></div>)}</CardHeader>
               <CardContent className="pb-2"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span><span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span></div></CardContent>
-              <CardFooter className="pt-0 flex justify-between items-center"><div className="text-2xl font-bold text-primary">{fmtPrice(exp.price_b2c)}<span className="text-xs font-normal text-muted-foreground">{t('per_person')}</span></div><Button size="sm">{t('discover')} <ChevronRight className="w-4 h-4 ml-1" /></Button></CardFooter>
+              <CardFooter className="pt-0 flex justify-between items-center"><div className="flex items-baseline gap-1">{sp.isFromTiers && <span className="text-xs font-normal text-muted-foreground">da</span>}<span className="text-2xl font-bold text-primary">{fmtPrice(sp.price)}</span><span className="text-xs font-normal text-muted-foreground">{t('per_person')}</span></div><Button size="sm">{t('discover')} <ChevronRight className="w-4 h-4 ml-1" /></Button></CardFooter>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -993,10 +1019,18 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
         <div className="space-y-4">
           <Card className="sticky top-20">
             <CardHeader>
-              <div className="flex items-baseline justify-between">
-                <CardTitle className="text-2xl">{fmtPrice(experience.price_b2c)}</CardTitle>
-                <span className="text-sm text-muted-foreground">{t('per_person').replace('/','')}</span>
-              </div>
+              {(() => {
+                const sp = getStartingPrice(experience);
+                return (
+                  <div className="flex items-baseline justify-between">
+                    <div className="flex items-baseline gap-1">
+                      {sp.isFromTiers && <span className="text-sm font-normal text-muted-foreground">da</span>}
+                      <CardTitle className="text-2xl">{fmtPrice(sp.price)}</CardTitle>
+                    </div>
+                    <span className="text-sm text-muted-foreground">{t('per_person').replace('/','')}</span>
+                  </div>
+                );
+              })()}
               <CardDescription>{t('choose_available_date')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
