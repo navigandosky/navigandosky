@@ -1000,7 +1000,7 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
           <div>
             <h1 className="text-3xl md:text-4xl font-bold mb-3">{experience.name}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-              <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary" />{experience.meeting_point}</span>
+              <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-primary" />{experience.meeting_point}{experience.meeting_point_map_url && (<a href={experience.meeting_point_map_url} target="_blank" rel="noopener noreferrer" className="ml-1 text-xs text-blue-600 underline hover:text-blue-800">🗺️ Maps</a>)}</span>
               <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-primary" />{Math.floor(experience.duration_minutes/60)}h{experience.duration_minutes%60>0?` ${experience.duration_minutes%60}m`:''}</span>
               <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-primary" />Max {experience.max_capacity}</span>
               <span className="flex items-center gap-1.5"><Globe className="w-4 h-4 text-primary" />{(experience.languages||[]).map(l=>LANG_MAP[l]||l).join(', ')}</span>
@@ -4862,6 +4862,23 @@ function AdminDashboard({ currentUser, onLogout }) {
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (min)</Label><Input type="number" value={formData.duration_minutes||''} onChange={e=>setFormData({...formData,duration_minutes:e.target.value})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
+            <div>
+              <Label className="flex items-center gap-1">📍 Link Google Maps <span className="text-xs text-muted-foreground font-normal">(opzionale)</span></Label>
+              <Input
+                type="url"
+                placeholder="https://maps.app.goo.gl/xyz oppure https://maps.google.com/?q=40.30,9.20"
+                value={formData.meeting_point_map_url || ''}
+                onChange={e => setFormData({...formData, meeting_point_map_url: e.target.value.trim()})}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                💡 Apri Google Maps → trova il punto → tasto destro o "Condividi" → copia il link e incollalo qui. Sarà incluso nel voucher email del cliente.
+              </p>
+              {formData.meeting_point_map_url && (
+                <a href={formData.meeting_point_map_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline mt-1 inline-block">
+                  🔗 Verifica link →
+                </a>
+              )}
+            </div>
             <div>
               <Label>Risorse Assegnate</Label>
               <div className="space-y-2 mt-2">
