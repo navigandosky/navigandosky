@@ -38,9 +38,10 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [seats, setSeats] = useState(1);
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '', notes: '' });
-  const [paymentMethod, setPaymentMethod] = useState('CASH'); // CASH | ONLINE | BANK_TRANSFER | LATER
+  const [paymentMethod, setPaymentMethod] = useState('CASH'); // CASH | ONLINE | BANK_TRANSFER | LATER | PAYMENT_LINK
   const [paymentMarked, setPaymentMarked] = useState(true); // se il cliente ha già pagato
   const [paymentMethods, setPaymentMethods] = useState([]); // metodi disponibili da company config
+  const [generatedLink, setGeneratedLink] = useState(null); // hosted URL SumUp dopo creazione
 
   // Reset al chiudere
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
         setCustomer({ name: '', email: '', phone: '', notes: '' });
         setPaymentMethod('CASH');
         setPaymentMarked(true);
+        setGeneratedLink(null);
       }, 300);
     }
   }, [open]);
@@ -122,6 +124,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
       let pmForBackend = 'ONLINE';
       if (paymentMethod === 'BANK_TRANSFER') pmForBackend = 'BANK_TRANSFER';
       else if (paymentMethod === 'CASH' || paymentMethod === 'LATER') pmForBackend = 'DIRECT';
+      else if (paymentMethod === 'PAYMENT_LINK') pmForBackend = 'ONLINE'; // resta PENDING_VERIFICATION until SumUp webhook confirms
 
       const res = await fetch('/api/bookings', {
         method: 'POST',
@@ -152,11 +155,32 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'confirm-bank-transfer', // riusa la stessa logica: passa a CONFIRMED + PAID
+            action: 'confirm-bank-transfer',
             verified_by: userLabel,
             note: paymentMethod === 'CASH' ? 'Pagamento contanti/POS in loco' : 'Pagamento online confermato',
           }),
         });
+      }
+
+      // Se PAYMENT_LINK: genera l'hosted checkout SumUp e mostra il link
+      if (paymentMethod === 'PAYMENT_LINK') {
+        try {
+          const lkRes = await fetch('/api/sumup/create-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: created.id }),
+          });
+          const lk = await lkRes.json();
+          if (lk.hosted_url) {
+            setGeneratedLink({ url: lk.hosted_url, booking: created });
+            toast.success(`✅ Prenotazione ${created.booking_ref} creata - Link generato!`);
+            if (onCreated) onCreated(created);
+            setLoading(false);
+            return; // NON chiudo: mostro il link generato all'utente
+          } else {
+            toast.error('Prenotazione creata ma errore generazione link: ' + (lk.error || 'unknown'));
+          }
+        } catch (e) { toast.error('Errore generazione link SumUp: ' + e.message); }
       }
 
       toast.success(`Prenotazione ${created.booking_ref} creata!`);
@@ -184,7 +208,8 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
           </DialogTitle>
         </DialogHeader>
 
-        {/* Step indicator */}
+        {/* Step indicator (nascosto se mostriamo il link generato) */}
+        {!generatedLink && (
         <div className="flex items-center justify-between border-b pb-3 mb-4">
           {['Esperienza', 'Data', 'Cliente', 'Pagamento'].map((label, i) => (
             <div key={i} className="flex-1 flex items-center">
@@ -196,9 +221,10 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
             </div>
           ))}
         </div>
+        )}
 
         {/* STEP 1: Esperienza */}
-        {step === 1 && (
+        {!generatedLink && step === 1 && (
           <div className="space-y-3">
             <Label>Seleziona Esperienza</Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
@@ -220,7 +246,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
         )}
 
         {/* STEP 2: Data / Slot */}
-        {step === 2 && selectedExp && (
+        {!generatedLink && step === 2 && selectedExp && (
           <div className="space-y-3">
             <div className="p-3 bg-slate-50 rounded-lg text-sm">
               <strong>{selectedExp.name}</strong>
@@ -258,7 +284,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
         )}
 
         {/* STEP 3: Cliente */}
-        {step === 3 && (
+        {!generatedLink && step === 3 && (
           <div className="space-y-3">
             <div className="p-3 bg-slate-50 rounded-lg text-sm space-y-1">
               <div><strong>{selectedExp?.name}</strong></div>
@@ -297,7 +323,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
         )}
 
         {/* STEP 4: Pagamento */}
-        {step === 4 && (
+        {!generatedLink && step === 4 && (
           <div className="space-y-3">
             <div className="p-3 bg-slate-50 rounded-lg text-sm space-y-1">
               <div><strong>{selectedExp?.name}</strong></div>
@@ -348,24 +374,83 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
                   <div className="text-xs text-muted-foreground">Prenota ora, pagherà dopo. Resta <strong>PENDING</strong> finché non lo marchi come pagato.</div>
                 </div>
               </label>
+
+              {/* Link Pagamento Esterno - SumUp */}
+              <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer ${paymentMethod === 'PAYMENT_LINK' ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'} bg-gradient-to-r from-purple-50/30 to-pink-50/30`}>
+                <input type="radio" checked={paymentMethod === 'PAYMENT_LINK'} onChange={() => setPaymentMethod('PAYMENT_LINK')} className="mt-1" />
+                <div className="flex-1">
+                  <div className="font-semibold text-sm">🔗 Link Pagamento Esterno (SumUp)</div>
+                  <div className="text-xs text-muted-foreground">Genera un <strong>link di pagamento SumUp</strong> da inviare al cliente via email/WhatsApp. La prenotazione resta PENDING fino a pagamento confermato automaticamente.</div>
+                </div>
+              </label>
             </div>
           </div>
         )}
 
+        {/* SCHERMATA FINALE: Link Pagamento Generato */}
+        {generatedLink && (
+          <div className="space-y-4">
+            <div className="text-center py-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border-2 border-emerald-200">
+              <div className="text-5xl mb-2">🎉</div>
+              <h3 className="text-lg font-bold text-emerald-900">Link di Pagamento Pronto!</h3>
+              <p className="text-sm text-emerald-700 mt-1">Prenotazione <strong>{generatedLink.booking?.booking_ref}</strong></p>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-lg space-y-2">
+              <Label className="text-xs">Link SumUp</Label>
+              <div className="flex gap-2">
+                <Input value={generatedLink.url} readOnly className="font-mono text-xs" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedLink.url);
+                    toast.success('Link copiato!');
+                  }}
+                >📋 Copia</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Invia questo link al cliente via Email, WhatsApp o SMS. La prenotazione passerà a <strong>PAGATA</strong> automaticamente non appena il cliente completerà il pagamento.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => window.open(generatedLink.url, '_blank')}
+                className="border-purple-300 text-purple-700 hover:bg-purple-50"
+              >
+                🌐 Apri pagina pagamento
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const txt = `Ciao ${generatedLink.booking?.customer_name},%0A%0APer completare la prenotazione ${generatedLink.booking?.booking_ref} clicca sul link sicuro qui sotto:%0A${generatedLink.url}%0A%0AGrazie!`;
+                  const phone = (generatedLink.booking?.customer_phone || '').replace(/\D/g, '');
+                  if (phone) window.open(`https://wa.me/${phone}?text=${txt}`, '_blank');
+                  else toast.error('Cliente senza numero telefono');
+                }}
+                className="border-green-300 text-green-700 hover:bg-green-50"
+              >
+                💬 Invia via WhatsApp
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* SCHERMATA FINALE: Link Pagamento Generato - FINE */}
+
         <DialogFooter className="flex justify-between gap-2 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={() => step === 1 ? onClose() : setStep(step - 1)}>
+          <Button type="button" variant="outline" onClick={() => generatedLink ? onClose() : (step === 1 ? onClose() : setStep(step - 1))}>
             <ChevronLeft className="w-4 h-4 mr-1" />
-            {step === 1 ? 'Annulla' : 'Indietro'}
+            {generatedLink ? 'Chiudi' : (step === 1 ? 'Annulla' : 'Indietro')}
           </Button>
-          {step < 4 ? (
+          {!generatedLink && (step < 4 ? (
             <Button type="button" onClick={() => setStep(step + 1)} disabled={!canNext()}>
               Avanti<ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           ) : (
             <Button type="button" onClick={handleCreate} disabled={loading} className="bg-green-600 hover:bg-green-700">
-              {loading ? 'Creazione...' : '✅ Crea Prenotazione'}
+              {loading ? 'Creazione...' : (paymentMethod === 'PAYMENT_LINK' ? '🔗 Crea + Genera Link' : '✅ Crea Prenotazione')}
             </Button>
-          )}
+          ))}
         </DialogFooter>
       </DialogContent>
     </Dialog>

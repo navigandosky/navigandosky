@@ -1412,6 +1412,32 @@ function BookingWizard({ experience, slot, setView }) {
         bank_transfer_receipt_url: paymentMethod === 'BANK_TRANSFER' ? bankReceiptDataUrl : null,
       } });
       if (res.error) { safeToastError(res.error); setLoading(false); return; }
+
+      // Se ONLINE: chiama SumUp per generare hosted checkout → redirect immediato
+      if (paymentMethod === 'ONLINE') {
+        try {
+          const sumRes = await fetch('/api/sumup/create-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: res.id, return_url: window.location.origin + '/booking-success?ref=' + res.booking_ref }),
+          });
+          const sumData = await sumRes.json();
+          if (sumData.hosted_url) {
+            // Redirect alla pagina di pagamento sicura SumUp
+            window.location.href = sumData.hosted_url;
+            return;
+          } else {
+            toast.error('Errore generazione pagamento: ' + (sumData.error || 'unknown'));
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          toast.error('Errore SumUp: ' + e.message);
+          setLoading(false);
+          return;
+        }
+      }
+
       setBookingResult(res); setStep(5);
       if (paymentMethod === 'BANK_TRANSFER') {
         toast.success('Prenotazione registrata! In attesa di verifica del bonifico.');
@@ -4243,31 +4269,91 @@ function AdminDashboard({ currentUser, onLogout }) {
                     Configura come i clienti possono pagare le prenotazioni delle esperienze sul catalogo pubblico.
                   </p>
 
-                  {/* Online Payment - ereditato dalle marine */}
+                  {/* Online Payment - SumUp diretto sulla Company */}
                   <div className="rounded-lg border p-3 bg-blue-50/50">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          id="enable_online_payment"
-                          checked={newCompanyForm.payment_config?.enable_online_payment !== false}
-                          onChange={e => setNewCompanyForm({
-                            ...newCompanyForm,
-                            payment_config: {
-                              ...(newCompanyForm.payment_config || {}),
-                              enable_online_payment: e.target.checked,
-                            }
-                          })}
-                          className="mt-1 w-4 h-4"
-                        />
-                        <div>
-                          <Label htmlFor="enable_online_payment" className="font-semibold cursor-pointer">💳 Carta di Credito (Online)</Label>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Le chiavi SumUp/Stripe vengono ereditate automaticamente dalle <strong>marine della società</strong> (configurabili nella tab Marine → Pagamenti).
-                          </p>
-                        </div>
+                    <div className="flex items-start gap-3 mb-3">
+                      <input
+                        type="checkbox"
+                        id="enable_online_payment"
+                        checked={newCompanyForm.payment_config?.enable_online_payment !== false}
+                        onChange={e => setNewCompanyForm({
+                          ...newCompanyForm,
+                          payment_config: {
+                            ...(newCompanyForm.payment_config || {}),
+                            enable_online_payment: e.target.checked,
+                          }
+                        })}
+                        className="mt-1 w-4 h-4"
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor="enable_online_payment" className="font-semibold cursor-pointer">💳 POS Web SumUp (Carta di Credito Online)</Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Configura le credenziali SumUp per accettare pagamenti con carta di credito sul catalogo pubblico e generare link di pagamento esterno.
+                        </p>
                       </div>
                     </div>
+
+                    {newCompanyForm.payment_config?.enable_online_payment !== false && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 pl-7">
+                        <div className="space-y-1 md:col-span-2">
+                          <Label className="text-xs flex items-center gap-1">
+                            🔑 SumUp API Key (Secret) *
+                            {newCompanyForm.payment_config?.sumup?.merchant_code && (
+                              <Badge variant="secondary" className="text-[10px] ml-2">Merchant: {newCompanyForm.payment_config.sumup.merchant_code}</Badge>
+                            )}
+                          </Label>
+                          <Input
+                            type="password"
+                            placeholder="sup_sk_xxxxxxxxxxxxxxx"
+                            value={newCompanyForm.payment_config?.sumup?.api_key || ''}
+                            onChange={e => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                sumup: {
+                                  ...(newCompanyForm.payment_config?.sumup || {}),
+                                  enabled: true,
+                                  api_key: e.target.value.trim(),
+                                  mode: newCompanyForm.payment_config?.sumup?.mode || 'live',
+                                }
+                              }
+                            })}
+                          />
+                          <p className="text-[11px] text-muted-foreground">Trova la tua chiave in: <a href="https://me.sumup.com" target="_blank" rel="noopener" className="text-blue-600 underline">me.sumup.com</a> → Settings → For Developers → API Keys</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Modalità</Label>
+                          <Select
+                            value={newCompanyForm.payment_config?.sumup?.mode || 'live'}
+                            onValueChange={v => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                sumup: {
+                                  ...(newCompanyForm.payment_config?.sumup || {}),
+                                  mode: v,
+                                }
+                              }
+                            })}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="live">🟢 Live (transazioni reali)</SelectItem>
+                              <SelectItem value="test">🟡 Test (sandbox)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Merchant Code (auto-rilevato)</Label>
+                          <Input
+                            readOnly
+                            placeholder="Sarà rilevato dalla chiave"
+                            value={newCompanyForm.payment_config?.sumup?.merchant_code || ''}
+                            className="bg-muted text-sm font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Bonifico Istantaneo */}

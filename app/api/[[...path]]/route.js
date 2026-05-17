@@ -1552,8 +1552,18 @@ async function handleCompaniesNew(method, id, body, action, sp) {
         },
       });
     }
-    // Online payment ereditato dalle marine della company
-    if (pc.enable_online_payment !== false) {
+    // Online payment SumUp configurato direttamente sulla Company
+    if (pc.enable_online_payment !== false && pc.sumup?.enabled && pc.sumup?.api_key) {
+      result.methods.push({
+        type: 'ONLINE',
+        label: 'Carta di Credito (SumUp)',
+        icon: '💳',
+        description: 'Paga online con carta di credito in pochi secondi.',
+        provider: 'sumup',
+        source: 'company',
+      });
+    } else if (pc.enable_online_payment !== false) {
+      // Fallback: cerca SumUp/Stripe configurato sulle marine della company
       const marinas = await db.collection('marinas').find({
         $or: [{ company_id: id }, { shared_with_companies: id }],
       }).toArray();
@@ -1850,6 +1860,19 @@ async function handleRoute(request, resolvedParams, method) {
       case 'send-booking-voucher': {
         const { handleSendBookingVoucher } = await import('./send_booking_voucher');
         return await handleSendBookingVoucher(method, body);
+      }
+      case 'sumup': {
+        // Sub-route: /api/sumup/create-checkout o /api/sumup/webhook
+        const sub = pathSegments[1];
+        if (sub === 'create-checkout') {
+          const { handleCreateSumupCheckout } = await import('./sumup_payments');
+          return await handleCreateSumupCheckout(method, body);
+        }
+        if (sub === 'webhook') {
+          const { handleSumupWebhook } = await import('./sumup_payments');
+          return await handleSumupWebhook(method, body);
+        }
+        return new Response(JSON.stringify({ error: 'SumUp endpoint not found' }), { status: 404 });
       }
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
