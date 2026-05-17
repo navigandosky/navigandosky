@@ -5,6 +5,7 @@ import { CheckCircle2, Clock, XCircle, Loader2, Download, Home } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,11 @@ function BookingSuccessContent() {
   const ref = searchParams?.get('ref') || '';
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(null);
+  const [experience, setExperience] = useState(null);
+  const [company, setCompany] = useState(null);
   const [error, setError] = useState('');
   const [polling, setPolling] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!ref) {
@@ -45,6 +49,14 @@ function BookingSuccessContent() {
         if (cancelled) return;
         setBooking(b);
         setLoading(false);
+
+        // Carica experience e company (per il voucher PDF) - una sola volta
+        if (b.experience_id && !experience) {
+          fetch(`/api/experiences/${b.experience_id}`).then(r => r.ok ? r.json() : null).then(setExperience).catch(() => {});
+        }
+        if (b.company_id && !company) {
+          fetch(`/api/companies/${b.company_id}`).then(r => r.ok ? r.json() : null).then(setCompany).catch(() => {});
+        }
 
         // Se il webhook SumUp non ha ancora aggiornato, fai polling fino a PAID o esaurimento tentativi
         if (b.payment_status !== 'PAID' && b.status !== 'CONFIRMED' && attempts < MAX_ATTEMPTS) {
@@ -183,13 +195,35 @@ function BookingSuccessContent() {
             </Button>
             {booking?.id && (
               <Button
-                onClick={() => {
-                  window.location.href = `/api/bookings/${booking.id}/voucher-pdf`;
+                onClick={async () => {
+                  setDownloading(true);
+                  try {
+                    const { downloadVoucherPdf } = await import('@/app/lib/voucherPdf');
+                    // Carica al volo experience e company se non già presenti
+                    let exp = experience;
+                    let comp = company;
+                    if (!exp && booking.experience_id) {
+                      const r = await fetch(`/api/experiences/${booking.experience_id}`);
+                      if (r.ok) exp = await r.json();
+                    }
+                    if (!comp && booking.company_id) {
+                      const r = await fetch(`/api/companies/${booking.company_id}`);
+                      if (r.ok) comp = await r.json();
+                    }
+                    downloadVoucherPdf(booking, exp, comp, { type: isPaid ? 'FINAL' : 'PROVISIONAL' });
+                    toast.success('Voucher scaricato');
+                  } catch (err) {
+                    console.error('voucher pdf error', err);
+                    toast.error('Errore generazione voucher');
+                  } finally {
+                    setDownloading(false);
+                  }
                 }}
                 className="flex-1 bg-cyan-600 hover:bg-cyan-700"
-                disabled={!isPaid}
+                disabled={downloading}
               >
-                <Download className="w-4 h-4 mr-2" /> Scarica Voucher
+                {downloading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                Scarica Voucher
               </Button>
             )}
           </div>

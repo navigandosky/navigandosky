@@ -1087,6 +1087,7 @@ async function handleGPSConfig(method, body) {
         configured: false,
         email: '',
         api_token: '',
+        speed_alert_threshold: 30,
         message: 'Configurazione GPS non trovata. Inserisci le credenziali Balin.app'
       });
     }
@@ -1094,6 +1095,7 @@ async function handleGPSConfig(method, body) {
       configured: true,
       email: config.email,
       api_token: config.api_token,
+      speed_alert_threshold: Number(config.speed_alert_threshold) || 30,
       last_test: config.last_test,
       last_test_status: config.last_test_status
     });
@@ -1106,6 +1108,10 @@ async function handleGPSConfig(method, body) {
       api_token: body.api_token,
       updated_at: new Date().toISOString()
     };
+    if (body.speed_alert_threshold !== undefined) {
+      const t = Number(body.speed_alert_threshold);
+      if (!isNaN(t) && t > 0) config.speed_alert_threshold = t;
+    }
     
     await col.updateOne(
       { type: 'balin' },
@@ -1389,7 +1395,12 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
     let stops = 0;
     let movingTime = 0;
     let engineHoursMs = 0; // Tempo motore acceso in millisecondi
-    
+
+    // Soglia velocità per alert (km/h) - configurabile via gps_config.speed_alert_threshold
+    const ALERT_THRESHOLD = Number(config.speed_alert_threshold) || 30;
+    const speedAlerts = [];
+    let currentAlert = null; // segmento aperto
+
     const route = positions.map((point, i) => {
       if (point.speed > maxSpeed) maxSpeed = point.speed;
       totalSpeed += point.speed || 0;
@@ -1420,14 +1431,48 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         totalDistance += R * c;
       }
-      
+
+      const ts = point.timestamp || point.timestamp_position;
+      const speed = point.speed || 0;
+
+      // ====== SPEED ALERTS (segmenti anomali contigui) ======
+      if (speed > ALERT_THRESHOLD) {
+        if (!currentAlert) {
+          currentAlert = {
+            start_ts: ts,
+            end_ts: ts,
+            start_lat: point.lat,
+            start_lng: point.lng,
+            end_lat: point.lat,
+            end_lng: point.lng,
+            max_speed: speed,
+            points: 1,
+            start_index: i,
+            end_index: i,
+          };
+        } else {
+          currentAlert.end_ts = ts;
+          currentAlert.end_lat = point.lat;
+          currentAlert.end_lng = point.lng;
+          currentAlert.end_index = i;
+          currentAlert.points += 1;
+          if (speed > currentAlert.max_speed) currentAlert.max_speed = speed;
+        }
+      } else if (currentAlert) {
+        // chiusura segmento
+        speedAlerts.push(currentAlert);
+        currentAlert = null;
+      }
+
       return {
         lat: point.lat,
         lng: point.lng,
-        speed: point.speed || 0,
-        timestamp: point.timestamp || point.timestamp_position
+        speed,
+        timestamp: ts
       };
     });
+    // chiudi eventuale segmento aperto
+    if (currentAlert) speedAlerts.push(currentAlert);
     
     // Converti millisecondi in ore
     const engineHours = engineHoursMs / (1000 * 60 * 60);
@@ -1442,7 +1487,14 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
       engine_hours: parseFloat(engineHours.toFixed(2)), // Ore motore acceso
       stops,
       route,
-      points_count: positions.length
+      points_count: positions.length,
+      // === GPS Avanzato ===
+      alert_threshold: ALERT_THRESHOLD,
+      speed_alerts: speedAlerts.map(a => ({
+        ...a,
+        max_speed: parseFloat(Number(a.max_speed).toFixed(2)),
+      })),
+      speed_alerts_count: speedAlerts.length,
     });
     
   } catch (error) {

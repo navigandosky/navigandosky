@@ -1,558 +1,478 @@
 #!/usr/bin/env python3
 """
-SumUp Payment Integration Backend Tests
-Tests the merchant_code auto-refresh fix and create-checkout flow
+Backend API Testing Script for Maretrek GPS Advanced Features
+Tests GPS config and analytics endpoints with speed alerts functionality
 """
+
 import requests
 import json
 import sys
 from datetime import datetime
 
+# Base URL from environment
 BASE_URL = "https://sardinia-tours-hub.preview.emergentagent.com/api"
-MARLIN_COMPANY_ID = "03f77ea6-95c7-49c4-a13b-df54bc28ecc2"
-VALID_API_KEY = "sup_sk_Fw71D812tu91FLZveGe3l45sgQR86384K"
-EXPECTED_MERCHANT_CODE = "MCAC6Y6C"
 
-def log_test(test_name, status, details=""):
-    """Log test result"""
-    symbol = "✅" if status == "PASS" else "❌"
-    print(f"\n{symbol} {test_name}")
-    if details:
-        print(f"   {details}")
+# Test data
+TEST_IMEI = "863738076364539"
+TEST_DATE = "2026-05-15"  # Known date with 1803 GPS points, max speed 158 km/h
+EDGE_CASE_DATE = "2020-01-01"  # Date with no data
 
-def test_get_marlin_company():
-    """Test A.1: GET current Marlin company - confirm sumup config present"""
-    print("\n" + "="*80)
-    print("TEST A.1: GET Marlin Company - Verify SumUp Config")
-    print("="*80)
+def print_test(name):
+    """Print test header"""
+    print(f"\n{'='*80}")
+    print(f"TEST: {name}")
+    print('='*80)
+
+def print_result(success, message):
+    """Print test result"""
+    status = "✅ PASS" if success else "❌ FAIL"
+    print(f"{status}: {message}")
+    return success
+
+def test_a_get_gps_config():
+    """
+    TEST A: GET /api/gps-config (read with threshold)
+    Expected: 200 response with configured: true/false and speed_alert_threshold (default 30)
+    """
+    print_test("A) GET /api/gps-config - Read configuration with threshold")
     
     try:
-        url = f"{BASE_URL}/companies/{MARLIN_COMPANY_ID}"
-        response = requests.get(url)
-        
-        print(f"GET {url}")
-        print(f"Status: {response.status_code}")
+        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
+        print(f"Status Code: {response.status_code}")
         
         if response.status_code != 200:
-            log_test("GET Marlin Company", "FAIL", f"Expected 200, got {response.status_code}")
-            return None
-        
-        company = response.json()
-        
-        # Verify sumup config exists
-        if not company.get('payment_config', {}).get('sumup'):
-            log_test("GET Marlin Company", "FAIL", "SumUp config not found in payment_config")
-            return None
-        
-        sumup_config = company['payment_config']['sumup']
-        print(f"SumUp Config: enabled={sumup_config.get('enabled')}, mode={sumup_config.get('mode')}")
-        print(f"API Key: {sumup_config.get('api_key', '')[:20]}...")
-        print(f"Merchant Code: {sumup_config.get('merchant_code')}")
-        
-        if sumup_config.get('merchant_code') != EXPECTED_MERCHANT_CODE:
-            log_test("GET Marlin Company", "FAIL", 
-                    f"Expected merchant_code={EXPECTED_MERCHANT_CODE}, got {sumup_config.get('merchant_code')}")
-            return None
-        
-        log_test("GET Marlin Company", "PASS", 
-                f"SumUp config present with correct merchant_code: {EXPECTED_MERCHANT_CODE}")
-        return company
-        
-    except Exception as e:
-        log_test("GET Marlin Company", "FAIL", f"Exception: {str(e)}")
-        return None
-
-def test_put_company_auto_refresh():
-    """Test A.2: PUT with valid api_key and empty merchant_code - should auto-populate"""
-    print("\n" + "="*80)
-    print("TEST A.2: PUT Company - Auto-refresh merchant_code with valid API key")
-    print("="*80)
-    
-    try:
-        url = f"{BASE_URL}/companies/{MARLIN_COMPANY_ID}"
-        
-        # Send PUT with valid api_key but empty merchant_code
-        payload = {
-            "payment_config": {
-                "sumup": {
-                    "enabled": True,
-                    "mode": "live",
-                    "api_key": VALID_API_KEY,
-                    "merchant_code": ""  # Empty - should be auto-populated
-                }
-            }
-        }
-        
-        print(f"PUT {url}")
-        print(f"Payload: api_key={VALID_API_KEY[:20]}..., merchant_code='' (empty)")
-        
-        response = requests.put(url, json=payload, headers={"Content-Type": "application/json"})
-        
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("PUT Auto-refresh merchant_code", "FAIL", 
-                    f"Expected 200, got {response.status_code}: {response.text}")
-            return False
-        
-        updated_company = response.json()
-        updated_merchant_code = updated_company.get('payment_config', {}).get('sumup', {}).get('merchant_code')
-        
-        print(f"Response merchant_code: {updated_merchant_code}")
-        
-        if updated_merchant_code != EXPECTED_MERCHANT_CODE:
-            log_test("PUT Auto-refresh merchant_code", "FAIL", 
-                    f"Expected merchant_code={EXPECTED_MERCHANT_CODE}, got {updated_merchant_code}")
-            return False
-        
-        log_test("PUT Auto-refresh merchant_code", "PASS", 
-                f"merchant_code auto-populated correctly: {EXPECTED_MERCHANT_CODE}")
-        return True
-        
-    except Exception as e:
-        log_test("PUT Auto-refresh merchant_code", "FAIL", f"Exception: {str(e)}")
-        return False
-
-def test_put_company_invalid_key():
-    """Test A.3: PUT with invalid api_key - should clear merchant_code"""
-    print("\n" + "="*80)
-    print("TEST A.3: PUT Company - Invalid API key should clear merchant_code")
-    print("="*80)
-    
-    try:
-        url = f"{BASE_URL}/companies/{MARLIN_COMPANY_ID}"
-        
-        # Send PUT with invalid api_key
-        invalid_key = "sup_sk_INVALID_TEST_KEY"
-        payload = {
-            "payment_config": {
-                "sumup": {
-                    "enabled": True,
-                    "mode": "live",
-                    "api_key": invalid_key,
-                    "merchant_code": "OLD_CODE"  # Should be cleared
-                }
-            }
-        }
-        
-        print(f"PUT {url}")
-        print(f"Payload: api_key={invalid_key}, merchant_code='OLD_CODE'")
-        
-        response = requests.put(url, json=payload, headers={"Content-Type": "application/json"})
-        
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("PUT Invalid API key", "FAIL", 
-                    f"Expected 200, got {response.status_code}: {response.text}")
-            return False
-        
-        updated_company = response.json()
-        updated_merchant_code = updated_company.get('payment_config', {}).get('sumup', {}).get('merchant_code')
-        
-        print(f"Response merchant_code: '{updated_merchant_code}'")
-        
-        if updated_merchant_code != '':
-            log_test("PUT Invalid API key", "FAIL", 
-                    f"Expected merchant_code='', got '{updated_merchant_code}'")
-            # Restore valid key before returning
-            restore_payload = {
-                "payment_config": {
-                    "sumup": {
-                        "enabled": True,
-                        "mode": "live",
-                        "api_key": VALID_API_KEY,
-                        "merchant_code": ""
-                    }
-                }
-            }
-            requests.put(url, json=restore_payload, headers={"Content-Type": "application/json"})
-            return False
-        
-        log_test("PUT Invalid API key", "PASS", 
-                "merchant_code cleared correctly (empty string)")
-        
-        # Restore valid key
-        print("\nRestoring valid API key...")
-        restore_payload = {
-            "payment_config": {
-                "sumup": {
-                    "enabled": True,
-                    "mode": "live",
-                    "api_key": VALID_API_KEY,
-                    "merchant_code": ""
-                }
-            }
-        }
-        restore_response = requests.put(url, json=restore_payload, headers={"Content-Type": "application/json"})
-        if restore_response.status_code == 200:
-            restored = restore_response.json()
-            restored_mc = restored.get('payment_config', {}).get('sumup', {}).get('merchant_code')
-            print(f"✓ Valid key restored, merchant_code: {restored_mc}")
-        
-        return True
-        
-    except Exception as e:
-        log_test("PUT Invalid API key", "FAIL", f"Exception: {str(e)}")
-        return False
-
-def test_get_payment_methods():
-    """Test C: GET /api/companies/{id}/payment-methods"""
-    print("\n" + "="*80)
-    print("TEST C: GET Payment Methods")
-    print("="*80)
-    
-    try:
-        url = f"{BASE_URL}/companies/{MARLIN_COMPANY_ID}/payment-methods"
-        response = requests.get(url)
-        
-        print(f"GET {url}")
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("GET Payment Methods", "FAIL", f"Expected 200, got {response.status_code}")
-            return False
+            return print_result(False, f"Expected 200, got {response.status_code}")
         
         data = response.json()
         print(f"Response: {json.dumps(data, indent=2)}")
         
-        # Check for SumUp method
-        sumup_method = None
-        for method in data.get('methods', []):
-            if method.get('type') == 'ONLINE' and method.get('provider') == 'sumup':
-                sumup_method = method
-                break
+        # Check required fields
+        if 'configured' not in data:
+            return print_result(False, "Missing 'configured' field")
         
-        if not sumup_method:
-            log_test("GET Payment Methods", "FAIL", "SumUp payment method not found in response")
-            return False
+        if 'speed_alert_threshold' not in data:
+            return print_result(False, "Missing 'speed_alert_threshold' field")
         
-        if sumup_method.get('source') != 'company':
-            log_test("GET Payment Methods", "FAIL", 
-                    f"Expected source='company', got '{sumup_method.get('source')}'")
-            return False
+        threshold = data.get('speed_alert_threshold')
+        if not isinstance(threshold, (int, float)) or threshold <= 0:
+            return print_result(False, f"Invalid threshold value: {threshold}")
         
-        log_test("GET Payment Methods", "PASS", 
-                f"SumUp method found: type=ONLINE, provider=sumup, source=company")
-        return True
-        
-    except Exception as e:
-        log_test("GET Payment Methods", "FAIL", f"Exception: {str(e)}")
-        return False
-
-def find_or_create_booking():
-    """Find existing Marlin booking or create one for testing"""
-    print("\n" + "="*80)
-    print("SETUP: Find or Create Test Booking")
-    print("="*80)
-    
-    try:
-        # Try to find existing booking
-        url = f"{BASE_URL}/bookings?company_id={MARLIN_COMPANY_ID}"
-        response = requests.get(url)
-        
-        if response.status_code == 200:
-            bookings = response.json()
-            # Find a booking with total_amount > 0 and customer_email
-            for booking in bookings:
-                if booking.get('total_amount', 0) > 0 and booking.get('customer_email'):
-                    print(f"✓ Found existing booking: {booking['booking_ref']}")
-                    print(f"  ID: {booking['id']}")
-                    print(f"  Amount: {booking['total_amount']} {booking.get('currency', 'EUR')}")
-                    print(f"  Email: {booking['customer_email']}")
-                    return booking['id']
-        
-        # Create a new booking
-        print("No suitable booking found. Creating test booking...")
-        
-        # First, get a slot
-        slots_url = f"{BASE_URL}/slots?company_id={MARLIN_COMPANY_ID}"
-        slots_response = requests.get(slots_url)
-        
-        if slots_response.status_code != 200 or not slots_response.json():
-            print("❌ No slots available for creating test booking")
-            return None
-        
-        slots = slots_response.json()
-        # Find a slot with available seats
-        test_slot = None
-        for slot in slots:
-            if slot.get('available_seats', 0) > 0:
-                test_slot = slot
-                break
-        
-        if not test_slot:
-            print("❌ No slots with available seats")
-            return None
-        
-        # Create booking
-        booking_payload = {
-            "slot_id": test_slot['id'],
-            "experience_id": test_slot['experience_id'],
-            "company_id": MARLIN_COMPANY_ID,
-            "customer_name": "Mario Rossi",
-            "customer_email": "mario.rossi@test.com",
-            "customer_phone": "+39 333 1234567",
-            "seats": 2,
-            "total_amount": 100.00,
-            "currency": "EUR",
-            "payment_method": "ONLINE",
-            "special_requests": "Test booking for SumUp integration"
-        }
-        
-        create_response = requests.post(f"{BASE_URL}/bookings", json=booking_payload)
-        
-        if create_response.status_code == 201:
-            booking = create_response.json()
-            print(f"✓ Created test booking: {booking['booking_ref']}")
-            print(f"  ID: {booking['id']}")
-            print(f"  Amount: {booking['total_amount']} {booking.get('currency', 'EUR')}")
-            return booking['id']
+        # If configured, should have email and api_token
+        if data['configured']:
+            if 'email' not in data or 'api_token' not in data:
+                return print_result(False, "Configured but missing email or api_token")
+            print(f"✓ Configured: email={data['email']}, threshold={threshold}")
         else:
-            print(f"❌ Failed to create booking: {create_response.status_code}")
-            print(f"   {create_response.text}")
-            return None
+            print(f"✓ Not configured yet, default threshold={threshold}")
+        
+        return print_result(True, f"GET /api/gps-config working correctly, threshold={threshold}")
         
     except Exception as e:
-        print(f"❌ Exception in find_or_create_booking: {str(e)}")
-        return None
+        return print_result(False, f"Exception: {str(e)}")
 
-def test_create_checkout(booking_id):
-    """Test B: POST /api/sumup/create-checkout"""
-    print("\n" + "="*80)
-    print("TEST B: POST /api/sumup/create-checkout")
-    print("="*80)
+def test_b_post_gps_config():
+    """
+    TEST B: POST /api/gps-config (write with threshold)
+    - First GET to capture current email and api_token
+    - POST with speed_alert_threshold: 25
+    - GET again to verify threshold === 25
+    - Try POST with invalid threshold (should reject or ignore)
+    - Restore original threshold (30)
+    """
+    print_test("B) POST /api/gps-config - Write configuration with threshold")
     
     try:
-        url = f"{BASE_URL}/sumup/create-checkout"
-        payload = {"booking_id": booking_id}
+        # Step 1: GET current config
+        print("\nStep 1: GET current configuration")
+        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
+        if response.status_code != 200:
+            return print_result(False, f"GET failed with {response.status_code}")
         
-        print(f"POST {url}")
-        print(f"Payload: {json.dumps(payload, indent=2)}")
+        current_config = response.json()
+        print(f"Current config: {json.dumps(current_config, indent=2)}")
         
-        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+        if not current_config.get('configured'):
+            return print_result(False, "GPS not configured - cannot test threshold update. Need email and api_token.")
         
-        print(f"Status: {response.status_code}")
+        current_email = current_config['email']
+        current_token = current_config['api_token']
+        original_threshold = current_config.get('speed_alert_threshold', 30)
+        
+        # Step 2: POST with threshold 25
+        print("\nStep 2: POST with speed_alert_threshold=25")
+        post_data = {
+            'email': current_email,
+            'api_token': current_token,
+            'speed_alert_threshold': 25
+        }
+        response = requests.post(f"{BASE_URL}/gps-config", json=post_data, timeout=10)
+        print(f"Status Code: {response.status_code}")
         
         if response.status_code != 200:
-            log_test("POST create-checkout", "FAIL", 
-                    f"Expected 200, got {response.status_code}: {response.text}")
-            return False
+            return print_result(False, f"POST failed with {response.status_code}")
+        
+        result = response.json()
+        print(f"Response: {json.dumps(result, indent=2)}")
+        
+        if not result.get('success'):
+            return print_result(False, "POST did not return success: true")
+        
+        # Step 3: GET again to verify
+        print("\nStep 3: GET to verify threshold=25")
+        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
+        if response.status_code != 200:
+            return print_result(False, f"Verification GET failed with {response.status_code}")
+        
+        updated_config = response.json()
+        print(f"Updated config: {json.dumps(updated_config, indent=2)}")
+        
+        if updated_config.get('speed_alert_threshold') != 25:
+            return print_result(False, f"Expected threshold=25, got {updated_config.get('speed_alert_threshold')}")
+        
+        print("✓ Threshold successfully updated to 25")
+        
+        # Step 4: Try invalid threshold (string)
+        print("\nStep 4: POST with invalid threshold (string 'abc')")
+        invalid_data = {
+            'email': current_email,
+            'api_token': current_token,
+            'speed_alert_threshold': 'abc'
+        }
+        response = requests.post(f"{BASE_URL}/gps-config", json=invalid_data, timeout=10)
+        print(f"Status Code: {response.status_code}")
+        
+        # Verify threshold wasn't overwritten with invalid value
+        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
+        check_config = response.json()
+        if check_config.get('speed_alert_threshold') == 'abc':
+            return print_result(False, "Invalid threshold 'abc' was saved - should be rejected")
+        print(f"✓ Invalid threshold rejected, current value: {check_config.get('speed_alert_threshold')}")
+        
+        # Step 5: Try invalid threshold (negative)
+        print("\nStep 5: POST with invalid threshold (negative -5)")
+        invalid_data = {
+            'email': current_email,
+            'api_token': current_token,
+            'speed_alert_threshold': -5
+        }
+        response = requests.post(f"{BASE_URL}/gps-config", json=invalid_data, timeout=10)
+        print(f"Status Code: {response.status_code}")
+        
+        # Verify threshold wasn't overwritten with negative value
+        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
+        check_config = response.json()
+        if check_config.get('speed_alert_threshold') == -5:
+            return print_result(False, "Negative threshold -5 was saved - should be rejected")
+        print(f"✓ Negative threshold rejected, current value: {check_config.get('speed_alert_threshold')}")
+        
+        # Step 6: Restore original threshold
+        print(f"\nStep 6: Restore original threshold={original_threshold}")
+        restore_data = {
+            'email': current_email,
+            'api_token': current_token,
+            'speed_alert_threshold': original_threshold
+        }
+        response = requests.post(f"{BASE_URL}/gps-config", json=restore_data, timeout=10)
+        if response.status_code != 200:
+            print(f"⚠️  Warning: Failed to restore original threshold")
+        else:
+            print(f"✓ Original threshold restored to {original_threshold}")
+        
+        return print_result(True, "POST /api/gps-config working correctly with validation")
+        
+    except Exception as e:
+        return print_result(False, f"Exception: {str(e)}")
+
+def test_c_analytics_speed_alerts():
+    """
+    TEST C: GET /api/gps/analytics/{imei}?date=Y - Speed alerts structure
+    Use IMEI 863738076364539 and date 2026-05-15
+    Expected: speed_alerts array with proper structure
+    """
+    print_test("C) GET /api/gps/analytics/{imei}?date=Y - Speed alerts structure")
+    
+    try:
+        url = f"{BASE_URL}/gps/analytics/{TEST_IMEI}?date={TEST_DATE}"
+        print(f"URL: {url}")
+        
+        response = requests.get(url, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code != 200:
+            return print_result(False, f"Expected 200, got {response.status_code}")
+        
+        data = response.json()
+        
+        # Check required keys
+        required_keys = [
+            'imei', 'date', 'total_distance', 'max_speed', 'avg_speed', 
+            'total_time', 'engine_hours', 'stops', 'route', 'points_count',
+            'alert_threshold', 'speed_alerts', 'speed_alerts_count'
+        ]
+        
+        missing_keys = [key for key in required_keys if key not in data]
+        if missing_keys:
+            return print_result(False, f"Missing keys: {missing_keys}")
+        
+        print(f"\n✓ All required keys present")
+        print(f"  - IMEI: {data['imei']}")
+        print(f"  - Date: {data['date']}")
+        print(f"  - Points count: {data['points_count']}")
+        print(f"  - Max speed: {data['max_speed']} km/h")
+        print(f"  - Alert threshold: {data['alert_threshold']} km/h")
+        print(f"  - Speed alerts count: {data['speed_alerts_count']}")
+        
+        # Verify points_count > 0 (should be ~1803)
+        if data['points_count'] == 0:
+            return print_result(False, "Expected points_count > 0 for this date")
+        
+        # Verify speed_alerts_count > 0 (with threshold 30, expect ~79)
+        if data['speed_alerts_count'] == 0:
+            return print_result(False, "Expected speed_alerts_count > 0 with threshold 30")
+        
+        print(f"✓ Speed alerts detected: {data['speed_alerts_count']}")
+        
+        # Verify speed_alerts is an array
+        if not isinstance(data['speed_alerts'], list):
+            return print_result(False, "speed_alerts should be an array")
+        
+        if len(data['speed_alerts']) != data['speed_alerts_count']:
+            return print_result(False, f"Mismatch: speed_alerts length {len(data['speed_alerts'])} != speed_alerts_count {data['speed_alerts_count']}")
+        
+        # Verify structure of each alert
+        alert_keys = ['start_ts', 'end_ts', 'start_lat', 'start_lng', 'end_lat', 'end_lng', 
+                      'max_speed', 'points', 'start_index', 'end_index']
+        
+        max_speed_found = 0
+        for i, alert in enumerate(data['speed_alerts'][:5]):  # Check first 5 alerts
+            missing = [key for key in alert_keys if key not in alert]
+            if missing:
+                return print_result(False, f"Alert {i} missing keys: {missing}")
+            
+            # Verify max_speed > alert_threshold
+            if alert['max_speed'] <= data['alert_threshold']:
+                return print_result(False, f"Alert {i} max_speed {alert['max_speed']} <= threshold {data['alert_threshold']}")
+            
+            # Verify points >= 1
+            if alert['points'] < 1:
+                return print_result(False, f"Alert {i} has points={alert['points']}, expected >= 1")
+            
+            # Verify start_index <= end_index < points_count
+            if alert['start_index'] > alert['end_index']:
+                return print_result(False, f"Alert {i} start_index > end_index")
+            
+            if alert['end_index'] >= data['points_count']:
+                return print_result(False, f"Alert {i} end_index {alert['end_index']} >= points_count {data['points_count']}")
+            
+            if alert['max_speed'] > max_speed_found:
+                max_speed_found = alert['max_speed']
+        
+        print(f"✓ All alerts have correct structure")
+        print(f"✓ All alerts have max_speed > threshold")
+        print(f"✓ All alerts have valid indices")
+        
+        # Verify at least one alert has max_speed > 50
+        if max_speed_found <= 50:
+            # Check all alerts
+            max_speed_found = max(alert['max_speed'] for alert in data['speed_alerts'])
+        
+        if max_speed_found <= 50:
+            return print_result(False, f"Expected at least one alert with max_speed > 50, found max {max_speed_found}")
+        
+        print(f"✓ Found alert with max_speed > 50 (max: {max_speed_found} km/h)")
+        
+        # Verify alert_threshold === 30 (default)
+        if data['alert_threshold'] != 30:
+            print(f"⚠️  Warning: Expected default threshold=30, got {data['alert_threshold']}")
+        
+        return print_result(True, f"Analytics with speed alerts working correctly ({data['speed_alerts_count']} alerts detected)")
+        
+    except Exception as e:
+        return print_result(False, f"Exception: {str(e)}")
+
+def test_d_threshold_change_reflects():
+    """
+    TEST D: Threshold change reflects in analytics
+    - POST /api/gps-config to set speed_alert_threshold: 60
+    - GET /api/gps/analytics/{imei}?date=Y
+    - Verify alert_threshold === 60 AND speed_alerts_count is LESS than with threshold 30
+    - Restore threshold to 30
+    """
+    print_test("D) Threshold change reflects in analytics")
+    
+    try:
+        # Step 1: Get baseline with threshold 30
+        print("\nStep 1: Get baseline analytics with threshold 30")
+        
+        # First ensure threshold is 30
+        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
+        current_config = response.json()
+        
+        if not current_config.get('configured'):
+            return print_result(False, "GPS not configured")
+        
+        current_email = current_config['email']
+        current_token = current_config['api_token']
+        
+        # Set threshold to 30
+        post_data = {
+            'email': current_email,
+            'api_token': current_token,
+            'speed_alert_threshold': 30
+        }
+        requests.post(f"{BASE_URL}/gps-config", json=post_data, timeout=10)
+        
+        # Get analytics with threshold 30
+        url = f"{BASE_URL}/gps/analytics/{TEST_IMEI}?date={TEST_DATE}"
+        response = requests.get(url, timeout=30)
+        
+        if response.status_code != 200:
+            return print_result(False, f"Analytics GET failed with {response.status_code}")
+        
+        baseline_data = response.json()
+        baseline_count = baseline_data['speed_alerts_count']
+        print(f"Baseline (threshold 30): {baseline_count} alerts")
+        
+        # Step 2: Change threshold to 60
+        print("\nStep 2: POST speed_alert_threshold=60")
+        post_data = {
+            'email': current_email,
+            'api_token': current_token,
+            'speed_alert_threshold': 60
+        }
+        response = requests.post(f"{BASE_URL}/gps-config", json=post_data, timeout=10)
+        
+        if response.status_code != 200:
+            return print_result(False, f"POST failed with {response.status_code}")
+        
+        print("✓ Threshold updated to 60")
+        
+        # Step 3: Get analytics with threshold 60
+        print("\nStep 3: GET analytics with new threshold")
+        response = requests.get(url, timeout=30)
+        
+        if response.status_code != 200:
+            return print_result(False, f"Analytics GET failed with {response.status_code}")
+        
+        new_data = response.json()
+        new_count = new_data['speed_alerts_count']
+        new_threshold = new_data['alert_threshold']
+        
+        print(f"New analytics:")
+        print(f"  - alert_threshold: {new_threshold}")
+        print(f"  - speed_alerts_count: {new_count}")
+        
+        # Verify alert_threshold === 60
+        if new_threshold != 60:
+            return print_result(False, f"Expected alert_threshold=60, got {new_threshold}")
+        
+        print("✓ alert_threshold correctly reflects new value (60)")
+        
+        # Verify speed_alerts_count is LESS than baseline
+        if new_count >= baseline_count:
+            return print_result(False, f"Expected fewer alerts with higher threshold. Baseline: {baseline_count}, New: {new_count}")
+        
+        print(f"✓ Speed alerts count decreased: {baseline_count} → {new_count}")
+        
+        # Step 4: Restore threshold to 30
+        print("\nStep 4: Restore threshold to 30")
+        restore_data = {
+            'email': current_email,
+            'api_token': current_token,
+            'speed_alert_threshold': 30
+        }
+        response = requests.post(f"{BASE_URL}/gps-config", json=restore_data, timeout=10)
+        
+        if response.status_code != 200:
+            print(f"⚠️  Warning: Failed to restore threshold")
+        else:
+            print("✓ Threshold restored to 30")
+        
+        return print_result(True, f"Threshold change correctly reflects in analytics (60 km/h: {new_count} alerts vs 30 km/h: {baseline_count} alerts)")
+        
+    except Exception as e:
+        return print_result(False, f"Exception: {str(e)}")
+
+def test_e_edge_case_no_data():
+    """
+    TEST E: Edge case - date with no data
+    GET /api/gps/analytics/{imei}?date=2020-01-01
+    Expected: 200 with points_count: 0, speed_alerts: [], speed_alerts_count: 0, route: []
+    """
+    print_test("E) Edge case - Date with no GPS data")
+    
+    try:
+        url = f"{BASE_URL}/gps/analytics/{TEST_IMEI}?date={EDGE_CASE_DATE}"
+        print(f"URL: {url}")
+        
+        response = requests.get(url, timeout=30)
+        print(f"Status Code: {response.status_code}")
+        
+        if response.status_code != 200:
+            return print_result(False, f"Expected 200, got {response.status_code}")
         
         data = response.json()
         print(f"Response: {json.dumps(data, indent=2)}")
         
-        # Verify response structure
-        required_fields = ['ok', 'hosted_url', 'checkout_id', 'amount', 'currency']
-        missing_fields = [f for f in required_fields if f not in data]
+        # Verify points_count: 0
+        if data.get('points_count') != 0:
+            return print_result(False, f"Expected points_count=0, got {data.get('points_count')}")
         
-        if missing_fields:
-            log_test("POST create-checkout", "FAIL", 
-                    f"Missing required fields: {', '.join(missing_fields)}")
-            return False
+        # Verify speed_alerts: []
+        if data.get('speed_alerts') != []:
+            return print_result(False, f"Expected empty speed_alerts array, got {data.get('speed_alerts')}")
         
-        if not data.get('ok'):
-            log_test("POST create-checkout", "FAIL", "Response ok=false")
-            return False
+        # Verify speed_alerts_count: 0
+        if data.get('speed_alerts_count') != 0:
+            return print_result(False, f"Expected speed_alerts_count=0, got {data.get('speed_alerts_count')}")
         
-        if not data.get('hosted_url', '').startswith('https://checkout.sumup.com/pay/'):
-            log_test("POST create-checkout", "FAIL", 
-                    f"Invalid hosted_url: {data.get('hosted_url')}")
-            return False
+        # Verify route: []
+        if data.get('route') != []:
+            return print_result(False, f"Expected empty route array, got length {len(data.get('route', []))}")
         
-        # Verify booking was updated
-        booking_url = f"{BASE_URL}/bookings/{booking_id}"
-        booking_response = requests.get(booking_url)
+        print("✓ All fields correctly empty for date with no data")
         
-        if booking_response.status_code == 200:
-            booking = booking_response.json()
-            
-            required_booking_fields = ['sumup_checkout_id', 'sumup_hosted_url', 
-                                      'sumup_checkout_reference', 'sumup_created_at']
-            missing_booking_fields = [f for f in required_booking_fields if not booking.get(f)]
-            
-            if missing_booking_fields:
-                log_test("POST create-checkout", "FAIL", 
-                        f"Booking not updated with: {', '.join(missing_booking_fields)}")
-                return False
-            
-            print(f"\n✓ Booking updated:")
-            print(f"  sumup_checkout_id: {booking['sumup_checkout_id']}")
-            print(f"  sumup_hosted_url: {booking['sumup_hosted_url'][:50]}...")
-            print(f"  sumup_checkout_reference: {booking['sumup_checkout_reference']}")
-        
-        log_test("POST create-checkout", "PASS", 
-                f"Checkout created successfully, hosted_url: {data['hosted_url'][:50]}...")
-        return True
+        return print_result(True, "Edge case (no data) handled correctly")
         
     except Exception as e:
-        log_test("POST create-checkout", "FAIL", f"Exception: {str(e)}")
-        return False
-
-def test_edge_case_missing_booking():
-    """Test D.1: POST create-checkout with non-existent booking_id"""
-    print("\n" + "="*80)
-    print("TEST D.1: Edge Case - Non-existent booking_id")
-    print("="*80)
-    
-    try:
-        url = f"{BASE_URL}/sumup/create-checkout"
-        payload = {"booking_id": "non-existent-booking-id-12345"}
-        
-        print(f"POST {url}")
-        print(f"Payload: {json.dumps(payload, indent=2)}")
-        
-        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-        
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 404:
-            log_test("Edge Case - Non-existent booking", "FAIL", 
-                    f"Expected 404, got {response.status_code}")
-            return False
-        
-        log_test("Edge Case - Non-existent booking", "PASS", "Correctly returned 404")
-        return True
-        
-    except Exception as e:
-        log_test("Edge Case - Non-existent booking", "FAIL", f"Exception: {str(e)}")
-        return False
-
-def test_edge_case_missing_body():
-    """Test D.2: POST create-checkout without body"""
-    print("\n" + "="*80)
-    print("TEST D.2: Edge Case - Missing booking_id in body")
-    print("="*80)
-    
-    try:
-        url = f"{BASE_URL}/sumup/create-checkout"
-        payload = {}
-        
-        print(f"POST {url}")
-        print(f"Payload: {json.dumps(payload, indent=2)}")
-        
-        response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-        
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.text}")
-        
-        if response.status_code != 400:
-            log_test("Edge Case - Missing booking_id", "FAIL", 
-                    f"Expected 400, got {response.status_code}")
-            return False
-        
-        data = response.json()
-        if 'booking_id required' not in data.get('error', ''):
-            log_test("Edge Case - Missing booking_id", "FAIL", 
-                    f"Expected error message 'booking_id required', got: {data.get('error')}")
-            return False
-        
-        log_test("Edge Case - Missing booking_id", "PASS", 
-                "Correctly returned 400 with 'booking_id required' error")
-        return True
-        
-    except Exception as e:
-        log_test("Edge Case - Missing booking_id", "FAIL", f"Exception: {str(e)}")
-        return False
+        return print_result(False, f"Exception: {str(e)}")
 
 def main():
-    """Run all SumUp integration tests"""
+    """Run all GPS Advanced tests"""
     print("\n" + "="*80)
-    print("SUMUP PAYMENT INTEGRATION - BACKEND TESTS")
+    print("MARETREK GPS ADVANCED FEATURES - BACKEND TESTING")
     print("="*80)
     print(f"Base URL: {BASE_URL}")
-    print(f"Marlin Company ID: {MARLIN_COMPANY_ID}")
-    print(f"Test Time: {datetime.now().isoformat()}")
+    print(f"Test IMEI: {TEST_IMEI}")
+    print(f"Test Date: {TEST_DATE}")
+    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    results = {
-        "total": 0,
-        "passed": 0,
-        "failed": 0
-    }
+    results = []
     
-    # Test A: Company PUT auto-refresh
-    print("\n\n" + "="*80)
-    print("TEST SUITE A: Company PUT - Auto-refresh merchant_code")
-    print("="*80)
-    
-    results["total"] += 1
-    if test_get_marlin_company():
-        results["passed"] += 1
-    else:
-        results["failed"] += 1
-    
-    results["total"] += 1
-    if test_put_company_auto_refresh():
-        results["passed"] += 1
-    else:
-        results["failed"] += 1
-    
-    results["total"] += 1
-    if test_put_company_invalid_key():
-        results["passed"] += 1
-    else:
-        results["failed"] += 1
-    
-    # Test C: Payment Methods
-    print("\n\n" + "="*80)
-    print("TEST SUITE C: Payment Methods Endpoint")
-    print("="*80)
-    
-    results["total"] += 1
-    if test_get_payment_methods():
-        results["passed"] += 1
-    else:
-        results["failed"] += 1
-    
-    # Test B: Create Checkout
-    print("\n\n" + "="*80)
-    print("TEST SUITE B: SumUp Create Checkout")
-    print("="*80)
-    
-    booking_id = find_or_create_booking()
-    if booking_id:
-        results["total"] += 1
-        if test_create_checkout(booking_id):
-            results["passed"] += 1
-        else:
-            results["failed"] += 1
-    else:
-        print("❌ Skipping create-checkout test - no booking available")
-        results["total"] += 1
-        results["failed"] += 1
-    
-    # Test D: Edge Cases
-    print("\n\n" + "="*80)
-    print("TEST SUITE D: Edge Cases")
-    print("="*80)
-    
-    results["total"] += 1
-    if test_edge_case_missing_booking():
-        results["passed"] += 1
-    else:
-        results["failed"] += 1
-    
-    results["total"] += 1
-    if test_edge_case_missing_body():
-        results["passed"] += 1
-    else:
-        results["failed"] += 1
+    # Run all tests
+    results.append(("A - GET gps-config", test_a_get_gps_config()))
+    results.append(("B - POST gps-config", test_b_post_gps_config()))
+    results.append(("C - Analytics speed alerts", test_c_analytics_speed_alerts()))
+    results.append(("D - Threshold change reflects", test_d_threshold_change_reflects()))
+    results.append(("E - Edge case no data", test_e_edge_case_no_data()))
     
     # Summary
-    print("\n\n" + "="*80)
+    print("\n" + "="*80)
     print("TEST SUMMARY")
     print("="*80)
-    print(f"Total Tests: {results['total']}")
-    print(f"✅ Passed: {results['passed']}")
-    print(f"❌ Failed: {results['failed']}")
-    print(f"Success Rate: {(results['passed']/results['total']*100):.1f}%")
     
-    if results['failed'] == 0:
-        print("\n🎉 ALL TESTS PASSED!")
-        return 0
-    else:
-        print(f"\n⚠️  {results['failed']} TEST(S) FAILED")
-        return 1
+    passed = sum(1 for _, result in results if result)
+    total = len(results)
+    
+    for name, result in results:
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"{status} - {name}")
+    
+    print(f"\nTotal: {passed}/{total} tests passed ({passed*100//total}%)")
+    print(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Exit with appropriate code
+    sys.exit(0 if passed == total else 1)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

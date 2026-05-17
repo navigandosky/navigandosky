@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Map as MapIcon, Calendar, TrendingUp, Route, Users, Ship, Droplet } from 'lucide-react';
+import { RefreshCw, Map as MapIcon, Calendar, TrendingUp, Route, Users, Ship, Droplet, Play, AlertTriangle, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import GPSAnalyticsDashboard from './GPSAnalyticsDashboard';
 import SpeedChart from './SpeedChart';
+import TripReplayDialog from './TripReplayDialog';
 
 // Import dinamico del componente mappa
 const FleetMap = dynamic(() => import('./FleetMap'), {
@@ -53,8 +54,21 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [fuelConsumption, setFuelConsumption] = useState(null);
 
+  // GPS Avanzato
+  const [showReplay, setShowReplay] = useState(false);
+  const [alertThreshold, setAlertThreshold] = useState(30);
+  const [showThresholdDialog, setShowThresholdDialog] = useState(false);
+  const [savingThreshold, setSavingThreshold] = useState(false);
+
   useEffect(() => {
     setIsMounted(true);
+    // Carica config GPS per la soglia alert
+    (async () => {
+      try {
+        const cfg = await api('gps-config');
+        if (cfg?.speed_alert_threshold) setAlertThreshold(Number(cfg.speed_alert_threshold) || 30);
+      } catch { /* ignore */ }
+    })();
   }, []);
 
   useEffect(() => {
@@ -328,6 +342,39 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
           {analytics && analytics.route && analytics.route.length > 0 && (
             <SpeedChart route={analytics.route} />
           )}
+
+          {/* === GPS Avanzato: bottone Replay + Card Alert === */}
+          {analytics && analytics.route && analytics.route.length > 1 && (
+            <div className="flex flex-wrap items-stretch gap-3">
+              <Button
+                onClick={() => setShowReplay(true)}
+                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Replay Viaggio Animato
+              </Button>
+              <Button variant="outline" onClick={() => setShowThresholdDialog(true)} className="gap-2">
+                <Settings className="w-4 h-4" />
+                Soglia Alert: {alertThreshold} km/h
+              </Button>
+              {analytics.speed_alerts_count > 0 && (
+                <div className="flex-1 min-w-[280px] border border-red-300 bg-red-50 rounded-lg px-4 py-2 flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-red-900">
+                      {analytics.speed_alerts_count} {analytics.speed_alerts_count === 1 ? 'avviso' : 'avvisi'} di velocità anomala
+                    </div>
+                    <div className="text-xs text-red-700">
+                      Soglia superata: {analytics.alert_threshold} km/h · Max raggiunti: {analytics.max_speed} km/h
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setShowReplay(true)} className="border-red-400 text-red-700 hover:bg-red-100">
+                    Visualizza
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Messaggio quando toggle attivo ma nessun dato */}
           {showRoute && selectedDevice && analytics && (!analytics.route || analytics.route.length === 0) && (
@@ -473,6 +520,80 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
                 </p>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Replay Viaggio */}
+      <TripReplayDialog
+        open={showReplay}
+        onOpenChange={setShowReplay}
+        route={analytics?.route || []}
+        speedAlerts={analytics?.speed_alerts || []}
+        alertThreshold={analytics?.alert_threshold || alertThreshold}
+        device={selectedDevice}
+        date={selectedDate}
+      />
+
+      {/* Dialog modifica Soglia Alert Velocità */}
+      <Dialog open={showThresholdDialog} onOpenChange={setShowThresholdDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Soglia Alert Velocità
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <Label htmlFor="threshold-input" className="text-sm">
+                Soglia in km/h. Velocità superiori genereranno avvisi automatici.
+              </Label>
+              <Input
+                id="threshold-input"
+                type="number"
+                min="1"
+                max="200"
+                value={alertThreshold}
+                onChange={(e) => setAlertThreshold(Number(e.target.value))}
+                className="mt-2"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Valori tipici: 15 km/h (zona limitata), 30 km/h (mare aperto), 50 km/h (motoscafi).
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowThresholdDialog(false)}>Annulla</Button>
+              <Button
+                disabled={savingThreshold}
+                onClick={async () => {
+                  setSavingThreshold(true);
+                  try {
+                    // Recupera config corrente per non perdere email/api_token
+                    const cur = await api('gps-config');
+                    await api('gps-config', {
+                      method: 'POST',
+                      body: {
+                        email: cur?.email || '',
+                        api_token: cur?.api_token || '',
+                        speed_alert_threshold: alertThreshold,
+                      },
+                    });
+                    toast.success('Soglia aggiornata');
+                    setShowThresholdDialog(false);
+                    // Ricarica analytics per applicare la nuova soglia
+                    if (selectedDevice?.imei) loadAnalytics(selectedDevice.imei);
+                  } catch (e) {
+                    toast.error('Errore salvataggio soglia');
+                  } finally {
+                    setSavingThreshold(false);
+                  }
+                }}
+                className="bg-cyan-600 hover:bg-cyan-700"
+              >
+                {savingThreshold ? 'Salvataggio...' : 'Salva'}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
