@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus, FileText, Mail, CheckCircle2, ExternalLink, Search, FileSpreadsheet, Filter, X, Upload, Receipt } from 'lucide-react';
+import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus, FileText, Mail, CheckCircle2, ExternalLink, Search, FileSpreadsheet, Filter, X, Upload, Receipt, RefreshCw } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 const AgencyCalendarLazy = dynamic(() => import('@/app/components/AgencyCalendar'), { ssr: false });
@@ -221,6 +221,8 @@ export default function AgencyB2BPortal() {
       await downloadVoucherPdf(booking, exp, company, {
         type: isPaid ? 'FINAL' : 'PROVISIONAL',
         agencyName: agency?.name,
+        agencyEmail: agency?.email,
+        agencyPhone: agency?.phone,
       });
       toast.success('Voucher scaricato');
     } catch (e) {
@@ -752,6 +754,9 @@ export default function AgencyB2BPortal() {
                   <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
                       <Filter className="w-4 h-4 mr-2" />{showFilters ? 'Nascondi filtri' : 'Filtri'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => loadAgencyData()} title="Aggiorna prenotazioni">
+                      <RefreshCw className="w-4 h-4 mr-2" />Aggiorna
                     </Button>
                     <Button variant="outline" size="sm" onClick={exportExcel}>
                       <FileSpreadsheet className="w-4 h-4 mr-2" />Excel

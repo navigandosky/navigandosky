@@ -2659,15 +2659,17 @@ function AdminDashboard({ currentUser, onLogout }) {
     // 1) Genera e scarica PDF
     try {
       const { downloadVoucherPdf } = await import('@/app/lib/voucherPdf');
-      // Carica esperienza + company per arricchire il voucher
-      let exp = null, company = null, bankTransfer = null;
+      // Carica esperienza + company + agenzia (se booking B2B) per arricchire il voucher
+      let exp = null, company = null, bankTransfer = null, agencyData = null;
       try {
-        const [eRes, cRes] = await Promise.all([
+        const [eRes, cRes, aRes] = await Promise.all([
           b.experience_id ? fetch(`/api/experiences/${b.experience_id}`).then(r => r.json()) : Promise.resolve(null),
           b.company_id ? fetch(`/api/companies/${b.company_id}`).then(r => r.json()) : Promise.resolve(null),
+          b.agency_id ? fetch(`/api/agencies/${b.agency_id}`).then(r => r.json()) : Promise.resolve(null),
         ]);
         exp = eRes && !eRes.error ? eRes : null;
         company = cRes && !cRes.error ? cRes : null;
+        agencyData = aRes && !aRes.error ? aRes : null;
         if (voucherType === 'PROVISIONAL' && b.payment_method === 'BANK_TRANSFER') {
           const pc = company?.payment_config || {};
           if (pc.bank_transfer?.iban) {
@@ -2680,7 +2682,13 @@ function AdminDashboard({ currentUser, onLogout }) {
           }
         }
       } catch {}
-      await downloadVoucherPdf(b, exp, company, { type: voucherType, bankTransfer });
+      await downloadVoucherPdf(b, exp, company, {
+        type: voucherType,
+        bankTransfer,
+        agencyName: agencyData?.name || b.agency_name,
+        agencyEmail: agencyData?.email,
+        agencyPhone: agencyData?.phone,
+      });
       toast.success(`📄 PDF Voucher ${voucherType === 'FINAL' ? 'definitivo' : 'provvisorio'} scaricato`);
     } catch (e) {
       console.error('PDF voucher error:', e);
