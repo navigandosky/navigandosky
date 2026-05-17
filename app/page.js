@@ -29,6 +29,8 @@ const NewQuoteDialogLazy = dynamic(() => import('./components/NewQuoteDialog'), 
 const NewBookingDialogLazy = dynamic(() => import('./components/NewBookingDialog'), { ssr: false });
 // Registro Contratti (gestione contabile + pagamenti + ricevute)
 const ContractsRegistryLazy = dynamic(() => import('./components/ContractsRegistry'), { ssr: false });
+// Registro Contabilità (aggregazione transazioni)
+const AccountingRegistryLazy = dynamic(() => import('./components/AccountingRegistry'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -39,7 +41,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -131,6 +133,29 @@ const resetCompanyBranding = () => {
 
 const TYPE_COLORS = { GITA_GOMMONE: 'bg-sky-100 text-sky-800 border-sky-200', GITA_BARCA: 'bg-blue-100 text-blue-800 border-blue-200', VISITA_GUIDATA: 'bg-emerald-100 text-emerald-800 border-emerald-200', NOLEGGIO_NATANTE: 'bg-amber-100 text-amber-800 border-amber-200' };
 const GANTT_COLORS = { GITA_GOMMONE: 'bg-sky-50 border-sky-300 text-sky-900', GITA_BARCA: 'bg-blue-50 border-blue-300 text-blue-900', VISITA_GUIDATA: 'bg-emerald-50 border-emerald-300 text-emerald-900', NOLEGGIO_NATANTE: 'bg-amber-50 border-amber-300 text-amber-900' };
+
+// Mappa metodi di pagamento e relative label visualizzate
+const PAYMENT_METHOD_LABEL = {
+  ONLINE: 'SumUp / Online',
+  CARD: 'SumUp / Online',
+  BANK_TRANSFER: 'Bonifico Bancario',
+  CASH: 'Contanti',
+  DIRECT: 'Cassa Diretta',
+  MANUAL: 'Pagamento Manuale',
+  AGENCY: 'Agenzia (Differito)',
+  FREE: 'Omaggio / Gratuito',
+  NONE: '— Non impostato',
+};
+const PAYMENT_METHOD_OPTIONS = [
+  { value: '', label: 'Tutti i metodi' },
+  { value: 'ONLINE', label: 'SumUp / Online' },
+  { value: 'BANK_TRANSFER', label: 'Bonifico Bancario' },
+  { value: 'CASH', label: 'Contanti' },
+  { value: 'DIRECT', label: 'Cassa Diretta' },
+  { value: 'MANUAL', label: 'Pagamento Manuale' },
+  { value: 'AGENCY', label: 'Agenzia (Differito)' },
+  { value: 'FREE', label: 'Omaggio / Gratuito' },
+];
 const LANG_MAP = { IT: 'Italiano', EN: 'English', FR: 'Francais', DE: 'Deutsch' };
 const BOAT_TYPE_LABELS = { GOMMONE: 'Gommone', NATANTE: 'Natante', IMBARCAZIONE: 'Imbarcazione', GOMMONE_SKIPPER: 'Gommone con Skipper', BARCA_SKIPPER: 'Barca con Skipper', BARCA_VELA_SKIPPER: 'Barca a Vela con Skipper', BARCA: 'Barca' };
 
@@ -2472,7 +2497,11 @@ function AdminDashboard({ currentUser, onLogout }) {
     date: '',
     resource_id: '',
     experience_id: '',
-    customer_name: ''
+    customer_name: '',
+    payment_method: '',
+    status: '',
+    date_from: '',
+    date_to: '',
   });
   const [filteredBookings, setFilteredBookings] = useState([]);
   
@@ -2928,12 +2957,36 @@ function AdminDashboard({ currentUser, onLogout }) {
         (b.customer_name || '').toLowerCase().includes(filters.customer_name.toLowerCase())
       );
     }
-    
+
+    if (filters.payment_method) {
+      result = result.filter(b => (b.payment_method || 'NONE') === filters.payment_method);
+    }
+
+    if (filters.status) {
+      result = result.filter(b => (b.status || '') === filters.status);
+    }
+
+    if (filters.date_from) {
+      result = result.filter(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        if (!slot) return false;
+        return (slot.start_datetime || '').split('T')[0] >= filters.date_from;
+      });
+    }
+
+    if (filters.date_to) {
+      result = result.filter(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        if (!slot) return false;
+        return (slot.start_datetime || '').split('T')[0] <= filters.date_to;
+      });
+    }
+
     setFilteredBookings(result);
   };
   
   const clearFilters = () => {
-    setFilters({ code: '', date: '', resource_id: '', experience_id: '', customer_name: '' });
+    setFilters({ code: '', date: '', resource_id: '', experience_id: '', customer_name: '', payment_method: '', status: '', date_from: '', date_to: '' });
     setFilteredBookings(bookings);
   };
   
@@ -2945,14 +2998,31 @@ function AdminDashboard({ currentUser, onLogout }) {
       ]);
       const { jsPDF } = jsPDFModule;
       const autoTable = autoTableModule.default || autoTableModule;
-      const doc = new jsPDF();
+      const doc = new jsPDF('l'); // landscape per più colonne
       
       // Header
       doc.setFontSize(18);
-      doc.text('Report Prenotazioni - Maretrek', 14, 22);
-      doc.setFontSize(11);
-      doc.text(`Generato: ${new Date().toLocaleDateString('it-IT')}`, 14, 30);
-      doc.text(`Risultati: ${filteredBookings.length}`, 14, 36);
+      doc.text('Report Prenotazioni - Maretrek', 14, 18);
+      doc.setFontSize(10);
+      doc.text(`Generato: ${new Date().toLocaleString('it-IT')}`, 14, 26);
+      doc.text(`Risultati: ${filteredBookings.length}`, 14, 32);
+
+      // Riepilogo filtri attivi
+      const activeFilters = [];
+      if (filters.code) activeFilters.push(`Codice: ${filters.code}`);
+      if (filters.date) activeFilters.push(`Data: ${filters.date}`);
+      if (filters.date_from || filters.date_to) activeFilters.push(`Range: ${filters.date_from || '...'} → ${filters.date_to || '...'}`);
+      if (filters.customer_name) activeFilters.push(`Cliente: ${filters.customer_name}`);
+      if (filters.payment_method) activeFilters.push(`Pagamento: ${filters.payment_method}`);
+      if (filters.status) activeFilters.push(`Stato: ${filters.status}`);
+      if (filters.experience_id) {
+        const exp = experiences.find(e => e.id === filters.experience_id);
+        if (exp) activeFilters.push(`Esperienza: ${exp.name}`);
+      }
+      if (activeFilters.length > 0) {
+        doc.setFontSize(9);
+        doc.text(`Filtri: ${activeFilters.join(' · ')}`, 14, 38);
+      }
       
       // Tabella
       const tableData = filteredBookings.map(b => {
@@ -2963,7 +3033,6 @@ function AdminDashboard({ currentUser, onLogout }) {
           const res = resources.find(r => r.id === rid);
           return res?.name || '';
         }).filter(Boolean).join(', ');
-        
         return [
           b.booking_ref,
           b.customer_name,
@@ -2971,17 +3040,20 @@ function AdminDashboard({ currentUser, onLogout }) {
           exp?.name || '-',
           resourceNames || '-',
           b.seats,
+          PAYMENT_METHOD_LABEL[b.payment_method] || (b.payment_method || '—'),
           b.status,
-          `€ ${(b.total_amount || 0).toFixed(2)}`
+          `€ ${Number(b.total_amount || 0).toFixed(2)}`
         ];
       });
       
       autoTable(doc, {
-        startY: 42,
-        head: [['Codice', 'Cliente', 'Data', 'Esperienza', 'Risorsa', 'Posti', 'Stato', 'Totale']],
+        startY: activeFilters.length > 0 ? 44 : 40,
+        head: [['Codice', 'Cliente', 'Data', 'Esperienza', 'Risorsa', 'Posti', 'Pagamento', 'Stato', 'Totale']],
         body: tableData,
         styles: { fontSize: 8 },
-        headStyles: { fillColor: [41, 128, 185] }
+        headStyles: { fillColor: [41, 128, 185] },
+        foot: [['', '', '', '', '', '', '', 'TOTALE', `€ ${filteredBookings.reduce((s, b) => s + Number(b.total_amount || 0), 0).toFixed(2)}`]],
+        footStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
       });
       
       // Footer
@@ -3011,7 +3083,6 @@ function AdminDashboard({ currentUser, onLogout }) {
           const res = resources.find(r => r.id === rid);
           return res?.name || '';
         }).filter(Boolean).join(', ');
-        
         return {
           'Codice': b.booking_ref,
           'Cliente': b.customer_name,
@@ -3020,31 +3091,29 @@ function AdminDashboard({ currentUser, onLogout }) {
           'Data': slot?.start_datetime ? new Date(slot.start_datetime).toLocaleDateString('it-IT') : '-',
           'Esperienza': exp?.name || '-',
           'Risorsa': resourceNames || '-',
-          'Posti Venduti': b.seats,
-          'Stato Venduto': b.status,
-          'Totale': `€ ${(b.total_amount || 0).toFixed(2)}`
+          'Posti': b.seats,
+          'Metodo Pagamento': PAYMENT_METHOD_LABEL[b.payment_method] || (b.payment_method || ''),
+          'Stato Pagamento': b.payment_status || '',
+          'Stato': b.status,
+          'Totale': Number(b.total_amount || 0)
         };
       });
-      
+      // Aggiungi riga totale
+      const tot = filteredBookings.reduce((s, b) => s + Number(b.total_amount || 0), 0);
+      tableData.push({
+        'Codice': '', 'Cliente': '', 'Email': '', 'Telefono': '', 'Data': '', 'Esperienza': '',
+        'Risorsa': '', 'Posti': '', 'Metodo Pagamento': '', 'Stato Pagamento': '', 'Stato': 'TOTALE',
+        'Totale': tot,
+      });
+
       const ws = XLSX.utils.json_to_sheet(tableData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Prenotazioni');
-      
       // Imposta larghezza colonne
-      const wscols = [
-        { wch: 12 }, // Codice
-        { wch: 20 }, // Cliente
-        { wch: 25 }, // Email
-        { wch: 15 }, // Telefono
-        { wch: 12 }, // Data
-        { wch: 30 }, // Esperienza
-        { wch: 25 }, // Risorsa
-        { wch: 12 }, // Posti
-        { wch: 12 }, // Stato
-        { wch: 12 }  // Totale
+      ws['!cols'] = [
+        { wch: 12 }, { wch: 22 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 28 },
+        { wch: 22 }, { wch: 8 }, { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 12 }
       ];
-      ws['!cols'] = wscols;
-      
       XLSX.writeFile(wb, `maretrek-report-${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('✅ Excel esportato con successo!');
     } catch (error) {
@@ -3194,14 +3263,19 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsList>
         )}
 
-        {/* Riga 2.6: Tab REGISTRO CONTRATTI (yellow-emerald band) - Super Admin o owner marina */}
-        {hasMarinaOwnership && (
+        {/* Riga 2.6: Tab REGISTRO CONTRATTI + CONTABILITÀ - Super Admin o owner marina o company */}
+        {(hasMarinaOwnership || currentUser?.company_id) && (
           <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-500 p-2 rounded-lg shadow-md w-full">
             <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/40 pr-3 drop-shadow">
-              <FileSignature className="w-4 h-4" />Step 4 - Contratti
+              <FileSignature className="w-4 h-4" />Step 4 - Contratti & Contabilità
             </div>
-            <TabsTrigger value="contracts-registry" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold drop-shadow">
-              <FileSignature className="w-4 h-4 mr-1.5" />Registro Contratti
+            {hasMarinaOwnership && (
+              <TabsTrigger value="contracts-registry" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold drop-shadow">
+                <FileSignature className="w-4 h-4 mr-1.5" />Registro Contratti
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="accounting" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold drop-shadow">
+              <Wallet className="w-4 h-4 mr-1.5" />Registro Contabilità
             </TabsTrigger>
           </TabsList>
         )}
@@ -3844,6 +3918,39 @@ function AdminDashboard({ currentUser, onLogout }) {
                     </SelectContent>
                   </Select>
                 </div>
+                {/* === Nuovi filtri: Metodo Pagamento, Stato, Range Date === */}
+                <div>
+                  <Label>Metodo Pagamento</Label>
+                  <Select value={filters.payment_method || 'all'} onValueChange={(v) => setFilters({...filters, payment_method: v === 'all' ? '' : v})}>
+                    <SelectTrigger><SelectValue placeholder="Tutti i metodi" /></SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHOD_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value || 'all'} value={opt.value || 'all'}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Stato Prenotazione</Label>
+                  <Select value={filters.status || 'all'} onValueChange={(v) => setFilters({...filters, status: v === 'all' ? '' : v})}>
+                    <SelectTrigger><SelectValue placeholder="Tutti gli stati" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutti gli stati</SelectItem>
+                      <SelectItem value="CONFIRMED">Confermata</SelectItem>
+                      <SelectItem value="HELD">In sospeso</SelectItem>
+                      <SelectItem value="PENDING_VERIFICATION">In Verifica Bonifico</SelectItem>
+                      <SelectItem value="CANCELLED">Annullata</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Data Da</Label>
+                  <Input type="date" value={filters.date_from} onChange={(e) => setFilters({...filters, date_from: e.target.value})} />
+                </div>
+                <div>
+                  <Label>Data A</Label>
+                  <Input type="date" value={filters.date_to} onChange={(e) => setFilters({...filters, date_to: e.target.value})} />
+                </div>
               </div>
               
               <div className="flex gap-2 justify-end">
@@ -3875,8 +3982,9 @@ function AdminDashboard({ currentUser, onLogout }) {
                       <th className="p-3">Esperienza</th>
                       <th className="p-3">Risorsa</th>
                       <th className="p-3">Posti Venduti</th>
+                      <th className="p-3">Pagamento</th>
                       <th className="p-3">Stato Venduto</th>
-                      <th className="p-3">Totale</th>
+                      <th className="p-3 text-right">Totale</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3888,7 +3996,13 @@ function AdminDashboard({ currentUser, onLogout }) {
                         const res = resources.find(r => r.id === rid);
                         return res?.name || '';
                       }).filter(Boolean).join(', ');
-                      
+                      const pmLabel = PAYMENT_METHOD_LABEL[b.payment_method] || (b.payment_method || '—');
+                      const pmColor = b.payment_method === 'ONLINE' || b.payment_method === 'CARD' ? 'bg-violet-100 text-violet-800'
+                                    : b.payment_method === 'BANK_TRANSFER' ? 'bg-blue-100 text-blue-800'
+                                    : b.payment_method === 'CASH' || b.payment_method === 'DIRECT' ? 'bg-emerald-100 text-emerald-800'
+                                    : b.payment_method === 'AGENCY' ? 'bg-amber-100 text-amber-800'
+                                    : b.payment_method === 'FREE' ? 'bg-pink-100 text-pink-800'
+                                    : 'bg-gray-100 text-gray-700';
                       return (
                         <tr key={b.id} className="border-b hover:bg-muted/30">
                           <td className="p-3 font-mono text-xs">{b.booking_ref}</td>
@@ -3906,12 +4020,34 @@ function AdminDashboard({ currentUser, onLogout }) {
                             )}
                           </td>
                           <td className="p-3 font-semibold">{b.seats}</td>
+                          <td className="p-3">
+                            <Badge className={`${pmColor} border-0 text-[11px] px-2 py-0.5`}>{pmLabel}</Badge>
+                            {b.payment_status && (
+                              <div className="text-[10px] text-muted-foreground mt-0.5">{b.payment_status}</div>
+                            )}
+                          </td>
                           <td className="p-3"><StatusBadge status={b.status} /></td>
-                          <td className="p-3 font-semibold">{fmtPrice(b.total_amount)}</td>
+                          <td className="p-3 font-semibold text-right">{fmtPrice(b.total_amount)}</td>
                         </tr>
                       );
                     })}
                   </tbody>
+                  {filteredBookings.length > 0 && (
+                    <tfoot className="bg-gradient-to-r from-emerald-50 to-teal-50 font-bold border-t-2 border-emerald-300 sticky bottom-0">
+                      <tr>
+                        <td colSpan={5} className="p-3 text-right text-muted-foreground uppercase text-xs tracking-wide">
+                          Totale {filteredBookings.length} {filteredBookings.length === 1 ? 'prenotazione' : 'prenotazioni'}
+                        </td>
+                        <td className="p-3 text-emerald-700">
+                          {filteredBookings.reduce((sum, b) => sum + (Number(b.seats) || 0), 0)}
+                        </td>
+                        <td colSpan={2}></td>
+                        <td className="p-3 text-emerald-700 text-base text-right">
+                          {fmtPrice(filteredBookings.reduce((sum, b) => sum + (Number(b.total_amount) || 0), 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
                 {filteredBookings.length === 0 && (
                   <p className="text-center py-12 text-muted-foreground">Nessun risultato trovato</p>
@@ -4926,6 +5062,19 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsContent value="contracts-registry" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><FileSignature className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <ContractsRegistryLazy currentUser={currentUser} marinaFilterId={globalMarinaFilter} />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Registro Contabilità - per company admin / super admin / owner marina */}
+        {(hasMarinaOwnership || currentUser?.company_id) && (
+          <TabsContent value="accounting" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Wallet className="w-8 h-8 mx-auto animate-pulse text-emerald-600" /></div>}>
+              <AccountingRegistryLazy
+                companyId={isSuperAdmin ? null : currentUser?.company_id}
+                companies={companies}
+                marinas={ownedMarinas || []}
+              />
             </Suspense>
           </TabsContent>
         )}

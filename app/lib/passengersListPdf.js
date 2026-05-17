@@ -1,6 +1,5 @@
 // PDF Lista Passeggeri Check-in - client-side using jspdf
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
 
 const fmtDate = (iso) => {
   try {
@@ -40,6 +39,7 @@ const loadImageAsDataUrl = (url) => new Promise((resolve) => {
  */
 export async function downloadPassengersListPdf({ resource, date, bookings = [], company }) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const autoTable = (await import('jspdf-autotable')).default;
   const W = 210;
   const M = 12;
   let y = 14;
@@ -111,7 +111,7 @@ export async function downloadPassengersListPdf({ resource, date, bookings = [],
     doc.setFontSize(11).setFont('helvetica', 'italic').setTextColor(107, 114, 128);
     doc.text('Nessun passeggero ha completato il check-in per questa data.', W / 2, y + 20, { align: 'center' });
   } else {
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [['#', 'Passeggero', 'Cliente / Capogruppo', 'Esperienza', 'Orario', 'Rif.', 'Check-in']],
       body: rows,
