@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus, FileText, Mail, CheckCircle2, ExternalLink, Search, FileSpreadsheet, Filter, X } from 'lucide-react';
+import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus, FileText, Mail, CheckCircle2, ExternalLink, Search, FileSpreadsheet, Filter, X, Upload, Receipt } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 const AgencyCalendarLazy = dynamic(() => import('@/app/components/AgencyCalendar'), { ssr: false });
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -40,6 +42,10 @@ export default function AgencyB2BPortal() {
   const [showFilters, setShowFilters] = useState(false);
   // Loading dei singoli bottoni (voucher/email/confirm)
   const [actionLoading, setActionLoading] = useState({});
+  // Dialog upload ricevuta pagamento
+  const [receiptDialog, setReceiptDialog] = useState({ open: false, booking: null });
+  const [receiptForm, setReceiptForm] = useState({ payment_method: 'BANK_TRANSFER', notes: '', file: null, filePreview: null });
+  const [receiptSubmitting, setReceiptSubmitting] = useState(false);
 
   // Carica dati società
   useEffect(() => {
@@ -242,22 +248,111 @@ export default function AgencyB2BPortal() {
     }
   };
 
-  const confirmBankTransfer = async (booking) => {
-    if (!confirm(`Confermi di aver ricevuto il bonifico per ${booking.booking_ref}?`)) return;
-    setLoadingFor(booking.id, 'confirm', true);
+  const openReceiptDialog = (booking) => {
+    setReceiptForm({
+      payment_method: booking.payment_method && booking.payment_method !== 'NONE' ? booking.payment_method : 'BANK_TRANSFER',
+      notes: '',
+      file: null,
+      filePreview: booking.bank_transfer_receipt_url || null,
+    });
+    setReceiptDialog({ open: true, booking });
+  };
+
+  const handleReceiptFile = async (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File troppo grande (max 5 MB)');
+      return;
+    }
+    setReceiptForm(prev => ({ ...prev, file, filePreview: URL.createObjectURL(file) }));
+  };
+
+  const submitReceipt = async () => {
+    const b = receiptDialog.booking;
+    if (!b) return;
+    if (!receiptForm.file && !receiptForm.filePreview) {
+      toast.error('Carica una ricevuta o un\'immagine del pagamento');
+      return;
+    }
+    setReceiptSubmitting(true);
     try {
-      const r = await fetch(`${API_BASE}/bookings/${booking.id}?action=confirm-bank-transfer`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+      let receiptUrl = receiptForm.filePreview;
+      // Se è stato selezionato un nuovo file, fai upload (comprimi se immagine)
+      if (receiptForm.file) {
+        const f = receiptForm.file;
+        const isImg = (f.type || '').startsWith('image/');
+        let base64;
+        if (isImg) {
+          // Compressione lato client
+          base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              const img = new Image();
+              img.onload = () => {
+                const MAX = 1600;
+                let w = img.naturalWidth, h = img.naturalHeight;
+                if (w > MAX || h > MAX) {
+                  const r = Math.min(MAX / w, MAX / h);
+                  w = Math.round(w * r); h = Math.round(h * r);
+                }
+                const c = document.createElement('canvas');
+                c.width = w; c.height = h;
+                c.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(c.toDataURL('image/jpeg', 0.82));
+              };
+              img.onerror = reject;
+              img.src = reader.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(f);
+          });
+        } else {
+          // PDF o altro: encoda direttamente in base64
+          base64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(f);
+          });
+        }
+        const upRes = await fetch(`${API_BASE}/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: [base64] }),
+        });
+        const upText = await upRes.text();
+        let upData;
+        try { upData = JSON.parse(upText); } catch { upData = {}; }
+        if (!upRes.ok || upData?.error) throw new Error(upData?.error || `Upload fallito (HTTP ${upRes.status})`);
+        receiptUrl = upData?.urls?.[0];
+        if (!receiptUrl) throw new Error('URL ricevuta non restituito dal server');
+      }
+
+      // Aggiorna il booking: setta payment_method, bank_transfer_receipt_url e status PENDING_VERIFICATION
+      const updateRes = await fetch(`${API_BASE}/bookings/${b.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payment_method: receiptForm.payment_method,
+          bank_transfer_receipt_url: receiptUrl,
+          bank_transfer_notes: receiptForm.notes || '',
+          status: 'PENDING_VERIFICATION',
+          payment_status: 'PENDING',
+        }),
       });
-      if (!r.ok) throw new Error('Errore conferma');
-      toast.success('Pagamento confermato. Voucher finale inviato automaticamente.');
-      // ricarica
+      if (!updateRes.ok) {
+        const t = await updateRes.text();
+        throw new Error(`Errore salvataggio (HTTP ${updateRes.status}) ${t.slice(0, 80)}`);
+      }
+      toast.success('✅ Ricevuta caricata. La Company verificherà e confermerà il pagamento.');
+      setReceiptDialog({ open: false, booking: null });
+      setReceiptForm({ payment_method: 'BANK_TRANSFER', notes: '', file: null, filePreview: null });
       loadAgencyData(agency);
     } catch (e) {
-      toast.error('Errore: ' + (e?.message || ''));
+      console.error(e);
+      toast.error('Errore: ' + (e?.message || 'sconosciuto'));
     } finally {
-      setLoadingFor(booking.id, 'confirm', false);
+      setReceiptSubmitting(false);
     }
   };
 
@@ -796,18 +891,31 @@ export default function AgencyB2BPortal() {
                                     <Mail className="w-4 h-4 text-blue-600" />
                                   </Button>
                                 )}
-                                {/* Conferma bonifico (se in attesa verifica) */}
-                                {isPendingBT && (
-                                  <Button
-                                    size="icon" variant="ghost"
-                                    title="Conferma ricezione bonifico"
-                                    onClick={() => confirmBankTransfer(booking)}
-                                    disabled={lFor('confirm')}
-                                    className="h-8 w-8 hover:bg-emerald-50"
-                                  >
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                  </Button>
+                                {/* Carica/Visualizza Ricevuta Pagamento (sempre disponibile per stati non confermati) */}
+                                {!isPaid && (
+                                  <>
+                                    {booking.bank_transfer_receipt_url && (
+                                      <Button
+                                        size="icon" variant="ghost"
+                                        title="Visualizza ricevuta caricata"
+                                        onClick={() => window.open(booking.bank_transfer_receipt_url, '_blank')}
+                                        className="h-8 w-8 hover:bg-purple-50"
+                                      >
+                                        <Receipt className="w-4 h-4 text-purple-600" />
+                                      </Button>
+                                    )}
+                                    <Button
+                                      size="icon" variant="ghost"
+                                      title={booking.bank_transfer_receipt_url ? 'Sostituisci ricevuta pagamento' : 'Carica ricevuta pagamento (Bonifico/POS/Cassa)'}
+                                      onClick={() => openReceiptDialog(booking)}
+                                      className={`h-8 w-8 ${isPendingBT ? 'hover:bg-orange-50' : 'hover:bg-emerald-50'}`}
+                                    >
+                                      <Upload className={`w-4 h-4 ${isPendingBT ? 'text-orange-600' : 'text-emerald-600'}`} />
+                                    </Button>
+                                  </>
                                 )}
+                                {/* Conferma diretta (solo se già PENDING_VERIFICATION e ricevuta caricata) - opzionale */}
+                                {/* Rimosso: solo la Company può confermare il pagamento */}
                                 {/* Apri link SumUp pendente */}
                                 {isOnlinePending && (
                                   <Button
@@ -861,6 +969,98 @@ export default function AgencyB2BPortal() {
 
         </Tabs>
       </div>
+
+      {/* Dialog Upload Ricevuta Pagamento */}
+      <Dialog open={receiptDialog.open} onOpenChange={(o) => !o && setReceiptDialog({ open: false, booking: null })}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-emerald-600" />
+              Carica Ricevuta Pagamento
+            </DialogTitle>
+            <DialogDescription>
+              {receiptDialog.booking && (
+                <>
+                  Prenotazione <span className="font-mono">{receiptDialog.booking.booking_ref}</span> · {receiptDialog.booking.customer_name} · Totale <strong>{fmtPrice(receiptDialog.booking.total_amount || receiptDialog.booking.price_b2b)}</strong>
+                  <br/>
+                  <span className="text-xs">Allega ricevuta + indica il metodo. La Company verificherà e confermerà.</span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <Label className="text-xs">Metodo di Pagamento *</Label>
+              <select
+                className="w-full h-9 border rounded-md px-2 text-sm bg-white"
+                value={receiptForm.payment_method}
+                onChange={(e) => setReceiptForm({ ...receiptForm, payment_method: e.target.value })}
+              >
+                <option value="BANK_TRANSFER">🏦 Bonifico Bancario</option>
+                <option value="CASH">💶 Contanti</option>
+                <option value="DIRECT">🪙 Cassa Diretta</option>
+                <option value="MANUAL">📝 POS / Manuale</option>
+                <option value="ONLINE">💳 Carta (POS Web SumUp)</option>
+                <option value="AGENCY">📑 Agenzia (Differito)</option>
+              </select>
+            </div>
+
+            <div>
+              <Label className="text-xs">Ricevuta (immagine o PDF) *</Label>
+              <div className="border-2 border-dashed border-emerald-300 bg-emerald-50/50 rounded-lg p-4">
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  id="receipt-input"
+                  onChange={(e) => handleReceiptFile(e.target.files?.[0])}
+                  className="hidden"
+                />
+                <label htmlFor="receipt-input" className="cursor-pointer flex flex-col items-center justify-center text-sm gap-2">
+                  <Upload className="w-8 h-8 text-emerald-600" />
+                  <span className="font-medium text-emerald-700">
+                    {receiptForm.file ? receiptForm.file.name : (receiptForm.filePreview ? 'Ricevuta già caricata · Click per sostituire' : 'Clicca o trascina qui il file')}
+                  </span>
+                  <span className="text-xs text-muted-foreground">PNG, JPG, PDF · max 5 MB</span>
+                </label>
+                {receiptForm.filePreview && (
+                  <div className="mt-3 flex items-center gap-2 justify-center">
+                    {receiptForm.file?.type?.startsWith('image/') || (typeof receiptForm.filePreview === 'string' && receiptForm.filePreview.match(/\.(png|jpe?g|gif|webp)$/i)) ? (
+                      <img src={receiptForm.filePreview} alt="anteprima" className="max-h-40 rounded border" />
+                    ) : (
+                      <a href={receiptForm.filePreview} target="_blank" rel="noopener" className="text-xs text-blue-600 underline flex items-center gap-1">
+                        <FileText className="w-3 h-3" /> Apri anteprima
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Note / Causale (opzionale)</Label>
+              <Textarea
+                rows={2}
+                placeholder="Es: Bonifico emesso il 15/05/2026 dal cliente. CRO: ..."
+                value={receiptForm.notes}
+                onChange={(e) => setReceiptForm({ ...receiptForm, notes: e.target.value })}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setReceiptDialog({ open: false, booking: null })} disabled={receiptSubmitting}>
+                Annulla
+              </Button>
+              <Button
+                onClick={submitReceipt}
+                disabled={receiptSubmitting || (!receiptForm.file && !receiptForm.filePreview)}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {receiptSubmitting ? 'Caricamento...' : 'Invia per Verifica'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Nuova Prenotazione Agenzia */}
       {showNewBookingDialog && (
