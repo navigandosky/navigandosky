@@ -1899,7 +1899,7 @@ async function handleUsersAuth(method, id, body, action, sp) {
   const col = db.collection('users');
   
   // Login con bcrypt - supporta username o email
-  if (action === 'login') {
+  if ((action === 'login' || id === 'login') && method === 'POST') {
     // Cerca per email o username
     const emailOrUsername = body.email_or_username || body.email || body.username;
     const user = await col.findOne({ 
@@ -1960,6 +1960,10 @@ async function handleUsersAuth(method, id, body, action, sp) {
       role: body.role || 'COMPANY_ADMIN',
       company_id: body.company_id || null,
       permissions: body.permissions || [],
+      // Campi specifici Skipper
+      full_name: body.full_name || '',
+      phone: body.phone || '',
+      assigned_resource_ids: body.assigned_resource_ids || [],
       is_active: true,
       created_at: new Date().toISOString(),
     };
@@ -1977,6 +1981,8 @@ async function handleUsersAuth(method, id, body, action, sp) {
     // Hash password se viene cambiata
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, 10);
+    } else {
+      delete updates.password;
     }
     
     await col.updateOne({ id }, { $set: updates });
@@ -1992,7 +1998,6 @@ async function handleUsersAuth(method, id, body, action, sp) {
   
   return json({ error: 'Method not allowed' }, 405);
 }
-
 
 async function handleRoute(request, resolvedParams, method) {
   try {
@@ -2095,6 +2100,16 @@ async function handleRoute(request, resolvedParams, method) {
       case 'send-booking-voucher': {
         const { handleSendBookingVoucher } = await import('./send_booking_voucher');
         return await handleSendBookingVoucher(method, body);
+      }
+      case 'skipper-bookings': {
+        const { handleSkipperBookings } = await import('./transport_logs');
+        const db = await getDb();
+        return await handleSkipperBookings(method, body, searchParams, db);
+      }
+      case 'transport-logs': {
+        const { handleTransportLogs } = await import('./transport_logs');
+        const db = await getDb();
+        return await handleTransportLogs(method, id, body, action, searchParams, db);
       }
       case 'sumup': {
         // Sub-route: /api/sumup/create-checkout o /api/sumup/webhook

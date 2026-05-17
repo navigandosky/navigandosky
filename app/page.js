@@ -31,6 +31,10 @@ const NewBookingDialogLazy = dynamic(() => import('./components/NewBookingDialog
 const ContractsRegistryLazy = dynamic(() => import('./components/ContractsRegistry'), { ssr: false });
 // Registro Contabilità (aggregazione transazioni)
 const AccountingRegistryLazy = dynamic(() => import('./components/AccountingRegistry'), { ssr: false });
+// Gestione Skipper (utenti con ruolo SKIPPER)
+const SkippersAdminLazy = dynamic(() => import('./components/SkippersAdmin'), { ssr: false });
+// Lista Registri Trasportati (per Calendario + Mappa GPS)
+const TransportLogsListLazy = dynamic(() => import('./components/TransportLogsList'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -3161,6 +3165,7 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsTrigger value="slots"><CalIcon className="w-4 h-4 mr-1.5" />{t('slots')}</TabsTrigger>
           <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
           <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
+          <TabsTrigger value="skippers"><Anchor className="w-4 h-4 mr-1.5" />Skipper</TabsTrigger>
           {isSuperAdmin && <TabsTrigger value="companies"><Building2 className="w-4 h-4 mr-1.5" />Multi-Tenant</TabsTrigger>}
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
@@ -3362,6 +3367,20 @@ function AdminDashboard({ currentUser, onLogout }) {
           <Suspense fallback={<div className="flex items-center justify-center py-12"><RefreshCw className="w-8 h-8 animate-spin text-primary"/><p className="ml-3 text-muted-foreground">Caricamento calendario...</p></div>}>
             <GanttCalendar resources={resources} allSlots={slots} allBookings={bookings} experiences={experiences} companies={companies} isSuperAdmin={isSuperAdmin} onRefresh={load} />
           </Suspense>
+
+          {/* Registri Trasportati - PDF generati dagli skipper, accessibili da Calendario */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="w-5 h-5 text-blue-600" />
+                Registri Trasportati (PDF Skipper)
+              </CardTitle>
+              <CardDescription>Lista dei registri giornalieri chiusi dagli skipper - scaricabili in PDF</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TransportLogsListLazy companyId={currentUser?.company_id || (companies?.[0]?.id)} limit={50} />
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Experiences */}
@@ -4092,6 +4111,11 @@ function AdminDashboard({ currentUser, onLogout }) {
             </table>
             {agencies.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna agenzia. Crea la prima!</p>}
           </div>
+        </TabsContent>
+
+        {/* Skippers - Gestione account skipper */}
+        <TabsContent value="skippers" className="space-y-4">
+          <SkippersAdminLazy companyId={currentUser?.company_id || (companies?.[0]?.id)} />
         </TabsContent>
 
         {/* Mappa Flotta GPS */}

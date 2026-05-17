@@ -7,11 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw, Map as MapIcon, Calendar, TrendingUp, Route, Users, Ship, Droplet, Play, AlertTriangle, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import GPSAnalyticsDashboard from './GPSAnalyticsDashboard';
 import SpeedChart from './SpeedChart';
 import TripReplayDialog from './TripReplayDialog';
+import TransportLogsList from './TransportLogsList';
 
 // Import dinamico del componente mappa
 const FleetMap = dynamic(() => import('./FleetMap'), {
@@ -495,6 +497,22 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
           )}
         </div>
       </div>
+
+      {/* === Registri Trasportati per la risorsa selezionata === */}
+      {selectedDevice?.resource?.id && (
+        <Card className="mt-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Ship className="w-5 h-5 text-blue-600" />
+              Registri Trasportati - {selectedDevice.resource.name}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">PDF chiusi dagli skipper per questa risorsa (ultimi 20 giorni)</p>
+          </CardHeader>
+          <CardContent>
+            <TransportLogsList resourceId={selectedDevice.resource.id} limit={20} />
+          </CardContent>
+        </Card>
+      )}
       
       {/* Dialog Prenotazioni Giornaliere */}
       <Dialog open={showBookingsDialog} onOpenChange={setShowBookingsDialog}>
