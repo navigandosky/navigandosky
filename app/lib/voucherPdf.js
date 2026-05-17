@@ -1,0 +1,139 @@
+// PDF Voucher generator - client-side using jspdf
+import { jsPDF } from 'jspdf';
+
+const fmtEur = n => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n || 0));
+const fmtDateTime = iso => iso ? new Date(iso).toLocaleString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+
+export function generateVoucherPdf(booking, experience, company, opts = {}) {
+  const isFinal = opts.type === 'FINAL' || booking?.status === 'CONFIRMED';
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210, H = 297;
+  const M = 15; // margin
+  let y = 0;
+
+  // Header banner colorato
+  const headerColor = isFinal ? [16, 185, 129] : [245, 158, 11]; // verde o ambra
+  doc.setFillColor(...headerColor);
+  doc.rect(0, 0, W, 40, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22).setFont('helvetica', 'bold');
+  doc.text(isFinal ? 'VOUCHER CONFERMATO' : 'VOUCHER PROVVISORIO', W / 2, 20, { align: 'center' });
+  doc.setFontSize(11).setFont('helvetica', 'normal');
+  doc.text(isFinal ? 'Pagamento ricevuto - Prenotazione confermata' : 'In attesa di verifica del pagamento', W / 2, 30, { align: 'center' });
+
+  // Reset colors
+  doc.setTextColor(31, 41, 55);
+  y = 55;
+
+  // Codice prenotazione - box grande centrato
+  doc.setDrawColor(...headerColor);
+  doc.setLineWidth(0.8);
+  doc.roundedRect(M + 20, y, W - 2 * M - 40, 22, 3, 3);
+  doc.setFontSize(9).setFont('helvetica', 'normal');
+  doc.setTextColor(107, 114, 128);
+  doc.text('CODICE PRENOTAZIONE', W / 2, y + 7, { align: 'center' });
+  doc.setFontSize(20).setFont('courier', 'bold');
+  doc.setTextColor(...headerColor);
+  doc.text(booking.booking_ref || '-', W / 2, y + 17, { align: 'center' });
+  y += 30;
+
+  // Cliente
+  doc.setTextColor(31, 41, 55);
+  doc.setFontSize(13).setFont('helvetica', 'bold');
+  doc.text('Cliente', M, y); y += 7;
+  doc.setFontSize(10).setFont('helvetica', 'normal');
+  doc.text(`Nome: ${booking.customer_name || '-'}`, M, y); y += 5;
+  if (booking.customer_email) { doc.text(`Email: ${booking.customer_email}`, M, y); y += 5; }
+  if (booking.customer_phone) { doc.text(`Telefono: ${booking.customer_phone}`, M, y); y += 5; }
+  y += 4;
+
+  // Dettagli esperienza
+  doc.setFontSize(13).setFont('helvetica', 'bold');
+  doc.text('Dettagli Esperienza', M, y); y += 7;
+  doc.setFontSize(10).setFont('helvetica', 'normal');
+  const labelCol = M;
+  const valueCol = M + 40;
+  const rows = [
+    ['Esperienza:', experience?.name || booking.experience_name || '-'],
+    ['Data:', fmtDateTime(booking.slot_datetime)],
+    ['Partecipanti:', String(booking.seats || 1)],
+  ];
+  if (experience?.meeting_point) rows.push(['Ritrovo:', experience.meeting_point]);
+  if (experience?.meeting_point_map_url) rows.push(['Maps:', experience.meeting_point_map_url]);
+  if (experience?.duration_minutes) rows.push(['Durata:', `${Math.floor(experience.duration_minutes / 60)}h ${experience.duration_minutes % 60}min`]);
+
+  rows.forEach(([k, v]) => {
+    doc.setFont('helvetica', 'bold'); doc.text(k, labelCol, y);
+    doc.setFont('helvetica', 'normal');
+    const split = doc.splitTextToSize(String(v), W - valueCol - M);
+    doc.text(split, valueCol, y);
+    y += 5 * Math.max(1, split.length);
+  });
+  y += 4;
+
+  // Totale + stato
+  doc.setFillColor(243, 244, 246);
+  doc.roundedRect(M, y, W - 2 * M, 22, 2, 2, 'F');
+  doc.setFontSize(10).setFont('helvetica', 'normal');
+  doc.setTextColor(75, 85, 99);
+  doc.text('Importo totale', M + 5, y + 8);
+  doc.setFontSize(16).setFont('helvetica', 'bold');
+  doc.setTextColor(...headerColor);
+  doc.text(fmtEur(booking.total_amount), W - M - 5, y + 12, { align: 'right' });
+  doc.setFontSize(9).setFont('helvetica', 'normal');
+  doc.setTextColor(75, 85, 99);
+  doc.text('Stato: ' + (isFinal ? 'PAGATO' : 'IN ATTESA DI VERIFICA'), M + 5, y + 17);
+  y += 30;
+
+  // Bonifico (se provvisorio + bonifico)
+  if (!isFinal && booking.payment_method === 'BANK_TRANSFER' && opts.bankTransfer) {
+    const bt = opts.bankTransfer;
+    doc.setDrawColor(16, 185, 129);
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(M, y, W - 2 * M, 40, 3, 3, 'FD');
+    doc.setTextColor(6, 95, 70);
+    doc.setFontSize(11).setFont('helvetica', 'bold');
+    doc.text('COORDINATE BONIFICO', M + 5, y + 8);
+    doc.setFontSize(9).setFont('helvetica', 'normal');
+    doc.text(`IBAN: ${bt.iban || '-'}`, M + 5, y + 16);
+    doc.text(`Intestatario: ${bt.account_holder || '-'}`, M + 5, y + 22);
+    if (bt.bank_name) doc.text(`Banca: ${bt.bank_name}`, M + 5, y + 28);
+    if (bt.bic_swift) doc.text(`BIC/SWIFT: ${bt.bic_swift}`, M + 5, y + 34);
+    y += 46;
+  }
+
+  // Note speciali
+  if (booking.special_requests) {
+    doc.setDrawColor(99, 102, 241);
+    doc.setFillColor(238, 242, 255);
+    doc.roundedRect(M, y, W - 2 * M, 18, 2, 2, 'FD');
+    doc.setTextColor(67, 56, 202);
+    doc.setFontSize(9).setFont('helvetica', 'bold');
+    doc.text('Note / Richieste:', M + 4, y + 6);
+    doc.setFont('helvetica', 'normal');
+    const sp = doc.splitTextToSize(booking.special_requests, W - 2 * M - 8);
+    doc.text(sp.slice(0, 2), M + 4, y + 12);
+    y += 24;
+  }
+
+  // Footer
+  doc.setTextColor(75, 85, 99);
+  doc.setFontSize(8).setFont('helvetica', 'italic');
+  const footerY = H - 20;
+  doc.text(
+    isFinal
+      ? 'Presenta questo voucher al check-in. Arriva 15 minuti prima dell\'orario indicato.'
+      : 'Voucher provvisorio - sarà sostituito da quello definitivo dopo la verifica del pagamento.',
+    W / 2, footerY, { align: 'center' }
+  );
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${company?.name || 'MARETREK'} - Generato il ${new Date().toLocaleDateString('it-IT')}`, W / 2, footerY + 5, { align: 'center' });
+
+  return doc;
+}
+
+export function downloadVoucherPdf(booking, experience, company, opts = {}) {
+  const doc = generateVoucherPdf(booking, experience, company, opts);
+  const filename = `Voucher_${booking.booking_ref || 'booking'}_${opts.type === 'FINAL' ? 'finale' : 'provvisorio'}.pdf`;
+  doc.save(filename);
+}

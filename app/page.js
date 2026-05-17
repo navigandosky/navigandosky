@@ -2559,20 +2559,52 @@ function AdminDashboard({ currentUser, onLogout }) {
       await load();
     } catch (e) { toast.error('Errore rifiuto'); }
   };
-  // Re-invia voucher via email (provvisorio se PENDING, finale se CONFIRMED)
+  // Re-invia voucher via email (provvisorio se PENDING, finale se CONFIRMED) + scarica PDF
   const resendVoucherEmail = async (b) => {
-    if (!b.customer_email) { toast.error('Cliente senza email'); return; }
     const voucherType = b.status === 'CONFIRMED' ? 'FINAL' : 'PROVISIONAL';
+    // 1) Genera e scarica PDF
     try {
-      const res = await fetch('/api/send-booking-voucher', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ booking_id: b.id, type: voucherType }),
-      });
-      const data = await res.json();
-      if (data.error) { toast.error('Errore invio: ' + data.error); return; }
-      toast.success(`📧 Voucher ${voucherType === 'FINAL' ? 'definitivo' : 'provvisorio'} inviato a ${b.customer_email}`);
-    } catch (e) { toast.error('Errore invio email'); }
+      const { downloadVoucherPdf } = await import('@/app/lib/voucherPdf');
+      // Carica esperienza + company per arricchire il voucher
+      let exp = null, company = null, bankTransfer = null;
+      try {
+        const [eRes, cRes] = await Promise.all([
+          b.experience_id ? fetch(`/api/experiences/${b.experience_id}`).then(r => r.json()) : Promise.resolve(null),
+          b.company_id ? fetch(`/api/companies/${b.company_id}`).then(r => r.json()) : Promise.resolve(null),
+        ]);
+        exp = eRes && !eRes.error ? eRes : null;
+        company = cRes && !cRes.error ? cRes : null;
+        if (voucherType === 'PROVISIONAL' && b.payment_method === 'BANK_TRANSFER') {
+          const pc = company?.payment_config || {};
+          if (pc.bank_transfer?.iban) {
+            bankTransfer = {
+              iban: pc.bank_transfer.iban,
+              account_holder: pc.bank_transfer.account_holder || company?.name,
+              bank_name: pc.bank_transfer.bank_name,
+              bic_swift: pc.bank_transfer.bic_swift,
+            };
+          }
+        }
+      } catch {}
+      downloadVoucherPdf(b, exp, company, { type: voucherType, bankTransfer });
+      toast.success(`📄 PDF Voucher ${voucherType === 'FINAL' ? 'definitivo' : 'provvisorio'} scaricato`);
+    } catch (e) {
+      console.error('PDF voucher error:', e);
+      toast.error('Errore generazione PDF: ' + e.message);
+    }
+    // 2) Invia email (se ha email)
+    if (b.customer_email) {
+      try {
+        const res = await fetch('/api/send-booking-voucher', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ booking_id: b.id, type: voucherType }),
+        });
+        const data = await res.json();
+        if (data.error) { toast.error('Errore invio email: ' + data.error); return; }
+        toast.success(`📧 Voucher inviato anche a ${b.customer_email}`);
+      } catch (e) { toast.error('Errore invio email'); }
+    }
   };
   const getExpName = (id) => experiences.find(e => e.id === id)?.name || '-';
   

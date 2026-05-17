@@ -149,17 +149,43 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
       const created = await res.json();
       if (created.error) { toast.error(created.error); setLoading(false); return; }
 
-      // Se l'admin ha segnato CASH come "già pagato" o ONLINE confermato → marca subito come PAID/CONFIRMED
-      if ((paymentMethod === 'CASH' && paymentMarked) || paymentMethod === 'ONLINE') {
+      // Se l'admin ha segnato CASH come "già pagato" → marca subito come PAID/CONFIRMED
+      // NOTA: per ONLINE (Carta SumUp) NON marchiamo come pagato: apriamo direttamente il POS Web
+      if (paymentMethod === 'CASH' && paymentMarked) {
         await fetch(`/api/bookings/${created.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'confirm-bank-transfer',
             verified_by: userLabel,
-            note: paymentMethod === 'CASH' ? 'Pagamento contanti/POS in loco' : 'Pagamento online confermato',
+            note: 'Pagamento contanti/POS in loco',
           }),
         });
+      }
+
+      // Se ONLINE (Carta SumUp): apri SUBITO il POS Web in una nuova scheda
+      if (paymentMethod === 'ONLINE') {
+        try {
+          const lkRes = await fetch('/api/sumup/create-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: created.id }),
+          });
+          const lk = await lkRes.json();
+          if (lk.hosted_url) {
+            // Apri POS Web SumUp in nuova scheda
+            window.open(lk.hosted_url, '_blank');
+            toast.success(`✅ Prenotazione ${created.booking_ref} creata - POS SumUp aperto!`);
+            if (onCreated) onCreated(created);
+            onClose();
+            setLoading(false);
+            return;
+          } else {
+            toast.error('Errore apertura POS SumUp: ' + (lk.error || 'unknown'));
+            setLoading(false);
+            return;
+          }
+        } catch (e) { toast.error('Errore SumUp: ' + e.message); setLoading(false); return; }
       }
 
       // Se PAYMENT_LINK: genera l'hosted checkout SumUp e mostra il link
@@ -353,7 +379,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
                 <input type="radio" checked={paymentMethod === 'ONLINE'} onChange={() => setPaymentMethod('ONLINE')} className="mt-1" />
                 <div className="flex-1">
                   <div className="font-semibold text-sm">💳 Carta di Credito (SumUp/Stripe)</div>
-                  <div className="text-xs text-muted-foreground">Marca subito come <strong>PAGATO</strong>. Potrai generare un link di pagamento da inviare al cliente.</div>
+                  <div className="text-xs text-muted-foreground">Apre <strong>subito il POS Web SumUp</strong> in una nuova scheda. Il cliente paga e la prenotazione passa automaticamente a PAGATA.</div>
                 </div>
               </label>
 
