@@ -609,21 +609,55 @@ function ImageUploader({ onUpload }) {
     if (file.size > 5 * 1024 * 1024) { toast.error('Max 5MB'); return; }
     setUploading(true);
     try {
-      const reader = new FileReader();
+      // Comprimi e ridimensiona l'immagine lato client (max 1600px, qualità 0.82)
+      // per evitare payload troppo grandi che causano errori "Unexpected non-whitespace JSON"
       const base64 = await new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const MAX_W = 1600;
+              const MAX_H = 1600;
+              let w = img.naturalWidth, h = img.naturalHeight;
+              if (w > MAX_W || h > MAX_H) {
+                const ratio = Math.min(MAX_W / w, MAX_H / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+              }
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, w, h);
+              resolve(canvas.toDataURL('image/jpeg', 0.82));
+            } catch (err) { reject(err); }
+          };
+          img.onerror = () => reject(new Error('Immagine non valida'));
+          img.src = reader.result;
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
+
       const res = await fetch('/api/upload', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ images: [base64] }),
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+      // Parsing robusto: gestisce response non-JSON o body troncato
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); }
+      catch {
+        const m = text.match(/\{[\s\S]*\}/);
+        if (m) { try { data = JSON.parse(m[0]); } catch { data = { error: 'Risposta server non valida' }; } }
+        else data = { error: `Risposta server non valida (HTTP ${res.status})` };
+      }
+      if (!res.ok || data?.error) throw new Error(data?.error || `HTTP ${res.status}`);
       const url = data.urls?.[0];
       if (url) { onUpload(url); toast.success('Immagine caricata!'); }
-    } catch (err) { toast.error('Errore upload: ' + err.message); }
+    } catch (err) { toast.error('Errore upload: ' + (err?.message || 'sconosciuto')); }
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
   };
 
