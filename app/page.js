@@ -3614,8 +3614,24 @@ function AdminDashboard({ currentUser, onLogout }) {
                     </Button>
                   </>
                 )}
+                {/* Azioni per Da Confermare (admin/agency pagamento diretto/successivo) */}
+                {b.status==='PENDING_CONFIRMATION' && (
+                  <>
+                    <Button variant="default" size="sm" className="text-xs h-7 bg-emerald-600 hover:bg-emerald-700" onClick={()=>confirmBankTransfer(b)} title="Marca come pagato + conferma">
+                      <CheckCircle2 className="w-3 h-3 mr-1"/>Conferma €
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>
+                    {/* Se ha già un link SumUp, mostra pulsante per riaprirlo */}
+                    {b.sumup_hosted_url && (
+                      <Button variant="outline" size="sm" className="text-xs h-7 border-purple-300 text-purple-700 hover:bg-purple-50" onClick={()=>{navigator.clipboard.writeText(b.sumup_hosted_url); toast.success('Link SumUp copiato!');}} title="Copia link pagamento SumUp">
+                        🔗 Link
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id)}>Cancella</Button>
+                  </>
+                )}
                 {/* Re-invio voucher email */}
-                {b.customer_email && (b.status==='CONFIRMED' || b.status==='PENDING_VERIFICATION') && (
+                {b.customer_email && (b.status==='CONFIRMED' || b.status==='PENDING_VERIFICATION' || b.status==='PENDING_CONFIRMATION') && (
                   <Button variant="ghost" size="sm" className="text-xs h-7 text-blue-600 hover:bg-blue-50" onClick={()=>resendVoucherEmail(b)} title="Re-invia voucher via email">
                     📧 Voucher
                   </Button>
