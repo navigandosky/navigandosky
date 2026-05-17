@@ -723,64 +723,166 @@ function PaymentsConfigEditor({ config, onChange }) {
         </div>
       </div>
 
-      {/* Online Provider */}
-      <div className="border rounded-lg p-4 space-y-3 bg-card">
-        <div>
-          <h3 className="font-semibold text-sm">Pagamenti Online (utente non loggato · checkout B2C)</h3>
-          <p className="text-xs text-muted-foreground">Provider per accettare pagamenti online dal pubblico (acconto 30% prenotazioni).</p>
-        </div>
-        <div>
-          <Label className="text-xs">Provider</Label>
-          <select
-            className="w-full border rounded h-9 px-2 text-sm"
-            value={provider}
-            onChange={(e) => set('online_provider', e.target.value)}
-          >
-            <option value="none">Nessuno (pagamento solo offline)</option>
-            <option value="sumup">SumUp (POS Web)</option>
-            <option value="stripe">Stripe</option>
-          </select>
+      {/* === Pagamenti Online (SumUp / Stripe) - layout uniforme alle Company === */}
+      <div className="rounded-lg border p-3 bg-blue-50/50 space-y-3">
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            id="marina_enable_online"
+            checked={c.online_enabled !== false && provider !== 'none'}
+            onChange={(e) => {
+              if (!e.target.checked) {
+                onChange({ ...c, online_enabled: false });
+              } else {
+                onChange({ ...c, online_enabled: true, online_provider: provider === 'none' ? 'sumup' : provider });
+              }
+            }}
+            className="mt-1 w-4 h-4"
+          />
+          <div className="flex-1">
+            <Label htmlFor="marina_enable_online" className="font-semibold cursor-pointer">💳 POS Web SumUp / Stripe (Carta di Credito Online)</Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Configura le credenziali del provider per accettare pagamenti con carta sul checkout pubblico e generare link di pagamento esterno.
+            </p>
+          </div>
         </div>
 
-        {provider === 'sumup' && (
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-            <div className="col-span-2 text-xs bg-amber-50 border border-amber-300 rounded p-2 text-amber-900">
-              ⚠️ <strong>SumUp:</strong> ottieni le credenziali dal pannello SumUp Developer (<a href="https://developer.sumup.com/" target="_blank" rel="noopener" className="underline">developer.sumup.com</a>) → API Keys.
-            </div>
-            <div><Label className="text-xs">SumUp Merchant Code</Label><Input value={c.sumup_merchant_code || ''} onChange={(e) => set('sumup_merchant_code', e.target.value)} placeholder="MXXXXXXX" /></div>
-            <div><Label className="text-xs">API Key (Secret)</Label><Input type="password" value={c.sumup_api_key || ''} onChange={(e) => set('sumup_api_key', e.target.value)} placeholder="sup_sk_..." /></div>
-            <div className="col-span-2">
-              <Label className="text-xs">Modalità</Label>
-              <select className="w-full border rounded h-9 px-2 text-sm" value={c.sumup_mode || 'sandbox'} onChange={(e) => set('sumup_mode', e.target.value)}>
-                <option value="sandbox">Sandbox (test)</option>
-                <option value="live">Live (produzione)</option>
+        {c.online_enabled !== false && provider !== 'none' && (
+          <div className="space-y-3 pl-7">
+            <div>
+              <Label className="text-xs">Provider</Label>
+              <select
+                className="w-full border rounded h-9 px-2 text-sm"
+                value={provider}
+                onChange={(e) => set('online_provider', e.target.value)}
+              >
+                <option value="sumup">SumUp (POS Web)</option>
+                <option value="stripe">Stripe</option>
+                <option value="none">Nessuno (disabilita)</option>
               </select>
             </div>
+
+            {provider === 'sumup' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="md:col-span-2 text-xs bg-amber-50 border border-amber-300 rounded p-2 text-amber-900">
+                  ⚠️ <strong>SumUp:</strong> ottieni la chiave dal pannello <a href="https://me.sumup.com" target="_blank" rel="noopener" className="underline font-medium">me.sumup.com</a> → Settings → For Developers → API Keys.
+                  Il <strong>Merchant Code</strong> verrà rilevato automaticamente dopo il salvataggio.
+                </div>
+                <div className="space-y-1 md:col-span-2">
+                  <Label className="text-xs flex items-center gap-2">
+                    🔑 SumUp API Key (Secret) *
+                    {c.sumup_merchant_code && (
+                      <Badge variant="secondary" className="text-[10px]">Merchant: {c.sumup_merchant_code}</Badge>
+                    )}
+                  </Label>
+                  <Input
+                    type="password"
+                    placeholder="sup_sk_xxxxxxxxxxxxxxx"
+                    value={c.sumup_api_key || ''}
+                    onChange={(e) => set('sumup_api_key', e.target.value.trim())}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Modalità</Label>
+                  <select className="w-full border rounded h-9 px-2 text-sm" value={c.sumup_mode || 'live'} onChange={(e) => set('sumup_mode', e.target.value)}>
+                    <option value="live">🟢 Live (transazioni reali)</option>
+                    <option value="sandbox">🟡 Sandbox (test)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Merchant Code (auto-rilevato)</Label>
+                  <Input
+                    readOnly
+                    placeholder="Sarà rilevato dalla chiave"
+                    value={c.sumup_merchant_code || ''}
+                    className="bg-muted text-sm font-mono"
+                  />
+                </div>
+              </div>
+            )}
+
+            {provider === 'stripe' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="md:col-span-2 text-xs bg-amber-50 border border-amber-300 rounded p-2 text-amber-900">
+                  ⚠️ <strong>Stripe:</strong> ottieni le chiavi da <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener" className="underline">dashboard.stripe.com/apikeys</a>.
+                </div>
+                <div><Label className="text-xs">Publishable Key</Label><Input value={c.stripe_publishable_key || ''} onChange={(e) => set('stripe_publishable_key', e.target.value)} placeholder="pk_test_..." /></div>
+                <div><Label className="text-xs">Secret Key</Label><Input type="password" value={c.stripe_secret_key || ''} onChange={(e) => set('stripe_secret_key', e.target.value)} placeholder="sk_test_..." /></div>
+                <div className="md:col-span-2">
+                  <Label className="text-xs">Modalità</Label>
+                  <select className="w-full border rounded h-9 px-2 text-sm" value={c.stripe_mode || 'test'} onChange={(e) => set('stripe_mode', e.target.value)}>
+                    <option value="test">Test</option>
+                    <option value="live">Live (produzione)</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
         )}
+      </div>
 
-        {provider === 'stripe' && (
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-            <div className="col-span-2 text-xs bg-amber-50 border border-amber-300 rounded p-2 text-amber-900">
-              ⚠️ <strong>Stripe:</strong> ottieni le chiavi da <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener" className="underline">dashboard.stripe.com/apikeys</a>.
+      {/* === Bonifico Istantaneo (con upload ricevuta lato cliente) === */}
+      <div className="rounded-lg border p-3 bg-emerald-50/50 space-y-3">
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            id="marina_enable_bank_transfer"
+            checked={!!c.enable_bank_transfer}
+            onChange={(e) => set('enable_bank_transfer', e.target.checked)}
+            className="mt-1 w-4 h-4"
+          />
+          <div className="flex-1">
+            <Label htmlFor="marina_enable_bank_transfer" className="font-semibold cursor-pointer">🏦 Bonifico Istantaneo</Label>
+            <p className="text-xs text-muted-foreground mt-1">
+              Il cliente vede le coordinate IBAN, effettua il bonifico e carica la ricevuta. La prenotazione resta in <strong>PENDING</strong> finché l'amministratore della marina non conferma.
+            </p>
+          </div>
+        </div>
+
+        {c.enable_bank_transfer && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-7">
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs">IBAN *</Label>
+              <Input
+                placeholder="IT60X0542811101000000123456"
+                value={c.bank_transfer?.iban || ''}
+                onChange={(e) => set('bank_transfer', { ...(c.bank_transfer || {}), iban: e.target.value.toUpperCase().replace(/\s/g, '') })}
+              />
             </div>
-            <div><Label className="text-xs">Publishable Key</Label><Input value={c.stripe_publishable_key || ''} onChange={(e) => set('stripe_publishable_key', e.target.value)} placeholder="pk_test_..." /></div>
-            <div><Label className="text-xs">Secret Key</Label><Input type="password" value={c.stripe_secret_key || ''} onChange={(e) => set('stripe_secret_key', e.target.value)} placeholder="sk_test_..." /></div>
-            <div className="col-span-2">
-              <Label className="text-xs">Modalità</Label>
-              <select className="w-full border rounded h-9 px-2 text-sm" value={c.stripe_mode || 'test'} onChange={(e) => set('stripe_mode', e.target.value)}>
-                <option value="test">Test</option>
-                <option value="live">Live (produzione)</option>
-              </select>
+            <div className="space-y-1">
+              <Label className="text-xs">Intestatario</Label>
+              <Input
+                placeholder="MARLIN SUB SRL"
+                value={c.bank_transfer?.account_holder || ''}
+                onChange={(e) => set('bank_transfer', { ...(c.bank_transfer || {}), account_holder: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Nome Banca</Label>
+              <Input
+                placeholder="Banca Intesa Sanpaolo"
+                value={c.bank_transfer?.bank_name || ''}
+                onChange={(e) => set('bank_transfer', { ...(c.bank_transfer || {}), bank_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">BIC / SWIFT</Label>
+              <Input
+                placeholder="BCITITMM"
+                value={c.bank_transfer?.bic_swift || ''}
+                onChange={(e) => set('bank_transfer', { ...(c.bank_transfer || {}), bic_swift: e.target.value.toUpperCase() })}
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs">Istruzioni per il cliente</Label>
+              <Textarea
+                rows={2}
+                placeholder="Indica nella causale 'Prenotazione Posto [Codice]' e carica la ricevuta del bonifico..."
+                value={c.bank_transfer?.instructions || ''}
+                onChange={(e) => set('bank_transfer', { ...(c.bank_transfer || {}), instructions: e.target.value })}
+              />
             </div>
           </div>
-        )}
-
-        {provider !== 'none' && (
-          <label className="flex items-center gap-2 text-sm pt-2 border-t">
-            <input type="checkbox" checked={c.online_enabled !== false} onChange={(e) => set('online_enabled', e.target.checked)} />
-            <span>Abilita pagamenti online B2C (checkout pubblico)</span>
-          </label>
         )}
       </div>
 
