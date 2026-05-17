@@ -35,6 +35,8 @@ const AccountingRegistryLazy = dynamic(() => import('./components/AccountingRegi
 const SkippersAdminLazy = dynamic(() => import('./components/SkippersAdmin'), { ssr: false });
 // Lista Registri Trasportati (per Calendario + Mappa GPS)
 const TransportLogsListLazy = dynamic(() => import('./components/TransportLogsList'), { ssr: false });
+// Registro Trasportati (vista admin con filtri)
+const TransportLogsRegistryLazy = dynamic(() => import('./components/TransportLogsRegistry'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -3348,6 +3350,9 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="accounting" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold drop-shadow">
               <Wallet className="w-4 h-4 mr-1.5" />Registro Contabilità
             </TabsTrigger>
+            <TabsTrigger value="transport-logs" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold drop-shadow">
+              <FileText className="w-4 h-4 mr-1.5" />Registro Trasportati
+            </TabsTrigger>
           </TabsList>
         )}
 
@@ -4231,10 +4236,14 @@ function AdminDashboard({ currentUser, onLogout }) {
                                   <Badge variant="outline" className="text-xs">
                                     {company.subscription_plan || 'STANDARD'}
                                   </Badge>
-                                  {company.is_active ? (
-                                    <Badge className="text-xs bg-green-100 text-green-800">Attiva</Badge>
+                                  {company.is_active === false ? (
+                                    <Badge className="text-xs bg-amber-100 text-amber-800 border-amber-300">
+                                      <EyeOff className="w-3 h-3 mr-1" />Sospesa
+                                    </Badge>
                                   ) : (
-                                    <Badge variant="secondary" className="text-xs">Inattiva</Badge>
+                                    <Badge className="text-xs bg-green-100 text-green-800">
+                                      <Eye className="w-3 h-3 mr-1" />Visibile
+                                    </Badge>
                                   )}
                                 </div>
                               </div>
@@ -4259,6 +4268,36 @@ function AdminDashboard({ currentUser, onLogout }) {
                               </div>
                               {/* Pulsanti azione */}
                               <div className="flex items-center gap-2">
+                                {/* Toggle Visibile/Sospesa */}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className={company.is_active === false
+                                    ? 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                                    : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'}
+                                  onClick={async () => {
+                                    const newState = !(company.is_active === false ? false : true);
+                                    const action = newState ? 'attivare' : 'sospendere';
+                                    if (!confirm(`Vuoi ${action} la societa\u0300 "${company.name}"?\n${newState ? 'Sara\u0300 nuovamente visibile e operativa.' : 'Verra\u0300 nascosta dal catalogo pubblico e dal portale B2B.'}`)) return;
+                                    const res = await api(`companies/${company.id}`, {
+                                      method: 'PUT',
+                                      body: { is_active: newState },
+                                    });
+                                    if (res.error) {
+                                      safeToastError(res.error);
+                                    } else {
+                                      toast.success(newState ? 'Societa\u0300 attivata' : 'Societa\u0300 sospesa');
+                                      await load();
+                                    }
+                                  }}
+                                  title={company.is_active === false ? 'Attiva (rendi visibile)' : 'Sospendi (nascondi dal pubblico)'}
+                                >
+                                  {company.is_active === false ? (
+                                    <><EyeOff className="w-4 h-4 mr-1" />Sospesa</>
+                                  ) : (
+                                    <><Eye className="w-4 h-4 mr-1" />Visibile</>
+                                  )}
+                                </Button>
                                 <Button 
                                   size="sm" 
                                   variant="outline"
@@ -5154,6 +5193,18 @@ function AdminDashboard({ currentUser, onLogout }) {
                 companyId={isSuperAdmin ? null : currentUser?.company_id}
                 companies={companies}
                 marinas={ownedMarinas || []}
+              />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Registro Trasportati - vista admin con filtri data/risorsa/esperienza */}
+        {(hasMarinaOwnership || currentUser?.company_id) && (
+          <TabsContent value="transport-logs" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><FileText className="w-8 h-8 mx-auto animate-pulse text-blue-600" /></div>}>
+              <TransportLogsRegistryLazy
+                companyId={isSuperAdmin ? null : currentUser?.company_id}
+                companies={companies}
               />
             </Suspense>
           </TabsContent>

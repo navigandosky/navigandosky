@@ -36,12 +36,24 @@ async function handleExperiences(method, id, body, sp) {
     if (sp.get('language')) filter.languages = { $in: [sp.get('language')] };
     if (sp.get('active') === 'true') filter.is_active = true;
     if (sp.get('company_id')) filter.company_id = sp.get('company_id'); // Multi-Tenant
-    if (sp.get('all') !== 'true' && !sp.get('active')) {
+    const isPublicCatalog = sp.get('all') !== 'true' && !sp.get('active');
+    if (isPublicCatalog) {
       filter.is_active = true;
       // Filtra solo esperienze visibili in home page per catalogo pubblico
       filter.is_visible_on_home = { $ne: false };
     }
-    const items = await col.find(filter).sort({ created_at: -1 }).toArray();
+    let items = await col.find(filter).sort({ created_at: -1 }).toArray();
+    // Filtra esperienze di company sospese (is_active=false) per le viste pubbliche
+    if (isPublicCatalog) {
+      const suspendedCompanies = await db.collection('companies').find(
+        { is_active: false },
+        { projection: { id: 1 } }
+      ).toArray();
+      const suspendedIds = new Set(suspendedCompanies.map((c) => c.id));
+      if (suspendedIds.size > 0) {
+        items = items.filter((e) => !e.company_id || !suspendedIds.has(e.company_id));
+      }
+    }
     return json(items);
   }
 

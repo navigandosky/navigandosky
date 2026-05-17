@@ -24,6 +24,13 @@ export default function CompanyPage() {
           return;
         }
         
+        // Se la company e' sospesa (is_active=false), mostra messaggio di sospensione
+        if (data.is_active === false) {
+          setError('Servizio temporaneamente sospeso. Riprova piu\' tardi o contatta l\'assistenza.');
+          setLoading(false);
+          return;
+        }
+        
         setCompany(data);
         
         // Applica branding dinamico

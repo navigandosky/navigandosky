@@ -54,7 +54,13 @@ export default function AgencyB2BPortal() {
         const res = await fetch(`${API_BASE}/companies?slug=${slug}`);
         const data = await res.json();
         if (data && data.id) {
-          setCompany(data);
+          // Blocca accesso se company sospesa
+          if (data.is_active === false) {
+            setCompany({ ...data, _suspended: true });
+            toast.error('Servizio temporaneamente sospeso');
+          } else {
+            setCompany(data);
+          }
         } else {
           toast.error('Società non trovata');
         }
@@ -458,6 +464,26 @@ export default function AgencyB2BPortal() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl text-red-600">Società non trovata</CardTitle>
             <CardDescription>La società richiesta non esiste</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  // Company sospesa - blocca completamente accesso
+  if (company._suspended) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50 p-4">
+        <Card className="w-full max-w-md shadow-xl border-amber-300">
+          <CardHeader className="text-center space-y-3">
+            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto">
+              <EyeOff className="w-8 h-8 text-amber-600" />
+            </div>
+            <CardTitle className="text-2xl text-amber-800">Servizio Sospeso</CardTitle>
+            <CardDescription className="text-base">
+              Il portale B2B di <strong>{company.name}</strong> e&apos; temporaneamente sospeso.<br />
+              Per maggiori informazioni contatta l&apos;assistenza.
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
