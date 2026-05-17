@@ -6108,11 +6108,7 @@ export default function App() {
             )
           )}
           {view === 'b2b' && (
-            isAuthenticated && currentUser?.role === 'COMPANY_ADMIN' ? (
-              <AdminDashboard currentUser={currentUser} onLogout={handleLogout} />
-            ) : (
-              <LoginScreen onLoginSuccess={handleLoginSuccess} forCompanyAdmin={true} />
-            )
+            <B2BCompanySelector />
           )}
         </main>
         <Footer companyBrand={companyBrand} currentUser={currentUser} />
