@@ -1503,6 +1503,141 @@ async function handleGPSAnalytics(method, pathParts, searchParams) {
   }
 }
 
+// ==================== GPS ANALYTICS RANGE ====================
+// Aggrega le rotte di più giorni e calcola le analytics complessive
+async function handleGPSAnalyticsRange(method, pathParts, searchParams) {
+  if (method !== 'GET') return json({ error: 'Use GET' }, 405);
+  const imei = pathParts[2];
+  if (!imei) return json({ error: 'IMEI richiesto' }, 400);
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
+  if (!from || !to) return json({ error: 'from e to richiesti (YYYY-MM-DD)' }, 400);
+
+  try {
+    const db = await getDb();
+    const config = await db.collection('gps_config').findOne({ type: 'balin' });
+    if (!config) return json({ error: 'Configurazione GPS non trovata' }, 400);
+
+    const authString = `${config.email}:${config.api_token}`;
+    const base64Auth = Buffer.from(authString).toString('base64');
+
+    const dStart = new Date(`${from}T00:00:00Z`);
+    const dEnd = new Date(`${to}T23:59:59Z`);
+    if (dStart > dEnd) return json({ error: 'from > to' }, 400);
+
+    // Limita a max 31 giorni per evitare richieste enormi
+    const days = Math.floor((dEnd - dStart) / (1000 * 60 * 60 * 24)) + 1;
+    if (days > 31) return json({ error: 'Range troppo ampio (max 31 giorni)' }, 400);
+
+    const ALERT_THRESHOLD = Number(config.speed_alert_threshold) || 30;
+    const allPositions = [];
+    const dayMarkers = []; // { date, start_index, end_index }
+
+    // Itera giorno per giorno
+    for (let i = 0; i < days; i++) {
+      const d = new Date(dStart.getTime() + i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().split('T')[0];
+      const startMs = new Date(`${dateStr}T00:00:00Z`).getTime();
+      const stopMs = new Date(`${dateStr}T23:59:59Z`).getTime();
+      const apiUrl = `https://api.balin.app/external_api/v1/positionsHistory/${imei}?start=${startMs}&stop=${stopMs}&skip=0&limit=5000`;
+      try {
+        const r = await fetch(apiUrl, {
+          headers: { Authorization: `Basic ${base64Auth}`, 'Content-Type': 'application/json' },
+        });
+        if (!r.ok) {
+          dayMarkers.push({ date: dateStr, start_index: allPositions.length, end_index: allPositions.length - 1, points: 0 });
+          continue;
+        }
+        const j = await r.json();
+        const pts = j?.data || j?.positions || [];
+        const startIdx = allPositions.length;
+        pts.forEach(p => allPositions.push({ ...p, _date: dateStr }));
+        dayMarkers.push({ date: dateStr, start_index: startIdx, end_index: allPositions.length - 1, points: pts.length });
+      } catch (e) {
+        console.error('[GPS Range] day failed:', dateStr, e?.message);
+        dayMarkers.push({ date: dateStr, start_index: allPositions.length, end_index: allPositions.length - 1, points: 0 });
+      }
+    }
+
+    if (allPositions.length === 0) {
+      return json({
+        imei, from, to, days, points_count: 0, total_distance: 0, max_speed: 0,
+        avg_speed: 0, total_time: 0, engine_hours: 0, stops: 0, route: [],
+        speed_alerts: [], speed_alerts_count: 0, alert_threshold: ALERT_THRESHOLD, day_markers: dayMarkers,
+      });
+    }
+
+    // Calcola analytics aggregate (stessa logica di handleGPSAnalytics)
+    let totalDistance = 0, maxSpeed = 0, totalSpeed = 0, stops = 0, movingTime = 0, engineHoursMs = 0;
+    const speedAlerts = [];
+    let currentAlert = null;
+
+    const route = allPositions.map((point, idx) => {
+      const speed = point.speed || 0;
+      if (speed > maxSpeed) maxSpeed = speed;
+      totalSpeed += speed;
+      if (speed === 0) stops++;
+      else if (speed > 0) {
+        movingTime += 1;
+        if (idx > 0 && allPositions[idx - 1].speed > 0 && allPositions[idx - 1]._date === point._date) {
+          const prevTs = allPositions[idx - 1].timestamp || allPositions[idx - 1].timestamp_position;
+          const currTs = point.timestamp || point.timestamp_position;
+          if (prevTs && currTs) engineHoursMs += (new Date(currTs).getTime() - new Date(prevTs).getTime());
+        }
+      }
+      // distanza solo entro lo stesso giorno (no salto fra giorni)
+      if (idx > 0 && allPositions[idx - 1]._date === point._date) {
+        const prev = allPositions[idx - 1];
+        const R = 6371;
+        const dLat = (point.lat - prev.lat) * Math.PI / 180;
+        const dLon = (point.lng - prev.lng) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 + Math.cos(prev.lat * Math.PI/180) * Math.cos(point.lat * Math.PI/180) * Math.sin(dLon/2)**2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        totalDistance += R * c;
+      }
+      const ts = point.timestamp || point.timestamp_position;
+      // alert
+      if (speed > ALERT_THRESHOLD) {
+        if (!currentAlert) {
+          currentAlert = {
+            start_ts: ts, end_ts: ts, start_lat: point.lat, start_lng: point.lng,
+            end_lat: point.lat, end_lng: point.lng, max_speed: speed,
+            points: 1, start_index: idx, end_index: idx, date: point._date,
+          };
+        } else {
+          currentAlert.end_ts = ts; currentAlert.end_lat = point.lat; currentAlert.end_lng = point.lng;
+          currentAlert.end_index = idx; currentAlert.points++;
+          if (speed > currentAlert.max_speed) currentAlert.max_speed = speed;
+        }
+      } else if (currentAlert) {
+        speedAlerts.push(currentAlert);
+        currentAlert = null;
+      }
+      return { lat: point.lat, lng: point.lng, speed, timestamp: ts, date: point._date };
+    });
+    if (currentAlert) speedAlerts.push(currentAlert);
+
+    return json({
+      imei, from, to, days,
+      points_count: allPositions.length,
+      total_distance: parseFloat(totalDistance.toFixed(2)),
+      max_speed: maxSpeed,
+      avg_speed: allPositions.length > 0 ? parseFloat((totalSpeed / allPositions.length).toFixed(2)) : 0,
+      total_time: movingTime,
+      engine_hours: parseFloat((engineHoursMs / 3600000).toFixed(2)),
+      stops,
+      route,
+      alert_threshold: ALERT_THRESHOLD,
+      speed_alerts: speedAlerts.map(a => ({ ...a, max_speed: parseFloat(Number(a.max_speed).toFixed(2)) })),
+      speed_alerts_count: speedAlerts.length,
+      day_markers: dayMarkers,
+    });
+  } catch (e) {
+    console.error('[GPS Range] Error:', e);
+    return json({ error: 'Errore range analytics', details: e.message }, 500);
+  }
+}
+
 // ==================== BOOKINGS BY RESOURCE & DATE ====================
 async function handleBookingsByResource(method, searchParams) {
   if (method !== 'GET') return json({ error: 'Use GET' }, 405);
@@ -1884,6 +2019,10 @@ async function handleRoute(request, resolvedParams, method) {
       // gps/analytics/{imei} -> analytics GPS
       if (pathSegments[1] === 'analytics') {
         return await handleGPSAnalytics(method, pathSegments, searchParams);
+      }
+      // gps/analytics-range/{imei}?from=YYYY-MM-DD&to=YYYY-MM-DD -> analytics aggregati su range
+      if (pathSegments[1] === 'analytics-range') {
+        return await handleGPSAnalyticsRange(method, pathSegments, searchParams);
       }
       // gps/devices -> dispositivi real-time
       return await handleGPS(method, pathSegments);

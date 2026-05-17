@@ -293,6 +293,24 @@ export default function AgencyB2BPortal() {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
+          {/* === BANDA AZIONI RAPIDE B2B === */}
+          <div className="flex flex-wrap items-center gap-2 bg-gradient-to-r from-fuchsia-600 via-pink-500 to-rose-500 p-2 rounded-lg shadow-lg w-full">
+            <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/40 pr-3 drop-shadow">
+              <Plus className="w-4 h-4" />Azioni Rapide
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowNewBookingDialog(true)}
+              className="bg-white text-rose-700 hover:bg-rose-50 font-semibold shadow-md border border-white/40 h-9"
+              title="Crea prenotazione esperienza"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              <CreditCard className="w-4 h-4 mr-1.5" />
+              Crea Prenotazione Esperienza
+            </Button>
+          </div>
+
           <TabsList>
             <TabsTrigger value="dashboard">
               <BarChart3 className="w-4 h-4 mr-2" />

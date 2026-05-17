@@ -4,7 +4,27 @@ import { jsPDF } from 'jspdf';
 const fmtEur = n => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n || 0));
 const fmtDateTime = iso => iso ? new Date(iso).toLocaleString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
 
-export function generateVoucherPdf(booking, experience, company, opts = {}) {
+// Carica un'immagine come dataURL (per inserirla nel PDF con jspdf)
+const loadImageAsDataUrl = (url) => new Promise((resolve) => {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve({ dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height });
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  } catch { resolve(null); }
+});
+
+export async function generateVoucherPdf(booking, experience, company, opts = {}) {
   const isFinal = opts.type === 'FINAL' || booking?.status === 'CONFIRMED';
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210, H = 297;
@@ -14,16 +34,37 @@ export function generateVoucherPdf(booking, experience, company, opts = {}) {
   // Header banner colorato
   const headerColor = isFinal ? [16, 185, 129] : [245, 158, 11]; // verde o ambra
   doc.setFillColor(...headerColor);
-  doc.rect(0, 0, W, 40, 'F');
+  doc.rect(0, 0, W, 45, 'F');
+
+  // === LOGHI nell'header: company logo a sx, MARETREK a dx, scritta VOUCHER al centro ===
+  // Logo company (Marlin Sub o altre) a sinistra
+  const companyLogoUrl = company?.logo_url || (company?.slug === 'marlin-sub' ? '/logos/marlin-sub.jpg' : null);
+  if (companyLogoUrl) {
+    const left = await loadImageAsDataUrl(companyLogoUrl);
+    if (left) {
+      const lh = 26;
+      const lw = lh * (left.w / left.h);
+      try { doc.addImage(left.dataUrl, 'PNG', 8, 10, lw, lh); } catch { /* ignore */ }
+    }
+  }
+  // Logo Maretrek a destra (sempre)
+  const right = await loadImageAsDataUrl('/logos/maretrek.png');
+  if (right) {
+    const rh = 26;
+    const rw = rh * (right.w / right.h);
+    try { doc.addImage(right.dataUrl, 'PNG', W - rw - 8, 10, rw, rh); } catch { /* ignore */ }
+  }
+
+  // Scritta VOUCHER al centro
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22).setFont('helvetica', 'bold');
-  doc.text(isFinal ? 'VOUCHER CONFERMATO' : 'VOUCHER PROVVISORIO', W / 2, 20, { align: 'center' });
-  doc.setFontSize(11).setFont('helvetica', 'normal');
-  doc.text(isFinal ? 'Pagamento ricevuto - Prenotazione confermata' : 'In attesa di verifica del pagamento', W / 2, 30, { align: 'center' });
+  doc.text(isFinal ? 'VOUCHER CONFERMATO' : 'VOUCHER PROVVISORIO', W / 2, 22, { align: 'center' });
+  doc.setFontSize(10).setFont('helvetica', 'normal');
+  doc.text(isFinal ? 'Pagamento ricevuto - Prenotazione confermata' : 'In attesa di verifica del pagamento', W / 2, 32, { align: 'center' });
 
   // Reset colors
   doc.setTextColor(31, 41, 55);
-  y = 55;
+  y = 58;
 
   // Codice prenotazione - box grande centrato
   doc.setDrawColor(...headerColor);
@@ -132,8 +173,8 @@ export function generateVoucherPdf(booking, experience, company, opts = {}) {
   return doc;
 }
 
-export function downloadVoucherPdf(booking, experience, company, opts = {}) {
-  const doc = generateVoucherPdf(booking, experience, company, opts);
+export async function downloadVoucherPdf(booking, experience, company, opts = {}) {
+  const doc = await generateVoucherPdf(booking, experience, company, opts);
   const filename = `Voucher_${booking.booking_ref || 'booking'}_${opts.type === 'FINAL' ? 'finale' : 'provvisorio'}.pdf`;
   doc.save(filename);
 }

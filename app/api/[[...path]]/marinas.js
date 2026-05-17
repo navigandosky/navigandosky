@@ -68,6 +68,55 @@ export async function handleMarinas(method, id, body, action, sp, db) {
     const update = { ...body, updated_at: new Date().toISOString() };
     delete update.id;
     delete update._id;
+
+    // === SumUp auto-refresh merchant_code (allineamento con companies) ===
+    try {
+      // marinas.js usa schema "flat" per payment: payment_config.sumup_api_key + sumup_merchant_code
+      // ma supportiamo anche schema nested payment_config.sumup.{api_key, merchant_code}
+      const pc = update?.payment_config || {};
+      const nestedKey = pc?.sumup?.api_key;
+      const flatKey = pc?.sumup_api_key;
+      const newKey = (nestedKey || flatKey || '').toString().trim();
+      if (newKey) {
+        const existing = await col.findOne({ id });
+        const epc = existing?.payment_config || {};
+        const prevKey = (epc?.sumup?.api_key || epc?.sumup_api_key || '').toString().trim();
+        const currentMc = (pc?.sumup?.merchant_code || pc?.sumup_merchant_code || '').toString().trim();
+        if (newKey !== prevKey || !currentMc) {
+          try {
+            const r = await fetch('https://api.sumup.com/v0.1/me', {
+              headers: { Authorization: `Bearer ${newKey}` },
+            });
+            if (r.ok) {
+              const me = await r.json();
+              const mc = me?.merchant_profile?.merchant_code || me?.merchant_code || '';
+              if (mc) {
+                update.payment_config = update.payment_config || {};
+                // aggiorna entrambi gli schemi per retro-compatibilità
+                if (nestedKey || (typeof pc.sumup === 'object')) {
+                  update.payment_config.sumup = { ...(pc.sumup || {}), api_key: newKey, merchant_code: mc };
+                }
+                if (flatKey || ('sumup_api_key' in pc)) {
+                  update.payment_config.sumup_api_key = newKey;
+                  update.payment_config.sumup_merchant_code = mc;
+                }
+                console.log('[Marinas PUT] SumUp merchant_code aggiornato:', mc);
+              }
+            } else {
+              const t = await r.text();
+              console.error('[Marinas PUT] SumUp /me failed:', r.status, t);
+              // pulisci merchant_code obsoleto
+              update.payment_config = update.payment_config || {};
+              if (update.payment_config.sumup) update.payment_config.sumup.merchant_code = '';
+              if ('sumup_api_key' in (update.payment_config || {})) update.payment_config.sumup_merchant_code = '';
+            }
+          } catch (e) { console.error('[Marinas PUT] SumUp /me exception:', e?.message); }
+        }
+      }
+    } catch (e) {
+      console.error('[Marinas PUT] SumUp hook error:', e?.message);
+    }
+
     await col.updateOne({ id }, { $set: update });
     const updated = await col.findOne({ id });
     return new Response(JSON.stringify(updated), { headers: { 'Content-Type': 'application/json' } });

@@ -16,7 +16,7 @@ const fmtTime = (ts) => {
   catch { return '-'; }
 };
 
-export default function TripReplayDialog({ open, onOpenChange, route = [], speedAlerts = [], alertThreshold = 30, device, date }) {
+export default function TripReplayDialog({ open, onOpenChange, route = [], speedAlerts = [], alertThreshold = 30, device, date, dayMarkers = [] }) {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
   const heatLayerRef = useRef(null);
@@ -219,9 +219,14 @@ export default function TripReplayDialog({ open, onOpenChange, route = [], speed
             Replay Viaggio — {device?.resource?.name || 'Dispositivo'}
           </DialogTitle>
           <DialogDescription>
-            {date ? new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
+            {date ? (typeof date === 'string' && date.includes('→') ? <span>Range: <strong>{date}</strong></span> : new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) : '—'}
             {' · '}
             <span>{totalPoints} punti GPS</span>
+            {dayMarkers && dayMarkers.length > 1 && (
+              <Badge variant="outline" className="ml-2 bg-blue-50">
+                {dayMarkers.filter(d => d.points > 0).length} giorni con dati
+              </Badge>
+            )}
             {speedAlerts?.length > 0 && (
               <Badge variant="destructive" className="ml-2">
                 <AlertTriangle className="w-3 h-3 mr-1" />
@@ -245,6 +250,9 @@ export default function TripReplayDialog({ open, onOpenChange, route = [], speed
               <div className="border rounded-lg p-3 bg-white">
                 <div className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Orario</div>
                 <div className="text-lg font-bold font-mono">{fmtTime(currentPoint?.timestamp)}</div>
+                {currentPoint?.date && (
+                  <div className="text-xs text-muted-foreground mt-0.5">{new Date(currentPoint.date).toLocaleDateString('it-IT')}</div>
+                )}
               </div>
               <div className={`border rounded-lg p-3 ${isAlertSpeed ? 'bg-red-50 border-red-300' : 'bg-white'}`}>
                 <div className="text-xs text-muted-foreground flex items-center gap-1"><Gauge className="w-3 h-3" /> Velocità</div>

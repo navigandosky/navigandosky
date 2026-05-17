@@ -39,7 +39,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench
+  ClipboardList, FileSignature, Shield, Wrench, FileText
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -1917,6 +1917,35 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
                         const gc = GANTT_COLORS[expType] || 'bg-gray-50 border-gray-300';
                         return (
                           <div key={slot.id} className={`p-2 rounded-lg border-2 text-xs cursor-pointer ${gc} hover:shadow-lg transition-all relative group`} onClick={() => openSlotDetail(slot)}>
+                            {/* Bottone stampa lista check-in (visibile su hover) */}
+                            {sb.some(b => b.checked_in_at) && (
+                              <button
+                                type="button"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    const { downloadPassengersListPdf } = await import('@/app/lib/passengersListPdf');
+                                    const dateStr = (slot.start_datetime || '').split('T')[0];
+                                    const exp = experiences.find(x => x.id === slot.experience_id) || {};
+                                    const comp = companies.find(c => c.id === slot.company_id) || null;
+                                    await downloadPassengersListPdf({
+                                      resource: { name: res.name, type: res.type, license_plate: res.license_plate, capacity: res.capacity },
+                                      date: dateStr,
+                                      bookings: sb.map(bk => ({ ...bk, experience_name: exp.name, slot_time: `${fmtTime(slot.start_datetime)} - ${fmtTime(slot.end_datetime)}`, slot_datetime: slot.start_datetime })),
+                                      company: comp,
+                                    });
+                                    toast.success('Lista check-in scaricata');
+                                  } catch (err) {
+                                    console.error(err);
+                                    toast.error('Errore generazione PDF');
+                                  }
+                                }}
+                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition bg-white/95 hover:bg-emerald-50 border border-emerald-300 text-emerald-700 rounded p-1 shadow z-10"
+                                title="Stampa lista passeggeri check-in"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <div className="flex items-start justify-between gap-2 mb-1">
                               <p className="font-bold text-sm leading-tight flex-1">{getExpName(slot.experience_id)}</p>
                               {sb.length > 0 && (
@@ -1977,7 +2006,39 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
                 <p className="text-sm text-muted-foreground capitalize">{fmtDateTime(selectedSlot.start_datetime)} | {selectedSlot.booked_seats}/{selectedSlot.max_seats} posti</p>
               </DialogHeader>
               <div className="space-y-4">
-                <h4 className="font-semibold flex items-center gap-2"><Users className="w-4 h-4" />Prenotazioni ({slotBookings.length})</h4>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h4 className="font-semibold flex items-center gap-2"><Users className="w-4 h-4" />Prenotazioni ({slotBookings.length})</h4>
+                  {slotBookings.some(b => b.checked_in_at) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-800"
+                      onClick={async () => {
+                        try {
+                          const { downloadPassengersListPdf } = await import('@/app/lib/passengersListPdf');
+                          const dateStr = (selectedSlot.start_datetime || '').split('T')[0];
+                          const exp = experiences.find(x => x.id === selectedSlot.experience_id) || {};
+                          const resourcesForSlot = (resources || []).filter(r => (selectedSlot.resource_ids || []).includes(r.id));
+                          const resInfo = resourcesForSlot[0] || { name: 'Slot', type: 'BOAT' };
+                          const comp = (companies || []).find(c => c.id === selectedSlot.company_id) || null;
+                          await downloadPassengersListPdf({
+                            resource: { name: resInfo.name, type: resInfo.type, license_plate: resInfo.license_plate, capacity: resInfo.capacity },
+                            date: dateStr,
+                            bookings: slotBookings.map(bk => ({ ...bk, experience_name: exp.name, slot_time: `${fmtTime(selectedSlot.start_datetime)} - ${fmtTime(selectedSlot.end_datetime)}`, slot_datetime: selectedSlot.start_datetime })),
+                            company: comp,
+                          });
+                          toast.success('Lista check-in scaricata');
+                        } catch (err) {
+                          console.error(err);
+                          toast.error('Errore generazione PDF');
+                        }
+                      }}
+                    >
+                      <FileText className="w-3.5 h-3.5 mr-1.5" />
+                      Stampa Lista Check-in
+                    </Button>
+                  )}
+                </div>
                 {slotBookings.length === 0 ? <p className="text-sm text-muted-foreground py-4 text-center">Nessuna prenotazione.</p> : (
                   <div className="space-y-2">
                     {slotBookings.map(b => (
@@ -2586,7 +2647,7 @@ function AdminDashboard({ currentUser, onLogout }) {
           }
         }
       } catch {}
-      downloadVoucherPdf(b, exp, company, { type: voucherType, bankTransfer });
+      await downloadVoucherPdf(b, exp, company, { type: voucherType, bankTransfer });
       toast.success(`📄 PDF Voucher ${voucherType === 'FINAL' ? 'definitivo' : 'provvisorio'} scaricato`);
     } catch (e) {
       console.error('PDF voucher error:', e);
@@ -3076,6 +3137,37 @@ function AdminDashboard({ currentUser, onLogout }) {
           </div>
         )}
 
+        {/* === BANDA AZIONI RAPIDE — Crea Preventivo / Prenotazione (visibile anche per agenzia) === */}
+        {(currentUser?.company_id || isSuperAdmin) && (
+          <TabsList className="flex-wrap h-auto gap-2 bg-gradient-to-r from-fuchsia-600 via-pink-500 to-rose-500 p-2 rounded-lg shadow-lg w-full">
+            <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/40 pr-3 drop-shadow">
+              <Plus className="w-4 h-4" />Azioni Rapide
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowNewQuoteDialog(true)}
+              className="bg-white text-fuchsia-700 hover:bg-fuchsia-50 font-semibold shadow-md border border-white/40 h-9"
+              title="Nuovo preventivo posto barca"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              <Anchor className="w-4 h-4 mr-1.5" />
+              Nuovo Preventivo Posto Barca
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowNewBookingDialog(true)}
+              className="bg-white text-rose-700 hover:bg-rose-50 font-semibold shadow-md border border-white/40 h-9"
+              title="Crea prenotazione esperienza"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              <Ship className="w-4 h-4 mr-1.5" />
+              Crea Prenotazione Esperienza
+            </Button>
+          </TabsList>
+        )}
+
         {/* Riga 2: Tab MARINE (sfondo blu, scritte bianche) - Super Admin o owner marina */}
         {hasMarinaOwnership && (
           <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-blue-700 via-primary to-blue-800 p-2 rounded-lg shadow-md w-full">
@@ -3099,15 +3191,6 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="marina-bookings" className="text-white data-[state=active]:bg-white data-[state=active]:text-cyan-800 hover:bg-white/20">
               <Ship className="w-4 h-4 mr-1.5" />Richieste Prenotazione Marine
             </TabsTrigger>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setShowNewQuoteDialog(true)}
-              className="ml-auto bg-emerald-500 hover:bg-emerald-600 text-white border border-white/30 shadow-sm h-8"
-              title="Crea un nuovo preventivo dall'area admin"
-            >
-              <Plus className="w-4 h-4 mr-1.5" />Nuovo Preventivo
-            </Button>
           </TabsList>
         )}
 

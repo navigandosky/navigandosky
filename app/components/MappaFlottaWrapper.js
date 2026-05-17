@@ -44,6 +44,9 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
   
   // Nuove funzionalità
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dateMode, setDateMode] = useState('single'); // 'single' | 'range'
+  const [dateRangeFrom, setDateRangeFrom] = useState(new Date(Date.now() - 6*86400000).toISOString().split('T')[0]);
+  const [dateRangeTo, setDateRangeTo] = useState(new Date().toISOString().split('T')[0]);
   const [showRoute, setShowRoute] = useState(false);
   const [analytics, setAnalytics] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -82,7 +85,8 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
     if (selectedDevice && selectedDevice.imei) {
       loadAnalytics(selectedDevice.imei);
     }
-  }, [selectedDevice, selectedDate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDevice, selectedDate, dateMode, dateRangeFrom, dateRangeTo]);
 
   // Calcola consumo quando le analytics cambiano
   useEffect(() => {
@@ -180,7 +184,12 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
   const loadAnalytics = async (imei) => {
     setLoadingAnalytics(true);
     try {
-      const data = await api(`gps/analytics/${imei}?date=${selectedDate}`);
+      let data;
+      if (dateMode === 'range' && dateRangeFrom && dateRangeTo) {
+        data = await api(`gps/analytics-range/${imei}?from=${dateRangeFrom}&to=${dateRangeTo}`);
+      } else {
+        data = await api(`gps/analytics/${imei}?date=${selectedDate}`);
+      }
       setAnalytics(data);
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -260,18 +269,60 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
           <p className="text-sm text-muted-foreground">Tracking equipaggio, passeggeri e analytics avanzate</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          {/* Date picker */}
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              max={new Date().toISOString().split('T')[0]}
-              className="w-[150px]"
-            />
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Date mode toggle */}
+          <div className="flex border rounded-lg overflow-hidden bg-white">
+            <button
+              type="button"
+              onClick={() => setDateMode('single')}
+              className={`px-3 py-1.5 text-sm font-medium ${dateMode === 'single' ? 'bg-cyan-600 text-white' : 'hover:bg-gray-100'}`}
+            >
+              Giorno
+            </button>
+            <button
+              type="button"
+              onClick={() => setDateMode('range')}
+              className={`px-3 py-1.5 text-sm font-medium ${dateMode === 'range' ? 'bg-cyan-600 text-white' : 'hover:bg-gray-100'}`}
+            >
+              Range
+            </button>
           </div>
+
+          {/* Date picker (single o range) */}
+          {dateMode === 'single' ? (
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-[150px]"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <Input
+                type="date"
+                value={dateRangeFrom}
+                onChange={(e) => setDateRangeFrom(e.target.value)}
+                max={dateRangeTo}
+                className="w-[140px]"
+                title="Da"
+              />
+              <span className="text-muted-foreground">→</span>
+              <Input
+                type="date"
+                value={dateRangeTo}
+                onChange={(e) => setDateRangeTo(e.target.value)}
+                min={dateRangeFrom}
+                max={new Date().toISOString().split('T')[0]}
+                className="w-[140px]"
+                title="A"
+              />
+            </div>
+          )}
 
           {/* Toggle rotta */}
           <div className="flex items-center gap-2 px-3 py-2 border rounded-lg bg-white">
@@ -532,7 +583,8 @@ export default function MappaFlottaWrapper({ currentUser, isSuperAdmin }) {
         speedAlerts={analytics?.speed_alerts || []}
         alertThreshold={analytics?.alert_threshold || alertThreshold}
         device={selectedDevice}
-        date={selectedDate}
+        date={dateMode === 'range' ? `${dateRangeFrom} → ${dateRangeTo}` : selectedDate}
+        dayMarkers={analytics?.day_markers || []}
       />
 
       {/* Dialog modifica Soglia Alert Velocità */}
