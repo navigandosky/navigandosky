@@ -1646,6 +1646,50 @@ async function handleCompaniesNew(method, id, body, action, sp) {
     delete updates.id;
     delete updates._id; // Rimuovi _id di MongoDB (immutabile)
     delete updates.created_at;
+
+    // === SumUp: se l'API key cambia, ricalcola merchant_code automaticamente ===
+    try {
+      const incomingSumup = updates?.payment_config?.sumup;
+      if (incomingSumup && typeof incomingSumup.api_key === 'string' && incomingSumup.api_key.trim()) {
+        const existing = await col.findOne({ id });
+        const prevKey = existing?.payment_config?.sumup?.api_key || '';
+        const newKey = incomingSumup.api_key.trim();
+        // Se la chiave è cambiata OPPURE merchant_code è mancante, ricavalo dall'API SumUp
+        if (newKey !== prevKey || !incomingSumup.merchant_code) {
+          try {
+            const meRes = await fetch('https://api.sumup.com/v0.1/me', {
+              headers: { Authorization: `Bearer ${newKey}` },
+            });
+            if (meRes.ok) {
+              const me = await meRes.json();
+              const mc = me?.merchant_profile?.merchant_code || me?.merchant_code || '';
+              if (mc) {
+                updates.payment_config = updates.payment_config || {};
+                updates.payment_config.sumup = {
+                  ...incomingSumup,
+                  api_key: newKey,
+                  merchant_code: mc,
+                };
+                console.log('[Companies PUT] SumUp merchant_code aggiornato:', mc);
+              } else {
+                console.warn('[Companies PUT] SumUp /me OK ma merchant_code mancante');
+              }
+            } else {
+              const errTxt = await meRes.text();
+              console.error('[Companies PUT] SumUp /me failed:', meRes.status, errTxt);
+              // Reset del merchant_code obsoleto per evitare merchant mismatch
+              updates.payment_config = updates.payment_config || {};
+              updates.payment_config.sumup = { ...incomingSumup, api_key: newKey, merchant_code: '' };
+            }
+          } catch (e) {
+            console.error('[Companies PUT] SumUp /me exception:', e?.message);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Companies PUT] SumUp pre-save hook error:', e?.message);
+    }
+
     await col.updateOne({ id }, { $set: updates });
     const updated = await col.findOne({ id });
     return json(updated);
