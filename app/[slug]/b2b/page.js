@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus } from 'lucide-react';
+import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus, FileText, Mail, CheckCircle2, ExternalLink, Search, FileSpreadsheet, Filter, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -30,6 +30,15 @@ export default function AgencyB2BPortal() {
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({});
   const [showNewBookingDialog, setShowNewBookingDialog] = useState(false);
+
+  // Filtri Report (clonati dalla company)
+  const [filters, setFilters] = useState({
+    code: '', customer_name: '', experience_id: '',
+    payment_method: '', status: '', date_from: '', date_to: '',
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  // Loading dei singoli bottoni (voucher/email/confirm)
+  const [actionLoading, setActionLoading] = useState({});
 
   // Carica dati società
   useEffect(() => {
@@ -140,12 +149,178 @@ export default function AgencyB2BPortal() {
   const StatusBadge = ({ status }) => {
     const colors = {
       PENDING: 'bg-yellow-100 text-yellow-800',
+      PENDING_VERIFICATION: 'bg-orange-100 text-orange-800',
+      HELD: 'bg-amber-100 text-amber-800',
       CONFIRMED: 'bg-green-100 text-green-800',
       CANCELLED: 'bg-red-100 text-red-800',
       COMPLETED: 'bg-blue-100 text-blue-800'
     };
-    const labels = { PENDING: 'In Attesa', CONFIRMED: 'Confermata', CANCELLED: 'Cancellata', COMPLETED: 'Completata' };
+    const labels = {
+      PENDING: 'In Attesa',
+      PENDING_VERIFICATION: 'Verifica Bonifico',
+      HELD: 'Sospesa',
+      CONFIRMED: 'Confermata',
+      CANCELLED: 'Cancellata',
+      COMPLETED: 'Completata'
+    };
     return <Badge className={colors[status] || 'bg-gray-100 text-gray-800'}>{labels[status] || status}</Badge>;
+  };
+
+  // Label metodo pagamento
+  const PM_LABEL = {
+    ONLINE: 'SumUp/Online', CARD: 'SumUp/Online', SUMUP: 'SumUp/Online', STRIPE: 'Stripe',
+    BANK_TRANSFER: 'Bonifico', CASH: 'Contanti', DIRECT: 'Cassa Diretta',
+    MANUAL: 'Manuale', AGENCY: 'Agenzia', FREE: 'Omaggio', NONE: '—',
+  };
+  const PM_COLOR = (m) => ({
+    ONLINE: 'bg-violet-100 text-violet-800', CARD: 'bg-violet-100 text-violet-800', SUMUP: 'bg-violet-100 text-violet-800',
+    STRIPE: 'bg-indigo-100 text-indigo-800',
+    BANK_TRANSFER: 'bg-blue-100 text-blue-800',
+    CASH: 'bg-emerald-100 text-emerald-800', DIRECT: 'bg-emerald-100 text-emerald-800',
+    MANUAL: 'bg-orange-100 text-orange-800', AGENCY: 'bg-amber-100 text-amber-800', FREE: 'bg-pink-100 text-pink-800',
+  }[m] || 'bg-gray-100 text-gray-700');
+
+  // Filtri applicati
+  const filteredBookings = (bookings || []).filter(b => {
+    if (filters.code && !(b.booking_ref || '').toLowerCase().includes(filters.code.toLowerCase())) return false;
+    if (filters.customer_name && !(b.customer_name || '').toLowerCase().includes(filters.customer_name.toLowerCase())) return false;
+    if (filters.experience_id && b.experience_id !== filters.experience_id) return false;
+    if (filters.payment_method && (b.payment_method || 'NONE') !== filters.payment_method) return false;
+    if (filters.status && b.status !== filters.status) return false;
+    if (filters.date_from && (b.slot_datetime || '').split('T')[0] < filters.date_from) return false;
+    if (filters.date_to && (b.slot_datetime || '').split('T')[0] > filters.date_to) return false;
+    return true;
+  });
+
+  // Totali dinamici basati sui filtri
+  const totals = {
+    count: filteredBookings.length,
+    seats: filteredBookings.reduce((s, b) => s + (Number(b.seats) || 0), 0),
+    revenue: filteredBookings.reduce((s, b) => s + (Number(b.total_amount || b.price_b2b) || 0), 0),
+    commission: filteredBookings.reduce((s, b) => s + ((Number(b.price_b2c) || 0) - (Number(b.price_b2b) || 0)), 0),
+  };
+
+  // ============ AZIONI BOOKING ============
+  const setLoadingFor = (id, key, val) => {
+    setActionLoading(prev => ({ ...prev, [`${id}_${key}`]: val }));
+  };
+
+  const downloadVoucher = async (booking) => {
+    setLoadingFor(booking.id, 'voucher', true);
+    try {
+      const { downloadVoucherPdf } = await import('@/app/lib/voucherPdf');
+      const exp = experiences.find(e => e.id === booking.experience_id) || null;
+      const isPaid = booking.status === 'CONFIRMED' || booking.payment_status === 'PAID';
+      await downloadVoucherPdf(booking, exp, company, { type: isPaid ? 'FINAL' : 'PROVISIONAL' });
+      toast.success('Voucher scaricato');
+    } catch (e) {
+      console.error(e);
+      toast.error('Errore generazione voucher');
+    } finally {
+      setLoadingFor(booking.id, 'voucher', false);
+    }
+  };
+
+  const sendVoucherEmail = async (booking) => {
+    setLoadingFor(booking.id, 'email', true);
+    try {
+      const r = await fetch(`${API_BASE}/send-booking-voucher`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: booking.id }),
+      });
+      if (!r.ok) {
+        const t = await r.text();
+        let msg = 'Errore invio'; try { msg = (JSON.parse(t)?.error || msg); } catch { /* */ }
+        throw new Error(msg);
+      }
+      toast.success(`📧 Voucher inviato a ${booking.customer_email}`);
+    } catch (e) {
+      toast.error('Errore email: ' + (e?.message || ''));
+    } finally {
+      setLoadingFor(booking.id, 'email', false);
+    }
+  };
+
+  const confirmBankTransfer = async (booking) => {
+    if (!confirm(`Confermi di aver ricevuto il bonifico per ${booking.booking_ref}?`)) return;
+    setLoadingFor(booking.id, 'confirm', true);
+    try {
+      const r = await fetch(`${API_BASE}/bookings/${booking.id}?action=confirm-bank-transfer`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error('Errore conferma');
+      toast.success('Pagamento confermato. Voucher finale inviato automaticamente.');
+      // ricarica
+      loadAgencyData(agency);
+    } catch (e) {
+      toast.error('Errore: ' + (e?.message || ''));
+    } finally {
+      setLoadingFor(booking.id, 'confirm', false);
+    }
+  };
+
+  // Export Excel
+  const exportExcel = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const rows = filteredBookings.map(b => ({
+        'Codice': b.booking_ref,
+        'Cliente': b.customer_name,
+        'Email': b.customer_email,
+        'Esperienza': getExpName(b.experience_id),
+        'Data': b.slot_datetime ? new Date(b.slot_datetime).toLocaleDateString('it-IT') : '-',
+        'Posti': b.seats,
+        'Prezzo B2B': Number(b.price_b2b) || 0,
+        'Provvigione': (Number(b.price_b2c) || 0) - (Number(b.price_b2b) || 0),
+        'Totale': Number(b.total_amount || b.price_b2b) || 0,
+        'Metodo Pagamento': PM_LABEL[b.payment_method] || (b.payment_method || ''),
+        'Stato Pagamento': b.payment_status || '',
+        'Stato': b.status,
+      }));
+      rows.push({ 'Codice': '', 'Cliente': '', 'Email': '', 'Esperienza': '', 'Data': '',
+        'Posti': totals.seats, 'Prezzo B2B': '', 'Provvigione': totals.commission,
+        'Totale': totals.revenue, 'Metodo Pagamento': '', 'Stato Pagamento': '', 'Stato': 'TOTALE' });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 25 }, { wch: 26 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 14 }, { wch: 12 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Prenotazioni');
+      XLSX.writeFile(wb, `${agency?.name || 'agenzia'}_prenotazioni_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('✅ Excel esportato');
+    } catch (e) { console.error(e); toast.error('Errore export Excel'); }
+  };
+
+  // Export PDF
+  const exportPDF = async () => {
+    try {
+      const [{ jsPDF }, atMod] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+      const autoTable = atMod.default || atMod;
+      const doc = new jsPDF('l');
+      doc.setFontSize(16).text(`Prenotazioni Agenzia - ${agency?.name || ''}`, 14, 16);
+      doc.setFontSize(9).text(`Generato: ${new Date().toLocaleString('it-IT')} · Risultati: ${totals.count}`, 14, 22);
+      autoTable(doc, {
+        startY: 30,
+        head: [['Codice', 'Cliente', 'Esperienza', 'Data', 'Posti', 'Pagamento', 'Stato', 'Prezzo B2B', 'Provvigione', 'Totale']],
+        body: filteredBookings.map(b => [
+          b.booking_ref,
+          b.customer_name || '-',
+          getExpName(b.experience_id),
+          b.slot_datetime ? new Date(b.slot_datetime).toLocaleDateString('it-IT') : '-',
+          b.seats,
+          PM_LABEL[b.payment_method] || (b.payment_method || '—'),
+          b.status,
+          fmtPrice(b.price_b2b),
+          fmtPrice((b.price_b2c || 0) - (b.price_b2b || 0)),
+          fmtPrice(b.total_amount || b.price_b2b),
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [99, 102, 241] },
+        foot: [['', '', '', '', totals.seats, '', 'TOTALE', '', fmtPrice(totals.commission), fmtPrice(totals.revenue)]],
+        footStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+      });
+      doc.save(`${agency?.name || 'agenzia'}_prenotazioni_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('✅ PDF esportato');
+    } catch (e) { console.error(e); toast.error('Errore export PDF'); }
   };
 
   const TypeBadge = ({ type }) => {
@@ -464,17 +639,92 @@ export default function AgencyB2BPortal() {
               <CardHeader>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
-                    <CardTitle>Le Tue Prenotazioni ({bookings.length})</CardTitle>
-                    <CardDescription>Storico prenotazioni effettuate</CardDescription>
+                    <CardTitle>Le Tue Prenotazioni ({totals.count} su {bookings.length})</CardTitle>
+                    <CardDescription>
+                      Storico prenotazioni · Totale {fmtPrice(totals.revenue)}
+                      {' · '}
+                      Provv. <span className="text-emerald-700 font-semibold">{fmtPrice(totals.commission)}</span>
+                    </CardDescription>
                   </div>
-                  <Button
-                    onClick={() => setShowNewBookingDialog(true)}
-                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />Crea Prenotazione
-                  </Button>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
+                      <Filter className="w-4 h-4 mr-2" />{showFilters ? 'Nascondi filtri' : 'Filtri'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={exportExcel}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />Excel
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={exportPDF}>
+                      <FileText className="w-4 h-4 mr-2" />PDF
+                    </Button>
+                    <Button
+                      onClick={() => setShowNewBookingDialog(true)}
+                      className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />Crea Prenotazione
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
+
+              {/* Pannello filtri */}
+              {showFilters && (
+                <CardContent className="border-y bg-muted/30 py-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <Label className="text-xs">Codice</Label>
+                      <Input value={filters.code} onChange={(e) => setFilters({ ...filters, code: e.target.value })} placeholder="MK-2026-..." />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Cliente</Label>
+                      <Input value={filters.customer_name} onChange={(e) => setFilters({ ...filters, customer_name: e.target.value })} placeholder="Nome cliente" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Esperienza</Label>
+                      <select className="w-full h-9 border rounded-md px-2 text-sm bg-white" value={filters.experience_id} onChange={(e) => setFilters({ ...filters, experience_id: e.target.value })}>
+                        <option value="">Tutte</option>
+                        {experiences.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Metodo Pagamento</Label>
+                      <select className="w-full h-9 border rounded-md px-2 text-sm bg-white" value={filters.payment_method} onChange={(e) => setFilters({ ...filters, payment_method: e.target.value })}>
+                        <option value="">Tutti</option>
+                        <option value="ONLINE">SumUp/Online</option>
+                        <option value="BANK_TRANSFER">Bonifico</option>
+                        <option value="CASH">Contanti</option>
+                        <option value="DIRECT">Cassa Diretta</option>
+                        <option value="MANUAL">Manuale</option>
+                        <option value="AGENCY">Agenzia</option>
+                        <option value="FREE">Omaggio</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Stato</Label>
+                      <select className="w-full h-9 border rounded-md px-2 text-sm bg-white" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+                        <option value="">Tutti</option>
+                        <option value="CONFIRMED">Confermata</option>
+                        <option value="HELD">In sospeso</option>
+                        <option value="PENDING_VERIFICATION">Verifica Bonifico</option>
+                        <option value="CANCELLED">Annullata</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Data Da</Label>
+                      <Input type="date" value={filters.date_from} onChange={(e) => setFilters({ ...filters, date_from: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Data A</Label>
+                      <Input type="date" value={filters.date_to} onChange={(e) => setFilters({ ...filters, date_to: e.target.value })} />
+                    </div>
+                    <div className="flex items-end">
+                      <Button variant="ghost" size="sm" onClick={() => setFilters({ code: '', customer_name: '', experience_id: '', payment_method: '', status: '', date_from: '', date_to: '' })}>
+                        <X className="w-4 h-4 mr-1" />Reset
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              )}
+
               <CardContent>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -487,29 +737,105 @@ export default function AgencyB2BPortal() {
                         <th className="p-3 font-medium">Posti</th>
                         <th className="p-3 font-medium">Prezzo B2B</th>
                         <th className="p-3 font-medium">Provvigione</th>
+                        <th className="p-3 font-medium">Pagamento</th>
                         <th className="p-3 font-medium">Stato</th>
+                        <th className="p-3 font-medium text-center">Azioni</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {bookings.map(booking => (
-                        <tr key={booking.id} className="border-b hover:bg-muted/30">
-                          <td className="p-3 font-mono text-xs">{booking.booking_ref}</td>
-                          <td className="p-3">{booking.customer_name}</td>
-                          <td className="p-3">{getExpName(booking.experience_id)}</td>
-                          <td className="p-3">{fmtDate(booking.slot_datetime)}</td>
-                          <td className="p-3">{booking.seats}</td>
-                          <td className="p-3 font-semibold">{fmtPrice(booking.price_b2b)}</td>
-                          <td className="p-3 font-semibold text-green-600">
-                            {fmtPrice((booking.price_b2c || 0) - (booking.price_b2b || 0))}
-                          </td>
-                          <td className="p-3">
-                            <StatusBadge status={booking.status} />
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredBookings.map(booking => {
+                        const isPaid = booking.status === 'CONFIRMED' || booking.payment_status === 'PAID';
+                        const isPendingBT = booking.status === 'PENDING_VERIFICATION';
+                        const isOnlinePending = booking.payment_method === 'ONLINE' && !isPaid && booking.sumup_hosted_url;
+                        const pm = booking.payment_method || 'NONE';
+                        const lFor = (k) => actionLoading[`${booking.id}_${k}`];
+                        return (
+                          <tr key={booking.id} className="border-b hover:bg-muted/30">
+                            <td className="p-3 font-mono text-xs">{booking.booking_ref}</td>
+                            <td className="p-3">{booking.customer_name}</td>
+                            <td className="p-3">{getExpName(booking.experience_id)}</td>
+                            <td className="p-3 text-xs">{fmtDate(booking.slot_datetime)}</td>
+                            <td className="p-3">{booking.seats}</td>
+                            <td className="p-3 font-semibold">{fmtPrice(booking.price_b2b)}</td>
+                            <td className="p-3 font-semibold text-green-600">
+                              {fmtPrice((booking.price_b2c || 0) - (booking.price_b2b || 0))}
+                            </td>
+                            <td className="p-3">
+                              <Badge className={`${PM_COLOR(pm)} border-0 text-[11px]`}>{PM_LABEL[pm] || pm}</Badge>
+                              {booking.payment_status && (
+                                <div className="text-[10px] text-muted-foreground mt-0.5">{booking.payment_status}</div>
+                              )}
+                            </td>
+                            <td className="p-3"><StatusBadge status={booking.status} /></td>
+                            <td className="p-3">
+                              <div className="flex items-center gap-1 justify-center">
+                                {/* Voucher */}
+                                <Button
+                                  size="icon" variant="ghost"
+                                  title={isPaid ? 'Scarica voucher PDF' : 'Scarica voucher provvisorio PDF'}
+                                  onClick={() => downloadVoucher(booking)}
+                                  disabled={lFor('voucher')}
+                                  className="h-8 w-8 hover:bg-cyan-50"
+                                >
+                                  <FileText className={`w-4 h-4 ${isPaid ? 'text-emerald-600' : 'text-amber-600'}`} />
+                                </Button>
+                                {/* Invia email */}
+                                {booking.customer_email && (
+                                  <Button
+                                    size="icon" variant="ghost"
+                                    title="Invia voucher via email"
+                                    onClick={() => sendVoucherEmail(booking)}
+                                    disabled={lFor('email')}
+                                    className="h-8 w-8 hover:bg-blue-50"
+                                  >
+                                    <Mail className="w-4 h-4 text-blue-600" />
+                                  </Button>
+                                )}
+                                {/* Conferma bonifico (se in attesa verifica) */}
+                                {isPendingBT && (
+                                  <Button
+                                    size="icon" variant="ghost"
+                                    title="Conferma ricezione bonifico"
+                                    onClick={() => confirmBankTransfer(booking)}
+                                    disabled={lFor('confirm')}
+                                    className="h-8 w-8 hover:bg-emerald-50"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                  </Button>
+                                )}
+                                {/* Apri link SumUp pendente */}
+                                {isOnlinePending && (
+                                  <Button
+                                    size="icon" variant="ghost"
+                                    title="Apri link pagamento SumUp"
+                                    onClick={() => window.open(booking.sumup_hosted_url, '_blank')}
+                                    className="h-8 w-8 hover:bg-violet-50"
+                                  >
+                                    <ExternalLink className="w-4 h-4 text-violet-600" />
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
+                    {filteredBookings.length > 0 && (
+                      <tfoot className="bg-gradient-to-r from-emerald-50 to-teal-50 font-bold border-t-2 border-emerald-300 sticky bottom-0">
+                        <tr>
+                          <td colSpan={4} className="p-3 text-right uppercase text-xs tracking-wide text-muted-foreground">
+                            Totale {totals.count} {totals.count === 1 ? 'prenotazione' : 'prenotazioni'}
+                          </td>
+                          <td className="p-3 text-emerald-700">{totals.seats}</td>
+                          <td className="p-3"></td>
+                          <td className="p-3 text-emerald-700">{fmtPrice(totals.commission)}</td>
+                          <td colSpan={2}></td>
+                          <td className="p-3 text-emerald-700 text-right">{fmtPrice(totals.revenue)}</td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
-                  {bookings.length === 0 && (
+                  {filteredBookings.length === 0 && (
                     <div className="text-center py-12">
                       <CreditCard className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
                       <p className="text-muted-foreground">Nessuna prenotazione</p>
