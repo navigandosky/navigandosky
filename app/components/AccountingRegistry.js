@@ -64,6 +64,7 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
   const [marinaBookings, setMarinaBookings] = useState([]);
+  const [portQuotes, setPortQuotes] = useState([]); // per lookup customer/boat/total dei contratti
   const [cantiereQuotes, setCantiereQuotes] = useState([]);
   const [filters, setFilters] = useState({
     source: '', // 'EXPERIENCE' | 'MARINA' | 'CANTIERE'
@@ -79,13 +80,15 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
     setLoading(true);
     try {
       const cidQS = companyId ? `?company_id=${companyId}` : '';
-      const [bks, mbks, cqs] = await Promise.all([
+      const [bks, mbks, pqs, cqs] = await Promise.all([
         api(`bookings${cidQS}`).then(r => Array.isArray(r) ? r : (r?.bookings || [])).catch(() => []),
         api('marina-bookings').then(r => Array.isArray(r) ? r : (r?.bookings || [])).catch(() => []),
+        api('port-quotes').then(r => Array.isArray(r) ? r : (r?.quotes || [])).catch(() => []),
         api('cantiere').then(r => Array.isArray(r) ? r : (r?.quotes || [])).catch(() => []),
       ]);
       setBookings(bks || []);
       setMarinaBookings(mbks || []);
+      setPortQuotes(pqs || []);
       setCantiereQuotes(cqs || []);
     } catch (e) {
       console.error(e);
@@ -124,27 +127,75 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
       });
     });
 
+    // Indicizza port_quotes per id (per lookup veloce)
+    const quotesById = {};
+    (portQuotes || []).forEach(q => { if (q?.id) quotesById[q.id] = q; });
+
+    // Mappa metodo pagamento da formato italiano a chiave standard
+    const normalizePaymentMethod = (m) => {
+      if (!m) return 'NONE';
+      const u = String(m).toUpperCase();
+      if (u === 'CONTANTI' || u === 'CASH') return 'CASH';
+      if (u === 'BONIFICO' || u === 'BANK_TRANSFER') return 'BANK_TRANSFER';
+      if (u === 'CARTA' || u === 'POS' || u === 'SUMUP' || u === 'CARD' || u === 'ONLINE') return 'ONLINE';
+      if (u === 'STRIPE') return 'STRIPE';
+      if (u === 'ASSEGNO') return 'CASH';
+      if (u === 'MANUAL' || u === 'MANUALE' || u === 'ALTRO') return 'MANUAL';
+      return u;
+    };
+
     // Marina bookings (preventivi/contratti posti barca)
     (marinaBookings || []).forEach(mb => {
       if (companyId && mb.company_id && mb.company_id !== companyId) return;
-      // Marina bookings hanno tipicamente: total_amount, paid_amount, payment_method, marina_id, customer_*
-      const total = Number(mb.total_amount || mb.amount || 0);
-      const paidAmount = Number(mb.paid_amount || 0);
-      const ps = paidAmount >= total ? 'PAID' : (paidAmount > 0 ? 'PARTIAL' : 'UNPAID');
-      const date = mb.created_at || mb.start_date || mb.updated_at;
+      // Recupera dati del preventivo collegato (cliente, barca, total)
+      const q = mb.quote_id ? quotesById[mb.quote_id] : null;
+      const cust = q?.customer || {};
+      const boat = q?.boat || {};
+      const customerName = (cust.name || cust.surname)
+        ? [cust.name, cust.surname].filter(Boolean).join(' ')
+        : (mb.customer_name || mb.full_name || '—');
+
+      // Total: dal contratto se presente, altrimenti grand_total del preventivo
+      const total = Number(mb.total_amount || mb.grand_total || q?.grand_total || q?.total_amount || 0);
+
+      // paid_amount: somma dei payments[] del marina_booking
+      const paidFromArray = Array.isArray(mb.payments)
+        ? mb.payments.reduce((s, p) => s + Number(p.amount || 0), 0)
+        : 0;
+      const paidAmount = paidFromArray || Number(mb.paid_amount || 0);
+
+      // Determina lo stato del pagamento
+      let ps;
+      const ps_raw = String(mb.payment_status || '').toUpperCase();
+      if (ps_raw === 'SALDATO' || ps_raw === 'PAID' || (total > 0 && paidAmount >= total)) ps = 'PAID';
+      else if (ps_raw === 'PARZIALE' || ps_raw === 'PARTIAL' || paidAmount > 0) ps = 'PARTIAL';
+      else if (ps_raw === 'PENDENTE' || ps_raw === 'PENDING') ps = 'PENDING';
+      else ps = 'UNPAID';
+
+      // Metodo pagamento: usa l'ultimo del payments[], poi mb.payment_method
+      const lastPm = Array.isArray(mb.payments) && mb.payments.length > 0
+        ? mb.payments[mb.payments.length - 1]?.method
+        : (mb.payment_method || mb.payment_type);
+      const paymentMethod = normalizePaymentMethod(lastPm);
+
+      const date = mb.created_at || mb.updated_at || q?.created_at || mb.start_date;
+      const boatLabel = boat?.name || mb.boat_name || '';
+      const description = `Posto ${mb.berth_label || '—'}${boatLabel ? ` · ${boatLabel}` : ''}${q?.marina_name ? ` (${q.marina_name})` : ''}`.trim();
+
       list.push({
         id: `mb-${mb.id}`,
         source: 'MARINA',
         date,
-        reference: mb.booking_ref || mb.contract_ref || mb.id?.slice(0, 8),
-        customer: mb.customer_name || mb.full_name || '—',
-        description: `Posto ${mb.berth_label || mb.berth_id || '—'} · ${mb.boat_name || ''}`.trim(),
-        payment_method: mb.payment_method || mb.payment_type || 'NONE',
+        reference: mb.booking_number || mb.contract_ref || mb.id?.slice(0, 8),
+        customer: customerName,
+        description,
+        payment_method: paymentMethod,
         payment_status: ps,
         booking_status: mb.status || 'QUOTE',
         amount: total,
         paid_amount: paidAmount,
-        marina_id: mb.marina_id || null,
+        marina_id: mb.marina_id || q?.marina_id || null,
+        payments_count: Array.isArray(mb.payments) ? mb.payments.length : 0,
         raw: mb,
       });
     });
@@ -152,29 +203,39 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
     // Cantiere quotes
     (cantiereQuotes || []).forEach(cq => {
       if (companyId && cq.company_id && cq.company_id !== companyId) return;
-      const total = Number(cq.total_amount || cq.amount || 0);
+      const total = Number(cq.grand_total || cq.total_amount || cq.amount || 0);
       const paidAmount = Number(cq.paid_amount || 0);
-      const ps = paidAmount >= total ? 'PAID' : (paidAmount > 0 ? 'PARTIAL' : 'UNPAID');
-      const date = cq.created_at || cq.start_date || cq.updated_at;
+      let ps;
+      const ps_raw = String(cq.payment_status || '').toUpperCase();
+      if (ps_raw === 'PAID' || ps_raw === 'SALDATO' || (total > 0 && paidAmount >= total)) ps = 'PAID';
+      else if (ps_raw === 'PARZIALE' || paidAmount > 0) ps = 'PARTIAL';
+      else if (ps_raw === 'PENDING' || ps_raw === 'PENDENTE') ps = 'PENDING';
+      else ps = 'UNPAID';
+      const date = cq.created_at || cq.updated_at;
+      const cust = cq.customer || {};
+      const boat = cq.boat || {};
+      const customerName = (cust.name || cust.surname)
+        ? [cust.name, cust.surname].filter(Boolean).join(' ')
+        : (cq.customer_name || '—');
       list.push({
         id: `cq-${cq.id}`,
         source: 'CANTIERE',
         date,
-        reference: cq.quote_ref || cq.id?.slice(0, 8),
-        customer: cq.customer_name || '—',
-        description: `Cantiere · ${cq.boat_name || ''}`.trim() || 'Cantiere',
-        payment_method: cq.payment_method || 'NONE',
+        reference: cq.quote_number || cq.id?.slice(0, 8),
+        customer: customerName,
+        description: `Cantiere${boat?.name ? ` · ${boat.name}` : ''}`,
+        payment_method: normalizePaymentMethod(cq.payment_method),
         payment_status: ps,
-        booking_status: cq.status || 'QUOTE',
+        booking_status: cq.status || 'BOZZA',
         amount: total,
-        paid_amount: paidAmount,
+        paid_amount: ps === 'PAID' ? total : paidAmount,
         marina_id: cq.marina_id || null,
         raw: cq,
       });
     });
 
     return list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-  }, [bookings, marinaBookings, cantiereQuotes, companyId]);
+  }, [bookings, marinaBookings, portQuotes, cantiereQuotes, companyId]);
 
   // Applica filtri
   const filtered = useMemo(() => {
