@@ -24,10 +24,11 @@ function getPriceTierForDate(experience, date) {
   return null;
 }
 
-export default function NewBookingDialog({ open, onClose, currentUser, companyId: propCompanyId, agencyId: propAgencyId, onCreated }) {
+export default function NewBookingDialog({ open, onClose, currentUser, companyId: propCompanyId, agencyId: propAgencyId, agencyName: propAgencyName, onCreated }) {
   // Risolvi company_id: priorità a prop, poi a currentUser
   const companyId = propCompanyId || currentUser?.company_id || null;
   const agencyId = propAgencyId || null;
+  const isAgency = !!agencyId; // se è settato, siamo nel flusso agenzia
   const userLabel = currentUser?.username || 'admin';
 
   const [step, setStep] = useState(1);
@@ -38,7 +39,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [seats, setSeats] = useState(1);
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '', notes: '' });
-  const [paymentMethod, setPaymentMethod] = useState('CASH'); // CASH | ONLINE | BANK_TRANSFER | LATER | PAYMENT_LINK
+  const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER'); // CASH | ONLINE | BANK_TRANSFER | LATER | PAYMENT_LINK
   const [paymentMarked, setPaymentMarked] = useState(true); // se il cliente ha già pagato
   const [paymentMethods, setPaymentMethods] = useState([]); // metodi disponibili da company config
   const [generatedLink, setGeneratedLink] = useState(null); // hosted URL SumUp dopo creazione
@@ -123,7 +124,11 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
       // Determina status/payment_status finale lato client (verrà confermato dal backend)
       let pmForBackend = 'ONLINE';
       if (paymentMethod === 'BANK_TRANSFER') pmForBackend = 'BANK_TRANSFER';
-      else if (paymentMethod === 'CASH' || paymentMethod === 'LATER') pmForBackend = 'DIRECT';
+      // Per AGENCY: "Da Pagare Successivamente" si comporta come bonifico (PENDING_VERIFICATION + upload ricevuta)
+      else if (paymentMethod === 'LATER') {
+        pmForBackend = isAgency ? 'BANK_TRANSFER' : 'DIRECT';
+      }
+      else if (paymentMethod === 'CASH') pmForBackend = 'DIRECT';
       else if (paymentMethod === 'PAYMENT_LINK') pmForBackend = 'ONLINE'; // resta PENDING_VERIFICATION until SumUp webhook confirms
 
       const res = await fetch('/api/bookings', {
@@ -141,6 +146,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
           payment_method: pmForBackend,
           company_id: companyId,
           agency_id: agencyId,
+          agency_name: propAgencyName || null,
           // Flag che indica all'admin la modalità desiderata (post-process)
           admin_created: true,
           admin_payment_intent: paymentMethod,
@@ -359,20 +365,22 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
 
             <Label className="text-sm">Modalità di Pagamento</Label>
             <div className="space-y-2">
-              {/* Cash / In loco */}
-              <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer ${paymentMethod === 'CASH' ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'}`}>
-                <input type="radio" checked={paymentMethod === 'CASH'} onChange={() => setPaymentMethod('CASH')} className="mt-1" />
-                <div className="flex-1">
-                  <div className="font-semibold text-sm">💵 Pagamento Diretto / Contanti</div>
-                  <div className="text-xs text-muted-foreground">Il cliente paga in contanti o POS. Tu confermi che hai ricevuto.</div>
-                  {paymentMethod === 'CASH' && (
-                    <label className="flex items-center gap-2 mt-2 text-xs cursor-pointer">
-                      <input type="checkbox" checked={paymentMarked} onChange={e => setPaymentMarked(e.target.checked)} />
-                      <span>✅ Pagamento già ricevuto (marca come <strong>PAGATO</strong>)</span>
-                    </label>
-                  )}
-                </div>
-              </label>
+              {/* Cash / In loco — NASCOSTO per agenzia */}
+              {!isAgency && (
+                <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer ${paymentMethod === 'CASH' ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'}`}>
+                  <input type="radio" checked={paymentMethod === 'CASH'} onChange={() => setPaymentMethod('CASH')} className="mt-1" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">💵 Pagamento Diretto / Contanti</div>
+                    <div className="text-xs text-muted-foreground">Il cliente paga in contanti o POS. Tu confermi che hai ricevuto.</div>
+                    {paymentMethod === 'CASH' && (
+                      <label className="flex items-center gap-2 mt-2 text-xs cursor-pointer">
+                        <input type="checkbox" checked={paymentMarked} onChange={e => setPaymentMarked(e.target.checked)} />
+                        <span>✅ Pagamento già ricevuto (marca come <strong>PAGATO</strong>)</span>
+                      </label>
+                    )}
+                  </div>
+                </label>
+              )}
 
               {/* Online */}
               <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer ${paymentMethod === 'ONLINE' ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'}`}>
@@ -388,7 +396,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
                 <input type="radio" checked={paymentMethod === 'BANK_TRANSFER'} onChange={() => setPaymentMethod('BANK_TRANSFER')} className="mt-1" />
                 <div className="flex-1">
                   <div className="font-semibold text-sm">🏦 Bonifico (in attesa di verifica)</div>
-                  <div className="text-xs text-muted-foreground">Prenotazione resta <strong>PENDING</strong>. Confermerai dopo aver verificato l'accredito.</div>
+                  <div className="text-xs text-muted-foreground">Prenotazione resta <strong>PENDING</strong>. {isAgency ? 'Caricherai la ricevuta dalla lista prenotazioni. La Company verificherà e confermerà.' : 'Confermerai dopo aver verificato l\'accredito.'}</div>
                 </div>
               </label>
 
@@ -397,7 +405,11 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
                 <input type="radio" checked={paymentMethod === 'LATER'} onChange={() => setPaymentMethod('LATER')} className="mt-1" />
                 <div className="flex-1">
                   <div className="font-semibold text-sm">⏳ Da Pagare Successivamente</div>
-                  <div className="text-xs text-muted-foreground">Prenota ora, pagherà dopo. Resta <strong>PENDING</strong> finché non lo marchi come pagato.</div>
+                  <div className="text-xs text-muted-foreground">
+                    {isAgency
+                      ? <>Prenoti ora, il cliente pagherà dopo. Resta <strong>PENDING</strong>: appena ricevi il pagamento, carica la <strong>ricevuta</strong> dal pulsante <em>📤 Upload</em> in lista prenotazioni e la Company la verificherà.</>
+                      : <>Prenota ora, pagherà dopo. Resta <strong>PENDING</strong> finché non lo marchi come pagato.</>}
+                  </div>
                 </div>
               </label>
 

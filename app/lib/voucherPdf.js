@@ -114,7 +114,9 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
 
   // Totale + stato
   doc.setFillColor(243, 244, 246);
-  doc.roundedRect(M, y, W - 2 * M, 22, 2, 2, 'F');
+  const hasAgency = !!(booking.agency_name || opts?.agencyName);
+  const totalBoxH = hasAgency ? 28 : 22;
+  doc.roundedRect(M, y, W - 2 * M, totalBoxH, 2, 2, 'F');
   doc.setFontSize(10).setFont('helvetica', 'normal');
   doc.setTextColor(75, 85, 99);
   doc.text('Importo totale', M + 5, y + 8);
@@ -124,7 +126,14 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
   doc.setFontSize(9).setFont('helvetica', 'normal');
   doc.setTextColor(75, 85, 99);
   doc.text('Stato: ' + (isFinal ? 'PAGATO' : 'IN ATTESA DI VERIFICA'), M + 5, y + 17);
-  y += 30;
+  // Venduto da agenzia
+  if (hasAgency) {
+    const agencyName = booking.agency_name || opts?.agencyName;
+    doc.setFontSize(9).setFont('helvetica', 'bold');
+    doc.setTextColor(67, 56, 202);
+    doc.text(`Venduto da: ${agencyName}`, M + 5, y + 24);
+  }
+  y += totalBoxH + 8;
 
   // Bonifico (se provvisorio + bonifico)
   if (!isFinal && booking.payment_method === 'BANK_TRANSFER' && opts.bankTransfer) {

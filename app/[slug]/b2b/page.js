@@ -218,7 +218,10 @@ export default function AgencyB2BPortal() {
       const { downloadVoucherPdf } = await import('@/app/lib/voucherPdf');
       const exp = experiences.find(e => e.id === booking.experience_id) || null;
       const isPaid = booking.status === 'CONFIRMED' || booking.payment_status === 'PAID';
-      await downloadVoucherPdf(booking, exp, company, { type: isPaid ? 'FINAL' : 'PROVISIONAL' });
+      await downloadVoucherPdf(booking, exp, company, {
+        type: isPaid ? 'FINAL' : 'PROVISIONAL',
+        agencyName: agency?.name,
+      });
       toast.success('Voucher scaricato');
     } catch (e) {
       console.error(e);
@@ -1069,6 +1072,7 @@ export default function AgencyB2BPortal() {
           onClose={() => setShowNewBookingDialog(false)}
           companyId={agency?.company_id}
           agencyId={agency?.id}
+          agencyName={agency?.name}
           currentUser={{ username: agency?.name || 'agency', company_id: agency?.company_id }}
           onCreated={() => {
             // Ricarica prenotazioni
