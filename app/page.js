@@ -1862,6 +1862,60 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
     return c ? c.name : `#${String(cid).slice(0,6)}`;
   };
 
+  // Helper: scarica il PDF "Registro Trasportati" salvato dallo skipper per (resourceId, date).
+  // Se non esiste, fallback alla generazione lista check-in dalle bookings.
+  const downloadCheckinPdf = async ({ resourceId, date, resource, exp, slot, sb, comp }) => {
+    try {
+      // 1) Cerca un transport_log esistente
+      const logsRes = await fetch(`/api/transport-logs?resource_id=${resourceId}&date=${date}`);
+      const logs = await logsRes.json();
+      const log = Array.isArray(logs) && logs.length > 0 ? logs[0] : null;
+      if (log && log.pdf_data) {
+        // Usa il PDF generato dallo skipper
+        const a = document.createElement('a');
+        a.href = log.pdf_data;
+        a.download = `RegistroTrasportati_${log.resource_name || resource?.name || 'risorsa'}_${log.date}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success('Registro Trasportati (skipper) scaricato');
+        return true;
+      }
+      // 2) Se esiste log senza pdf_data, lo rigenero dal client
+      if (log) {
+        const { downloadTransportLogPdf } = await import('@/app/lib/transportLogPdf');
+        await downloadTransportLogPdf({
+          resource: { name: log.resource_name || resource?.name, id: log.resource_id },
+          skipper: { full_name: log.skipper_name, phone: log.skipper_phone },
+          date: log.date,
+          bookings: log.bookings_snapshot || sb || [],
+          company: comp || {},
+        });
+        toast.success('Registro Trasportati rigenerato');
+        return true;
+      }
+      // 3) Nessun log skipper: fallback alla lista check-in tradizionale
+      const { downloadPassengersListPdf } = await import('@/app/lib/passengersListPdf');
+      await downloadPassengersListPdf({
+        resource: { name: resource?.name, type: resource?.type, license_plate: resource?.license_plate, capacity: resource?.capacity },
+        date,
+        bookings: (sb || []).map(bk => ({
+          ...bk,
+          experience_name: exp?.name,
+          slot_time: slot ? `${fmtTime(slot.start_datetime)} - ${fmtTime(slot.end_datetime)}` : '',
+          slot_datetime: slot?.start_datetime,
+        })),
+        company: comp,
+      });
+      toast.success('Lista check-in scaricata');
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error('Errore generazione PDF');
+      return false;
+    }
+  };
+
   const handleDragStart = (e, booking, slot) => {
     const data = JSON.stringify({ bookingId: booking.id, slotId: slot.id, expId: slot.experience_id });
     e.dataTransfer.setData('text/plain', data);
@@ -1952,25 +2006,21 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
                                 type="button"
                                 onClick={async (e) => {
                                   e.stopPropagation();
-                                  try {
-                                    const { downloadPassengersListPdf } = await import('@/app/lib/passengersListPdf');
-                                    const dateStr = (slot.start_datetime || '').split('T')[0];
-                                    const exp = experiences.find(x => x.id === slot.experience_id) || {};
-                                    const comp = companies.find(c => c.id === slot.company_id) || null;
-                                    await downloadPassengersListPdf({
-                                      resource: { name: res.name, type: res.type, license_plate: res.license_plate, capacity: res.capacity },
-                                      date: dateStr,
-                                      bookings: sb.map(bk => ({ ...bk, experience_name: exp.name, slot_time: `${fmtTime(slot.start_datetime)} - ${fmtTime(slot.end_datetime)}`, slot_datetime: slot.start_datetime })),
-                                      company: comp,
-                                    });
-                                    toast.success('Lista check-in scaricata');
-                                  } catch (err) {
-                                    console.error(err);
-                                    toast.error('Errore generazione PDF');
-                                  }
+                                  const dateStr = (slot.start_datetime || '').split('T')[0];
+                                  const exp = experiences.find(x => x.id === slot.experience_id) || {};
+                                  const comp = companies.find(c => c.id === slot.company_id) || null;
+                                  await downloadCheckinPdf({
+                                    resourceId: res.id,
+                                    date: dateStr,
+                                    resource: res,
+                                    exp,
+                                    slot,
+                                    sb,
+                                    comp,
+                                  });
                                 }}
                                 className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition bg-white/95 hover:bg-emerald-50 border border-emerald-300 text-emerald-700 rounded p-1 shadow z-10"
-                                title="Stampa lista passeggeri check-in"
+                                title="Stampa lista passeggeri / Registro skipper"
                               >
                                 <FileText className="w-3.5 h-3.5" />
                               </button>
@@ -2043,24 +2093,20 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
                       variant="outline"
                       className="bg-emerald-50 hover:bg-emerald-100 border-emerald-300 text-emerald-800"
                       onClick={async () => {
-                        try {
-                          const { downloadPassengersListPdf } = await import('@/app/lib/passengersListPdf');
-                          const dateStr = (selectedSlot.start_datetime || '').split('T')[0];
-                          const exp = experiences.find(x => x.id === selectedSlot.experience_id) || {};
-                          const resourcesForSlot = (resources || []).filter(r => (selectedSlot.resource_ids || []).includes(r.id));
-                          const resInfo = resourcesForSlot[0] || { name: 'Slot', type: 'BOAT' };
-                          const comp = (companies || []).find(c => c.id === selectedSlot.company_id) || null;
-                          await downloadPassengersListPdf({
-                            resource: { name: resInfo.name, type: resInfo.type, license_plate: resInfo.license_plate, capacity: resInfo.capacity },
-                            date: dateStr,
-                            bookings: slotBookings.map(bk => ({ ...bk, experience_name: exp.name, slot_time: `${fmtTime(selectedSlot.start_datetime)} - ${fmtTime(selectedSlot.end_datetime)}`, slot_datetime: selectedSlot.start_datetime })),
-                            company: comp,
-                          });
-                          toast.success('Lista check-in scaricata');
-                        } catch (err) {
-                          console.error(err);
-                          toast.error('Errore generazione PDF');
-                        }
+                        const dateStr = (selectedSlot.start_datetime || '').split('T')[0];
+                        const exp = experiences.find(x => x.id === selectedSlot.experience_id) || {};
+                        const resourcesForSlot = (resources || []).filter(r => (selectedSlot.resource_ids || []).includes(r.id));
+                        const resInfo = resourcesForSlot[0] || { name: 'Slot', type: 'BOAT' };
+                        const comp = (companies || []).find(c => c.id === selectedSlot.company_id) || null;
+                        await downloadCheckinPdf({
+                          resourceId: resInfo.id,
+                          date: dateStr,
+                          resource: resInfo,
+                          exp,
+                          slot: selectedSlot,
+                          sb: slotBookings,
+                          comp,
+                        });
                       }}
                     >
                       <FileText className="w-3.5 h-3.5 mr-1.5" />
