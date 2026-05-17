@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus, FileText, Mail, CheckCircle2, ExternalLink, Search, FileSpreadsheet, Filter, X } from 'lucide-react';
+const AgencyCalendarLazy = dynamic(() => import('@/app/components/AgencyCalendar'), { ssr: false });
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -499,6 +500,10 @@ export default function AgencyB2BPortal() {
               <CreditCard className="w-4 h-4 mr-2" />
               Prenotazioni
             </TabsTrigger>
+            <TabsTrigger value="calendar">
+              <Calendar className="w-4 h-4 mr-2" />
+              Calendario
+            </TabsTrigger>
           </TabsList>
 
           {/* Dashboard */}
@@ -845,6 +850,15 @@ export default function AgencyB2BPortal() {
               </CardContent>
             </Card>
           </TabsContent>
+          {/* Calendario - vista settimanale */}
+          <TabsContent value="calendar" className="space-y-4">
+            <AgencyCalendarLazy
+              companyId={company?.id}
+              agencyId={agency?.id}
+              experiences={experiences}
+            />
+          </TabsContent>
+
         </Tabs>
       </div>
 
