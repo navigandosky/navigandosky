@@ -4936,6 +4936,23 @@ function AdminDashboard({ currentUser, onLogout }) {
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (ore)</Label><Input type="number" value={formData.duration_hours||''} onChange={e=>setFormData({...formData,duration_hours:e.target.value,duration_minutes:e.target.value*60})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
+            <div>
+              <Label className="flex items-center gap-1">📍 Link Google Maps <span className="text-xs text-muted-foreground font-normal">(opzionale)</span></Label>
+              <Input
+                type="url"
+                placeholder="https://maps.app.goo.gl/xyz oppure https://maps.google.com/?q=40.30,9.20"
+                value={formData.meeting_point_map_url || ''}
+                onChange={e => setFormData({...formData, meeting_point_map_url: e.target.value.trim()})}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                💡 Apri Google Maps → trova il punto → "Condividi" → copia il link e incollalo qui. Sarà incluso nel voucher email del cliente.
+              </p>
+              {formData.meeting_point_map_url && (
+                <a href={formData.meeting_point_map_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 underline mt-1 inline-block">
+                  🔗 Verifica link →
+                </a>
+              )}
+            </div>
             
             <Separator className="my-6" />
             
