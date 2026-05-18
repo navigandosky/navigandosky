@@ -20,6 +20,9 @@ export default function BookingSuccessPage() {
 function BookingSuccessContent() {
   const searchParams = useSearchParams();
   const ref = searchParams?.get('ref') || '';
+  const provider = searchParams?.get('provider') || '';
+  const sessionId = searchParams?.get('session_id') || '';
+  const bookingIdQ = searchParams?.get('booking_id') || '';
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(null);
   const [experience, setExperience] = useState(null);
@@ -28,8 +31,26 @@ function BookingSuccessContent() {
   const [polling, setPolling] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  // Se redirect da Stripe: verifica subito la sessione (lato server aggiorna il booking)
   useEffect(() => {
-    if (!ref) {
+    if (provider === 'stripe' && sessionId) {
+      const verify = async () => {
+        try {
+          const qs = new URLSearchParams({ session_id: sessionId });
+          if (bookingIdQ) qs.set('booking_id', bookingIdQ);
+          const res = await fetch(`/api/stripe/verify-session?${qs}`, { cache: 'no-store' });
+          await res.json();
+        } catch (e) {
+          console.error('Errore verifica sessione Stripe:', e);
+        }
+      };
+      verify();
+    }
+  }, [provider, sessionId, bookingIdQ]);
+
+  useEffect(() => {
+    // Se manca ref ma abbiamo booking_id (caso Stripe), carica direttamente per id
+    if (!ref && !bookingIdQ) {
       setLoading(false);
       setError('Riferimento prenotazione mancante.');
       return;
@@ -40,11 +61,17 @@ function BookingSuccessContent() {
 
     const fetchBooking = async () => {
       try {
-        const res = await fetch(`/api/bookings?booking_ref=${encodeURIComponent(ref)}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Booking non trovato');
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : (data?.bookings || []);
-        const b = list.find((x) => x.booking_ref === ref) || list[0];
+        let b = null;
+        if (ref) {
+          const res = await fetch(`/api/bookings?booking_ref=${encodeURIComponent(ref)}`, { cache: 'no-store' });
+          if (!res.ok) throw new Error('Booking non trovato');
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data?.bookings || []);
+          b = list.find((x) => x.booking_ref === ref) || list[0];
+        } else if (bookingIdQ) {
+          const res = await fetch(`/api/bookings/${bookingIdQ}`, { cache: 'no-store' });
+          if (res.ok) b = await res.json();
+        }
         if (!b) throw new Error('Booking non trovato');
         if (cancelled) return;
         setBooking(b);
@@ -58,7 +85,7 @@ function BookingSuccessContent() {
           fetch(`/api/companies/${b.company_id}`).then(r => r.ok ? r.json() : null).then(setCompany).catch(() => {});
         }
 
-        // Se il webhook SumUp non ha ancora aggiornato, fai polling fino a PAID o esaurimento tentativi
+        // Se il webhook non ha ancora aggiornato, fai polling fino a PAID o esaurimento tentativi
         if (b.payment_status !== 'PAID' && b.status !== 'CONFIRMED' && attempts < MAX_ATTEMPTS) {
           setPolling(true);
           attempts += 1;

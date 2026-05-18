@@ -1761,7 +1761,20 @@ async function handleCompaniesNew(method, id, body, action, sp) {
         provider: 'sumup',
         source: 'company',
       });
-    } else if (pc.enable_online_payment !== false) {
+    }
+    // Online payment Stripe configurato direttamente sulla Company
+    if (pc.enable_online_payment !== false && pc.stripe?.enabled && pc.stripe?.secret_key) {
+      result.methods.push({
+        type: 'ONLINE',
+        label: 'Carta di Credito (Stripe)',
+        icon: '💳',
+        description: 'Paga online con carta di credito, Apple Pay, Google Pay.',
+        provider: 'stripe',
+        source: 'company',
+        publishable_key: pc.stripe.publishable_key || '',
+      });
+    }
+    if (pc.enable_online_payment !== false && !pc.sumup?.enabled && !pc.stripe?.enabled) {
       // Fallback: cerca SumUp/Stripe configurato sulle marine della company
       const marinas = await db.collection('marinas').find({
         $or: [{ company_id: id }, { shared_with_companies: id }],
@@ -2135,6 +2148,26 @@ async function handleRoute(request, resolvedParams, method) {
           return await handleSumupWebhook(method, body);
         }
         return new Response(JSON.stringify({ error: 'SumUp endpoint not found' }), { status: 404 });
+      }
+      case 'stripe': {
+        // Sub-route: /api/stripe/create-checkout-session | /api/stripe/verify-session | /api/stripe/webhook
+        const sub = pathSegments[1];
+        if (sub === 'create-checkout-session') {
+          const { handleCreateStripeCheckout } = await import('./stripe_payments');
+          return await handleCreateStripeCheckout(method, body);
+        }
+        if (sub === 'verify-session') {
+          const { handleVerifyStripeSession } = await import('./stripe_payments');
+          return await handleVerifyStripeSession(method, searchParams);
+        }
+        if (sub === 'webhook') {
+          const { handleStripeWebhook } = await import('./stripe_payments');
+          // Per webhook serve raw body; in Next.js App Router il body e' gia' parsato sopra ma manteniamo JSON.stringify per validare signature
+          const rawBody = typeof body === 'string' ? body : JSON.stringify(body);
+          const headers = Object.fromEntries(request.headers.entries());
+          return await handleStripeWebhook(method, rawBody, headers, searchParams);
+        }
+        return new Response(JSON.stringify({ error: 'Stripe endpoint not found' }), { status: 404 });
       }
       case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });

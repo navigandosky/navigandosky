@@ -1439,12 +1439,12 @@ function BookingWizard({ experience, slot, setView }) {
         voucher_code: voucherResult?.valid ? voucherCode : null,
         special_requests: form.special_requests,
         participants,
-        payment_method: paymentMethod || 'ONLINE',
+        payment_method: paymentMethod === 'ONLINE_STRIPE' ? 'STRIPE' : (paymentMethod || 'ONLINE'),
         bank_transfer_receipt_url: paymentMethod === 'BANK_TRANSFER' ? bankReceiptDataUrl : null,
       } });
       if (res.error) { safeToastError(res.error); setLoading(false); return; }
 
-      // Se ONLINE: chiama SumUp per generare hosted checkout → redirect immediato
+      // Se ONLINE (SumUp): chiama SumUp per generare hosted checkout → redirect immediato
       if (paymentMethod === 'ONLINE') {
         try {
           const sumRes = await fetch('/api/sumup/create-checkout', {
@@ -1464,6 +1464,30 @@ function BookingWizard({ experience, slot, setView }) {
           }
         } catch (e) {
           toast.error('Errore SumUp: ' + e.message);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Se ONLINE_STRIPE: crea Stripe Checkout Session e redirect
+      if (paymentMethod === 'ONLINE_STRIPE') {
+        try {
+          const stRes = await fetch('/api/stripe/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: res.id }),
+          });
+          const stData = await stRes.json();
+          if (stData.url) {
+            window.location.href = stData.url;
+            return;
+          } else {
+            toast.error('Errore Stripe: ' + (stData.error || 'unknown'));
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          toast.error('Errore Stripe: ' + e.message);
           setLoading(false);
           return;
         }
@@ -1595,26 +1619,29 @@ function BookingWizard({ experience, slot, setView }) {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {paymentMethods.map(pm => (
-                      <label
-                        key={pm.type}
-                        className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${paymentMethod === pm.type ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'}`}
-                      >
-                        <input
-                          type="radio"
-                          checked={paymentMethod === pm.type}
-                          onChange={() => setPaymentMethod(pm.type)}
-                          className="mt-1.5"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xl">{pm.icon}</span>
-                            <span className="font-semibold">{pm.label}</span>
+                    {paymentMethods.map(pm => {
+                      const key = pm.type === 'ONLINE' && pm.provider === 'stripe' ? 'ONLINE_STRIPE' : pm.type;
+                      return (
+                        <label
+                          key={`${pm.type}-${pm.provider || 'default'}`}
+                          className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${paymentMethod === key ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'}`}
+                        >
+                          <input
+                            type="radio"
+                            checked={paymentMethod === key}
+                            onChange={() => setPaymentMethod(key)}
+                            className="mt-1.5"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">{pm.icon}</span>
+                              <span className="font-semibold">{pm.label}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{pm.description}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">{pm.description}</p>
-                        </div>
-                      </label>
-                    ))}
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -4737,6 +4764,105 @@ function AdminDashboard({ currentUser, onLogout }) {
                             value={newCompanyForm.payment_config?.sumup?.merchant_code || ''}
                             className="bg-muted text-sm font-mono"
                           />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Online Payment - Stripe diretto sulla Company */}
+                  <div className="rounded-lg border p-3 bg-violet-50/50">
+                    <div className="flex items-start gap-3 mb-3">
+                      <input
+                        type="checkbox"
+                        id="enable_stripe"
+                        checked={!!newCompanyForm.payment_config?.stripe?.enabled}
+                        onChange={e => setNewCompanyForm({
+                          ...newCompanyForm,
+                          payment_config: {
+                            ...(newCompanyForm.payment_config || {}),
+                            stripe: {
+                              ...(newCompanyForm.payment_config?.stripe || {}),
+                              enabled: e.target.checked,
+                            },
+                          },
+                        })}
+                        className="mt-1 w-4 h-4"
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor="enable_stripe" className="font-semibold cursor-pointer">💜 Stripe Checkout (Carta + Apple/Google Pay)</Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Pagamenti online tramite Stripe Checkout. Supporta carte di credito, Apple Pay e Google Pay automaticamente.
+                        </p>
+                      </div>
+                    </div>
+
+                    {newCompanyForm.payment_config?.stripe?.enabled && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 pl-7">
+                        <div className="space-y-1 md:col-span-2">
+                          <Label className="text-xs flex items-center gap-1">
+                            🔑 Stripe Secret Key (sk_test_* o sk_live_*) *
+                            {newCompanyForm.payment_config?.stripe?.secret_key && (
+                              <Badge variant="secondary" className="text-[10px] ml-2">
+                                {newCompanyForm.payment_config.stripe.secret_key.startsWith('sk_test_') ? '🟡 TEST' : '🟢 LIVE'}
+                              </Badge>
+                            )}
+                          </Label>
+                          <Input
+                            type="password"
+                            placeholder="sk_test_..."
+                            value={newCompanyForm.payment_config?.stripe?.secret_key || ''}
+                            onChange={e => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                stripe: {
+                                  ...(newCompanyForm.payment_config?.stripe || {}),
+                                  enabled: true,
+                                  secret_key: e.target.value.trim(),
+                                },
+                              },
+                            })}
+                          />
+                          <p className="text-[11px] text-muted-foreground">Trova la chiave segreta in: <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener" className="text-violet-600 underline">dashboard.stripe.com/apikeys</a></p>
+                        </div>
+                        <div className="space-y-1 md:col-span-2">
+                          <Label className="text-xs">🌐 Stripe Publishable Key (pk_test_* / pk_live_*)</Label>
+                          <Input
+                            type="text"
+                            placeholder="pk_test_..."
+                            value={newCompanyForm.payment_config?.stripe?.publishable_key || ''}
+                            onChange={e => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                stripe: {
+                                  ...(newCompanyForm.payment_config?.stripe || {}),
+                                  publishable_key: e.target.value.trim(),
+                                },
+                              },
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-1 md:col-span-2">
+                          <Label className="text-xs">🔐 Webhook Secret (opzionale - whsec_*)</Label>
+                          <Input
+                            type="password"
+                            placeholder="whsec_... (per validare i webhook)"
+                            value={newCompanyForm.payment_config?.stripe?.webhook_secret || ''}
+                            onChange={e => setNewCompanyForm({
+                              ...newCompanyForm,
+                              payment_config: {
+                                ...(newCompanyForm.payment_config || {}),
+                                stripe: {
+                                  ...(newCompanyForm.payment_config?.stripe || {}),
+                                  webhook_secret: e.target.value.trim(),
+                                },
+                              },
+                            })}
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            Configura un webhook su Stripe verso: <code className="text-[10px] bg-muted px-1 rounded">{typeof window !== 'undefined' ? window.location.origin : ''}/api/stripe/webhook?company_id={newCompanyForm.id || '<COMPANY_ID>'}</code> ed evento <strong>checkout.session.completed</strong>
+                          </p>
                         </div>
                       </div>
                     )}
