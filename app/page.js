@@ -6102,7 +6102,9 @@ function B2BCompanySelector() {
       try {
         const res = await fetch('/api/companies');
         const data = await res.json();
-        setCompanies(Array.isArray(data) ? data : []);
+        // Escludi company sospese (is_active=false) dal portale B2B pubblico
+        const visible = Array.isArray(data) ? data.filter(c => c.is_active !== false) : [];
+        setCompanies(visible);
       } catch (err) {
         console.error('Error loading companies:', err);
       } finally {
