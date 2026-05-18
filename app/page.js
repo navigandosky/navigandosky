@@ -47,7 +47,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
