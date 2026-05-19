@@ -184,6 +184,21 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
     y += 24;
   }
 
+  // Accettazione Condizioni di Vendita (sempre, se presente)
+  if (booking.terms_accepted && booking.terms_accepted_at) {
+    doc.setDrawColor(5, 150, 105);
+    doc.setFillColor(236, 253, 245);
+    doc.roundedRect(M, y, W - 2 * M, 14, 2, 2, 'FD');
+    doc.setTextColor(6, 78, 59);
+    doc.setFontSize(9).setFont('helvetica', 'bold');
+    doc.text('CONDIZIONI DI VENDITA ACCETTATE', M + 4, y + 6);
+    doc.setFont('helvetica', 'normal').setFontSize(8);
+    const dt = new Date(booking.terms_accepted_at);
+    const dtStr = isNaN(dt) ? '-' : dt.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    doc.text(`Il cliente ha dichiarato di aver preso visione delle condizioni e di accettarle incondizionatamente il ${dtStr}.`, M + 4, y + 11);
+    y += 20;
+  }
+
   // Footer
   doc.setTextColor(75, 85, 99);
   doc.setFontSize(8).setFont('helvetica', 'italic');

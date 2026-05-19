@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import { handleWarehouseArticles, handleWarehouseSales, handleWarehouseReport } from './warehouse';
 
 let cachedDb = null;
 
@@ -451,6 +452,9 @@ async function handleBookings(method, id, body, action, sp) {
       seat_assignments: body.seat_assignments || [],
       slot_datetime: slot.start_datetime,
       checked_in_at: null,
+      // Accettazione condizioni di vendita
+      terms_accepted: body.terms_accepted === true,
+      terms_accepted_at: body.terms_accepted ? (body.terms_accepted_at || new Date().toISOString()) : null,
       // Multi-Tenant: eredita company_id da slot o experience
       company_id: body.company_id || slot.company_id || experience?.company_id || null,
       created_at: new Date().toISOString(),
@@ -2219,6 +2223,15 @@ async function handleRoute(request, resolvedParams, method) {
       case 'contact': return await handleContact(method, body);
       case 'stats': return await handleStats(searchParams);
       case 'geo': return await handleGeoDetect(request);
+      case 'warehouse': {
+        const db = await getDb();
+        const sub = pathSegments[1] || '';
+        const subId = pathSegments[2] || null;
+        if (sub === 'articles') return await handleWarehouseArticles(method, subId, body, searchParams, db);
+        if (sub === 'sales') return await handleWarehouseSales(method, subId, body, searchParams, db);
+        if (sub === 'report') return await handleWarehouseReport(method, searchParams, db);
+        return NextResponse.json({ error: 'Route magazzino non trovata' }, { status: 404 });
+      }
       case 'marinas': {
         const { handleMarinas } = await import('./marinas');
         const db = await getDb();

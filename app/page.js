@@ -41,6 +41,7 @@ const TransportLogsRegistryLazy = dynamic(() => import('./components/TransportLo
 const BulkSlotsDeleteLazy = dynamic(() => import('./components/BulkSlotsDelete'), { ssr: false });
 // Procedura Rimborsi (Company Admin + Super Admin)
 const RefundsManagementLazy = dynamic(() => import('./components/RefundsManagement'), { ssr: false });
+const WarehouseAdminLazy = dynamic(() => import('./components/WarehouseAdmin'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -51,7 +52,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -1370,6 +1371,7 @@ function BookingWizard({ experience, slot, setView }) {
   const [voucherResult, setVoucherResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [bookingResult, setBookingResult] = useState(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Metodi di pagamento - caricati dalla company
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -1431,6 +1433,10 @@ function BookingWizard({ experience, slot, setView }) {
       toast.error('Carica la ricevuta del bonifico per procedere');
       return;
     }
+    if (!termsAccepted) {
+      toast.error('Devi accettare le Condizioni di Vendita per procedere');
+      return;
+    }
     setLoading(true);
     try {
       const res = await api('bookings', { method: 'POST', body: {
@@ -1446,6 +1452,8 @@ function BookingWizard({ experience, slot, setView }) {
         participants,
         payment_method: paymentMethod === 'ONLINE_STRIPE' ? 'STRIPE' : (paymentMethod || 'ONLINE'),
         bank_transfer_receipt_url: paymentMethod === 'BANK_TRANSFER' ? bankReceiptDataUrl : null,
+        terms_accepted: true,
+        terms_accepted_at: new Date().toISOString(),
       } });
       if (res.error) { safeToastError(res.error); setLoading(false); return; }
 
@@ -1594,7 +1602,37 @@ function BookingWizard({ experience, slot, setView }) {
         </CardHeader>
         <CardContent className="pt-6">
           {step===1&&(<div className="space-y-6"><div><Label className="text-base font-semibold">Numero di Partecipanti</Label><p className="text-sm text-muted-foreground mb-3">Max {maxAvail} posti</p><div className="flex items-center gap-4"><Button variant="outline" size="icon" onClick={()=>setSeats(Math.max(1,seats-1))} disabled={seats<=1}>-</Button><span className="text-2xl font-bold w-12 text-center">{seats}</span><Button variant="outline" size="icon" onClick={()=>setSeats(Math.min(maxAvail,seats+1))} disabled={seats>=maxAvail}>+</Button></div></div><Separator /><div className="flex justify-between text-lg"><span>Totale provvisorio</span><span className="font-bold text-primary">{fmtPrice(subtotal)}</span></div></div>)}
-          {step===2&&(<div className="space-y-6"><div><h3 className="font-semibold mb-4">Dati del Referente</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><Label>Nome *</Label><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Mario Rossi"/></div><div><Label>Email *</Label><Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="mario@email.com"/></div><div><Label>Telefono *</Label><Input type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="+39 333 1234567"/></div></div></div>{seats>1&&<div><h3 className="font-semibold mb-3">Altri Partecipanti</h3>{Array.from({length:seats-1}).map((_,i)=>(<Input key={i} className="mb-2" placeholder={`Partecipante ${i+2}`} value={participants[i]?.name||''} onChange={e=>{const p=[...participants];p[i]={...p[i],name:e.target.value};setParticipants(p);}}/>))}</div>}<div><Label>Richieste Speciali</Label><Textarea value={form.special_requests} onChange={e=>setForm({...form,special_requests:e.target.value})} placeholder="Allergie, esigenze..."/></div></div>)}
+          {step===2&&(<div className="space-y-6"><div><h3 className="font-semibold mb-4">Dati del Referente</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><Label>Nome *</Label><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Mario Rossi"/></div><div><Label>Email *</Label><Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="mario@email.com"/></div><div><Label>Telefono *</Label><Input type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="+39 333 1234567"/></div></div></div>{seats>1&&<div><h3 className="font-semibold mb-3">Altri Partecipanti</h3>{Array.from({length:seats-1}).map((_,i)=>(<Input key={i} className="mb-2" placeholder={`Partecipante ${i+2}`} value={participants[i]?.name||''} onChange={e=>{const p=[...participants];p[i]={...p[i],name:e.target.value};setParticipants(p);}}/>))}</div>}<div><Label>Richieste Speciali</Label><Textarea value={form.special_requests} onChange={e=>setForm({...form,special_requests:e.target.value})} placeholder="Allergie, esigenze..."/></div>
+            {/* Condizioni di Rimborso + Servizio + Flag accettazione */}
+            {(experience.refund_conditions || experience.terms_pdf_url) && (
+              <div className="border-2 border-amber-300 rounded-lg p-4 bg-amber-50/60 space-y-3">
+                <h3 className="font-semibold flex items-center gap-2 text-amber-900">📋 Condizioni di Vendita</h3>
+                {experience.refund_conditions && (
+                  <div>
+                    <p className="text-xs font-semibold text-amber-900 mb-1">Condizioni di Rimborso</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-white p-2 rounded border">{experience.refund_conditions}</p>
+                  </div>
+                )}
+                {experience.terms_pdf_url && (
+                  <a href={experience.terms_pdf_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 underline font-medium">
+                    📎 Scarica le Condizioni di Servizio (PDF)
+                  </a>
+                )}
+              </div>
+            )}
+            <div className="flex items-start gap-3 p-3 border rounded-lg bg-blue-50/40 border-blue-200">
+              <input
+                id="terms_accepted"
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={e => setTermsAccepted(e.target.checked)}
+                className="mt-1 w-4 h-4 cursor-pointer accent-blue-600"
+              />
+              <label htmlFor="terms_accepted" className="text-sm cursor-pointer select-none flex-1">
+                <span className="font-medium text-blue-900">Dichiaro</span> di aver preso visione delle condizioni di rimborso{experience.terms_pdf_url ? ' e del documento delle condizioni di servizio (PDF)' : ''} e di <strong>accettarle incondizionatamente</strong>. <span className="text-red-600">*</span>
+              </label>
+            </div>
+            </div>)}
           {step===3&&(<div className="space-y-6"><div><h3 className="font-semibold mb-2">Hai un Codice Sconto?</h3><div className="flex gap-3"><Input value={voucherCode} onChange={e=>setVoucherCode(e.target.value.toUpperCase())} placeholder="ES: BENVENUTO10" className="font-mono"/><Button onClick={validateVoucher} variant="secondary"><Tag className="w-4 h-4 mr-2"/>Applica</Button></div>{voucherResult&&<div className={`mt-3 p-3 rounded-lg text-sm ${voucherResult.valid?'bg-green-50 text-green-800 border border-green-200':'bg-red-50 text-red-800 border border-red-200'}`}>{voucherResult.valid?<p><CheckCircle2 className="w-4 h-4 inline mr-1"/>Risparmi {fmtPrice(discount)}</p>:<p>{voucherResult.error}</p>}</div>}</div><Separator /><div className="space-y-2"><div className="flex justify-between"><span>Subtotale ({seats} pers.)</span><span>{fmtPrice(subtotal)}</span></div>{discount>0&&<div className="flex justify-between text-green-600"><span>Sconto</span><span>-{fmtPrice(discount)}</span></div>}<Separator /><div className="flex justify-between text-lg font-bold"><span>Totale</span><span className="text-primary">{fmtPrice(total)}</span></div></div></div>)}
           {step===4&&(
             <div className="space-y-6">
@@ -2582,12 +2620,12 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [resBookings, setResBookings] = useState(null);
 
   // Vista Moduli - permette di nascondere sezioni della dashboard
-  // 'all' | 'experiences' | 'marina' | 'cantiere'
+  // 'all' | 'experiences' | 'marina' | 'cantiere' | 'magazzino'
   const [viewMode, setViewMode] = useState('all');
   useEffect(() => {
     try {
       const saved = localStorage.getItem('admin_view_mode');
-      if (saved && ['all', 'experiences', 'marina', 'cantiere'].includes(saved)) {
+      if (saved && ['all', 'experiences', 'marina', 'cantiere', 'magazzino'].includes(saved)) {
         setViewMode(saved);
       }
     } catch {}
@@ -2599,6 +2637,7 @@ function AdminDashboard({ currentUser, onLogout }) {
   const showExperiences = viewMode === 'all' || viewMode === 'experiences';
   const showMarina = viewMode === 'all' || viewMode === 'marina';
   const showCantiere = viewMode === 'all' || viewMode === 'cantiere';
+  const showMagazzino = viewMode === 'all' || viewMode === 'magazzino';
   
   // Filtri Report
   const [filters, setFilters] = useState({
@@ -3311,6 +3350,14 @@ function AdminDashboard({ currentUser, onLogout }) {
                   🔧 Cantiere
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => changeViewMode('magazzino')}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'magazzino' ? 'bg-white shadow text-rose-700' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Mostra solo modulo magazzino"
+              >
+                📦 Magazzino
+              </button>
             </div>
           )}
           <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
@@ -3456,6 +3503,18 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsList>
         )}
 
+        {/* Modulo MAGAZZINO */}
+        {showMagazzino && currentUser?.company_id && (
+          <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 p-2 rounded-lg shadow-md w-full">
+            <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
+              <Package className="w-4 h-4" />Modulo Magazzino
+            </div>
+            <TabsTrigger value="magazzino" className="text-white data-[state=active]:bg-white data-[state=active]:text-rose-800 hover:bg-white/20 font-semibold">
+              <Package className="w-4 h-4 mr-1.5" />Articoli, Bolle e Inventario
+            </TabsTrigger>
+          </TabsList>
+        )}
+
         {/* Riga 2.6: Tab REGISTRO CONTRATTI + CONTABILITÀ - Super Admin o owner marina o company */}
         {(hasMarinaOwnership || currentUser?.company_id) && (
           <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-amber-400 via-yellow-500 to-emerald-500 p-2 rounded-lg shadow-md w-full">
@@ -3484,11 +3543,12 @@ function AdminDashboard({ currentUser, onLogout }) {
         {/* Overview */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[{l:'Prenotazioni',v:stats.total_bookings||0,i:CreditCard,c:'text-blue-600 bg-blue-100'},{l:'Fatturato',v:fmtPrice(stats.total_revenue||0),i:BarChart3,c:'text-green-600 bg-green-100'},{l:'Esperienze',v:stats.total_experiences||0,i:Compass,c:'text-purple-600 bg-purple-100'},{l:'Risorse',v:stats.total_resources||0,i:Ship,c:'text-amber-600 bg-amber-100'}].map((s,i)=>(
+            {[{l:'Prenotazioni',v:stats.total_bookings||0,i:CreditCard,c:'text-blue-600 bg-blue-100',show:showExperiences},{l:'Fatturato',v:fmtPrice(stats.total_revenue||0),i:BarChart3,c:'text-green-600 bg-green-100',show:true},{l:'Esperienze',v:stats.total_experiences||0,i:Compass,c:'text-purple-600 bg-purple-100',show:showExperiences},{l:'Risorse',v:stats.total_resources||0,i:Ship,c:'text-amber-600 bg-amber-100',show:true}].filter(s=>s.show).map((s,i)=>(
               <Card key={i}><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-2xl font-bold mt-1">{s.v}</p></div><div className={`w-12 h-12 rounded-full flex items-center justify-center ${s.c}`}><s.i className="w-6 h-6"/></div></div></CardContent></Card>
             ))}
           </div>
           
+          {showExperiences && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -3542,6 +3602,7 @@ function AdminDashboard({ currentUser, onLogout }) {
               </tbody></table>{sortedOverviewBookings.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione{overviewDateFilter ? ' per questa data' : ''}. Carica i dati demo!</p>}</div>
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
         {/* Gantt Calendar */}
@@ -5466,6 +5527,20 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsContent>
         )}
 
+        {/* MAGAZZINO - tutti gli utenti company */}
+        {currentUser?.company_id && (
+          <TabsContent value="magazzino" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Package className="w-8 h-8 mx-auto animate-pulse text-rose-600" /></div>}>
+              <WarehouseAdminLazy
+                companyId={currentUser.company_id}
+                companyName={currentUser.company_name || companies?.find(c => c.id === currentUser.company_id)?.name || ''}
+                resources={resources || []}
+                currentUser={currentUser}
+              />
+            </Suspense>
+          </TabsContent>
+        )}
+
         {/* Super Admin / Owner Marine: Richieste Prenotazione */}
         {hasMarinaOwnership && (
           <TabsContent value="marina-bookings" className="space-y-4">
@@ -5557,6 +5632,17 @@ function AdminDashboard({ currentUser, onLogout }) {
             </div>
             <Separator />
             <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
+            <Separator />
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 text-base font-medium">📝 Condizioni di Rimborso</Label>
+              <Textarea
+                placeholder="Es: Rimborso 100% fino a 48h prima. 50% fino a 24h. Nessun rimborso oltre."
+                value={formData.refund_conditions||''}
+                onChange={e=>setFormData({...formData,refund_conditions:e.target.value})}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">Saranno mostrate al cliente in fase di prenotazione e nel voucher.</p>
+            </div>
             <Separator />
             <PDFUploader pdfUrl={formData.terms_pdf_url||''} onChange={url=>setFormData({...formData,terms_pdf_url:url})} />
             <Separator />
@@ -5685,6 +5771,17 @@ function AdminDashboard({ currentUser, onLogout }) {
             
             <Separator />
             <ImageUploader images={formData.images||[]} onChange={imgs=>setFormData({...formData,images:imgs})} maxImages={3} />
+            <Separator />
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2 text-base font-medium">📝 Condizioni di Rimborso</Label>
+              <Textarea
+                placeholder="Es: Rimborso 100% fino a 48h prima. 50% fino a 24h. Nessun rimborso oltre."
+                value={formData.refund_conditions||''}
+                onChange={e=>setFormData({...formData,refund_conditions:e.target.value})}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">Saranno mostrate al cliente in fase di prenotazione e nel voucher.</p>
+            </div>
             <Separator />
             <PDFUploader pdfUrl={formData.terms_pdf_url||''} onChange={url=>setFormData({...formData,terms_pdf_url:url})} />
             <Separator />
