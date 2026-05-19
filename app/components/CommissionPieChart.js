@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from '@/components/ui/badge';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { TrendingUp, Award } from 'lucide-react';
+import { useLanguage } from '@/app/i18n/LanguageContext';
 
 const fmtPrice = (val) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(val) || 0);
 
@@ -23,6 +24,9 @@ const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#ec4899'
  *  - totalCommission: totale per riferimento (opzionale)
  */
 export default function CommissionPieChart({ open, onClose, bookings = [], experiences = [], agencyDiscountPct = 0, totalCommission = 0 }) {
+  // Hook traduzioni (con fallback se fuori dal provider)
+  let t = (k) => k;
+  try { t = useLanguage().t; } catch (e) { /* outside provider */ }
   // Calcola la provvigione per esperienza
   const data = useMemo(() => {
     const map = new Map();
@@ -101,19 +105,19 @@ export default function CommissionPieChart({ open, onClose, bookings = [], exper
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
             <TrendingUp className="w-6 h-6 text-purple-600" />
-            Ripartizione Provvigioni per Esperienza
+            {t('b2b_commission_chart_title')}
           </DialogTitle>
           <DialogDescription>
-            Distribuzione delle provvigioni calcolata sulle prenotazioni <strong>confermate</strong>
-            {agencyDiscountPct > 0 && <span> (sconto agenzia: <strong>{agencyDiscountPct}%</strong>)</span>}
+            {t('b2b_commission_chart_subtitle')} <strong>{t('b2b_commission_confirmed')}</strong>
+            {agencyDiscountPct > 0 && <span> ({t('b2b_commission_agency_discount')}: <strong>{agencyDiscountPct}%</strong>)</span>}
           </DialogDescription>
         </DialogHeader>
 
         {data.length === 0 ? (
           <div className="py-12 text-center">
             <Award className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="text-muted-foreground font-medium">Nessuna provvigione da visualizzare</p>
-            <p className="text-xs text-muted-foreground mt-1">Le provvigioni vengono calcolate solo per le prenotazioni con stato <strong>Confermata</strong>.</p>
+            <p className="text-muted-foreground font-medium">{t('b2b_no_commission_data')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('b2b_no_commission_hint')} <strong>{t('b2b_status_confirmed')}</strong>.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-2">
@@ -143,17 +147,17 @@ export default function CommissionPieChart({ open, onClose, bookings = [], exper
                 </ResponsiveContainer>
               </div>
               <div className="text-center -mt-2">
-                <p className="text-xs text-muted-foreground">Totale Provvigioni</p>
+                <p className="text-xs text-muted-foreground">{t('b2b_total_commissions')}</p>
                 <p className="text-2xl font-bold text-purple-700">{fmtPrice(grandTotal)}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {totalBookings} prenotazioni · {totalSeats} posti
+                  {totalBookings} {t('b2b_bookings').toLowerCase()} · {totalSeats} {t('b2b_col_seats').toLowerCase()}
                 </p>
               </div>
             </div>
 
             {/* Tabella dettaglio */}
             <div className="space-y-2">
-              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Dettaglio per esperienza</h3>
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">{t('b2b_chart_detail_per_exp')}</h3>
               <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
                 {data.map((d, i) => {
                   const pct = grandTotal > 0 ? (d.value / grandTotal) * 100 : 0;
@@ -163,7 +167,7 @@ export default function CommissionPieChart({ open, onClose, bookings = [], exper
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm truncate" title={d.name}>{d.name}</div>
                         <div className="text-[11px] text-muted-foreground">
-                          {d.count} prenot. · {d.seats} posti · Vol. B2C {fmtPrice(d.b2cTotal)}
+                          {d.count} {t('b2b_bookings').toLowerCase()} · {d.seats} {t('b2b_col_seats').toLowerCase()} · {fmtPrice(d.b2cTotal)}
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">

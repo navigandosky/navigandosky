@@ -9,9 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus, FileText, Mail, CheckCircle2, ExternalLink, Search, FileSpreadsheet, Filter, X, Upload, Receipt, RefreshCw } from 'lucide-react';
+import { Building2, LogIn, BarChart3, CreditCard, TrendingUp, DollarSign, Calendar, Users, Eye, EyeOff, Ship, Compass, Plus, FileText, Mail, CheckCircle2, ExternalLink, Search, FileSpreadsheet, Filter, X, Upload, Receipt, RefreshCw, Languages } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { LanguageProvider, useLanguage } from '@/app/i18n/LanguageContext';
+import { languageFlags, languageNames } from '@/app/i18n/translations';
 const AgencyCalendarLazy = dynamic(() => import('@/app/components/AgencyCalendar'), { ssr: false });
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -22,6 +25,15 @@ const CommissionPieChart = dynamic(() => import('@/app/components/CommissionPieC
 const API_BASE = '/api';
 
 export default function AgencyB2BPortal() {
+  return (
+    <LanguageProvider>
+      <AgencyB2BPortalInner />
+    </LanguageProvider>
+  );
+}
+
+function AgencyB2BPortalInner() {
+  const { language, changeLanguage, t } = useLanguage();
   const params = useParams();
   const slug = params?.slug;
   
@@ -162,17 +174,17 @@ export default function AgencyB2BPortal() {
       }
       
       setAgency(data.agency);
-      toast.success(`Benvenuto ${data.agency.name}!`);
+      toast.success(`${t('b2b_welcome')} ${data.agency.name}!`);
     } catch (err) {
       console.error('Login error:', err);
-      toast.error('Errore durante il login');
+      toast.error(t('b2b_invalid_credentials'));
     }
   };
 
   const handleLogout = () => {
     setAgency(null);
     setLoginForm({ email: '', password: '' });
-    toast.success('Disconnesso');
+    toast.success(t('b2b_logout'));
   };
 
   const fmtPrice = (val) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(val) || 0);
@@ -197,12 +209,12 @@ export default function AgencyB2BPortal() {
       COMPLETED: 'bg-blue-100 text-blue-800'
     };
     const labels = {
-      PENDING: 'In Attesa',
-      PENDING_VERIFICATION: 'Verifica Bonifico',
-      HELD: 'Sospesa',
-      CONFIRMED: 'Confermata',
-      CANCELLED: 'Cancellata',
-      COMPLETED: 'Completata'
+      PENDING: t('b2b_status_pending'),
+      PENDING_VERIFICATION: t('b2b_status_pending_verification'),
+      HELD: t('b2b_status_held'),
+      CONFIRMED: t('b2b_status_confirmed'),
+      CANCELLED: t('b2b_status_cancelled'),
+      COMPLETED: t('b2b_status_completed')
     };
     return <Badge className={colors[status] || 'bg-gray-100 text-gray-800'}>{labels[status] || status}</Badge>;
   };
@@ -572,7 +584,31 @@ export default function AgencyB2BPortal() {
   if (!agency) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-        <Card className="w-full max-w-md shadow-xl">
+        <Card className="w-full max-w-md shadow-xl relative">
+          {/* Selettore lingua in alto a destra */}
+          <div className="absolute top-3 right-3 z-10">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <span className="text-xl">{languageFlags[language]}</span>
+                  <Languages className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[160px]">
+                {Object.keys(languageFlags).map((lang) => (
+                  <DropdownMenuItem
+                    key={lang}
+                    onClick={() => changeLanguage(lang)}
+                    className={`gap-2 cursor-pointer ${language === lang ? 'bg-primary/10' : ''}`}
+                  >
+                    <span className="text-xl">{languageFlags[lang]}</span>
+                    <span>{languageNames[lang]}</span>
+                    {language === lang && <CheckCircle2 className="w-4 h-4 ml-auto text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <CardHeader className="text-center space-y-4">
             {/* Logo società */}
             <div className="flex justify-center">
@@ -583,15 +619,15 @@ export default function AgencyB2BPortal() {
               <Building2 className="w-8 h-8 text-white" />
             </div>
             
-            <CardTitle className="text-2xl">Portale B2B Company</CardTitle>
+            <CardTitle className="text-2xl">{t('b2b_portal')}</CardTitle>
             <CardDescription className="text-base">
-              Accedi con le credenziali della tua agenzia per {company.name}
+              {t('b2b_login_subtitle')} {company.name}
             </CardDescription>
           </CardHeader>
           
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('b2b_email')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -603,7 +639,7 @@ export default function AgencyB2BPortal() {
             </div>
             
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('b2b_password')}</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -618,7 +654,7 @@ export default function AgencyB2BPortal() {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showPassword ? "Nascondi password" : "Mostra password"}
+                  aria-label={showPassword ? t('b2b_password') : t('b2b_password')}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -631,11 +667,11 @@ export default function AgencyB2BPortal() {
               style={{ backgroundColor: primaryColor }}
             >
               <LogIn className="w-4 h-4 mr-2" />
-              Accedi
+              {t('b2b_login_btn')}
             </Button>
             
             <p className="text-xs text-center text-muted-foreground">
-              🔒 Accesso riservato alle agenzie autorizzate
+              🔒 {t('b2b_authorized_only')}
             </p>
           </CardContent>
         </Card>
@@ -654,13 +690,37 @@ export default function AgencyB2BPortal() {
               <img src={logoUrl} alt={company.name} className="h-10 object-contain" />
               <div className="border-l pl-4">
                 <h1 className="text-lg font-semibold text-gray-900">{agency.name}</h1>
-                <p className="text-sm text-muted-foreground">Portale B2B - {company.name}</p>
+                <p className="text-sm text-muted-foreground">{t('b2b_portal')} - {company.name}</p>
               </div>
             </div>
             
-            <Button variant="outline" onClick={handleLogout}>
-              Disconnetti
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Language Selector */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <span className="text-xl">{languageFlags[language]}</span>
+                    <Languages className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[160px]">
+                  {Object.keys(languageFlags).map((lang) => (
+                    <DropdownMenuItem
+                      key={lang}
+                      onClick={() => changeLanguage(lang)}
+                      className={`gap-2 cursor-pointer ${language === lang ? 'bg-primary/10' : ''}`}
+                    >
+                      <span className="text-xl">{languageFlags[lang]}</span>
+                      <span>{languageNames[lang]}</span>
+                      {language === lang && <CheckCircle2 className="w-4 h-4 ml-auto text-primary" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="outline" onClick={handleLogout}>
+                {t('b2b_logout')}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -671,37 +731,49 @@ export default function AgencyB2BPortal() {
           {/* === BANDA AZIONI RAPIDE B2B === */}
           <div className="flex flex-wrap items-center gap-2 bg-gradient-to-r from-fuchsia-600 via-pink-500 to-rose-500 p-2 rounded-lg shadow-lg w-full">
             <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/40 pr-3 drop-shadow">
-              <Plus className="w-4 h-4" />Azioni Rapide
+              <Plus className="w-4 h-4" />{t('b2b_quick_actions')}
             </div>
             <Button
               type="button"
               size="sm"
               onClick={() => setShowNewBookingDialog(true)}
               className="bg-white text-rose-700 hover:bg-rose-50 font-semibold shadow-md border border-white/40 h-9"
-              title="Crea prenotazione esperienza"
+              title={t('b2b_create_experience_booking')}
             >
               <Plus className="w-4 h-4 mr-1.5" />
               <CreditCard className="w-4 h-4 mr-1.5" />
-              Crea Prenotazione Esperienza
+              {t('b2b_create_experience_booking')}
             </Button>
           </div>
 
-          <TabsList>
-            <TabsTrigger value="dashboard">
+          <TabsList className="bg-slate-200/80 border border-slate-300 shadow-sm p-1 h-auto">
+            <TabsTrigger
+              value="dashboard"
+              className="data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-md data-[state=active]:font-semibold text-slate-700 hover:text-slate-900 font-medium px-4 py-2"
+            >
               <BarChart3 className="w-4 h-4 mr-2" />
-              Dashboard
+              {t('b2b_dashboard')}
             </TabsTrigger>
-            <TabsTrigger value="experiences">
+            <TabsTrigger
+              value="experiences"
+              className="data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-md data-[state=active]:font-semibold text-slate-700 hover:text-slate-900 font-medium px-4 py-2"
+            >
               <Compass className="w-4 h-4 mr-2" />
-              Esperienze
+              {t('b2b_experiences')}
             </TabsTrigger>
-            <TabsTrigger value="bookings">
+            <TabsTrigger
+              value="bookings"
+              className="data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-md data-[state=active]:font-semibold text-slate-700 hover:text-slate-900 font-medium px-4 py-2"
+            >
               <CreditCard className="w-4 h-4 mr-2" />
-              Prenotazioni
+              {t('b2b_bookings')}
             </TabsTrigger>
-            <TabsTrigger value="calendar">
+            <TabsTrigger
+              value="calendar"
+              className="data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-md data-[state=active]:font-semibold text-slate-700 hover:text-slate-900 font-medium px-4 py-2"
+            >
               <Calendar className="w-4 h-4 mr-2" />
-              Calendario
+              {t('b2b_calendar')}
             </TabsTrigger>
           </TabsList>
 
@@ -712,7 +784,7 @@ export default function AgencyB2BPortal() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Prenotazioni Totali</p>
+                      <p className="text-sm text-muted-foreground">{t('b2b_total_bookings')}</p>
                       <p className="text-3xl font-bold mt-2">{stats.total_bookings || 0}</p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
@@ -726,7 +798,7 @@ export default function AgencyB2BPortal() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Fatturato B2B</p>
+                      <p className="text-sm text-muted-foreground">{t('b2b_b2b_revenue')}</p>
                       <p className="text-3xl font-bold mt-2">{fmtPrice(stats.total_revenue)}</p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
@@ -746,9 +818,9 @@ export default function AgencyB2BPortal() {
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Provvigioni</p>
+                      <p className="text-sm text-muted-foreground">{t('b2b_commissions')}</p>
                       <p className="text-3xl font-bold mt-2">{fmtPrice(stats.total_commission)}</p>
-                      <p className="text-[10px] text-purple-600 mt-1 font-medium">Clicca per vedere ripartizione →</p>
+                      <p className="text-[10px] text-purple-600 mt-1 font-medium">{t('b2b_click_to_see_chart')}</p>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center group-hover:bg-purple-200">
                       <TrendingUp className="w-6 h-6 text-purple-600" />
@@ -761,24 +833,24 @@ export default function AgencyB2BPortal() {
             {/* Info Agenzia */}
             <Card>
               <CardHeader>
-                <CardTitle>Informazioni Agenzia</CardTitle>
+                <CardTitle>{t('b2b_agency_info')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="text-sm text-muted-foreground">{t('b2b_email')}</p>
                     <p className="font-medium">{agency.email}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Telefono</p>
+                    <p className="text-sm text-muted-foreground">{t('b2b_phone')}</p>
                     <p className="font-medium">{agency.phone || 'N/A'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">P.IVA</p>
+                    <p className="text-sm text-muted-foreground">{t('b2b_vat')}</p>
                     <p className="font-medium">{agency.vat_number || 'N/A'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Sconto</p>
+                    <p className="text-sm text-muted-foreground">{t('b2b_discount')}</p>
                     <Badge className="bg-green-100 text-green-800">{agency.discount_percentage || 0}%</Badge>
                   </div>
                 </div>
@@ -790,8 +862,8 @@ export default function AgencyB2BPortal() {
           <TabsContent value="experiences" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Esperienze Disponibili ({experiences.length})</CardTitle>
-                <CardDescription>Catalogo esperienze · Prezzi di listino B2C</CardDescription>
+                <CardTitle>{t('b2b_available_experiences')} ({experiences.length})</CardTitle>
+                <CardDescription>{t('b2b_catalog_subtitle')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -811,19 +883,19 @@ export default function AgencyB2BPortal() {
                               <h3 className="font-semibold text-lg mb-1">{exp.name}</h3>
                               <TypeBadge type={exp.type} />
                               <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                                {exp.description || 'Nessuna descrizione'}
+                                {exp.description || '—'}
                               </p>
                             </div>
                             <div className="text-right ml-4">
                               <p className="text-2xl font-bold" style={{ color: primaryColor }}>
                                 {fmtPrice(exp.price_b2c)}
                               </p>
-                              <p className="text-xs text-muted-foreground">/persona</p>
+                              <p className="text-xs text-muted-foreground">{t('b2b_per_person')}</p>
                             </div>
                           </div>
                           <div className="flex gap-4 mt-3 text-sm text-muted-foreground">
                             <span>⏱️ {Math.floor((exp.duration_minutes || 0) / 60)}h</span>
-                            <span>👥 Max {exp.max_capacity} posti</span>
+                            <span>👥 Max {exp.max_capacity} {t('b2b_col_seats').toLowerCase()}</span>
                             {exp.meeting_point && <span>📍 {exp.meeting_point}</span>}
                           </div>
                           <div className="mt-3 flex justify-end">
@@ -832,7 +904,7 @@ export default function AgencyB2BPortal() {
                               onClick={() => { setPrefillExperienceId(exp.id); setShowNewBookingDialog(true); }}
                               className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm"
                             >
-                              <Plus className="w-4 h-4 mr-2" />Crea Prenotazione
+                              <Plus className="w-4 h-4 mr-2" />{t('b2b_create_booking')}
                             </Button>
                           </div>
                         </div>
@@ -842,7 +914,7 @@ export default function AgencyB2BPortal() {
                   {experiences.length === 0 && (
                     <div className="text-center py-12">
                       <Compass className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-                      <p className="text-muted-foreground">Nessuna esperienza disponibile</p>
+                      <p className="text-muted-foreground">{t('b2b_no_experiences')}</p>
                     </div>
                   )}
                 </div>
@@ -856,19 +928,19 @@ export default function AgencyB2BPortal() {
               <CardHeader>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div>
-                    <CardTitle>Le Tue Prenotazioni ({totals.count} su {bookings.length})</CardTitle>
+                    <CardTitle>{t('b2b_your_bookings')} ({totals.count} / {bookings.length})</CardTitle>
                     <CardDescription>
-                      Storico prenotazioni · Totale {fmtPrice(totals.revenue)}
+                      {t('b2b_bookings_history')} · {t('b2b_total')} {fmtPrice(totals.revenue)}
                       {' · '}
-                      Provv. <span className="text-emerald-700 font-semibold">{fmtPrice(totals.commission)}</span>
+                      {t('b2b_comm')} <span className="text-emerald-700 font-semibold">{fmtPrice(totals.commission)}</span>
                     </CardDescription>
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
-                      <Filter className="w-4 h-4 mr-2" />{showFilters ? 'Nascondi filtri' : 'Filtri'}
+                      <Filter className="w-4 h-4 mr-2" />{showFilters ? t('b2b_hide_filters') : t('b2b_filters')}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => loadAgencyData()} title="Aggiorna prenotazioni">
-                      <RefreshCw className="w-4 h-4 mr-2" />Aggiorna
+                    <Button variant="outline" size="sm" onClick={() => loadAgencyData()} title={t('b2b_refresh')}>
+                      <RefreshCw className="w-4 h-4 mr-2" />{t('b2b_refresh')}
                     </Button>
                     <Button variant="outline" size="sm" onClick={exportExcel}>
                       <FileSpreadsheet className="w-4 h-4 mr-2" />Excel
@@ -880,7 +952,7 @@ export default function AgencyB2BPortal() {
                       onClick={() => setShowNewBookingDialog(true)}
                       className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
                     >
-                      <Plus className="w-4 h-4 mr-2" />Crea Prenotazione
+                      <Plus className="w-4 h-4 mr-2" />{t('b2b_create_booking')}
                     </Button>
                   </div>
                 </div>
@@ -950,17 +1022,17 @@ export default function AgencyB2BPortal() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b text-left bg-muted/50">
-                        <th className="p-3 font-medium">Rif.</th>
-                        <th className="p-3 font-medium">Cliente</th>
-                        <th className="p-3 font-medium">Esperienza</th>
-                        <th className="p-3 font-medium">Data</th>
-                        <th className="p-3 font-medium">Posti</th>
-                        <th className="p-3 font-medium">Prezzo B2C</th>
-                        <th className="p-3 font-medium">Prezzo B2B</th>
-                        <th className="p-3 font-medium">Provvigione</th>
-                        <th className="p-3 font-medium">Pagamento</th>
-                        <th className="p-3 font-medium">Stato</th>
-                        <th className="p-3 font-medium text-center">Azioni</th>
+                        <th className="p-3 font-medium">{t('b2b_col_code')}</th>
+                        <th className="p-3 font-medium">{t('b2b_col_customer')}</th>
+                        <th className="p-3 font-medium">{t('b2b_col_experience')}</th>
+                        <th className="p-3 font-medium">{t('b2b_col_date')}</th>
+                        <th className="p-3 font-medium">{t('b2b_col_seats')}</th>
+                        <th className="p-3 font-medium">{t('b2b_col_b2c_price')}</th>
+                        <th className="p-3 font-medium">{t('b2b_col_b2b_price')}</th>
+                        <th className="p-3 font-medium">{t('b2b_col_commission')}</th>
+                        <th className="p-3 font-medium">{t('b2b_col_payment')}</th>
+                        <th className="p-3 font-medium">{t('b2b_col_status')}</th>
+                        <th className="p-3 font-medium text-center">{t('b2b_col_actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
