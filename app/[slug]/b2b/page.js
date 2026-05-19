@@ -256,10 +256,11 @@ export default function AgencyB2BPortal() {
       b2cUnit = Number(b.total_amount) / seats;
     }
     const b2cTotal = b2cUnit * seats;
-    // PROVVIGIONE = B2C * % sconto agenzia (valore configurato sull'anagrafica agenzia)
+    // PROVVIGIONE = B2C * % sconto agenzia SOLO se prenotazione CONFERMATA (pagamento confermato)
     const discountPct = Number(agency?.discount_percentage) || 0;
-    const commission = b2cTotal * (discountPct / 100);
-    // B2B effettivo per l'agenzia = B2C - provvigione
+    const isConfirmed = b.status === 'CONFIRMED';
+    const commission = isConfirmed ? (b2cTotal * (discountPct / 100)) : 0;
+    // B2B effettivo per l'agenzia = B2C - provvigione (se non confermata, B2B = B2C)
     const b2bTotal = b2cTotal - commission;
     // Per coerenza ricalcolo b2bUnit dal b2bTotal
     const b2bUnitEffective = seats > 0 ? (b2bTotal / seats) : b2bUnit;
