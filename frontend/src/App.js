@@ -1773,45 +1773,44 @@ function SmartDomoApp() {
     );
   }
 
-  // Show loading screen while backend is starting up
-  if (!backendReady) {
-    return (
-      <div key="backend-loading" className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="mb-6">
-            <Building2 className="h-16 w-16 text-blue-400 mx-auto animate-pulse" />
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-2">SmartDomo</h1>
-          <p className="text-blue-300 mb-6">Avvio servizi in corso...</p>
-          <div className="flex items-center justify-center gap-3">
-            <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
-            <span className="text-slate-400 text-sm">
-              Connessione al server ({backendCheckCount})
-            </span>
-          </div>
-          <p className="text-slate-500 text-xs mt-4 mb-4">
-            Attendere qualche secondo...
-          </p>
-          {backendCheckCount >= 3 && (
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm transition-colors"
-            >
-              🔄 Ricarica Pagina
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Show login page if not authenticated
-  if (!currentUser) {
-    return <LoginPage key="login-page" onLogin={handleLogin} />;
-  }
-
+  // Unified render - stable root element prevents DOM reconciliation errors
   return (
-    <div key="dashboard" className="min-h-screen bg-gray-50">
+    <>
+      {!backendReady && (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+          <div className="text-center">
+            <div className="mb-6">
+              <Building2 className="h-16 w-16 text-blue-400 mx-auto animate-pulse" />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">SmartDomo</h1>
+            <p className="text-blue-300 mb-6">Avvio servizi in corso...</p>
+            <div className="flex items-center justify-center gap-3">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+              <span className="text-slate-400 text-sm">
+                Connessione al server ({backendCheckCount})
+              </span>
+            </div>
+            <p className="text-slate-500 text-xs mt-4 mb-4">
+              Attendere qualche secondo...
+            </p>
+            {backendCheckCount >= 3 && (
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm transition-colors"
+              >
+                Ricarica Pagina
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {backendReady && !currentUser && (
+        <LoginPage onLogin={handleLogin} />
+      )}
+
+      {backendReady && currentUser && (
+    <div className="min-h-screen bg-gray-50">
       
       {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-50">
@@ -2860,6 +2859,8 @@ function SmartDomoApp() {
         />
       </div>
     </div>
+      )}
+    </>
   );
 }
 
