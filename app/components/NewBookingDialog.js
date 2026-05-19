@@ -172,8 +172,27 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
           terms_accepted_at: new Date().toISOString(),
         }),
       });
-      const created = await res.json();
-      if (created.error) { toast.error(created.error); setLoading(false); return; }
+      // Lettura robusta del body: in caso di risposta non-JSON o vuota, evita crash con messaggio chiaro
+      const rawText = await res.text();
+      let created;
+      try {
+        created = rawText ? JSON.parse(rawText) : null;
+      } catch (jsonErr) {
+        console.error('[NewBookingDialog] Risposta non valida dal server:', rawText?.slice(0, 300));
+        toast.error('Risposta non valida dal server (status ' + res.status + '). Controlla la console.');
+        setLoading(false);
+        return;
+      }
+      if (!res.ok || created?.error) {
+        toast.error(created?.error || `Errore HTTP ${res.status}`);
+        setLoading(false);
+        return;
+      }
+      if (!created?.id) {
+        toast.error('Risposta del server senza ID prenotazione');
+        setLoading(false);
+        return;
+      }
 
       // Se l'admin ha segnato CASH come "già pagato" → marca subito come PAID/CONFIRMED
       // NOTA: per ONLINE (Carta SumUp) NON marchiamo come pagato: apriamo direttamente il POS Web
@@ -258,10 +277,10 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl flex items-center gap-2">
-            🎫 Crea Prenotazione Manuale
+      <DialogContent className="max-w-5xl w-[95vw] max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg flex items-center gap-2">
+            🎫 Crea Prenotazione Manuale · <span className="text-sm font-normal text-muted-foreground">Step {step}/4</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -433,14 +452,16 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
         {/* STEP 4: Pagamento */}
         {!generatedLink && step === 4 && (
           <div className="space-y-3">
-            <div className="p-3 bg-slate-50 rounded-lg text-sm space-y-1">
-              <div><strong>{selectedExp?.name}</strong></div>
-              <div className="text-xs">{customer.name} • {seats} pers.</div>
-              <div className="text-base font-bold text-primary mt-1">Totale: {fmtPrice(total)}</div>
+            <div className="p-2.5 bg-slate-50 rounded-lg text-sm flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <strong>{selectedExp?.name}</strong>
+                <span className="text-xs text-muted-foreground ml-2">· {customer.name} · {seats} pers.</span>
+              </div>
+              <div className="text-lg font-bold text-primary">{fmtPrice(total)}</div>
             </div>
 
             <Label className="text-sm">Modalità di Pagamento</Label>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {/* Cash / In loco — NASCOSTO per agenzia */}
               {!isAgency && (
                 <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer ${paymentMethod === 'CASH' ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'}`}>

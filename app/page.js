@@ -177,7 +177,15 @@ const api = async (path, opts = {}) => {
   const cfg = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) cfg.body = JSON.stringify(body);
   const res = await fetch(`/api/${path}`, cfg);
-  return res.json();
+  // Lettura robusta: gestiamo risposte non-JSON o vuote senza far crashare il chiamante
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.warn(`[api] Risposta non-JSON da /api/${path}:`, text.slice(0, 200));
+    return { error: 'invalid_json', _raw: text };
+  }
 };
 
 // ============ UTILITY COMPONENTS ============

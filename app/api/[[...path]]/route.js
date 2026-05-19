@@ -461,8 +461,8 @@ async function handleBookings(method, id, body, action, sp) {
     };
 
     await col.insertOne(booking);
-
-    // Update slot
+    // Rimuovi ObjectId aggiunto da Mongo per evitare serializzazioni inutili nel response
+    delete booking._id;
     await db.collection('slots').updateOne(
       { id: body.slot_id },
       { $inc: { booked_seats: seats } }
