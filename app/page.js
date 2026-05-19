@@ -2821,6 +2821,16 @@ function AdminDashboard({ currentUser, onLogout }) {
   };
   const getExpName = (id) => experiences.find(e => e.id === id)?.name || '-';
   
+  // Helper: nome agenzia da booking (preferisce agency_name, fallback su lookup tramite agency_id)
+  const getAgencyName = (b) => {
+    if (b?.agency_name) return b.agency_name;
+    if (b?.agency_id) {
+      const a = (agencies || []).find(x => x.id === b.agency_id);
+      return a?.name || null;
+    }
+    return null;
+  };
+  
   // Helper: Ottieni nome risorsa da prenotazione (max 6 caratteri)
   const getResourceName = (booking) => {
     const slot = slots.find(s => s.id === booking.slot_id);
@@ -3528,7 +3538,7 @@ function AdminDashboard({ currentUser, onLogout }) {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="pb-2 font-medium">Data/Ora Acquisto</th><th className="pb-2 font-medium">Rif.</th><th className="pb-2 font-medium">Cliente</th><th className="pb-2 font-medium">Esperienza</th><th className="pb-2 font-medium">Posti</th><th className="pb-2 font-medium">Totale</th><th className="pb-2 font-medium">Stato</th></tr></thead><tbody>
-                {sortedOverviewBookings.slice(0,15).map(b=>(<tr key={b.id} className="border-b last:border-0"><td className="py-2.5 text-xs">{b.created_at ? new Date(b.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</td><td className="py-2.5 font-mono text-xs">{b.booking_ref}</td><td className="py-2.5">{b.customer_name}</td><td className="py-2.5">{b.experience_name||getExpName(b.experience_id)}</td><td className="py-2.5">{b.seats}</td><td className="py-2.5 font-medium">{fmtPrice(b.total_amount)}</td><td className="py-2.5"><StatusBadge status={b.status}/></td></tr>))}
+                {sortedOverviewBookings.slice(0,15).map(b=>{const _ag = getAgencyName(b); return (<tr key={b.id} className="border-b last:border-0"><td className="py-2.5 text-xs">{b.created_at ? new Date(b.created_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</td><td className="py-2.5 font-mono text-xs">{b.booking_ref}</td><td className="py-2.5">{b.customer_name}{_ag && <Badge className="ml-1.5 text-[9px] bg-indigo-100 text-indigo-800 border-indigo-200" title={`Venduto da ${_ag}`}>AG: {_ag.length > 12 ? _ag.slice(0,12)+'…' : _ag}</Badge>}</td><td className="py-2.5">{b.experience_name||getExpName(b.experience_id)}</td><td className="py-2.5">{b.seats}</td><td className="py-2.5 font-medium">{fmtPrice(b.total_amount)}</td><td className="py-2.5"><StatusBadge status={b.status}/></td></tr>);})}
               </tbody></table>{sortedOverviewBookings.length===0&&<p className="text-center py-8 text-muted-foreground">Nessuna prenotazione{overviewDateFilter ? ' per questa data' : ''}. Carica i dati demo!</p>}</div>
             </CardContent>
           </Card>
@@ -3977,7 +3987,7 @@ function AdminDashboard({ currentUser, onLogout }) {
             )}
           </div>
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th>{isSuperAdmin && <th className="p-3 font-medium">Company</th>}<th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Risorsa</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {filteredBookingsTab.map(b=>(<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3">{b.customer_name}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td>{isSuperAdmin && <td className="p-3"><CompanyBadge companyId={b.company_id}/></td>}<td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3 text-xs font-mono font-semibold">{getResourceName(b)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
+            {filteredBookingsTab.map(b=>{const _agencyName = getAgencyName(b); return (<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3"><div>{b.customer_name}</div>{_agencyName && <Badge className="text-[10px] bg-indigo-100 text-indigo-800 border-indigo-200 mt-1" title={`Venduto da ${_agencyName}`}><Building2 className="w-2.5 h-2.5 mr-0.5" />AG: {_agencyName.length > 14 ? _agencyName.slice(0, 14) + '…' : _agencyName}</Badge>}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td>{isSuperAdmin && <td className="p-3"><CompanyBadge companyId={b.company_id}/></td>}<td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3 text-xs font-mono font-semibold">{getResourceName(b)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><StatusBadge status={b.status}/></td>
               <td className="p-3"><div className="flex gap-1 flex-wrap">
                 <Button variant="secondary" size="sm" className="text-xs h-7" onClick={()=>setPreviewBk(b)}><Eye className="w-3 h-3 mr-1"/>Anteprima</Button>
                 {/* Azioni per Bonifico in attesa di verifica */}
@@ -4023,7 +4033,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
                 {b.checked_in_at&&<Badge className="bg-green-100 text-green-800 text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/>OK</Badge>}
               </div></td>
-            </tr>))}
+            </tr>);})}
           </tbody>
           {filteredBookingsTab.length > 0 && (
             <tfoot className="bg-muted/80 font-semibold border-t-2 border-primary/20 sticky bottom-0">
