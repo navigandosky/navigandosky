@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
@@ -1764,50 +1764,54 @@ function SmartDomoApp() {
     e.posizione?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Unified render - stable root element prevents DOM reconciliation errors
-  return (
-    <>
-      {authLoading && (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-        </div>
-      )}
+  // Show loading while verifying auth
+  if (authLoading) {
+    return (
+      <div translate="no" className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
-      {!authLoading && !backendReady && (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-          <div className="text-center">
-            <div className="mb-6">
-              <Building2 className="h-16 w-16 text-blue-400 mx-auto animate-pulse" />
-            </div>
-            <h1 className="text-2xl font-bold text-white mb-2">SmartDomo</h1>
-            <p className="text-blue-300 mb-6">Avvio servizi in corso...</p>
-            <div className="flex items-center justify-center gap-3">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
-              <span className="text-slate-400 text-sm">
-                Connessione al server ({backendCheckCount})
-              </span>
-            </div>
-            <p className="text-slate-500 text-xs mt-4 mb-4">
-              Attendere qualche secondo...
-            </p>
-            {backendCheckCount >= 3 && (
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm transition-colors"
-              >
-                Ricarica Pagina
-              </button>
-            )}
+  // Show loading screen while backend is starting up
+  if (!backendReady) {
+    return (
+      <div translate="no" className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="mb-6">
+            <Building2 className="h-16 w-16 text-blue-400 mx-auto animate-pulse" />
           </div>
+          <h1 className="text-2xl font-bold text-white mb-2">SmartDomo</h1>
+          <p className="text-blue-300 mb-6">Avvio servizi in corso...</p>
+          <div className="flex items-center justify-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-blue-400" />
+            <span className="text-slate-400 text-sm">
+              Connessione al server ({backendCheckCount})
+            </span>
+          </div>
+          <p className="text-slate-500 text-xs mt-4 mb-4">
+            Attendere qualche secondo...
+          </p>
+          {backendCheckCount >= 3 && (
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm transition-colors"
+            >
+              Ricarica Pagina
+            </button>
+          )}
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {!authLoading && backendReady && !currentUser && (
-        <LoginPage onLogin={handleLogin} />
-      )}
+  // Show login page if not authenticated
+  if (!currentUser) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
-      {!authLoading && backendReady && currentUser && (
-    <div className="min-h-screen bg-gray-50">
+  return (
+    <div translate="no" className="min-h-screen bg-gray-50">
       
       {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-50">
@@ -2856,63 +2860,15 @@ function SmartDomoApp() {
         />
       </div>
     </div>
-      )}
-    </>
   );
-}
-
-// Error Boundary to catch DOM manipulation errors (e.g., from Matterport SDK + React reconciliation)
-class AppErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, errorMessage: '' };
-  }
-
-  static getDerivedStateFromError(error) {
-    // For insertBefore DOM errors, don't show error screen - these are non-fatal
-    if (error?.name === 'NotFoundError' || error?.message?.includes('insertBefore')) {
-      return null; // Don't update state - let React continue
-    }
-    return { hasError: true, errorMessage: error?.message || 'Errore sconosciuto' };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    if (error?.name === 'NotFoundError' || error?.message?.includes('insertBefore')) {
-      console.warn('Non-fatal DOM error suppressed:', error.message);
-      return; // Do NOT setState - prevents infinite loop
-    }
-    console.error('App error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center p-8">
-            <h2 className="text-xl font-bold mb-4">Si è verificato un errore</h2>
-            <p className="text-gray-500 mb-4 text-sm">{this.state.errorMessage}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Ricarica Pagina
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
 }
 
 function App() {
   return (
-    <AppErrorBoundary>
-      <LanguageProvider>
-        <Toaster position="top-right" richColors />
-        <SmartDomoApp />
-      </LanguageProvider>
-    </AppErrorBoundary>
+    <LanguageProvider>
+      <Toaster position="top-right" richColors />
+      <SmartDomoApp />
+    </LanguageProvider>
   );
 }
 
