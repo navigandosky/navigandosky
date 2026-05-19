@@ -222,10 +222,15 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
     setLoading(false);
   };
 
+  const availableSeats = selectedSlot
+    ? Math.max(0, (selectedSlot.max_seats || 0) - (selectedSlot.booked_seats || 0) - (selectedSlot.blocked_seats || 0))
+    : 0;
+  const seatsExceed = selectedSlot && seats > availableSeats;
+
   const canNext = () => {
     if (step === 1) return !!selectedExp;
     if (step === 2) return !!selectedSlot;
-    if (step === 3) return !!customer.name;
+    if (step === 3) return !!customer.name && !seatsExceed;
     return true;
   };
 
@@ -327,10 +332,23 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
               <Label className="text-sm">Numero Partecipanti</Label>
               <div className="flex items-center gap-3 mt-1">
                 <Button type="button" variant="outline" size="sm" onClick={() => setSeats(Math.max(1, seats - 1))}>-</Button>
-                <span className="text-xl font-bold w-12 text-center">{seats}</span>
-                <Button type="button" variant="outline" size="sm" onClick={() => setSeats(seats + 1)}>+</Button>
+                <span className={`text-xl font-bold w-12 text-center ${seatsExceed ? 'text-red-600' : ''}`}>{seats}</span>
+                <Button type="button" variant="outline" size="sm" onClick={() => setSeats(seats + 1)} disabled={seats >= availableSeats}>+</Button>
                 <span className="text-sm text-muted-foreground ml-2">Totale: <strong className="text-primary">{fmtPrice(total)}</strong></span>
+                {selectedSlot && (
+                  <span className={`text-xs ml-2 ${seatsExceed ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
+                    Posti disponibili: <strong>{availableSeats}</strong>
+                  </span>
+                )}
               </div>
+              {seatsExceed && (
+                <div className="mt-2 bg-red-50 border border-red-300 rounded-md p-2 text-sm text-red-700 flex items-start gap-2">
+                  <span>⚠️</span>
+                  <div>
+                    <strong>Posti insufficienti!</strong> Hai richiesto <strong>{seats}</strong> posti ma sono disponibili solo <strong>{availableSeats}</strong> per questo slot. Riduci il numero o scegli un'altra data.
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
