@@ -2571,6 +2571,25 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [previewBk, setPreviewBk] = useState(null); // Stato per dialog anteprima prenotazione
   const [seeding, setSeeding] = useState(false);
   const [resBookings, setResBookings] = useState(null);
+
+  // Vista Moduli - permette di nascondere sezioni della dashboard
+  // 'all' | 'experiences' | 'marina' | 'cantiere'
+  const [viewMode, setViewMode] = useState('all');
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('admin_view_mode');
+      if (saved && ['all', 'experiences', 'marina', 'cantiere'].includes(saved)) {
+        setViewMode(saved);
+      }
+    } catch {}
+  }, []);
+  const changeViewMode = (mode) => {
+    setViewMode(mode);
+    try { localStorage.setItem('admin_view_mode', mode); } catch {}
+  };
+  const showExperiences = viewMode === 'all' || viewMode === 'experiences';
+  const showMarina = viewMode === 'all' || viewMode === 'marina';
+  const showCantiere = viewMode === 'all' || viewMode === 'cantiere';
   
   // Filtri Report
   const [filters, setFilters] = useState({
@@ -3227,7 +3246,48 @@ function AdminDashboard({ currentUser, onLogout }) {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
+          {/* Toggle Vista Moduli - solo dentro company (non Super Admin globale) */}
+          {(currentUser?.company_id || isSuperAdmin) && (
+            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 border">
+              <button
+                type="button"
+                onClick={() => changeViewMode('all')}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'all' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Mostra tutti i moduli"
+              >
+                🎯 Tutto
+              </button>
+              <button
+                type="button"
+                onClick={() => changeViewMode('experiences')}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'experiences' ? 'bg-white shadow text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Mostra solo modulo esperienze"
+              >
+                🚤 Esperienze
+              </button>
+              {(hasMarinaOwnership || isSuperAdmin) && (
+                <button
+                  type="button"
+                  onClick={() => changeViewMode('marina')}
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'marina' ? 'bg-white shadow text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  title="Mostra solo modulo marina"
+                >
+                  ⚓ Marina
+                </button>
+              )}
+              {(isMarlinSub || isSuperAdmin) && (
+                <button
+                  type="button"
+                  onClick={() => changeViewMode('cantiere')}
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'cantiere' ? 'bg-white shadow text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  title="Mostra solo modulo cantiere"
+                >
+                  🔧 Cantiere
+                </button>
+              )}
+            </div>
+          )}
           <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
           <Button onClick={seedData} disabled={seeding} variant="secondary">{seeding?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:<Download className="w-4 h-4 mr-2"/>}Dati Demo</Button>
           {onLogout && (
@@ -3241,6 +3301,7 @@ function AdminDashboard({ currentUser, onLogout }) {
 
       <Tabs defaultValue="overview" className="space-y-3">
         {/* Riga 1: Tab Esperienze (sfondo neutro) */}
+        {showExperiences && (
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="experiences"><Compass className="w-4 h-4 mr-1.5" />{t('experiences')}</TabsTrigger>
           <TabsTrigger value="bookings"><CreditCard className="w-4 h-4 mr-1.5" />{t('bookings')}</TabsTrigger>
@@ -3255,6 +3316,7 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
         </TabsList>
+        )}
 
         {/* === BANDA AZIONI RAPIDE — Crea Preventivo / Prenotazione (visibile anche per agenzia) === */}
         {(currentUser?.company_id || isSuperAdmin) && (
@@ -3262,6 +3324,7 @@ function AdminDashboard({ currentUser, onLogout }) {
             <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/40 pr-3 drop-shadow">
               <Plus className="w-4 h-4" />Azioni Rapide
             </div>
+            {showMarina && (
             <Button
               type="button"
               size="sm"
@@ -3273,6 +3336,8 @@ function AdminDashboard({ currentUser, onLogout }) {
               <Anchor className="w-4 h-4 mr-1.5" />
               Nuovo Preventivo Posto Barca
             </Button>
+            )}
+            {showExperiences && (
             <Button
               type="button"
               size="sm"
@@ -3284,11 +3349,12 @@ function AdminDashboard({ currentUser, onLogout }) {
               <Ship className="w-4 h-4 mr-1.5" />
               Crea Prenotazione Esperienza
             </Button>
+            )}
           </TabsList>
         )}
 
         {/* Riga 2: Tab MARINE (sfondo blu, scritte bianche) - Super Admin o owner marina */}
-        {hasMarinaOwnership && (
+        {hasMarinaOwnership && showMarina && (
           <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-blue-700 via-primary to-blue-800 p-2 rounded-lg shadow-md w-full">
             <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
               <Anchor className="w-4 h-4" />Step 2 - Modulo Marina
@@ -3302,7 +3368,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         )}
 
         {/* Filtro Marina Globale - sotto Step 2 (collegato visivamente alle funzioni Marina) */}
-        {hasMarinaOwnership && ownedMarinas.length > 1 && (
+        {hasMarinaOwnership && showMarina && ownedMarinas.length > 1 && (
           <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-2 border-blue-200 rounded-lg p-3 flex flex-wrap items-center gap-2 shadow-sm">
             <div className="flex items-center gap-2 px-2 text-blue-900 font-semibold text-xs uppercase tracking-wider border-r border-blue-300 pr-3">
               <Anchor className="w-4 h-4" />Filtro Marina
@@ -3342,7 +3408,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         )}
 
         {/* Riga 2.5: Tab RICHIESTE PRENOTAZIONE (cyan band) - Super Admin o owner marina */}
-        {hasMarinaOwnership && (
+        {hasMarinaOwnership && showMarina && (
           <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-cyan-600 via-sky-500 to-blue-600 p-2 rounded-lg shadow-md w-full">
             <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
               <Ship className="w-4 h-4" />Step 3 - Prenotazioni
@@ -3354,7 +3420,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         )}
 
         {/* Modulo CANTIERE - aggregato sotto Step 3 come funzione marina */}
-        {isMarlinSub && (
+        {isMarlinSub && showCantiere && (
           <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-amber-600 via-orange-500 to-amber-700 p-2 rounded-lg shadow-md w-full">
             <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
               <Wrench className="w-4 h-4" />Modulo Cantiere
