@@ -1,478 +1,681 @@
 #!/usr/bin/env python3
 """
-Backend API Testing Script for Maretrek GPS Advanced Features
-Tests GPS config and analytics endpoints with speed alerts functionality
+Backend API Testing for Maretrek Payment Link Online (SumUp Integration)
+Tests the new payment link generation feature for Company Admins
 """
 
 import requests
 import json
-import sys
+import os
 from datetime import datetime
 
-# Base URL from environment
-BASE_URL = "https://sardinia-tours-hub.preview.emergentagent.com/api"
+# Read base URL from .env
+BASE_URL = "https://sardinia-tours-hub.preview.emergentagent.com"
+API_BASE = f"{BASE_URL}/api"
 
 # Test data
-TEST_IMEI = "863738076364539"
-TEST_DATE = "2026-05-15"  # Known date with 1803 GPS points, max speed 158 km/h
-EDGE_CASE_DATE = "2020-01-01"  # Date with no data
+TEST_BOOKING_REF = "MK-2026-0019"
+TEST_COMPANY_ID = "03f77ea6-95c7-49c4-a13b-df54bc28ecc2"
+TEST_CUSTOMER_NAME = "ANTONIO DEIANA"
+TEST_CUSTOMER_EMAIL = "antoniodeiana@tiscali.it"
 
-def print_test(name):
-    """Print test header"""
+def print_test_header(test_name):
     print(f"\n{'='*80}")
-    print(f"TEST: {name}")
-    print('='*80)
+    print(f"TEST: {test_name}")
+    print(f"{'='*80}")
 
-def print_result(success, message):
-    """Print test result"""
-    status = "✅ PASS" if success else "❌ FAIL"
+def print_result(passed, message):
+    status = "✅ PASS" if passed else "❌ FAIL"
     print(f"{status}: {message}")
-    return success
 
-def test_a_get_gps_config():
-    """
-    TEST A: GET /api/gps-config (read with threshold)
-    Expected: 200 response with configured: true/false and speed_alert_threshold (default 30)
-    """
-    print_test("A) GET /api/gps-config - Read configuration with threshold")
+def test_lookup_valid_booking():
+    """TEST 1: GET /api/payment-link/lookup with valid booking_ref"""
+    print_test_header("Lookup Valid Booking (MK-2026-0019)")
     
     try:
-        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
-        print(f"Status Code: {response.status_code}")
+        url = f"{API_BASE}/payment-link/lookup?ref={TEST_BOOKING_REF}&company_id={TEST_COMPANY_ID}"
+        print(f"URL: {url}")
+        
+        response = requests.get(url, timeout=10)
+        print(f"Status: {response.status_code}")
         
         if response.status_code != 200:
-            return print_result(False, f"Expected 200, got {response.status_code}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
         
         data = response.json()
         print(f"Response: {json.dumps(data, indent=2)}")
+        
+        # Verify response structure
+        if not data.get('ok'):
+            print_result(False, "Response missing 'ok: true'")
+            return False
+        
+        booking = data.get('booking', {})
         
         # Check required fields
-        if 'configured' not in data:
-            return print_result(False, "Missing 'configured' field")
+        required_fields = ['id', 'booking_ref', 'customer_name', 'customer_email', 
+                          'total_amount', 'seats', 'currency', 'status', 
+                          'payment_status', 'slot_datetime', 'company_id']
         
-        if 'speed_alert_threshold' not in data:
-            return print_result(False, "Missing 'speed_alert_threshold' field")
+        missing_fields = [f for f in required_fields if f not in booking]
+        if missing_fields:
+            print_result(False, f"Missing required fields: {missing_fields}")
+            return False
         
-        threshold = data.get('speed_alert_threshold')
-        if not isinstance(threshold, (int, float)) or threshold <= 0:
-            return print_result(False, f"Invalid threshold value: {threshold}")
+        # Verify _id is NOT present (MongoDB field should be excluded)
+        if '_id' in booking:
+            print_result(False, "_id MongoDB field should be excluded from response")
+            return False
         
-        # If configured, should have email and api_token
-        if data['configured']:
-            if 'email' not in data or 'api_token' not in data:
-                return print_result(False, "Configured but missing email or api_token")
-            print(f"✓ Configured: email={data['email']}, threshold={threshold}")
-        else:
-            print(f"✓ Not configured yet, default threshold={threshold}")
+        # Verify booking data matches expected values
+        if booking['booking_ref'] != TEST_BOOKING_REF:
+            print_result(False, f"booking_ref mismatch: expected {TEST_BOOKING_REF}, got {booking['booking_ref']}")
+            return False
         
-        return print_result(True, f"GET /api/gps-config working correctly, threshold={threshold}")
+        if booking['company_id'] != TEST_COMPANY_ID:
+            print_result(False, f"company_id mismatch")
+            return False
         
-    except Exception as e:
-        return print_result(False, f"Exception: {str(e)}")
-
-def test_b_post_gps_config():
-    """
-    TEST B: POST /api/gps-config (write with threshold)
-    - First GET to capture current email and api_token
-    - POST with speed_alert_threshold: 25
-    - GET again to verify threshold === 25
-    - Try POST with invalid threshold (should reject or ignore)
-    - Restore original threshold (30)
-    """
-    print_test("B) POST /api/gps-config - Write configuration with threshold")
-    
-    try:
-        # Step 1: GET current config
-        print("\nStep 1: GET current configuration")
-        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
-        if response.status_code != 200:
-            return print_result(False, f"GET failed with {response.status_code}")
+        # Check integration_payments field exists
+        if 'integration_payments' not in booking:
+            print_result(False, "Missing integration_payments field")
+            return False
         
-        current_config = response.json()
-        print(f"Current config: {json.dumps(current_config, indent=2)}")
+        # Check paid_integrations_total field exists
+        if 'paid_integrations_total' not in booking:
+            print_result(False, "Missing paid_integrations_total field")
+            return False
         
-        if not current_config.get('configured'):
-            return print_result(False, "GPS not configured - cannot test threshold update. Need email and api_token.")
-        
-        current_email = current_config['email']
-        current_token = current_config['api_token']
-        original_threshold = current_config.get('speed_alert_threshold', 30)
-        
-        # Step 2: POST with threshold 25
-        print("\nStep 2: POST with speed_alert_threshold=25")
-        post_data = {
-            'email': current_email,
-            'api_token': current_token,
-            'speed_alert_threshold': 25
-        }
-        response = requests.post(f"{BASE_URL}/gps-config", json=post_data, timeout=10)
-        print(f"Status Code: {response.status_code}")
-        
-        if response.status_code != 200:
-            return print_result(False, f"POST failed with {response.status_code}")
-        
-        result = response.json()
-        print(f"Response: {json.dumps(result, indent=2)}")
-        
-        if not result.get('success'):
-            return print_result(False, "POST did not return success: true")
-        
-        # Step 3: GET again to verify
-        print("\nStep 3: GET to verify threshold=25")
-        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
-        if response.status_code != 200:
-            return print_result(False, f"Verification GET failed with {response.status_code}")
-        
-        updated_config = response.json()
-        print(f"Updated config: {json.dumps(updated_config, indent=2)}")
-        
-        if updated_config.get('speed_alert_threshold') != 25:
-            return print_result(False, f"Expected threshold=25, got {updated_config.get('speed_alert_threshold')}")
-        
-        print("✓ Threshold successfully updated to 25")
-        
-        # Step 4: Try invalid threshold (string)
-        print("\nStep 4: POST with invalid threshold (string 'abc')")
-        invalid_data = {
-            'email': current_email,
-            'api_token': current_token,
-            'speed_alert_threshold': 'abc'
-        }
-        response = requests.post(f"{BASE_URL}/gps-config", json=invalid_data, timeout=10)
-        print(f"Status Code: {response.status_code}")
-        
-        # Verify threshold wasn't overwritten with invalid value
-        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
-        check_config = response.json()
-        if check_config.get('speed_alert_threshold') == 'abc':
-            return print_result(False, "Invalid threshold 'abc' was saved - should be rejected")
-        print(f"✓ Invalid threshold rejected, current value: {check_config.get('speed_alert_threshold')}")
-        
-        # Step 5: Try invalid threshold (negative)
-        print("\nStep 5: POST with invalid threshold (negative -5)")
-        invalid_data = {
-            'email': current_email,
-            'api_token': current_token,
-            'speed_alert_threshold': -5
-        }
-        response = requests.post(f"{BASE_URL}/gps-config", json=invalid_data, timeout=10)
-        print(f"Status Code: {response.status_code}")
-        
-        # Verify threshold wasn't overwritten with negative value
-        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
-        check_config = response.json()
-        if check_config.get('speed_alert_threshold') == -5:
-            return print_result(False, "Negative threshold -5 was saved - should be rejected")
-        print(f"✓ Negative threshold rejected, current value: {check_config.get('speed_alert_threshold')}")
-        
-        # Step 6: Restore original threshold
-        print(f"\nStep 6: Restore original threshold={original_threshold}")
-        restore_data = {
-            'email': current_email,
-            'api_token': current_token,
-            'speed_alert_threshold': original_threshold
-        }
-        response = requests.post(f"{BASE_URL}/gps-config", json=restore_data, timeout=10)
-        if response.status_code != 200:
-            print(f"⚠️  Warning: Failed to restore original threshold")
-        else:
-            print(f"✓ Original threshold restored to {original_threshold}")
-        
-        return print_result(True, "POST /api/gps-config working correctly with validation")
+        print_result(True, f"Lookup successful: {booking['booking_ref']} - {booking['customer_name']} - €{booking['total_amount']}")
+        print(f"Integration payments: {len(booking.get('integration_payments', []))}")
+        print(f"Paid integrations total: €{booking.get('paid_integrations_total', 0)}")
+        return True
         
     except Exception as e:
-        return print_result(False, f"Exception: {str(e)}")
+        print_result(False, f"Exception: {str(e)}")
+        return False
 
-def test_c_analytics_speed_alerts():
-    """
-    TEST C: GET /api/gps/analytics/{imei}?date=Y - Speed alerts structure
-    Use IMEI 863738076364539 and date 2026-05-15
-    Expected: speed_alerts array with proper structure
-    """
-    print_test("C) GET /api/gps/analytics/{imei}?date=Y - Speed alerts structure")
+def test_lookup_missing_ref():
+    """TEST 2: GET /api/payment-link/lookup without ref parameter"""
+    print_test_header("Lookup Missing Ref Parameter")
     
     try:
-        url = f"{BASE_URL}/gps/analytics/{TEST_IMEI}?date={TEST_DATE}"
+        url = f"{API_BASE}/payment-link/lookup"
         print(f"URL: {url}")
         
-        response = requests.get(url, timeout=30)
-        print(f"Status Code: {response.status_code}")
+        response = requests.get(url, timeout=10)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
         
-        if response.status_code != 200:
-            return print_result(False, f"Expected 200, got {response.status_code}")
+        if response.status_code != 400:
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
         
-        data = response.json()
-        
-        # Check required keys
-        required_keys = [
-            'imei', 'date', 'total_distance', 'max_speed', 'avg_speed', 
-            'total_time', 'engine_hours', 'stops', 'route', 'points_count',
-            'alert_threshold', 'speed_alerts', 'speed_alerts_count'
-        ]
-        
-        missing_keys = [key for key in required_keys if key not in data]
-        if missing_keys:
-            return print_result(False, f"Missing keys: {missing_keys}")
-        
-        print(f"\n✓ All required keys present")
-        print(f"  - IMEI: {data['imei']}")
-        print(f"  - Date: {data['date']}")
-        print(f"  - Points count: {data['points_count']}")
-        print(f"  - Max speed: {data['max_speed']} km/h")
-        print(f"  - Alert threshold: {data['alert_threshold']} km/h")
-        print(f"  - Speed alerts count: {data['speed_alerts_count']}")
-        
-        # Verify points_count > 0 (should be ~1803)
-        if data['points_count'] == 0:
-            return print_result(False, "Expected points_count > 0 for this date")
-        
-        # Verify speed_alerts_count > 0 (with threshold 30, expect ~79)
-        if data['speed_alerts_count'] == 0:
-            return print_result(False, "Expected speed_alerts_count > 0 with threshold 30")
-        
-        print(f"✓ Speed alerts detected: {data['speed_alerts_count']}")
-        
-        # Verify speed_alerts is an array
-        if not isinstance(data['speed_alerts'], list):
-            return print_result(False, "speed_alerts should be an array")
-        
-        if len(data['speed_alerts']) != data['speed_alerts_count']:
-            return print_result(False, f"Mismatch: speed_alerts length {len(data['speed_alerts'])} != speed_alerts_count {data['speed_alerts_count']}")
-        
-        # Verify structure of each alert
-        alert_keys = ['start_ts', 'end_ts', 'start_lat', 'start_lng', 'end_lat', 'end_lng', 
-                      'max_speed', 'points', 'start_index', 'end_index']
-        
-        max_speed_found = 0
-        for i, alert in enumerate(data['speed_alerts'][:5]):  # Check first 5 alerts
-            missing = [key for key in alert_keys if key not in alert]
-            if missing:
-                return print_result(False, f"Alert {i} missing keys: {missing}")
-            
-            # Verify max_speed > alert_threshold
-            if alert['max_speed'] <= data['alert_threshold']:
-                return print_result(False, f"Alert {i} max_speed {alert['max_speed']} <= threshold {data['alert_threshold']}")
-            
-            # Verify points >= 1
-            if alert['points'] < 1:
-                return print_result(False, f"Alert {i} has points={alert['points']}, expected >= 1")
-            
-            # Verify start_index <= end_index < points_count
-            if alert['start_index'] > alert['end_index']:
-                return print_result(False, f"Alert {i} start_index > end_index")
-            
-            if alert['end_index'] >= data['points_count']:
-                return print_result(False, f"Alert {i} end_index {alert['end_index']} >= points_count {data['points_count']}")
-            
-            if alert['max_speed'] > max_speed_found:
-                max_speed_found = alert['max_speed']
-        
-        print(f"✓ All alerts have correct structure")
-        print(f"✓ All alerts have max_speed > threshold")
-        print(f"✓ All alerts have valid indices")
-        
-        # Verify at least one alert has max_speed > 50
-        if max_speed_found <= 50:
-            # Check all alerts
-            max_speed_found = max(alert['max_speed'] for alert in data['speed_alerts'])
-        
-        if max_speed_found <= 50:
-            return print_result(False, f"Expected at least one alert with max_speed > 50, found max {max_speed_found}")
-        
-        print(f"✓ Found alert with max_speed > 50 (max: {max_speed_found} km/h)")
-        
-        # Verify alert_threshold === 30 (default)
-        if data['alert_threshold'] != 30:
-            print(f"⚠️  Warning: Expected default threshold=30, got {data['alert_threshold']}")
-        
-        return print_result(True, f"Analytics with speed alerts working correctly ({data['speed_alerts_count']} alerts detected)")
+        print_result(True, "Correctly returns 400 for missing ref parameter")
+        return True
         
     except Exception as e:
-        return print_result(False, f"Exception: {str(e)}")
+        print_result(False, f"Exception: {str(e)}")
+        return False
 
-def test_d_threshold_change_reflects():
-    """
-    TEST D: Threshold change reflects in analytics
-    - POST /api/gps-config to set speed_alert_threshold: 60
-    - GET /api/gps/analytics/{imei}?date=Y
-    - Verify alert_threshold === 60 AND speed_alerts_count is LESS than with threshold 30
-    - Restore threshold to 30
-    """
-    print_test("D) Threshold change reflects in analytics")
+def test_lookup_nonexistent_booking():
+    """TEST 3: GET /api/payment-link/lookup with non-existent booking_ref"""
+    print_test_header("Lookup Non-existent Booking")
     
     try:
-        # Step 1: Get baseline with threshold 30
-        print("\nStep 1: Get baseline analytics with threshold 30")
-        
-        # First ensure threshold is 30
-        response = requests.get(f"{BASE_URL}/gps-config", timeout=10)
-        current_config = response.json()
-        
-        if not current_config.get('configured'):
-            return print_result(False, "GPS not configured")
-        
-        current_email = current_config['email']
-        current_token = current_config['api_token']
-        
-        # Set threshold to 30
-        post_data = {
-            'email': current_email,
-            'api_token': current_token,
-            'speed_alert_threshold': 30
-        }
-        requests.post(f"{BASE_URL}/gps-config", json=post_data, timeout=10)
-        
-        # Get analytics with threshold 30
-        url = f"{BASE_URL}/gps/analytics/{TEST_IMEI}?date={TEST_DATE}"
-        response = requests.get(url, timeout=30)
-        
-        if response.status_code != 200:
-            return print_result(False, f"Analytics GET failed with {response.status_code}")
-        
-        baseline_data = response.json()
-        baseline_count = baseline_data['speed_alerts_count']
-        print(f"Baseline (threshold 30): {baseline_count} alerts")
-        
-        # Step 2: Change threshold to 60
-        print("\nStep 2: POST speed_alert_threshold=60")
-        post_data = {
-            'email': current_email,
-            'api_token': current_token,
-            'speed_alert_threshold': 60
-        }
-        response = requests.post(f"{BASE_URL}/gps-config", json=post_data, timeout=10)
-        
-        if response.status_code != 200:
-            return print_result(False, f"POST failed with {response.status_code}")
-        
-        print("✓ Threshold updated to 60")
-        
-        # Step 3: Get analytics with threshold 60
-        print("\nStep 3: GET analytics with new threshold")
-        response = requests.get(url, timeout=30)
-        
-        if response.status_code != 200:
-            return print_result(False, f"Analytics GET failed with {response.status_code}")
-        
-        new_data = response.json()
-        new_count = new_data['speed_alerts_count']
-        new_threshold = new_data['alert_threshold']
-        
-        print(f"New analytics:")
-        print(f"  - alert_threshold: {new_threshold}")
-        print(f"  - speed_alerts_count: {new_count}")
-        
-        # Verify alert_threshold === 60
-        if new_threshold != 60:
-            return print_result(False, f"Expected alert_threshold=60, got {new_threshold}")
-        
-        print("✓ alert_threshold correctly reflects new value (60)")
-        
-        # Verify speed_alerts_count is LESS than baseline
-        if new_count >= baseline_count:
-            return print_result(False, f"Expected fewer alerts with higher threshold. Baseline: {baseline_count}, New: {new_count}")
-        
-        print(f"✓ Speed alerts count decreased: {baseline_count} → {new_count}")
-        
-        # Step 4: Restore threshold to 30
-        print("\nStep 4: Restore threshold to 30")
-        restore_data = {
-            'email': current_email,
-            'api_token': current_token,
-            'speed_alert_threshold': 30
-        }
-        response = requests.post(f"{BASE_URL}/gps-config", json=restore_data, timeout=10)
-        
-        if response.status_code != 200:
-            print(f"⚠️  Warning: Failed to restore threshold")
-        else:
-            print("✓ Threshold restored to 30")
-        
-        return print_result(True, f"Threshold change correctly reflects in analytics (60 km/h: {new_count} alerts vs 30 km/h: {baseline_count} alerts)")
-        
-    except Exception as e:
-        return print_result(False, f"Exception: {str(e)}")
-
-def test_e_edge_case_no_data():
-    """
-    TEST E: Edge case - date with no data
-    GET /api/gps/analytics/{imei}?date=2020-01-01
-    Expected: 200 with points_count: 0, speed_alerts: [], speed_alerts_count: 0, route: []
-    """
-    print_test("E) Edge case - Date with no GPS data")
-    
-    try:
-        url = f"{BASE_URL}/gps/analytics/{TEST_IMEI}?date={EDGE_CASE_DATE}"
+        url = f"{API_BASE}/payment-link/lookup?ref=MK-9999-0000"
         print(f"URL: {url}")
         
-        response = requests.get(url, timeout=30)
-        print(f"Status Code: {response.status_code}")
+        response = requests.get(url, timeout=10)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code != 404:
+            print_result(False, f"Expected 404, got {response.status_code}")
+            return False
+        
+        print_result(True, "Correctly returns 404 for non-existent booking")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception: {str(e)}")
+        return False
+
+def test_create_payment_link_happy_path():
+    """TEST 4A: POST /api/payment-link/create - Happy path with send_via=show"""
+    print_test_header("Create Payment Link - Happy Path (show)")
+    
+    try:
+        url = f"{API_BASE}/payment-link/create"
+        print(f"URL: {url}")
+        
+        payload = {
+            "booking_ref": TEST_BOOKING_REF,
+            "customer_name": "Test Customer",
+            "customer_email": "test@example.com",
+            "amount": 10.50,
+            "description": "Test integration",
+            "send_via": "show"
+        }
+        
+        print(f"Payload: {json.dumps(payload, indent=2)}")
+        
+        response = requests.post(url, json=payload, timeout=15)
+        print(f"Status: {response.status_code}")
         
         if response.status_code != 200:
-            return print_result(False, f"Expected 200, got {response.status_code}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
         
         data = response.json()
         print(f"Response: {json.dumps(data, indent=2)}")
         
-        # Verify points_count: 0
-        if data.get('points_count') != 0:
-            return print_result(False, f"Expected points_count=0, got {data.get('points_count')}")
+        # Verify response structure
+        required_fields = ['ok', 'hosted_url', 'checkout_id', 'checkout_reference', 
+                          'amount', 'currency', 'booking_ref', 'email_sent']
         
-        # Verify speed_alerts: []
-        if data.get('speed_alerts') != []:
-            return print_result(False, f"Expected empty speed_alerts array, got {data.get('speed_alerts')}")
+        missing_fields = [f for f in required_fields if f not in data]
+        if missing_fields:
+            print_result(False, f"Missing required fields: {missing_fields}")
+            return False
         
-        # Verify speed_alerts_count: 0
-        if data.get('speed_alerts_count') != 0:
-            return print_result(False, f"Expected speed_alerts_count=0, got {data.get('speed_alerts_count')}")
+        if not data['ok']:
+            print_result(False, "Response ok field is not true")
+            return False
         
-        # Verify route: []
-        if data.get('route') != []:
-            return print_result(False, f"Expected empty route array, got length {len(data.get('route', []))}")
+        # Verify hosted_url starts with correct domain
+        hosted_url = data['hosted_url']
+        if not (hosted_url.startswith('https://checkout.sumup.com') or 
+                hosted_url.startswith('https://pay.sumup.com')):
+            print_result(False, f"Invalid hosted_url domain: {hosted_url}")
+            return False
         
-        print("✓ All fields correctly empty for date with no data")
+        # Verify checkout_reference starts with INTG-MK-
+        checkout_ref = data['checkout_reference']
+        if not checkout_ref.startswith('INTG-MK-'):
+            print_result(False, f"checkout_reference should start with 'INTG-MK-', got: {checkout_ref}")
+            return False
         
-        return print_result(True, "Edge case (no data) handled correctly")
+        # Verify amount
+        if data['amount'] != 10.50:
+            print_result(False, f"Amount mismatch: expected 10.50, got {data['amount']}")
+            return False
+        
+        # Verify email_sent is false for send_via=show
+        if data['email_sent'] != False:
+            print_result(False, f"email_sent should be false for send_via=show, got {data['email_sent']}")
+            return False
+        
+        print_result(True, f"Payment link created successfully: {checkout_ref}")
+        print(f"Hosted URL: {hosted_url}")
+        
+        # Now verify MongoDB was updated - lookup the booking again
+        print("\nVerifying MongoDB update...")
+        lookup_url = f"{API_BASE}/payment-link/lookup?ref={TEST_BOOKING_REF}"
+        lookup_response = requests.get(lookup_url, timeout=10)
+        
+        if lookup_response.status_code == 200:
+            lookup_data = lookup_response.json()
+            booking = lookup_data.get('booking', {})
+            integration_payments = booking.get('integration_payments', [])
+            
+            # Find the integration we just created
+            found = False
+            for payment in integration_payments:
+                if payment.get('checkout_reference') == checkout_ref:
+                    found = True
+                    print(f"✅ Found integration in MongoDB: {payment.get('checkout_reference')}")
+                    print(f"   Status: {payment.get('status')}")
+                    print(f"   Amount: €{payment.get('amount')}")
+                    print(f"   Hosted URL: {payment.get('hosted_url')}")
+                    
+                    # Verify fields
+                    if payment.get('status') != 'PENDING':
+                        print_result(False, f"Expected status PENDING, got {payment.get('status')}")
+                        return False
+                    if payment.get('amount') != 10.50:
+                        print_result(False, f"Amount mismatch in MongoDB")
+                        return False
+                    break
+            
+            if not found:
+                print_result(False, "Integration payment not found in MongoDB")
+                return False
+        else:
+            print(f"⚠️  Could not verify MongoDB update (lookup returned {lookup_response.status_code})")
+        
+        print_result(True, "Payment link created and saved to MongoDB successfully")
+        return True
         
     except Exception as e:
-        return print_result(False, f"Exception: {str(e)}")
+        print_result(False, f"Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def test_create_validation_missing_booking():
+    """TEST 4B: POST /api/payment-link/create - Missing booking_id AND booking_ref"""
+    print_test_header("Create Payment Link - Missing booking_id/booking_ref")
+    
+    try:
+        url = f"{API_BASE}/payment-link/create"
+        payload = {
+            "customer_name": "Test",
+            "customer_email": "test@example.com",
+            "amount": 10,
+            "send_via": "show"
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code != 400:
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
+        
+        data = response.json()
+        if 'booking_ref' not in data.get('error', '').lower() and 'booking_id' not in data.get('error', '').lower():
+            print_result(False, "Error message should mention booking_ref or booking_id")
+            return False
+        
+        print_result(True, "Correctly returns 400 for missing booking_ref/booking_id")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception: {str(e)}")
+        return False
+
+def test_create_validation_missing_customer_name():
+    """TEST 4C: POST /api/payment-link/create - Missing customer_name"""
+    print_test_header("Create Payment Link - Missing customer_name")
+    
+    try:
+        url = f"{API_BASE}/payment-link/create"
+        payload = {
+            "booking_ref": TEST_BOOKING_REF,
+            "customer_email": "test@example.com",
+            "amount": 10,
+            "send_via": "show"
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code != 400:
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
+        
+        print_result(True, "Correctly returns 400 for missing customer_name")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception: {str(e)}")
+        return False
+
+def test_create_validation_missing_customer_email():
+    """TEST 4D: POST /api/payment-link/create - Missing customer_email"""
+    print_test_header("Create Payment Link - Missing customer_email")
+    
+    try:
+        url = f"{API_BASE}/payment-link/create"
+        payload = {
+            "booking_ref": TEST_BOOKING_REF,
+            "customer_name": "Test Customer",
+            "amount": 10,
+            "send_via": "show"
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code != 400:
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
+        
+        print_result(True, "Correctly returns 400 for missing customer_email")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception: {str(e)}")
+        return False
+
+def test_create_validation_invalid_amount():
+    """TEST 4E: POST /api/payment-link/create - Invalid amount (0 or negative)"""
+    print_test_header("Create Payment Link - Invalid amount")
+    
+    try:
+        url = f"{API_BASE}/payment-link/create"
+        
+        # Test with 0
+        payload = {
+            "booking_ref": TEST_BOOKING_REF,
+            "customer_name": "Test",
+            "customer_email": "test@example.com",
+            "amount": 0,
+            "send_via": "show"
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        print(f"Test amount=0: Status {response.status_code}")
+        
+        if response.status_code != 400:
+            print_result(False, f"Expected 400 for amount=0, got {response.status_code}")
+            return False
+        
+        # Test with negative
+        payload['amount'] = -10
+        response = requests.post(url, json=payload, timeout=10)
+        print(f"Test amount=-10: Status {response.status_code}")
+        
+        if response.status_code != 400:
+            print_result(False, f"Expected 400 for negative amount, got {response.status_code}")
+            return False
+        
+        print_result(True, "Correctly returns 400 for invalid amounts")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception: {str(e)}")
+        return False
+
+def test_create_validation_invalid_send_via():
+    """TEST 4F: POST /api/payment-link/create - Invalid send_via"""
+    print_test_header("Create Payment Link - Invalid send_via")
+    
+    try:
+        url = f"{API_BASE}/payment-link/create"
+        payload = {
+            "booking_ref": TEST_BOOKING_REF,
+            "customer_name": "Test",
+            "customer_email": "test@example.com",
+            "amount": 10,
+            "send_via": "invalid"
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code != 400:
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
+        
+        print_result(True, "Correctly returns 400 for invalid send_via")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception: {str(e)}")
+        return False
+
+def test_create_validation_nonexistent_booking():
+    """TEST 4G: POST /api/payment-link/create - Non-existent booking_ref"""
+    print_test_header("Create Payment Link - Non-existent booking")
+    
+    try:
+        url = f"{API_BASE}/payment-link/create"
+        payload = {
+            "booking_ref": "MK-9999-9999",
+            "customer_name": "Test",
+            "customer_email": "test@example.com",
+            "amount": 10,
+            "send_via": "show"
+        }
+        
+        response = requests.post(url, json=payload, timeout=10)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code != 404:
+            print_result(False, f"Expected 404, got {response.status_code}")
+            return False
+        
+        print_result(True, "Correctly returns 404 for non-existent booking")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception: {str(e)}")
+        return False
+
+def test_create_multiple_integrations():
+    """TEST 4H: Create multiple payment links for same booking"""
+    print_test_header("Create Multiple Payment Links for Same Booking")
+    
+    try:
+        url = f"{API_BASE}/payment-link/create"
+        
+        # Create first payment link
+        payload1 = {
+            "booking_ref": TEST_BOOKING_REF,
+            "customer_name": "Test Customer 1",
+            "customer_email": "test1@example.com",
+            "amount": 15.00,
+            "description": "First integration",
+            "send_via": "show"
+        }
+        
+        response1 = requests.post(url, json=payload1, timeout=15)
+        print(f"First payment link: Status {response1.status_code}")
+        
+        if response1.status_code != 200:
+            print_result(False, f"First payment link creation failed: {response1.status_code}")
+            print(f"Response: {response1.text}")
+            return False
+        
+        data1 = response1.json()
+        checkout_ref1 = data1.get('checkout_reference')
+        print(f"First checkout_reference: {checkout_ref1}")
+        
+        # Create second payment link
+        payload2 = {
+            "booking_ref": TEST_BOOKING_REF,
+            "customer_name": "Test Customer 2",
+            "customer_email": "test2@example.com",
+            "amount": 25.00,
+            "description": "Second integration",
+            "send_via": "show"
+        }
+        
+        response2 = requests.post(url, json=payload2, timeout=15)
+        print(f"Second payment link: Status {response2.status_code}")
+        
+        if response2.status_code != 200:
+            print_result(False, f"Second payment link creation failed: {response2.status_code}")
+            print(f"Response: {response2.text}")
+            return False
+        
+        data2 = response2.json()
+        checkout_ref2 = data2.get('checkout_reference')
+        print(f"Second checkout_reference: {checkout_ref2}")
+        
+        # Verify both entries exist in MongoDB
+        lookup_url = f"{API_BASE}/payment-link/lookup?ref={TEST_BOOKING_REF}"
+        lookup_response = requests.get(lookup_url, timeout=10)
+        
+        if lookup_response.status_code != 200:
+            print_result(False, f"Lookup failed: {lookup_response.status_code}")
+            return False
+        
+        lookup_data = lookup_response.json()
+        booking = lookup_data.get('booking', {})
+        integration_payments = booking.get('integration_payments', [])
+        
+        print(f"\nTotal integration_payments in booking: {len(integration_payments)}")
+        
+        # Find both integrations
+        found1 = False
+        found2 = False
+        
+        for payment in integration_payments:
+            ref = payment.get('checkout_reference')
+            if ref == checkout_ref1:
+                found1 = True
+                print(f"✅ Found first integration: {ref} - €{payment.get('amount')}")
+            elif ref == checkout_ref2:
+                found2 = True
+                print(f"✅ Found second integration: {ref} - €{payment.get('amount')}")
+        
+        if not found1:
+            print_result(False, "First integration not found in MongoDB")
+            return False
+        
+        if not found2:
+            print_result(False, "Second integration not found in MongoDB")
+            return False
+        
+        print_result(True, "Multiple integrations created successfully (no overwrite)")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def test_create_with_email():
+    """TEST 4I: POST /api/payment-link/create with send_via=email"""
+    print_test_header("Create Payment Link - send_via=email")
+    
+    try:
+        url = f"{API_BASE}/payment-link/create"
+        payload = {
+            "booking_ref": TEST_BOOKING_REF,
+            "customer_name": "Email Test Customer",
+            "customer_email": "emailtest@example.com",
+            "amount": 5.00,
+            "description": "Email integration test",
+            "send_via": "email"
+        }
+        
+        print(f"Payload: {json.dumps(payload, indent=2)}")
+        
+        response = requests.post(url, json=payload, timeout=15)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code != 200:
+            print_result(False, f"Expected 200, got {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+        
+        data = response.json()
+        print(f"Response: {json.dumps(data, indent=2)}")
+        
+        # With send_via=email, the endpoint should either:
+        # 1. Return ok=true with email_sent=true (if email configured)
+        # 2. Return ok=true with warning message (if email not configured but link created)
+        
+        if not data.get('ok'):
+            print_result(False, "Response ok field is not true")
+            return False
+        
+        # Check if email was sent or if there's a warning
+        email_sent = data.get('email_sent', False)
+        has_warning = 'warning' in data
+        
+        if email_sent:
+            print(f"✅ Email sent successfully via {data.get('email_provider', 'unknown')}")
+        elif has_warning:
+            print(f"⚠️  Email not sent (expected if not configured): {data.get('warning')}")
+        else:
+            print(f"ℹ️  Email status: email_sent={email_sent}")
+        
+        # Verify the link was still created
+        if 'hosted_url' not in data or 'checkout_reference' not in data:
+            print_result(False, "Payment link not created")
+            return False
+        
+        print_result(True, "Payment link created with send_via=email (no crash)")
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 def main():
-    """Run all GPS Advanced tests"""
     print("\n" + "="*80)
-    print("MARETREK GPS ADVANCED FEATURES - BACKEND TESTING")
+    print("MARETREK PAYMENT LINK ONLINE (SUMUP INTEGRATION) - BACKEND TESTING")
     print("="*80)
     print(f"Base URL: {BASE_URL}")
-    print(f"Test IMEI: {TEST_IMEI}")
-    print(f"Test Date: {TEST_DATE}")
-    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"API Base: {API_BASE}")
+    print(f"Test Booking: {TEST_BOOKING_REF}")
+    print(f"Test Company: {TEST_COMPANY_ID}")
+    print("="*80)
     
-    results = []
+    results = {}
     
-    # Run all tests
-    results.append(("A - GET gps-config", test_a_get_gps_config()))
-    results.append(("B - POST gps-config", test_b_post_gps_config()))
-    results.append(("C - Analytics speed alerts", test_c_analytics_speed_alerts()))
-    results.append(("D - Threshold change reflects", test_d_threshold_change_reflects()))
-    results.append(("E - Edge case no data", test_e_edge_case_no_data()))
+    # Test 1: Lookup endpoints
+    print("\n" + "="*80)
+    print("SECTION 1: LOOKUP ENDPOINT TESTS")
+    print("="*80)
+    
+    results['lookup_valid'] = test_lookup_valid_booking()
+    results['lookup_missing_ref'] = test_lookup_missing_ref()
+    results['lookup_nonexistent'] = test_lookup_nonexistent_booking()
+    
+    # Test 2: Create endpoint - Happy path
+    print("\n" + "="*80)
+    print("SECTION 2: CREATE ENDPOINT - HAPPY PATH")
+    print("="*80)
+    
+    results['create_happy_path'] = test_create_payment_link_happy_path()
+    
+    # Test 3: Create endpoint - Validation
+    print("\n" + "="*80)
+    print("SECTION 3: CREATE ENDPOINT - VALIDATION TESTS")
+    print("="*80)
+    
+    results['create_missing_booking'] = test_create_validation_missing_booking()
+    results['create_missing_name'] = test_create_validation_missing_customer_name()
+    results['create_missing_email'] = test_create_validation_missing_customer_email()
+    results['create_invalid_amount'] = test_create_validation_invalid_amount()
+    results['create_invalid_send_via'] = test_create_validation_invalid_send_via()
+    results['create_nonexistent_booking'] = test_create_validation_nonexistent_booking()
+    
+    # Test 4: Create endpoint - Multiple integrations
+    print("\n" + "="*80)
+    print("SECTION 4: CREATE ENDPOINT - MULTIPLE INTEGRATIONS")
+    print("="*80)
+    
+    results['create_multiple'] = test_create_multiple_integrations()
+    
+    # Test 5: Create endpoint - Email
+    print("\n" + "="*80)
+    print("SECTION 5: CREATE ENDPOINT - EMAIL DELIVERY")
+    print("="*80)
+    
+    results['create_email'] = test_create_with_email()
     
     # Summary
     print("\n" + "="*80)
     print("TEST SUMMARY")
     print("="*80)
     
-    passed = sum(1 for _, result in results if result)
+    passed = sum(1 for v in results.values() if v)
     total = len(results)
     
-    for name, result in results:
+    print(f"\nTotal Tests: {total}")
+    print(f"Passed: {passed}")
+    print(f"Failed: {total - passed}")
+    print(f"Success Rate: {(passed/total*100):.1f}%")
+    
+    print("\nDetailed Results:")
+    for test_name, result in results.items():
         status = "✅ PASS" if result else "❌ FAIL"
-        print(f"{status} - {name}")
+        print(f"  {status}: {test_name}")
     
-    print(f"\nTotal: {passed}/{total} tests passed ({passed*100//total}%)")
-    print(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("\n" + "="*80)
+    print("TESTING COMPLETE")
+    print("="*80)
     
-    # Exit with appropriate code
-    sys.exit(0 if passed == total else 1)
+    return passed == total
 
 if __name__ == "__main__":
-    main()
+    success = main()
+    exit(0 if success else 1)

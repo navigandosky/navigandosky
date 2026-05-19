@@ -43,6 +43,8 @@ const SuperAdminBookingDeleteLazy = dynamic(() => import('./components/SuperAdmi
 // Procedura Rimborsi (Company Admin + Super Admin)
 const RefundsManagementLazy = dynamic(() => import('./components/RefundsManagement'), { ssr: false });
 const WarehouseAdminLazy = dynamic(() => import('./components/WarehouseAdmin'), { ssr: false });
+// Link Pagamento Online (Company Admin)
+const PaymentLinkDialogLazy = dynamic(() => import('./components/PaymentLinkDialog'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -53,7 +55,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -2681,6 +2683,8 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [previewBk, setPreviewBk] = useState(null); // Stato per dialog anteprima prenotazione
   const [seeding, setSeeding] = useState(false);
   const [resBookings, setResBookings] = useState(null);
+  // Link Pagamento Online (SumUp) - solo Company Admin
+  const [showPaymentLinkDialog, setShowPaymentLinkDialog] = useState(false);
 
   // Vista Moduli - permette di nascondere sezioni della dashboard
   // 'all' | 'experiences' | 'marina' | 'cantiere' | 'magazzino'
@@ -3448,6 +3452,16 @@ function AdminDashboard({ currentUser, onLogout }) {
             </div>
           )}
           <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
+          {/* Link Pagamento Online (SumUp) - solo Company Admin */}
+          {isCompanyAdmin && (
+            <Button
+              onClick={() => setShowPaymentLinkDialog(true)}
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
+              title="Genera link di pagamento SumUp da inviare al cliente"
+            >
+              <Link2 className="w-4 h-4 mr-2" />Link Pagamento Online
+            </Button>
+          )}
           <Button onClick={seedData} disabled={seeding} variant="secondary">{seeding?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:<Download className="w-4 h-4 mr-2"/>}Dati Demo</Button>
           {onLogout && (
             <Button variant="outline" onClick={onLogout} className="border-red-200 text-red-600 hover:bg-red-50">
@@ -3457,6 +3471,16 @@ function AdminDashboard({ currentUser, onLogout }) {
           )}
         </div>
       </div>
+
+      {/* Dialog Link Pagamento Online - solo Company Admin */}
+      {isCompanyAdmin && showPaymentLinkDialog && (
+        <PaymentLinkDialogLazy
+          open={showPaymentLinkDialog}
+          onOpenChange={setShowPaymentLinkDialog}
+          companyId={currentUser?.company_id}
+          allBookings={bookings}
+        />
+      )}
 
       <Tabs defaultValue="overview" className="space-y-3">
         {/* Riga 1: Tab Esperienze (sfondo neutro) */}

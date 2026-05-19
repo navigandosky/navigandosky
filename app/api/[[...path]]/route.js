@@ -2427,6 +2427,19 @@ async function handleRoute(request, resolvedParams, method) {
         }
         return new Response(JSON.stringify({ error: 'SumUp endpoint not found' }), { status: 404 });
       }
+      case 'payment-link': {
+        // Sub-route: /api/payment-link/create | /api/payment-link/lookup
+        const sub = pathSegments[1];
+        if (sub === 'create') {
+          const { handleCreatePaymentLink } = await import('./payment_link');
+          return await handleCreatePaymentLink(method, body);
+        }
+        if (sub === 'lookup') {
+          const { handleLookupBooking } = await import('./payment_link');
+          return await handleLookupBooking(method, searchParams);
+        }
+        return new Response(JSON.stringify({ error: 'payment-link endpoint not found' }), { status: 404 });
+      }
       case 'stripe': {
         // Sub-route: /api/stripe/create-checkout-session | /api/stripe/verify-session | /api/stripe/webhook
         const sub = pathSegments[1];

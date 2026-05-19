@@ -126,7 +126,21 @@ export async function handleSumupWebhook(method, body) {
     }
 
     const db = await getDb();
-    const booking = await db.collection('bookings').findOne({ sumup_checkout_id: checkoutId });
+
+    // 1) Cerca booking principale (campo sumup_checkout_id)
+    let booking = await db.collection('bookings').findOne({ sumup_checkout_id: checkoutId });
+    let isIntegration = false;
+    let integrationEntry = null;
+
+    // 2) Se non trovato, prova come integrazione (campo integration_payments[].id)
+    if (!booking) {
+      booking = await db.collection('bookings').findOne({ 'integration_payments.id': checkoutId });
+      if (booking) {
+        isIntegration = true;
+        integrationEntry = (booking.integration_payments || []).find(p => p.id === checkoutId);
+      }
+    }
+
     if (!booking) {
       console.warn('[sumup webhook] booking non trovato per checkout', checkoutId);
       return new Response(null, { status: 204 });
@@ -147,7 +161,33 @@ export async function handleSumupWebhook(method, body) {
     const checkout = await res.json();
     const status = checkout.status; // PAID | PENDING | FAILED | EXPIRED
 
-    // Idempotenza: aggiorna solo se cambia stato
+    if (isIntegration) {
+      // Aggiorna SOLO la voce integration nell'array, non lo status principale del booking
+      if (status === 'PAID' && integrationEntry?.status !== 'PAID') {
+        const txId = checkout?.transactions?.[0]?.id || null;
+        await db.collection('bookings').updateOne(
+          { id: booking.id, 'integration_payments.id': checkoutId },
+          { $set: {
+            'integration_payments.$.status': 'PAID',
+            'integration_payments.$.paid_at': new Date().toISOString(),
+            'integration_payments.$.transaction_id': txId,
+            integration_payments_updated_at: new Date().toISOString(),
+          } }
+        );
+        console.log('[sumup webhook] integrazione PAID:', booking.booking_ref, 'amount:', integrationEntry?.amount);
+      } else if ((status === 'FAILED' || status === 'EXPIRED') && integrationEntry?.status !== 'FAILED') {
+        await db.collection('bookings').updateOne(
+          { id: booking.id, 'integration_payments.id': checkoutId },
+          { $set: {
+            'integration_payments.$.status': 'FAILED',
+            'integration_payments.$.failed_at': new Date().toISOString(),
+          } }
+        );
+      }
+      return new Response(null, { status: 204 });
+    }
+
+    // Idempotenza: aggiorna solo se cambia stato (logica esistente)
     if (status === 'PAID' && booking.payment_status !== 'PAID') {
       await db.collection('bookings').updateOne(
         { id: booking.id },
