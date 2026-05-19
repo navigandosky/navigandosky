@@ -205,6 +205,69 @@ async function handleSlots(method, id, body, action, sp) {
     return json({ block_id: blockId, session_id: sessionId, expires_at: expiresAt });
   }
 
+  // === BULK DELETE / PREVIEW (Super Admin only)
+  // POST /api/slots/bulk-preview body: { company_id, experience_id?, date_from?, date_to? }
+  // POST /api/slots/bulk-delete  body: { company_id, experience_id?, date_from?, date_to?, delete_bookings? }
+  if (method === 'POST' && id && (id === 'bulk-preview' || id === 'bulk-delete')) {
+    const isDelete = id === 'bulk-delete';
+    const filter = {};
+    if (body.company_id) filter.company_id = body.company_id;
+    if (body.experience_id) filter.experience_id = body.experience_id;
+    if (body.date_from || body.date_to) {
+      filter.start_datetime = {};
+      if (body.date_from) filter.start_datetime.$gte = body.date_from;
+      if (body.date_to) filter.start_datetime.$lte = body.date_to;
+    }
+    if (!body.company_id && !body.experience_id && !body.date_from && !body.date_to) {
+      return json({ error: 'Specifica almeno un filtro (company_id, experience_id, date_from, date_to)' }, 400);
+    }
+    const slots = await col.find(filter).toArray();
+    const slotIds = slots.map((s) => s.id);
+    const bookings = slotIds.length
+      ? await db.collection('bookings').find({ slot_id: { $in: slotIds } }).toArray()
+      : [];
+    const seatBlocks = slotIds.length
+      ? await db.collection('seat_blocks').countDocuments({ slot_id: { $in: slotIds } })
+      : 0;
+
+    if (!isDelete) {
+      const byExperience = {};
+      for (const s of slots) {
+        const eid = s.experience_id || '_no_exp';
+        byExperience[eid] = (byExperience[eid] || 0) + 1;
+      }
+      return json({
+        total_slots: slots.length,
+        total_bookings: bookings.length,
+        confirmed_bookings: bookings.filter((b) => ['CONFIRMED', 'PAID'].includes(b.status || b.payment_status)).length,
+        total_seat_blocks: seatBlocks,
+        by_experience: byExperience,
+        date_range: slots.length ? {
+          from: slots.reduce((min, s) => (s.start_datetime < min ? s.start_datetime : min), slots[0].start_datetime),
+          to: slots.reduce((max, s) => (s.start_datetime > max ? s.start_datetime : max), slots[0].start_datetime),
+        } : null,
+      });
+    }
+
+    let deletedBookings = 0;
+    if (body.delete_bookings && slotIds.length) {
+      const r = await db.collection('bookings').deleteMany({ slot_id: { $in: slotIds } });
+      deletedBookings = r.deletedCount || 0;
+    }
+    if (slotIds.length) {
+      await db.collection('seat_blocks').deleteMany({ slot_id: { $in: slotIds } });
+    }
+    const delResult = slotIds.length
+      ? await col.deleteMany({ id: { $in: slotIds } })
+      : { deletedCount: 0 };
+    return json({
+      success: true,
+      deleted_slots: delResult.deletedCount,
+      deleted_bookings: deletedBookings,
+      orphaned_bookings: body.delete_bookings ? 0 : bookings.length,
+    });
+  }
+
   if (method === 'GET' && !id) {
     const filter = {};
     if (sp.get('experience_id')) filter.experience_id = sp.get('experience_id');

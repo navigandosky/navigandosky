@@ -37,6 +37,8 @@ const SkippersAdminLazy = dynamic(() => import('./components/SkippersAdmin'), { 
 const TransportLogsListLazy = dynamic(() => import('./components/TransportLogsList'), { ssr: false });
 // Registro Trasportati (vista admin con filtri)
 const TransportLogsRegistryLazy = dynamic(() => import('./components/TransportLogsRegistry'), { ssr: false });
+// Bulk Slots Delete (Super Admin only)
+const BulkSlotsDeleteLazy = dynamic(() => import('./components/BulkSlotsDelete'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -4226,10 +4228,13 @@ function AdminDashboard({ currentUser, onLogout }) {
                   </CardTitle>
                   <CardDescription>Genera link diretti per le company con branding personalizzato</CardDescription>
                 </div>
-                <Button onClick={() => setShowCompanyDialog(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nuova Società
-                </Button>
+                <div className="flex gap-2">
+                  {isSuperAdmin && <BulkSlotsDeleteLazy companies={companies} isSuperAdmin={isSuperAdmin} />}
+                  <Button onClick={() => setShowCompanyDialog(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nuova Società
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
