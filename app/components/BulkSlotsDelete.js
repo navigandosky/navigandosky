@@ -12,14 +12,17 @@ import { Trash2, AlertTriangle, Calendar, Search, Loader2, ShieldAlert } from 'l
 import { toast } from 'sonner';
 
 /**
- * BulkSlotsDelete - Super Admin tool per eliminare massivamente slot di una company
+ * BulkSlotsDelete - Tool per eliminare massivamente slot di una company
  * con filtri opzionali per esperienza e range date.
  *
- * SOLO SUPER ADMIN.
+ * Visibile a:
+ *  - SUPER ADMIN (può scegliere la company)
+ *  - COMPANY ADMIN (la company è quella propria, locked)
  */
-export default function BulkSlotsDelete({ companies = [], isSuperAdmin }) {
+export default function BulkSlotsDelete({ companies = [], isSuperAdmin, isCompanyAdmin = false, currentUser = null }) {
   const [open, setOpen] = useState(false);
-  const [companyId, setCompanyId] = useState('');
+  // Per Company Admin il company_id è quello dell'utente loggato
+  const [companyId, setCompanyId] = useState(isCompanyAdmin ? (currentUser?.company_id || '') : '');
   const [experienceId, setExperienceId] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -29,6 +32,13 @@ export default function BulkSlotsDelete({ companies = [], isSuperAdmin }) {
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+
+  // Mantieni company_id sincronizzato per Company Admin
+  useEffect(() => {
+    if (isCompanyAdmin && currentUser?.company_id && companyId !== currentUser.company_id) {
+      setCompanyId(currentUser.company_id);
+    }
+  }, [isCompanyAdmin, currentUser?.company_id]);
 
   // Carica esperienze della company selezionata
   useEffect(() => {
@@ -46,7 +56,7 @@ export default function BulkSlotsDelete({ companies = [], isSuperAdmin }) {
   // Resetta preview quando cambiano i filtri
   useEffect(() => { setPreview(null); }, [companyId, experienceId, dateFrom, dateTo]);
 
-  if (!isSuperAdmin) return null;
+  if (!isSuperAdmin && !isCompanyAdmin) return null;
 
   const handlePreview = async () => {
     if (!companyId) {
@@ -152,19 +162,30 @@ export default function BulkSlotsDelete({ companies = [], isSuperAdmin }) {
 
             {/* Filtri */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <Label>Company *</Label>
-                <Select value={companyId} onValueChange={setCompanyId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona company" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {companies.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Selettore company solo per Super Admin */}
+              {isSuperAdmin && !isCompanyAdmin ? (
+                <div>
+                  <Label>Company *</Label>
+                  <Select value={companyId} onValueChange={setCompanyId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div>
+                  <Label>Company</Label>
+                  <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-slate-50 text-sm">
+                    <Badge className="bg-blue-100 text-blue-800">{companies.find(c => c.id === companyId)?.name || currentUser?.company_name || 'La tua company'}</Badge>
+                    <span className="text-xs text-muted-foreground">(bloccata)</span>
+                  </div>
+                </div>
+              )}
               <div>
                 <Label>Esperienza (opzionale)</Label>
                 <Select value={experienceId} onValueChange={setExperienceId} disabled={!companyId}>

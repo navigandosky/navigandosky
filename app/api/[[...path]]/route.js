@@ -617,8 +617,15 @@ async function handleBookings(method, id, body, action, sp) {
   }
 
   if (method === 'DELETE' && id) {
+    // Sicurezza: si possono eliminare definitivamente SOLO prenotazioni CANCELLED
+    const existing = await col.findOne({ id });
+    if (!existing) return json({ error: 'Prenotazione non trovata' }, 404);
+    if (existing.status !== 'CANCELLED') {
+      return json({ error: 'Solo le prenotazioni CANCELLED possono essere eliminate definitivamente. Cancella prima la prenotazione.' }, 400);
+    }
+    try { await db.collection('refunds').deleteMany({ booking_id: id }); } catch (e) {}
     await col.deleteOne({ id });
-    return json({ message: 'Eliminato' });
+    return json({ message: 'Prenotazione eliminata definitivamente', ref: existing.booking_ref });
   }
   return json({ error: 'Richiesta non valida' }, 400);
 }

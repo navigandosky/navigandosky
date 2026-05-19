@@ -2782,6 +2782,30 @@ function AdminDashboard({ currentUser, onLogout }) {
     toast.success('Prenotazione cancellata');
     await load();
   };
+  // Eliminazione definitiva di una prenotazione CANCELLED (solo admin company)
+  const deleteBookingPermanently = async (booking) => {
+    if (!isCompanyAdmin && !isSuperAdmin) {
+      toast.error('Operazione riservata agli amministratori');
+      return;
+    }
+    if (booking.status !== 'CANCELLED') {
+      toast.error('Solo le prenotazioni CANCELLED possono essere eliminate definitivamente');
+      return;
+    }
+    const ref = booking.booking_ref || booking.id;
+    // Doppia conferma
+    if (!window.confirm(`🗑️  ATTENZIONE: stai per ELIMINARE DEFINITIVAMENTE la prenotazione ${ref}\n\nCliente: ${booking.customer_name || '-'}\nEsperienza: ${booking.experience_name || '-'}\nStato: CANCELLED\n\nQuesta operazione è IRREVERSIBILE — rimuove la prenotazione dall'archivio e gli eventuali rimborsi collegati.\n\nVuoi procedere?`)) return;
+    const confirmText = prompt(`Per conferma finale, digita ELIMINA in maiuscolo:`);
+    if (confirmText !== 'ELIMINA') { toast.info('Eliminazione annullata'); return; }
+    try {
+      const r = await api(`bookings/${booking.id}`, { method: 'DELETE' });
+      if (r?.error) { toast.error(r.error); return; }
+      toast.success(`Prenotazione ${ref} eliminata definitivamente`);
+      await load();
+    } catch (e) {
+      toast.error('Errore eliminazione: ' + (e.message || e));
+    }
+  };
   const checkinBooking = async (id) => { await api(`bookings/${id}`, { method: 'PUT', body: { action: 'checkin' } }); toast.success('Check-in!'); await load(); };
   // Conferma bonifico ricevuto: passa a CONFIRMED/PAID
   const confirmBankTransfer = async (b) => {
@@ -3699,6 +3723,14 @@ function AdminDashboard({ currentUser, onLogout }) {
                 </Button>
               )}
               
+              {(isCompanyAdmin || isSuperAdmin) && (
+                <BulkSlotsDeleteLazy
+                  companies={companies}
+                  isSuperAdmin={isSuperAdmin}
+                  isCompanyAdmin={isCompanyAdmin}
+                  currentUser={currentUser}
+                />
+              )}
               <Button onClick={()=>{setFormData({status:'OPEN'});setShowDialog('slot');}}><Plus className="w-4 h-4 mr-2"/>Nuovo Slot</Button>
             </div>
           </div>
@@ -4093,6 +4125,18 @@ function AdminDashboard({ currentUser, onLogout }) {
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
                 {b.checked_in_at&&<Badge className="bg-green-100 text-green-800 text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/>OK</Badge>}
+                {/* Eliminazione DEFINITIVA solo per CANCELLED e solo admin (company/super) */}
+                {b.status==='CANCELLED'&&(isCompanyAdmin||isSuperAdmin)&&(
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                    onClick={()=>deleteBookingPermanently(b)}
+                    title="Elimina definitivamente dall'archivio (solo CANCELLED)"
+                  >
+                    <Trash2 className="w-3 h-3 mr-1"/>Elimina
+                  </Button>
+                )}
               </div></td>
             </tr>);})}
           </tbody>
