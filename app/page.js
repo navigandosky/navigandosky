@@ -39,6 +39,8 @@ const TransportLogsListLazy = dynamic(() => import('./components/TransportLogsLi
 const TransportLogsRegistryLazy = dynamic(() => import('./components/TransportLogsRegistry'), { ssr: false });
 // Bulk Slots Delete (Super Admin only)
 const BulkSlotsDeleteLazy = dynamic(() => import('./components/BulkSlotsDelete'), { ssr: false });
+// Procedura Rimborsi (Company Admin + Super Admin)
+const RefundsManagementLazy = dynamic(() => import('./components/RefundsManagement'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -49,7 +51,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -1224,6 +1226,7 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
                           {/* Prezzo applicato per questa data */}
                           <div className="text-right">
                             <div className="text-base font-bold text-primary leading-none">{fmtPrice(slotPrice)}<span className="text-[10px] font-normal text-muted-foreground ml-0.5">/pers.</span></div>
+                            <div className="text-[9px] text-muted-foreground italic mt-0.5">Adulto &gt;3 anni · Sotto 3 anni gratuito</div>
                             {slotTierName && (
                               <div className="text-[10px] text-muted-foreground italic mt-0.5">📊 {slotTierName}</div>
                             )}
@@ -2206,7 +2209,13 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
             
             <div className="flex gap-2 pt-2">
               <Button className="flex-1" onClick={saveBookingEdit}>Salva Modifiche</Button>
-              <Button variant="destructive" onClick={async () => { await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'cancel' } }); toast.success('Cancellata'); setEditBk(null); onRefresh(); }}>Cancella</Button>
+              <Button variant="destructive" onClick={async () => {
+                if (!confirm(`⚠️ Confermi di voler CANCELLARE la prenotazione ${editBk.booking_ref || ''}?\n\nL'operazione e' definitiva. Eventuali pagamenti dovranno essere rimborsati separatamente.`)) return;
+                await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'cancel' } });
+                toast.success('Prenotazione cancellata');
+                setEditBk(null);
+                onRefresh();
+              }}>Cancella</Button>
             </div>
           </div>
         </DialogContent>
@@ -2727,7 +2736,13 @@ function AdminDashboard({ currentUser, onLogout }) {
     await load();
   };
   const deleteItem = async (ep, id) => { if (!confirm('Eliminare?')) return; await api(`${ep}/${id}`, { method: 'DELETE' }); toast.success('Eliminato!'); await load(); };
-  const cancelBooking = async (id) => { await api(`bookings/${id}`, { method: 'PUT', body: { action: 'cancel' } }); toast.success('Cancellata'); await load(); };
+  const cancelBooking = async (id, ref) => {
+    const label = ref ? `la prenotazione ${ref}` : 'questa prenotazione';
+    if (!confirm(`⚠️ Confermi di voler CANCELLARE ${label}?\n\nL'operazione e' definitiva e libera i posti dello slot. Eventuali pagamenti dovranno essere rimborsati separatamente tramite la procedura di Rimborso.`)) return;
+    await api(`bookings/${id}`, { method: 'PUT', body: { action: 'cancel' } });
+    toast.success('Prenotazione cancellata');
+    await load();
+  };
   const checkinBooking = async (id) => { await api(`bookings/${id}`, { method: 'PUT', body: { action: 'checkin' } }); toast.success('Check-in!'); await load(); };
   // Conferma bonifico ricevuto: passa a CONFIRMED/PAID
   const confirmBankTransfer = async (b) => {
@@ -3448,6 +3463,9 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="transport-logs" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold drop-shadow">
               <FileText className="w-4 h-4 mr-1.5" />Registro Trasportati
             </TabsTrigger>
+            <TabsTrigger value="refunds" className="text-white data-[state=active]:bg-white data-[state=active]:text-rose-800 hover:bg-white/20 font-semibold drop-shadow">
+              <Banknote className="w-4 h-4 mr-1.5" />Procedura Rimborsi
+            </TabsTrigger>
           </TabsList>
         )}
 
@@ -3991,7 +4009,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                         🔗 Link
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id)}>Cancella</Button>
+                    <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>
                   </>
                 )}
                 {/* Re-invio voucher email */}
@@ -4002,7 +4020,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                 )}
                 {(b.status==='CONFIRMED'&&!b.checked_in_at)&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}
-                {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id)}>Cancella</Button>}
+                {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
                 {b.checked_in_at&&<Badge className="bg-green-100 text-green-800 text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/>OK</Badge>}
               </div></td>
             </tr>))}
@@ -5407,6 +5425,19 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsContent>
         )}
 
+        {/* Procedura Rimborsi - Company Admin + Super Admin */}
+        {(currentUser?.company_id || isSuperAdmin) && (
+          <TabsContent value="refunds" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Banknote className="w-8 h-8 mx-auto animate-pulse text-rose-600" /></div>}>
+              <RefundsManagementLazy
+                companyId={isSuperAdmin ? null : currentUser?.company_id}
+                isSuperAdmin={isSuperAdmin}
+                currentUser={currentUser}
+              />
+            </Suspense>
+          </TabsContent>
+        )}
+
         {/* Super Admin: Impostazioni Porto */}
         {isSuperAdmin && (
           <TabsContent value="port-settings" className="space-y-4">
@@ -5985,7 +6016,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                 {resBookings.bookings.map(b => (
                   <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border">
                     <div><p className="font-medium text-sm">{b.customer_name} <span className="text-muted-foreground font-normal">({b.booking_ref})</span></p><p className="text-xs text-muted-foreground">{b.experience_name||getExpName(b.experience_id)} | {fmtDate(b.slot_datetime||b.created_at)} | {b.seats} posti | {fmtPrice(b.total_amount)}</p></div>
-                    <div className="flex gap-1 items-center"><StatusBadge status={b.status}/>{b.status==='CONFIRMED'&&<Button variant="ghost" size="sm" className="text-xs text-red-500 h-7" onClick={()=>cancelBooking(b.id)}>Cancella</Button>}</div>
+                    <div className="flex gap-1 items-center"><StatusBadge status={b.status}/>{b.status==='CONFIRMED'&&<Button variant="ghost" size="sm" className="text-xs text-red-500 h-7" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}</div>
                   </div>
                 ))}
               </div>

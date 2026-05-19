@@ -2199,6 +2199,19 @@ async function handleRoute(request, resolvedParams, method) {
         const db = await getDb();
         return await handleTransportLogs(method, id, body, action, searchParams, db);
       }
+      case 'refunds': {
+        // /api/refunds/send-request | /api/refunds/{booking_id}
+        const db = await getDb();
+        if (id === 'send-request') {
+          const { handleRefundSendRequest } = await import('./refunds');
+          return await handleRefundSendRequest(method, body, db);
+        }
+        if (id) {
+          const { handleRefundUpdate } = await import('./refunds');
+          return await handleRefundUpdate(method, id, body, db);
+        }
+        return new Response(JSON.stringify({ error: 'Refunds endpoint not found' }), { status: 404 });
+      }
       case 'sumup': {
         // Sub-route: /api/sumup/create-checkout o /api/sumup/webhook
         const sub = pathSegments[1];
