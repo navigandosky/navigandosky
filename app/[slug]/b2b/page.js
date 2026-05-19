@@ -205,12 +205,39 @@ export default function AgencyB2BPortal() {
     return true;
   });
 
-  // Totali dinamici basati sui filtri
+  // Helper: ricava prezzi B2C/B2B per una singola prenotazione, con fallback su experience.price_tiers se assenti sul booking
+  const getBookingPrices = (b) => {
+    const seats = Number(b.seats) || 0;
+    // Booking salva b2c_price / b2b_price come PREZZO UNITARIO
+    let b2cUnit = Number(b.b2c_price ?? b.price_b2c ?? 0) || 0;
+    let b2bUnit = Number(b.b2b_price ?? b.price_b2b ?? 0) || 0;
+    // Fallback se mancanti: usa l'esperienza
+    if (!b2cUnit || !b2bUnit) {
+      const exp = (experiences || []).find(e => e.id === b.experience_id);
+      if (exp) {
+        // Cerca tier valida per la data slot
+        const slotDate = (b.slot_datetime || '').split('T')[0];
+        let chosen = null;
+        if (slotDate && Array.isArray(exp.price_tiers)) {
+          chosen = exp.price_tiers.find(t => (!t.start_date || slotDate >= t.start_date) && (!t.end_date || slotDate <= t.end_date));
+        }
+        if (!b2cUnit) b2cUnit = Number(chosen?.price_b2c ?? exp.price_b2c) || 0;
+        if (!b2bUnit) b2bUnit = Number(chosen?.price_b2b ?? exp.price_b2b) || 0;
+      }
+    }
+    const b2cTotal = b2cUnit * seats;
+    const b2bTotal = b2bUnit * seats;
+    const commission = Math.max(0, b2cTotal - b2bTotal);
+    return { b2cUnit, b2bUnit, b2cTotal, b2bTotal, commission };
+  };
+
+  // Totali dinamici basati sui filtri (usa getBookingPrices per fallback)
   const totals = {
     count: filteredBookings.length,
     seats: filteredBookings.reduce((s, b) => s + (Number(b.seats) || 0), 0),
-    revenue: filteredBookings.reduce((s, b) => s + (Number(b.total_amount || b.price_b2b) || 0), 0),
-    commission: filteredBookings.reduce((s, b) => s + ((Number(b.price_b2c) || 0) - (Number(b.price_b2b) || 0)), 0),
+    revenue: filteredBookings.reduce((s, b) => s + (Number(b.total_amount) || getBookingPrices(b).b2bTotal), 0),
+    b2c_revenue: filteredBookings.reduce((s, b) => s + getBookingPrices(b).b2cTotal, 0),
+    commission: filteredBookings.reduce((s, b) => s + getBookingPrices(b).commission, 0),
   };
 
   // ============ AZIONI BOOKING ============
@@ -371,25 +398,29 @@ export default function AgencyB2BPortal() {
   const exportExcel = async () => {
     try {
       const XLSX = await import('xlsx');
-      const rows = filteredBookings.map(b => ({
-        'Codice': b.booking_ref,
-        'Cliente': b.customer_name,
-        'Email': b.customer_email,
-        'Esperienza': getExpName(b.experience_id),
-        'Data': b.slot_datetime ? new Date(b.slot_datetime).toLocaleDateString('it-IT') : '-',
-        'Posti': b.seats,
-        'Prezzo B2B': Number(b.price_b2b) || 0,
-        'Provvigione': (Number(b.price_b2c) || 0) - (Number(b.price_b2b) || 0),
-        'Totale': Number(b.total_amount || b.price_b2b) || 0,
-        'Metodo Pagamento': PM_LABEL[b.payment_method] || (b.payment_method || ''),
-        'Stato Pagamento': b.payment_status || '',
-        'Stato': b.status,
-      }));
+      const rows = filteredBookings.map(b => {
+        const p = getBookingPrices(b);
+        return {
+          'Codice': b.booking_ref,
+          'Cliente': b.customer_name,
+          'Email': b.customer_email,
+          'Esperienza': getExpName(b.experience_id),
+          'Data': b.slot_datetime ? new Date(b.slot_datetime).toLocaleDateString('it-IT') : '-',
+          'Posti': b.seats,
+          'Prezzo B2C': p.b2cTotal,
+          'Prezzo B2B': p.b2bTotal,
+          'Provvigione': p.commission,
+          'Totale': Number(b.total_amount) || p.b2bTotal,
+          'Metodo Pagamento': PM_LABEL[b.payment_method] || (b.payment_method || ''),
+          'Stato Pagamento': b.payment_status || '',
+          'Stato': b.status,
+        };
+      });
       rows.push({ 'Codice': '', 'Cliente': '', 'Email': '', 'Esperienza': '', 'Data': '',
-        'Posti': totals.seats, 'Prezzo B2B': '', 'Provvigione': totals.commission,
+        'Posti': totals.seats, 'Prezzo B2C': totals.b2c_revenue, 'Prezzo B2B': totals.revenue, 'Provvigione': totals.commission,
         'Totale': totals.revenue, 'Metodo Pagamento': '', 'Stato Pagamento': '', 'Stato': 'TOTALE' });
       const ws = XLSX.utils.json_to_sheet(rows);
-      ws['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 25 }, { wch: 26 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 14 }, { wch: 12 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 25 }, { wch: 26 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 14 }, { wch: 12 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Prenotazioni');
       XLSX.writeFile(wb, `${agency?.name || 'agenzia'}_prenotazioni_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -407,22 +438,25 @@ export default function AgencyB2BPortal() {
       doc.setFontSize(9).text(`Generato: ${new Date().toLocaleString('it-IT')} · Risultati: ${totals.count}`, 14, 22);
       autoTable(doc, {
         startY: 30,
-        head: [['Codice', 'Cliente', 'Esperienza', 'Data', 'Posti', 'Pagamento', 'Stato', 'Prezzo B2B', 'Provvigione', 'Totale']],
-        body: filteredBookings.map(b => [
-          b.booking_ref,
-          b.customer_name || '-',
-          getExpName(b.experience_id),
-          b.slot_datetime ? new Date(b.slot_datetime).toLocaleDateString('it-IT') : '-',
-          b.seats,
-          PM_LABEL[b.payment_method] || (b.payment_method || '—'),
-          b.status,
-          fmtPrice(b.price_b2b),
-          fmtPrice((b.price_b2c || 0) - (b.price_b2b || 0)),
-          fmtPrice(b.total_amount || b.price_b2b),
-        ]),
+        head: [['Codice', 'Cliente', 'Esperienza', 'Data', 'Posti', 'Pagamento', 'Stato', 'Prezzo B2C', 'Prezzo B2B', 'Provvigione']],
+        body: filteredBookings.map(b => {
+          const p = getBookingPrices(b);
+          return [
+            b.booking_ref,
+            b.customer_name || '-',
+            getExpName(b.experience_id),
+            b.slot_datetime ? new Date(b.slot_datetime).toLocaleDateString('it-IT') : '-',
+            b.seats,
+            PM_LABEL[b.payment_method] || (b.payment_method || '—'),
+            b.status,
+            fmtPrice(p.b2cTotal),
+            fmtPrice(p.b2bTotal),
+            fmtPrice(p.commission),
+          ];
+        }),
         styles: { fontSize: 8 },
         headStyles: { fillColor: [99, 102, 241] },
-        foot: [['', '', '', '', totals.seats, '', 'TOTALE', '', fmtPrice(totals.commission), fmtPrice(totals.revenue)]],
+        foot: [['', '', '', '', totals.seats, '', 'TOTALE', fmtPrice(totals.b2c_revenue), fmtPrice(totals.revenue), fmtPrice(totals.commission)]],
         footStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
       });
       doc.save(`${agency?.name || 'agenzia'}_prenotazioni_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -869,6 +903,7 @@ export default function AgencyB2BPortal() {
                         <th className="p-3 font-medium">Esperienza</th>
                         <th className="p-3 font-medium">Data</th>
                         <th className="p-3 font-medium">Posti</th>
+                        <th className="p-3 font-medium">Prezzo B2C</th>
                         <th className="p-3 font-medium">Prezzo B2B</th>
                         <th className="p-3 font-medium">Provvigione</th>
                         <th className="p-3 font-medium">Pagamento</th>
@@ -883,6 +918,7 @@ export default function AgencyB2BPortal() {
                         const isOnlinePending = booking.payment_method === 'ONLINE' && !isPaid && booking.sumup_hosted_url;
                         const pm = booking.payment_method || 'NONE';
                         const lFor = (k) => actionLoading[`${booking.id}_${k}`];
+                        const prices = getBookingPrices(booking);
                         return (
                           <tr key={booking.id} className="border-b hover:bg-muted/30">
                             <td className="p-3 font-mono text-xs">{booking.booking_ref}</td>
@@ -890,9 +926,10 @@ export default function AgencyB2BPortal() {
                             <td className="p-3">{getExpName(booking.experience_id)}</td>
                             <td className="p-3 text-xs">{fmtDate(booking.slot_datetime)}</td>
                             <td className="p-3">{booking.seats}</td>
-                            <td className="p-3 font-semibold">{fmtPrice(booking.price_b2b)}</td>
+                            <td className="p-3 font-semibold text-blue-700" title={`${booking.seats} x ${fmtPrice(prices.b2cUnit)}`}>{fmtPrice(prices.b2cTotal)}</td>
+                            <td className="p-3 font-semibold" title={`${booking.seats} x ${fmtPrice(prices.b2bUnit)}`}>{fmtPrice(prices.b2bTotal)}</td>
                             <td className="p-3 font-semibold text-green-600">
-                              {fmtPrice((booking.price_b2c || 0) - (booking.price_b2b || 0))}
+                              {fmtPrice(prices.commission)}
                             </td>
                             <td className="p-3">
                               <Badge className={`${PM_COLOR(pm)} border-0 text-[11px]`}>{PM_LABEL[pm] || pm}</Badge>
@@ -974,10 +1011,10 @@ export default function AgencyB2BPortal() {
                             Totale {totals.count} {totals.count === 1 ? 'prenotazione' : 'prenotazioni'}
                           </td>
                           <td className="p-3 text-emerald-700">{totals.seats}</td>
-                          <td className="p-3"></td>
-                          <td className="p-3 text-emerald-700">{fmtPrice(totals.commission)}</td>
-                          <td colSpan={2}></td>
-                          <td className="p-3 text-emerald-700 text-right">{fmtPrice(totals.revenue)}</td>
+                          <td className="p-3 text-blue-700">{fmtPrice(totals.b2c_revenue)}</td>
+                          <td className="p-3 text-emerald-700">{fmtPrice(totals.revenue)}</td>
+                          <td className="p-3 text-green-700">{fmtPrice(totals.commission)}</td>
+                          <td colSpan={3}></td>
                         </tr>
                       </tfoot>
                     )}
