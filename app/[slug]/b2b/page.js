@@ -781,7 +781,7 @@ export default function AgencyB2BPortal() {
             <Card>
               <CardHeader>
                 <CardTitle>Esperienze Disponibili ({experiences.length})</CardTitle>
-                <CardDescription>Catalogo esperienze con prezzi B2B</CardDescription>
+                <CardDescription>Catalogo esperienze · Prezzi di listino B2C</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -805,13 +805,10 @@ export default function AgencyB2BPortal() {
                               </p>
                             </div>
                             <div className="text-right ml-4">
-                              <p className="text-sm text-muted-foreground line-through">{fmtPrice(exp.price_b2c)}</p>
                               <p className="text-2xl font-bold" style={{ color: primaryColor }}>
-                                {fmtPrice(exp.price_b2b)}
+                                {fmtPrice(exp.price_b2c)}
                               </p>
-                              <p className="text-xs text-green-600 font-medium">
-                                Risparmi {fmtPrice((exp.price_b2c || 0) - (exp.price_b2b || 0))}
-                              </p>
+                              <p className="text-xs text-muted-foreground">/persona</p>
                             </div>
                           </div>
                           <div className="flex gap-4 mt-3 text-sm text-muted-foreground">

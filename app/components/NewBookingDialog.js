@@ -43,6 +43,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
   const [paymentMarked, setPaymentMarked] = useState(true); // se il cliente ha già pagato
   const [paymentMethods, setPaymentMethods] = useState([]); // metodi disponibili da company config
   const [generatedLink, setGeneratedLink] = useState(null); // hosted URL SumUp dopo creazione
+  const [searchDate, setSearchDate] = useState(''); // ricerca slot per data specifica (YYYY-MM-DD)
 
   // Reset al chiudere
   useEffect(() => {
@@ -57,6 +58,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
         setPaymentMethod('CASH');
         setPaymentMarked(true);
         setGeneratedLink(null);
+        setSearchDate('');
       }, 300);
     }
   }, [open]);
@@ -288,10 +290,47 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
             <div className="p-3 bg-slate-50 rounded-lg text-sm">
               <strong>{selectedExp.name}</strong>
             </div>
+            {/* Cerca per data specifica */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <Label className="text-sm flex items-center gap-2 mb-2">
+                <Calendar className="w-4 h-4 text-blue-600" />
+                Cerca per data specifica
+              </Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="date"
+                  value={searchDate}
+                  onChange={e => setSearchDate(e.target.value)}
+                  className="bg-white"
+                />
+                {searchDate && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setSearchDate('')}>
+                    Mostra tutte
+                  </Button>
+                )}
+              </div>
+              {searchDate && (() => {
+                const matching = slots.filter(s => (s.start_datetime || '').split('T')[0] === searchDate);
+                return (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {matching.length === 0
+                      ? '⚠️ Nessuno slot disponibile per questa data. Prova a scegliere un\'altra data o rimuovi il filtro.'
+                      : `${matching.length} slot disponibili per ${new Date(searchDate).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}`}
+                  </p>
+                );
+              })()}
+            </div>
             <Label>Seleziona Data Disponibile</Label>
-            <div className="max-h-96 overflow-y-auto space-y-2">
-              {slots.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nessuno slot disponibile</p>}
-              {slots.map(s => {
+            <div className="max-h-96 overflow-y-auto space-y-2 pr-1 border rounded-lg p-2 bg-slate-50/30">
+              {slots.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nessuno slot disponibile per questa esperienza</p>}
+              {(() => {
+                const filteredSlots = searchDate
+                  ? slots.filter(s => (s.start_datetime || '').split('T')[0] === searchDate)
+                  : slots;
+                if (slots.length > 0 && filteredSlots.length === 0) {
+                  return <p className="text-sm text-amber-700 text-center py-4">Nessuno slot per la data selezionata · <button type="button" className="underline" onClick={() => setSearchDate('')}>Mostra tutte le date</button></p>;
+                }
+                return filteredSlots.map(s => {
                 const tier = getPriceTierForDate(selectedExp, s.start_datetime);
                 const price = s.price_override || tier?.price_b2c || selectedExp.price_b2c;
                 const avail = s.max_seats - s.booked_seats - (s.blocked_seats || 0);
@@ -300,7 +339,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
                     key={s.id}
                     type="button"
                     onClick={() => setSelectedSlot(s)}
-                    className={`w-full text-left p-3 rounded-lg border-2 transition flex justify-between items-center ${selectedSlot?.id === s.id ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'}`}
+                    className={`w-full text-left p-3 rounded-lg border-2 transition flex justify-between items-center bg-white ${selectedSlot?.id === s.id ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'}`}
                   >
                     <div>
                       <div className="font-semibold text-sm capitalize">{fmtDateTime(s.start_datetime)}</div>
@@ -315,7 +354,8 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
                     </div>
                   </button>
                 );
-              })}
+                });
+              })()}
             </div>
           </div>
         )}
