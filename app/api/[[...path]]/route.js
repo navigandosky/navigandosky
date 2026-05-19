@@ -2460,7 +2460,18 @@ async function handleRoute(request, resolvedParams, method) {
         }
         return new Response(JSON.stringify({ error: 'Stripe endpoint not found' }), { status: 404 });
       }
-      case 'seed': if (method === 'POST') return await handleSeed(); return json({ error: 'Use POST' }, 405);
+      case 'seed': {
+        if (method !== 'POST') return json({ error: 'Use POST' }, 405);
+        // 🔒 SAFETY GUARD: il seed cancella esperienze/risorse/slot/prenotazioni reali.
+        // Per evitare disastri richiediamo un token di conferma esplicito.
+        const confirm = body?.confirm_destructive_reset;
+        if (confirm !== 'YES-WIPE-AND-RESEED') {
+          return json({
+            error: 'Operazione distruttiva bloccata. Il seed cancella TUTTE le esperienze, risorse, slot e prenotazioni. Richiede confirm_destructive_reset="YES-WIPE-AND-RESEED" nel body.',
+          }, 403);
+        }
+        return await handleSeed();
+      }
       case 'health': return json({ status: 'ok', timestamp: new Date().toISOString() });
       default: return json({ error: 'Endpoint non trovato' }, 404);
     }

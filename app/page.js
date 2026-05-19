@@ -3462,7 +3462,8 @@ function AdminDashboard({ currentUser, onLogout }) {
               <Link2 className="w-4 h-4 mr-2" />Link Pagamento Online
             </Button>
           )}
-          <Button onClick={seedData} disabled={seeding} variant="secondary">{seeding?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:<Download className="w-4 h-4 mr-2"/>}Dati Demo</Button>
+          {/* Pulsante "Dati Demo" RIMOSSO per prevenire cancellazioni accidentali del DB.
+              L'endpoint POST /api/seed esiste ancora ma non è più richiamabile dalla UI. */}
           {onLogout && (
             <Button variant="outline" onClick={onLogout} className="border-red-200 text-red-600 hover:bg-red-50">
               <LogIn className="w-4 h-4 mr-2 rotate-180" />
