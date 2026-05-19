@@ -1,681 +1,590 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for Maretrek Payment Link Online (SumUp Integration)
-Tests the new payment link generation feature for Company Admins
+MongoDB Backup System Backend Testing
+Tests all backup endpoints with proper authorization and validation
 """
 
 import requests
 import json
 import os
-from datetime import datetime
+import time
+from typing import Dict, Any, Optional
 
 # Read base URL from .env
-BASE_URL = "https://sardinia-tours-hub.preview.emergentagent.com"
+BASE_URL = None
+with open('/app/.env', 'r') as f:
+    for line in f:
+        if line.startswith('NEXT_PUBLIC_BASE_URL='):
+            BASE_URL = line.split('=', 1)[1].strip()
+            break
+
+if not BASE_URL:
+    raise Exception("NEXT_PUBLIC_BASE_URL not found in .env")
+
 API_BASE = f"{BASE_URL}/api"
+BACKUP_DIR = "/app/backups"
 
-# Test data
-TEST_BOOKING_REF = "MK-2026-0019"
-TEST_COMPANY_ID = "03f77ea6-95c7-49c4-a13b-df54bc28ecc2"
-TEST_CUSTOMER_NAME = "ANTONIO DEIANA"
-TEST_CUSTOMER_EMAIL = "antoniodeiana@tiscali.it"
+# Test counters
+tests_passed = 0
+tests_failed = 0
+test_results = []
 
-def print_test_header(test_name):
-    print(f"\n{'='*80}")
-    print(f"TEST: {test_name}")
-    print(f"{'='*80}")
-
-def print_result(passed, message):
+def log_test(test_name: str, passed: bool, details: str = ""):
+    """Log test result"""
+    global tests_passed, tests_failed
     status = "✅ PASS" if passed else "❌ FAIL"
-    print(f"{status}: {message}")
-
-def test_lookup_valid_booking():
-    """TEST 1: GET /api/payment-link/lookup with valid booking_ref"""
-    print_test_header("Lookup Valid Booking (MK-2026-0019)")
+    print(f"{status}: {test_name}")
+    if details:
+        print(f"  Details: {details}")
     
-    try:
-        url = f"{API_BASE}/payment-link/lookup?ref={TEST_BOOKING_REF}&company_id={TEST_COMPANY_ID}"
-        print(f"URL: {url}")
-        
-        response = requests.get(url, timeout=10)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            print_result(False, f"Expected 200, got {response.status_code}")
-            print(f"Response: {response.text}")
-            return False
-        
-        data = response.json()
-        print(f"Response: {json.dumps(data, indent=2)}")
-        
-        # Verify response structure
-        if not data.get('ok'):
-            print_result(False, "Response missing 'ok: true'")
-            return False
-        
-        booking = data.get('booking', {})
-        
-        # Check required fields
-        required_fields = ['id', 'booking_ref', 'customer_name', 'customer_email', 
-                          'total_amount', 'seats', 'currency', 'status', 
-                          'payment_status', 'slot_datetime', 'company_id']
-        
-        missing_fields = [f for f in required_fields if f not in booking]
-        if missing_fields:
-            print_result(False, f"Missing required fields: {missing_fields}")
-            return False
-        
-        # Verify _id is NOT present (MongoDB field should be excluded)
-        if '_id' in booking:
-            print_result(False, "_id MongoDB field should be excluded from response")
-            return False
-        
-        # Verify booking data matches expected values
-        if booking['booking_ref'] != TEST_BOOKING_REF:
-            print_result(False, f"booking_ref mismatch: expected {TEST_BOOKING_REF}, got {booking['booking_ref']}")
-            return False
-        
-        if booking['company_id'] != TEST_COMPANY_ID:
-            print_result(False, f"company_id mismatch")
-            return False
-        
-        # Check integration_payments field exists
-        if 'integration_payments' not in booking:
-            print_result(False, "Missing integration_payments field")
-            return False
-        
-        # Check paid_integrations_total field exists
-        if 'paid_integrations_total' not in booking:
-            print_result(False, "Missing paid_integrations_total field")
-            return False
-        
-        print_result(True, f"Lookup successful: {booking['booking_ref']} - {booking['customer_name']} - €{booking['total_amount']}")
-        print(f"Integration payments: {len(booking.get('integration_payments', []))}")
-        print(f"Paid integrations total: €{booking.get('paid_integrations_total', 0)}")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        return False
-
-def test_lookup_missing_ref():
-    """TEST 2: GET /api/payment-link/lookup without ref parameter"""
-    print_test_header("Lookup Missing Ref Parameter")
+    test_results.append({
+        "test": test_name,
+        "passed": passed,
+        "details": details
+    })
     
-    try:
-        url = f"{API_BASE}/payment-link/lookup"
-        print(f"URL: {url}")
-        
-        response = requests.get(url, timeout=10)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.text}")
-        
-        if response.status_code != 400:
-            print_result(False, f"Expected 400, got {response.status_code}")
-            return False
-        
-        print_result(True, "Correctly returns 400 for missing ref parameter")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        return False
+    if passed:
+        tests_passed += 1
+    else:
+        tests_failed += 1
 
-def test_lookup_nonexistent_booking():
-    """TEST 3: GET /api/payment-link/lookup with non-existent booking_ref"""
-    print_test_header("Lookup Non-existent Booking")
-    
+def test_list_backups_without_auth():
+    """TEST 1: GET /api/admin/backups without X-User-Role header should return 403"""
     try:
-        url = f"{API_BASE}/payment-link/lookup?ref=MK-9999-0000"
-        print(f"URL: {url}")
+        response = requests.get(f"{API_BASE}/admin/backups", timeout=10)
         
-        response = requests.get(url, timeout=10)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.text}")
-        
-        if response.status_code != 404:
-            print_result(False, f"Expected 404, got {response.status_code}")
-            return False
-        
-        print_result(True, "Correctly returns 404 for non-existent booking")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        return False
-
-def test_create_payment_link_happy_path():
-    """TEST 4A: POST /api/payment-link/create - Happy path with send_via=show"""
-    print_test_header("Create Payment Link - Happy Path (show)")
-    
-    try:
-        url = f"{API_BASE}/payment-link/create"
-        print(f"URL: {url}")
-        
-        payload = {
-            "booking_ref": TEST_BOOKING_REF,
-            "customer_name": "Test Customer",
-            "customer_email": "test@example.com",
-            "amount": 10.50,
-            "description": "Test integration",
-            "send_via": "show"
-        }
-        
-        print(f"Payload: {json.dumps(payload, indent=2)}")
-        
-        response = requests.post(url, json=payload, timeout=15)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            print_result(False, f"Expected 200, got {response.status_code}")
-            print(f"Response: {response.text}")
-            return False
-        
-        data = response.json()
-        print(f"Response: {json.dumps(data, indent=2)}")
-        
-        # Verify response structure
-        required_fields = ['ok', 'hosted_url', 'checkout_id', 'checkout_reference', 
-                          'amount', 'currency', 'booking_ref', 'email_sent']
-        
-        missing_fields = [f for f in required_fields if f not in data]
-        if missing_fields:
-            print_result(False, f"Missing required fields: {missing_fields}")
-            return False
-        
-        if not data['ok']:
-            print_result(False, "Response ok field is not true")
-            return False
-        
-        # Verify hosted_url starts with correct domain
-        hosted_url = data['hosted_url']
-        if not (hosted_url.startswith('https://checkout.sumup.com') or 
-                hosted_url.startswith('https://pay.sumup.com')):
-            print_result(False, f"Invalid hosted_url domain: {hosted_url}")
-            return False
-        
-        # Verify checkout_reference starts with INTG-MK-
-        checkout_ref = data['checkout_reference']
-        if not checkout_ref.startswith('INTG-MK-'):
-            print_result(False, f"checkout_reference should start with 'INTG-MK-', got: {checkout_ref}")
-            return False
-        
-        # Verify amount
-        if data['amount'] != 10.50:
-            print_result(False, f"Amount mismatch: expected 10.50, got {data['amount']}")
-            return False
-        
-        # Verify email_sent is false for send_via=show
-        if data['email_sent'] != False:
-            print_result(False, f"email_sent should be false for send_via=show, got {data['email_sent']}")
-            return False
-        
-        print_result(True, f"Payment link created successfully: {checkout_ref}")
-        print(f"Hosted URL: {hosted_url}")
-        
-        # Now verify MongoDB was updated - lookup the booking again
-        print("\nVerifying MongoDB update...")
-        lookup_url = f"{API_BASE}/payment-link/lookup?ref={TEST_BOOKING_REF}"
-        lookup_response = requests.get(lookup_url, timeout=10)
-        
-        if lookup_response.status_code == 200:
-            lookup_data = lookup_response.json()
-            booking = lookup_data.get('booking', {})
-            integration_payments = booking.get('integration_payments', [])
-            
-            # Find the integration we just created
-            found = False
-            for payment in integration_payments:
-                if payment.get('checkout_reference') == checkout_ref:
-                    found = True
-                    print(f"✅ Found integration in MongoDB: {payment.get('checkout_reference')}")
-                    print(f"   Status: {payment.get('status')}")
-                    print(f"   Amount: €{payment.get('amount')}")
-                    print(f"   Hosted URL: {payment.get('hosted_url')}")
-                    
-                    # Verify fields
-                    if payment.get('status') != 'PENDING':
-                        print_result(False, f"Expected status PENDING, got {payment.get('status')}")
-                        return False
-                    if payment.get('amount') != 10.50:
-                        print_result(False, f"Amount mismatch in MongoDB")
-                        return False
-                    break
-            
-            if not found:
-                print_result(False, "Integration payment not found in MongoDB")
+        if response.status_code == 403:
+            data = response.json()
+            if data.get('error') == 'Solo Super Admin':
+                log_test("List backups without auth returns 403", True, "Correct error message")
+                return True
+            else:
+                log_test("List backups without auth returns 403", False, f"Wrong error message: {data.get('error')}")
                 return False
         else:
-            print(f"⚠️  Could not verify MongoDB update (lookup returned {lookup_response.status_code})")
-        
-        print_result(True, "Payment link created and saved to MongoDB successfully")
-        return True
-        
+            log_test("List backups without auth returns 403", False, f"Expected 403, got {response.status_code}")
+            return False
     except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        log_test("List backups without auth returns 403", False, f"Exception: {str(e)}")
         return False
 
-def test_create_validation_missing_booking():
-    """TEST 4B: POST /api/payment-link/create - Missing booking_id AND booking_ref"""
-    print_test_header("Create Payment Link - Missing booking_id/booking_ref")
-    
+def test_list_backups_with_auth():
+    """TEST 2: GET /api/admin/backups with SUPER_ADMIN header should return 200 with proper structure"""
     try:
-        url = f"{API_BASE}/payment-link/create"
-        payload = {
-            "customer_name": "Test",
-            "customer_email": "test@example.com",
-            "amount": 10,
-            "send_via": "show"
-        }
-        
-        response = requests.post(url, json=payload, timeout=10)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.text}")
-        
-        if response.status_code != 400:
-            print_result(False, f"Expected 400, got {response.status_code}")
-            return False
-        
-        data = response.json()
-        if 'booking_ref' not in data.get('error', '').lower() and 'booking_id' not in data.get('error', '').lower():
-            print_result(False, "Error message should mention booking_ref or booking_id")
-            return False
-        
-        print_result(True, "Correctly returns 400 for missing booking_ref/booking_id")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        return False
-
-def test_create_validation_missing_customer_name():
-    """TEST 4C: POST /api/payment-link/create - Missing customer_name"""
-    print_test_header("Create Payment Link - Missing customer_name")
-    
-    try:
-        url = f"{API_BASE}/payment-link/create"
-        payload = {
-            "booking_ref": TEST_BOOKING_REF,
-            "customer_email": "test@example.com",
-            "amount": 10,
-            "send_via": "show"
-        }
-        
-        response = requests.post(url, json=payload, timeout=10)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.text}")
-        
-        if response.status_code != 400:
-            print_result(False, f"Expected 400, got {response.status_code}")
-            return False
-        
-        print_result(True, "Correctly returns 400 for missing customer_name")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        return False
-
-def test_create_validation_missing_customer_email():
-    """TEST 4D: POST /api/payment-link/create - Missing customer_email"""
-    print_test_header("Create Payment Link - Missing customer_email")
-    
-    try:
-        url = f"{API_BASE}/payment-link/create"
-        payload = {
-            "booking_ref": TEST_BOOKING_REF,
-            "customer_name": "Test Customer",
-            "amount": 10,
-            "send_via": "show"
-        }
-        
-        response = requests.post(url, json=payload, timeout=10)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.text}")
-        
-        if response.status_code != 400:
-            print_result(False, f"Expected 400, got {response.status_code}")
-            return False
-        
-        print_result(True, "Correctly returns 400 for missing customer_email")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        return False
-
-def test_create_validation_invalid_amount():
-    """TEST 4E: POST /api/payment-link/create - Invalid amount (0 or negative)"""
-    print_test_header("Create Payment Link - Invalid amount")
-    
-    try:
-        url = f"{API_BASE}/payment-link/create"
-        
-        # Test with 0
-        payload = {
-            "booking_ref": TEST_BOOKING_REF,
-            "customer_name": "Test",
-            "customer_email": "test@example.com",
-            "amount": 0,
-            "send_via": "show"
-        }
-        
-        response = requests.post(url, json=payload, timeout=10)
-        print(f"Test amount=0: Status {response.status_code}")
-        
-        if response.status_code != 400:
-            print_result(False, f"Expected 400 for amount=0, got {response.status_code}")
-            return False
-        
-        # Test with negative
-        payload['amount'] = -10
-        response = requests.post(url, json=payload, timeout=10)
-        print(f"Test amount=-10: Status {response.status_code}")
-        
-        if response.status_code != 400:
-            print_result(False, f"Expected 400 for negative amount, got {response.status_code}")
-            return False
-        
-        print_result(True, "Correctly returns 400 for invalid amounts")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        return False
-
-def test_create_validation_invalid_send_via():
-    """TEST 4F: POST /api/payment-link/create - Invalid send_via"""
-    print_test_header("Create Payment Link - Invalid send_via")
-    
-    try:
-        url = f"{API_BASE}/payment-link/create"
-        payload = {
-            "booking_ref": TEST_BOOKING_REF,
-            "customer_name": "Test",
-            "customer_email": "test@example.com",
-            "amount": 10,
-            "send_via": "invalid"
-        }
-        
-        response = requests.post(url, json=payload, timeout=10)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.text}")
-        
-        if response.status_code != 400:
-            print_result(False, f"Expected 400, got {response.status_code}")
-            return False
-        
-        print_result(True, "Correctly returns 400 for invalid send_via")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        return False
-
-def test_create_validation_nonexistent_booking():
-    """TEST 4G: POST /api/payment-link/create - Non-existent booking_ref"""
-    print_test_header("Create Payment Link - Non-existent booking")
-    
-    try:
-        url = f"{API_BASE}/payment-link/create"
-        payload = {
-            "booking_ref": "MK-9999-9999",
-            "customer_name": "Test",
-            "customer_email": "test@example.com",
-            "amount": 10,
-            "send_via": "show"
-        }
-        
-        response = requests.post(url, json=payload, timeout=10)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.text}")
-        
-        if response.status_code != 404:
-            print_result(False, f"Expected 404, got {response.status_code}")
-            return False
-        
-        print_result(True, "Correctly returns 404 for non-existent booking")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        return False
-
-def test_create_multiple_integrations():
-    """TEST 4H: Create multiple payment links for same booking"""
-    print_test_header("Create Multiple Payment Links for Same Booking")
-    
-    try:
-        url = f"{API_BASE}/payment-link/create"
-        
-        # Create first payment link
-        payload1 = {
-            "booking_ref": TEST_BOOKING_REF,
-            "customer_name": "Test Customer 1",
-            "customer_email": "test1@example.com",
-            "amount": 15.00,
-            "description": "First integration",
-            "send_via": "show"
-        }
-        
-        response1 = requests.post(url, json=payload1, timeout=15)
-        print(f"First payment link: Status {response1.status_code}")
-        
-        if response1.status_code != 200:
-            print_result(False, f"First payment link creation failed: {response1.status_code}")
-            print(f"Response: {response1.text}")
-            return False
-        
-        data1 = response1.json()
-        checkout_ref1 = data1.get('checkout_reference')
-        print(f"First checkout_reference: {checkout_ref1}")
-        
-        # Create second payment link
-        payload2 = {
-            "booking_ref": TEST_BOOKING_REF,
-            "customer_name": "Test Customer 2",
-            "customer_email": "test2@example.com",
-            "amount": 25.00,
-            "description": "Second integration",
-            "send_via": "show"
-        }
-        
-        response2 = requests.post(url, json=payload2, timeout=15)
-        print(f"Second payment link: Status {response2.status_code}")
-        
-        if response2.status_code != 200:
-            print_result(False, f"Second payment link creation failed: {response2.status_code}")
-            print(f"Response: {response2.text}")
-            return False
-        
-        data2 = response2.json()
-        checkout_ref2 = data2.get('checkout_reference')
-        print(f"Second checkout_reference: {checkout_ref2}")
-        
-        # Verify both entries exist in MongoDB
-        lookup_url = f"{API_BASE}/payment-link/lookup?ref={TEST_BOOKING_REF}"
-        lookup_response = requests.get(lookup_url, timeout=10)
-        
-        if lookup_response.status_code != 200:
-            print_result(False, f"Lookup failed: {lookup_response.status_code}")
-            return False
-        
-        lookup_data = lookup_response.json()
-        booking = lookup_data.get('booking', {})
-        integration_payments = booking.get('integration_payments', [])
-        
-        print(f"\nTotal integration_payments in booking: {len(integration_payments)}")
-        
-        # Find both integrations
-        found1 = False
-        found2 = False
-        
-        for payment in integration_payments:
-            ref = payment.get('checkout_reference')
-            if ref == checkout_ref1:
-                found1 = True
-                print(f"✅ Found first integration: {ref} - €{payment.get('amount')}")
-            elif ref == checkout_ref2:
-                found2 = True
-                print(f"✅ Found second integration: {ref} - €{payment.get('amount')}")
-        
-        if not found1:
-            print_result(False, "First integration not found in MongoDB")
-            return False
-        
-        if not found2:
-            print_result(False, "Second integration not found in MongoDB")
-            return False
-        
-        print_result(True, "Multiple integrations created successfully (no overwrite)")
-        return True
-        
-    except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-def test_create_with_email():
-    """TEST 4I: POST /api/payment-link/create with send_via=email"""
-    print_test_header("Create Payment Link - send_via=email")
-    
-    try:
-        url = f"{API_BASE}/payment-link/create"
-        payload = {
-            "booking_ref": TEST_BOOKING_REF,
-            "customer_name": "Email Test Customer",
-            "customer_email": "emailtest@example.com",
-            "amount": 5.00,
-            "description": "Email integration test",
-            "send_via": "email"
-        }
-        
-        print(f"Payload: {json.dumps(payload, indent=2)}")
-        
-        response = requests.post(url, json=payload, timeout=15)
-        print(f"Status: {response.status_code}")
+        headers = {"X-User-Role": "SUPER_ADMIN"}
+        response = requests.get(f"{API_BASE}/admin/backups", headers=headers, timeout=10)
         
         if response.status_code != 200:
-            print_result(False, f"Expected 200, got {response.status_code}")
-            print(f"Response: {response.text}")
+            log_test("List backups with auth returns 200", False, f"Expected 200, got {response.status_code}")
+            return False, None
+        
+        data = response.json()
+        
+        # Check required fields
+        required_fields = ['ok', 'backups', 'totals', 'scheduler', 'backup_dir']
+        missing_fields = [f for f in required_fields if f not in data]
+        
+        if missing_fields:
+            log_test("List backups with auth returns 200", False, f"Missing fields: {missing_fields}")
+            return False, None
+        
+        # Check ok is true
+        if data['ok'] != True:
+            log_test("List backups with auth returns 200", False, f"ok field is {data['ok']}, expected True")
+            return False, None
+        
+        # Check backups is array
+        if not isinstance(data['backups'], list):
+            log_test("List backups with auth returns 200", False, "backups is not an array")
+            return False, None
+        
+        # Check totals structure
+        totals = data['totals']
+        totals_fields = ['size_bytes', 'auto', 'manual', 'total_documents']
+        missing_totals = [f for f in totals_fields if f not in totals]
+        if missing_totals:
+            log_test("List backups with auth returns 200", False, f"Missing totals fields: {missing_totals}")
+            return False, None
+        
+        # Check scheduler structure
+        scheduler = data['scheduler']
+        if not scheduler:
+            log_test("List backups with auth returns 200", False, "scheduler is null or missing")
+            return False, None
+        
+        scheduler_fields = ['initialized', 'cron_expression', 'timezone', 'next_run']
+        missing_scheduler = [f for f in scheduler_fields if f not in scheduler]
+        if missing_scheduler:
+            log_test("List backups with auth returns 200", False, f"Missing scheduler fields: {missing_scheduler}")
+            return False, None
+        
+        # Verify scheduler is initialized
+        if scheduler['initialized'] != True:
+            log_test("List backups with auth returns 200", False, f"scheduler.initialized is {scheduler['initialized']}, expected True")
+            return False, None
+        
+        # Verify cron expression
+        if scheduler['cron_expression'] != '30 23 * * *':
+            log_test("List backups with auth returns 200", False, f"cron_expression is {scheduler['cron_expression']}, expected '30 23 * * *'")
+            return False, None
+        
+        # Verify timezone
+        if scheduler['timezone'] != 'Europe/Rome':
+            log_test("List backups with auth returns 200", False, f"timezone is {scheduler['timezone']}, expected 'Europe/Rome'")
+            return False, None
+        
+        # Verify backup_dir
+        if data['backup_dir'] != '/app/backups':
+            log_test("List backups with auth returns 200", False, f"backup_dir is {data['backup_dir']}, expected '/app/backups'")
+            return False, None
+        
+        details = f"Found {len(data['backups'])} backups, scheduler initialized: {scheduler['initialized']}, next_run: {scheduler.get('next_run', 'N/A')}"
+        log_test("List backups with auth returns 200", True, details)
+        return True, data
+    except Exception as e:
+        log_test("List backups with auth returns 200", False, f"Exception: {str(e)}")
+        return False, None
+
+def test_create_backup_without_auth():
+    """TEST 3: POST /api/admin/backups/create without auth should return 403"""
+    try:
+        payload = {"note": "Test backup", "triggered_by": "test_agent"}
+        response = requests.post(f"{API_BASE}/admin/backups/create", json=payload, timeout=120)
+        
+        if response.status_code == 403:
+            data = response.json()
+            if data.get('error') == 'Solo Super Admin':
+                log_test("Create backup without auth returns 403", True, "Correct error message")
+                return True
+            else:
+                log_test("Create backup without auth returns 403", False, f"Wrong error message: {data.get('error')}")
+                return False
+        else:
+            log_test("Create backup without auth returns 403", False, f"Expected 403, got {response.status_code}")
+            return False
+    except Exception as e:
+        log_test("Create backup without auth returns 403", False, f"Exception: {str(e)}")
+        return False
+
+def test_create_backup_with_auth():
+    """TEST 4: POST /api/admin/backups/create with auth should create backup and return 200"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN", "Content-Type": "application/json"}
+        payload = {"note": "Test automated backup from test_agent", "triggered_by": "test_agent"}
+        
+        print("  Creating backup (this may take 30-60 seconds)...")
+        response = requests.post(f"{API_BASE}/admin/backups/create", headers=headers, json=payload, timeout=120)
+        
+        if response.status_code != 200:
+            log_test("Create backup with auth returns 200", False, f"Expected 200, got {response.status_code}: {response.text}")
+            return False, None
+        
+        data = response.json()
+        
+        # Check required fields
+        if data.get('ok') != True:
+            log_test("Create backup with auth returns 200", False, f"ok field is {data.get('ok')}, expected True")
+            return False, None
+        
+        if 'backup' not in data:
+            log_test("Create backup with auth returns 200", False, "backup field missing in response")
+            return False, None
+        
+        if 'elapsed_ms' not in data:
+            log_test("Create backup with auth returns 200", False, "elapsed_ms field missing in response")
+            return False, None
+        
+        backup = data['backup']
+        
+        # Check backup structure
+        backup_fields = ['id', 'type', 'filename', 'manifest_file', 'created_at', 'size_bytes', 'size_human', 'db_name', 'collections', 'total_documents', 'note', 'triggered_by']
+        missing_fields = [f for f in backup_fields if f not in backup]
+        if missing_fields:
+            log_test("Create backup with auth returns 200", False, f"Missing backup fields: {missing_fields}")
+            return False, None
+        
+        # Verify type is MANUAL
+        if backup['type'] != 'MANUAL':
+            log_test("Create backup with auth returns 200", False, f"backup type is {backup['type']}, expected MANUAL")
+            return False, None
+        
+        # Verify note
+        if backup['note'] != "Test automated backup from test_agent":
+            log_test("Create backup with auth returns 200", False, f"note mismatch: {backup['note']}")
+            return False, None
+        
+        # Verify triggered_by
+        if backup['triggered_by'] != 'test_agent':
+            log_test("Create backup with auth returns 200", False, f"triggered_by is {backup['triggered_by']}, expected test_agent")
+            return False, None
+        
+        # Verify file exists
+        backup_file = os.path.join(BACKUP_DIR, backup['filename'])
+        if not os.path.exists(backup_file):
+            log_test("Create backup with auth returns 200", False, f"Backup file not found: {backup_file}")
+            return False, None
+        
+        # Verify manifest exists
+        manifest_file = os.path.join(BACKUP_DIR, backup['manifest_file'])
+        if not os.path.exists(manifest_file):
+            log_test("Create backup with auth returns 200", False, f"Manifest file not found: {manifest_file}")
+            return False, None
+        
+        details = f"Backup created: {backup['id']}, size: {backup['size_human']}, documents: {backup['total_documents']}, elapsed: {data['elapsed_ms']}ms"
+        log_test("Create backup with auth returns 200", True, details)
+        return True, backup
+    except Exception as e:
+        log_test("Create backup with auth returns 200", False, f"Exception: {str(e)}")
+        return False, None
+
+def test_backup_appears_in_list(backup_id: str):
+    """TEST 5: Verify created backup appears in GET /api/admin/backups"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN"}
+        response = requests.get(f"{API_BASE}/admin/backups", headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            log_test("Created backup appears in list", False, f"GET returned {response.status_code}")
             return False
         
         data = response.json()
-        print(f"Response: {json.dumps(data, indent=2)}")
+        backups = data.get('backups', [])
         
-        # With send_via=email, the endpoint should either:
-        # 1. Return ok=true with email_sent=true (if email configured)
-        # 2. Return ok=true with warning message (if email not configured but link created)
+        # Find backup by id
+        found = any(b['id'] == backup_id for b in backups)
         
-        if not data.get('ok'):
-            print_result(False, "Response ok field is not true")
-            return False
-        
-        # Check if email was sent or if there's a warning
-        email_sent = data.get('email_sent', False)
-        has_warning = 'warning' in data
-        
-        if email_sent:
-            print(f"✅ Email sent successfully via {data.get('email_provider', 'unknown')}")
-        elif has_warning:
-            print(f"⚠️  Email not sent (expected if not configured): {data.get('warning')}")
+        if found:
+            log_test("Created backup appears in list", True, f"Backup {backup_id} found in list")
+            return True
         else:
-            print(f"ℹ️  Email status: email_sent={email_sent}")
+            log_test("Created backup appears in list", False, f"Backup {backup_id} not found in list of {len(backups)} backups")
+            return False
+    except Exception as e:
+        log_test("Created backup appears in list", False, f"Exception: {str(e)}")
+        return False
+
+def test_download_backup_without_auth(backup_id: str):
+    """TEST 6: GET /api/admin/backups/{id}/download without auth should return 403"""
+    try:
+        response = requests.get(f"{API_BASE}/admin/backups/{backup_id}/download", timeout=10)
         
-        # Verify the link was still created
-        if 'hosted_url' not in data or 'checkout_reference' not in data:
-            print_result(False, "Payment link not created")
+        if response.status_code == 403:
+            # For download endpoint, response might be JSON or text
+            try:
+                data = response.json()
+                if data.get('error') == 'Solo Super Admin':
+                    log_test("Download backup without auth returns 403", True, "Correct error message")
+                    return True
+            except:
+                pass
+            log_test("Download backup without auth returns 403", True, "Returns 403")
+            return True
+        else:
+            log_test("Download backup without auth returns 403", False, f"Expected 403, got {response.status_code}")
+            return False
+    except Exception as e:
+        log_test("Download backup without auth returns 403", False, f"Exception: {str(e)}")
+        return False
+
+def test_download_backup_with_auth(backup_id: str):
+    """TEST 7: GET /api/admin/backups/{id}/download with auth should return gzip file"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN"}
+        response = requests.get(f"{API_BASE}/admin/backups/{backup_id}/download", headers=headers, timeout=30)
+        
+        if response.status_code != 200:
+            log_test("Download backup with auth returns 200", False, f"Expected 200, got {response.status_code}")
             return False
         
-        print_result(True, "Payment link created with send_via=email (no crash)")
-        return True
+        # Check Content-Type
+        content_type = response.headers.get('Content-Type', '')
+        if 'application/gzip' not in content_type:
+            log_test("Download backup with auth returns 200", False, f"Content-Type is {content_type}, expected application/gzip")
+            return False
         
+        # Check Content-Disposition
+        content_disposition = response.headers.get('Content-Disposition', '')
+        if 'attachment' not in content_disposition:
+            log_test("Download backup with auth returns 200", False, f"Content-Disposition missing attachment: {content_disposition}")
+            return False
+        
+        # Check body is non-empty
+        if len(response.content) == 0:
+            log_test("Download backup with auth returns 200", False, "Response body is empty")
+            return False
+        
+        details = f"Downloaded {len(response.content)} bytes, Content-Type: {content_type}"
+        log_test("Download backup with auth returns 200", True, details)
+        return True
     except Exception as e:
-        print_result(False, f"Exception: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        log_test("Download backup with auth returns 200", False, f"Exception: {str(e)}")
+        return False
+
+def test_download_nonexistent_backup():
+    """TEST 8: GET /api/admin/backups/{nonexistent_id}/download should return 404"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN"}
+        response = requests.get(f"{API_BASE}/admin/backups/nonexistent_backup_id_12345/download", headers=headers, timeout=10)
+        
+        if response.status_code == 404:
+            log_test("Download non-existent backup returns 404", True, "Correct 404 response")
+            return True
+        else:
+            log_test("Download non-existent backup returns 404", False, f"Expected 404, got {response.status_code}")
+            return False
+    except Exception as e:
+        log_test("Download non-existent backup returns 404", False, f"Exception: {str(e)}")
+        return False
+
+def test_restore_without_confirm(backup_id: str):
+    """TEST 9: POST /api/admin/backups/{id}/restore without confirm should return 400"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN", "Content-Type": "application/json"}
+        payload = {}
+        response = requests.post(f"{API_BASE}/admin/backups/{backup_id}/restore", headers=headers, json=payload, timeout=10)
+        
+        if response.status_code == 400:
+            data = response.json()
+            error = data.get('error', '')
+            if 'RIPRISTINA-DEFINITIVO' in error:
+                log_test("Restore without confirm returns 400", True, "Correct error message about RIPRISTINA-DEFINITIVO")
+                return True
+            else:
+                log_test("Restore without confirm returns 400", False, f"Wrong error message: {error}")
+                return False
+        else:
+            log_test("Restore without confirm returns 400", False, f"Expected 400, got {response.status_code}")
+            return False
+    except Exception as e:
+        log_test("Restore without confirm returns 400", False, f"Exception: {str(e)}")
+        return False
+
+def test_restore_with_wrong_confirm(backup_id: str):
+    """TEST 10: POST /api/admin/backups/{id}/restore with wrong confirm value should return 400"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN", "Content-Type": "application/json"}
+        payload = {"confirm": "wrong-value"}
+        response = requests.post(f"{API_BASE}/admin/backups/{backup_id}/restore", headers=headers, json=payload, timeout=10)
+        
+        if response.status_code == 400:
+            data = response.json()
+            error = data.get('error', '')
+            if 'RIPRISTINA-DEFINITIVO' in error:
+                log_test("Restore with wrong confirm returns 400", True, "Correct error message")
+                return True
+            else:
+                log_test("Restore with wrong confirm returns 400", False, f"Wrong error message: {error}")
+                return False
+        else:
+            log_test("Restore with wrong confirm returns 400", False, f"Expected 400, got {response.status_code}")
+            return False
+    except Exception as e:
+        log_test("Restore with wrong confirm returns 400", False, f"Exception: {str(e)}")
+        return False
+
+def test_restore_nonexistent_backup():
+    """TEST 11: POST /api/admin/backups/{nonexistent_id}/restore should return 404"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN", "Content-Type": "application/json"}
+        payload = {"confirm": "RIPRISTINA-DEFINITIVO"}
+        response = requests.post(f"{API_BASE}/admin/backups/nonexistent_backup_id_12345/restore", headers=headers, json=payload, timeout=10)
+        
+        if response.status_code == 404:
+            log_test("Restore non-existent backup returns 404", True, "Correct 404 response")
+            return True
+        else:
+            log_test("Restore non-existent backup returns 404", False, f"Expected 404, got {response.status_code}")
+            return False
+    except Exception as e:
+        log_test("Restore non-existent backup returns 404", False, f"Exception: {str(e)}")
+        return False
+
+def test_delete_backup_without_auth(backup_id: str):
+    """TEST 12: DELETE /api/admin/backups/{id} without auth should return 403"""
+    try:
+        response = requests.delete(f"{API_BASE}/admin/backups/{backup_id}", timeout=10)
+        
+        if response.status_code == 403:
+            data = response.json()
+            if data.get('error') == 'Solo Super Admin':
+                log_test("Delete backup without auth returns 403", True, "Correct error message")
+                return True
+            else:
+                log_test("Delete backup without auth returns 403", False, f"Wrong error message: {data.get('error')}")
+                return False
+        else:
+            log_test("Delete backup without auth returns 403", False, f"Expected 403, got {response.status_code}")
+            return False
+    except Exception as e:
+        log_test("Delete backup without auth returns 403", False, f"Exception: {str(e)}")
+        return False
+
+def test_delete_backup_with_auth(backup_id: str, backup_filename: str, manifest_filename: str):
+    """TEST 13: DELETE /api/admin/backups/{id} with auth should delete backup"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN"}
+        response = requests.delete(f"{API_BASE}/admin/backups/{backup_id}", headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            log_test("Delete backup with auth returns 200", False, f"Expected 200, got {response.status_code}")
+            return False
+        
+        data = response.json()
+        
+        if data.get('ok') != True:
+            log_test("Delete backup with auth returns 200", False, f"ok field is {data.get('ok')}, expected True")
+            return False
+        
+        if data.get('id') != backup_id:
+            log_test("Delete backup with auth returns 200", False, f"id mismatch: {data.get('id')} vs {backup_id}")
+            return False
+        
+        # Verify files are deleted
+        backup_file = os.path.join(BACKUP_DIR, backup_filename)
+        manifest_file = os.path.join(BACKUP_DIR, manifest_filename)
+        
+        if os.path.exists(backup_file):
+            log_test("Delete backup with auth returns 200", False, f"Backup file still exists: {backup_file}")
+            return False
+        
+        if os.path.exists(manifest_file):
+            log_test("Delete backup with auth returns 200", False, f"Manifest file still exists: {manifest_file}")
+            return False
+        
+        log_test("Delete backup with auth returns 200", True, f"Backup {backup_id} deleted successfully")
+        return True
+    except Exception as e:
+        log_test("Delete backup with auth returns 200", False, f"Exception: {str(e)}")
+        return False
+
+def test_deleted_backup_not_in_list(backup_id: str):
+    """TEST 14: Verify deleted backup does not appear in GET /api/admin/backups"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN"}
+        response = requests.get(f"{API_BASE}/admin/backups", headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            log_test("Deleted backup not in list", False, f"GET returned {response.status_code}")
+            return False
+        
+        data = response.json()
+        backups = data.get('backups', [])
+        
+        # Verify backup is NOT in list
+        found = any(b['id'] == backup_id for b in backups)
+        
+        if not found:
+            log_test("Deleted backup not in list", True, f"Backup {backup_id} correctly removed from list")
+            return True
+        else:
+            log_test("Deleted backup not in list", False, f"Backup {backup_id} still appears in list")
+            return False
+    except Exception as e:
+        log_test("Deleted backup not in list", False, f"Exception: {str(e)}")
+        return False
+
+def test_delete_nonexistent_backup():
+    """TEST 15: DELETE /api/admin/backups/{nonexistent_id} should return 404"""
+    try:
+        headers = {"X-User-Role": "SUPER_ADMIN"}
+        response = requests.delete(f"{API_BASE}/admin/backups/nonexistent_backup_id_12345", headers=headers, timeout=10)
+        
+        if response.status_code == 404:
+            log_test("Delete non-existent backup returns 404", True, "Correct 404 response")
+            return True
+        else:
+            log_test("Delete non-existent backup returns 404", False, f"Expected 404, got {response.status_code}")
+            return False
+    except Exception as e:
+        log_test("Delete non-existent backup returns 404", False, f"Exception: {str(e)}")
         return False
 
 def main():
-    print("\n" + "="*80)
-    print("MARETREK PAYMENT LINK ONLINE (SUMUP INTEGRATION) - BACKEND TESTING")
-    print("="*80)
+    print("=" * 80)
+    print("MongoDB Backup System Backend Testing")
+    print("=" * 80)
     print(f"Base URL: {BASE_URL}")
     print(f"API Base: {API_BASE}")
-    print(f"Test Booking: {TEST_BOOKING_REF}")
-    print(f"Test Company: {TEST_COMPANY_ID}")
-    print("="*80)
+    print(f"Backup Dir: {BACKUP_DIR}")
+    print("=" * 80)
+    print()
     
-    results = {}
+    # TEST 1: List backups without auth
+    test_list_backups_without_auth()
     
-    # Test 1: Lookup endpoints
-    print("\n" + "="*80)
-    print("SECTION 1: LOOKUP ENDPOINT TESTS")
-    print("="*80)
+    # TEST 2: List backups with auth
+    success, list_data = test_list_backups_with_auth()
     
-    results['lookup_valid'] = test_lookup_valid_booking()
-    results['lookup_missing_ref'] = test_lookup_missing_ref()
-    results['lookup_nonexistent'] = test_lookup_nonexistent_booking()
+    # TEST 3: Create backup without auth
+    test_create_backup_without_auth()
     
-    # Test 2: Create endpoint - Happy path
-    print("\n" + "="*80)
-    print("SECTION 2: CREATE ENDPOINT - HAPPY PATH")
-    print("="*80)
+    # TEST 4: Create backup with auth
+    success, backup_data = test_create_backup_with_auth()
     
-    results['create_happy_path'] = test_create_payment_link_happy_path()
+    if success and backup_data:
+        backup_id = backup_data['id']
+        backup_filename = backup_data['filename']
+        manifest_filename = backup_data['manifest_file']
+        
+        # TEST 5: Verify backup appears in list
+        test_backup_appears_in_list(backup_id)
+        
+        # TEST 6: Download backup without auth
+        test_download_backup_without_auth(backup_id)
+        
+        # TEST 7: Download backup with auth
+        test_download_backup_with_auth(backup_id)
+        
+        # TEST 8: Download non-existent backup
+        test_download_nonexistent_backup()
+        
+        # TEST 9: Restore without confirm
+        test_restore_without_confirm(backup_id)
+        
+        # TEST 10: Restore with wrong confirm
+        test_restore_with_wrong_confirm(backup_id)
+        
+        # TEST 11: Restore non-existent backup
+        test_restore_nonexistent_backup()
+        
+        # TEST 12: Delete backup without auth
+        test_delete_backup_without_auth(backup_id)
+        
+        # TEST 13: Delete backup with auth
+        test_delete_backup_with_auth(backup_id, backup_filename, manifest_filename)
+        
+        # TEST 14: Verify deleted backup not in list
+        test_deleted_backup_not_in_list(backup_id)
+        
+        # TEST 15: Delete non-existent backup
+        test_delete_nonexistent_backup()
+    else:
+        print("\n⚠️  Skipping tests that depend on backup creation (tests 5-15)")
+        print("   Reason: Backup creation failed or returned no data")
     
-    # Test 3: Create endpoint - Validation
-    print("\n" + "="*80)
-    print("SECTION 3: CREATE ENDPOINT - VALIDATION TESTS")
-    print("="*80)
-    
-    results['create_missing_booking'] = test_create_validation_missing_booking()
-    results['create_missing_name'] = test_create_validation_missing_customer_name()
-    results['create_missing_email'] = test_create_validation_missing_customer_email()
-    results['create_invalid_amount'] = test_create_validation_invalid_amount()
-    results['create_invalid_send_via'] = test_create_validation_invalid_send_via()
-    results['create_nonexistent_booking'] = test_create_validation_nonexistent_booking()
-    
-    # Test 4: Create endpoint - Multiple integrations
-    print("\n" + "="*80)
-    print("SECTION 4: CREATE ENDPOINT - MULTIPLE INTEGRATIONS")
-    print("="*80)
-    
-    results['create_multiple'] = test_create_multiple_integrations()
-    
-    # Test 5: Create endpoint - Email
-    print("\n" + "="*80)
-    print("SECTION 5: CREATE ENDPOINT - EMAIL DELIVERY")
-    print("="*80)
-    
-    results['create_email'] = test_create_with_email()
-    
-    # Summary
-    print("\n" + "="*80)
+    # Print summary
+    print()
+    print("=" * 80)
     print("TEST SUMMARY")
-    print("="*80)
+    print("=" * 80)
+    print(f"Total Tests: {tests_passed + tests_failed}")
+    print(f"✅ Passed: {tests_passed}")
+    print(f"❌ Failed: {tests_failed}")
+    print(f"Success Rate: {(tests_passed / (tests_passed + tests_failed) * 100):.1f}%")
+    print("=" * 80)
     
-    passed = sum(1 for v in results.values() if v)
-    total = len(results)
+    if tests_failed > 0:
+        print("\nFailed Tests:")
+        for result in test_results:
+            if not result['passed']:
+                print(f"  ❌ {result['test']}")
+                if result['details']:
+                    print(f"     {result['details']}")
     
-    print(f"\nTotal Tests: {total}")
-    print(f"Passed: {passed}")
-    print(f"Failed: {total - passed}")
-    print(f"Success Rate: {(passed/total*100):.1f}%")
+    print()
     
-    print("\nDetailed Results:")
-    for test_name, result in results.items():
-        status = "✅ PASS" if result else "❌ FAIL"
-        print(f"  {status}: {test_name}")
-    
-    print("\n" + "="*80)
-    print("TESTING COMPLETE")
-    print("="*80)
-    
-    return passed == total
+    # Exit with appropriate code
+    exit(0 if tests_failed == 0 else 1)
 
 if __name__ == "__main__":
-    success = main()
-    exit(0 if success else 1)
+    main()

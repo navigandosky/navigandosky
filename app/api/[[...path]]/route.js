@@ -2440,6 +2440,27 @@ async function handleRoute(request, resolvedParams, method) {
         }
         return new Response(JSON.stringify({ error: 'payment-link endpoint not found' }), { status: 404 });
       }
+      case 'admin': {
+        // Sub-route: /api/admin/backups | /api/admin/backups/create | /api/admin/backups/{id}/...
+        const sub = pathSegments[1];
+        if (sub === 'backups') {
+          const bm = await import('./backup_manager');
+          const sub2 = pathSegments[2];
+          const sub3 = pathSegments[3];
+          // /api/admin/backups (GET)
+          if (!sub2) return await bm.handleListBackups(method, request);
+          // /api/admin/backups/create (POST)
+          if (sub2 === 'create' && !sub3) return await bm.handleCreateBackup(method, request, body);
+          // /api/admin/backups/{id}/download (GET)
+          if (sub3 === 'download') return await bm.handleDownloadBackup(method, request, sub2);
+          // /api/admin/backups/{id}/restore (POST)
+          if (sub3 === 'restore') return await bm.handleRestoreBackup(method, request, sub2, body);
+          // /api/admin/backups/{id} (DELETE)
+          if (!sub3) return await bm.handleDeleteBackup(method, request, sub2);
+          return new Response(JSON.stringify({ error: 'admin/backups endpoint not found' }), { status: 404 });
+        }
+        return new Response(JSON.stringify({ error: 'admin endpoint not found' }), { status: 404 });
+      }
       case 'stripe': {
         // Sub-route: /api/stripe/create-checkout-session | /api/stripe/verify-session | /api/stripe/webhook
         const sub = pathSegments[1];

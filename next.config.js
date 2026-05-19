@@ -10,6 +10,8 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['mongodb'],
     optimizePackageImports: ['lucide-react', 'date-fns', 'recharts'],
+    // Abilita instrumentation.js per inizializzazione cron scheduler
+    instrumentationHook: true,
     // Faster rebuilds
     turbo: {
       rules: {

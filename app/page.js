@@ -45,6 +45,8 @@ const RefundsManagementLazy = dynamic(() => import('./components/RefundsManageme
 const WarehouseAdminLazy = dynamic(() => import('./components/WarehouseAdmin'), { ssr: false });
 // Link Pagamento Online (Company Admin)
 const PaymentLinkDialogLazy = dynamic(() => import('./components/PaymentLinkDialog'), { ssr: false });
+// Backup Manager (Super Admin only)
+const BackupManagerLazy = dynamic(() => import('./components/BackupManager'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -55,7 +57,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2, Database
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -3497,6 +3499,7 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
           <TabsTrigger value="skippers"><Anchor className="w-4 h-4 mr-1.5" />Skipper</TabsTrigger>
           {isSuperAdmin && <TabsTrigger value="companies"><Building2 className="w-4 h-4 mr-1.5" />Multi-Tenant</TabsTrigger>}
+          {isSuperAdmin && <TabsTrigger value="backups"><Database className="w-4 h-4 mr-1.5" />Backup DB</TabsTrigger>}
           <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
         </TabsList>
@@ -4510,6 +4513,13 @@ function AdminDashboard({ currentUser, onLogout }) {
         <TabsContent value="gps-setup">
           <SetupGPS />
         </TabsContent>
+
+        {/* Backup DB Tab - Super Admin only */}
+        {isSuperAdmin && (
+          <TabsContent value="backups" className="space-y-6">
+            <BackupManagerLazy currentUser={currentUser} />
+          </TabsContent>
+        )}
 
         {/* Multi-Tenant Companies Tab */}
         <TabsContent value="companies" className="space-y-6">

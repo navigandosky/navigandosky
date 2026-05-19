@@ -1,0 +1,8 @@
+{
+  "initialized": true,
+  "cron_expression": "30 23 * * *",
+  "timezone": "Europe/Rome",
+  "last_run": null,
+  "next_run": "2026-05-19T23:30:00.000Z",
+  "updated_at": "2026-05-19T21:38:52.097Z"
+}
