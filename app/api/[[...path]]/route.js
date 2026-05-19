@@ -2087,6 +2087,83 @@ async function handleUsersAuth(method, id, body, action, sp) {
   return json({ error: 'Method not allowed' }, 405);
 }
 
+// === GEO IP DETECTION ===
+// Mappa codici nazione (ISO 3166-1 alpha-2) → lingua app
+const COUNTRY_TO_LANG = {
+  // Italian
+  IT: 'it', SM: 'it', VA: 'it',
+  // French
+  FR: 'fr', BE: 'fr', LU: 'fr', MC: 'fr', SN: 'fr', CI: 'fr', CM: 'fr', MA: 'fr', TN: 'fr', DZ: 'fr', CH: 'fr',
+  // German
+  DE: 'de', AT: 'de', LI: 'de',
+  // Spanish
+  ES: 'es', MX: 'es', AR: 'es', CL: 'es', CO: 'es', PE: 'es', VE: 'es',
+  UY: 'es', PY: 'es', BO: 'es', EC: 'es', GT: 'es', HN: 'es', SV: 'es',
+  NI: 'es', CR: 'es', PA: 'es', CU: 'es', DO: 'es', PR: 'es',
+  // Anything else → 'en' (default international)
+};
+
+function isPrivateIP(ip) {
+  if (!ip) return true;
+  if (ip === '::1' || ip === '127.0.0.1') return true;
+  if (ip.startsWith('10.') || ip.startsWith('192.168.')) return true;
+  if (ip.startsWith('172.')) {
+    const second = parseInt(ip.split('.')[1] || '0', 10);
+    if (second >= 16 && second <= 31) return true;
+  }
+  if (ip.startsWith('fe80:') || ip.startsWith('fc') || ip.startsWith('fd')) return true;
+  return false;
+}
+
+async function handleGeoDetect(request) {
+  try {
+    // 1) Estrai IP del client (vari header proxy)
+    const forwarded = request.headers.get('x-forwarded-for') || '';
+    const realIp = request.headers.get('x-real-ip') || '';
+    const cfIp = request.headers.get('cf-connecting-ip') || '';
+    let ip = (forwarded.split(',')[0] || '').trim() || realIp || cfIp || '';
+    if (ip.startsWith('[')) ip = ip.replace(/^\[|\]$/g, '').split(']')[0];
+    // Strip IPv4 port suffix
+    if (ip && !ip.includes('::') && ip.split(':').length === 2) ip = ip.split(':')[0];
+
+    // 2) Header CDN diretti (Cloudflare/Vercel)
+    const cfCountry = request.headers.get('cf-ipcountry');
+    const vercelCountry = request.headers.get('x-vercel-ip-country');
+    let country = (cfCountry || vercelCountry || '').toUpperCase();
+
+    // 3) Fallback: interroga ip-api.com (free, no key, server-side, no CORS)
+    if (!country && ip && !isPrivateIP(ip)) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3000);
+        const r = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,countryCode`, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (r.ok) {
+          const d = await r.json();
+          if (d?.status === 'success' && d?.countryCode) country = String(d.countryCode).toUpperCase();
+        }
+      } catch (e) {
+        console.warn('[geo] ip-api failed:', e?.message);
+      }
+    }
+
+    // 4) Mappa il country alla lingua app
+    let language = null;
+    if (country) language = COUNTRY_TO_LANG[country] || 'en';
+
+    return NextResponse.json({
+      ip: ip || null,
+      country: country || null,
+      language: language || null,
+      private: isPrivateIP(ip),
+    });
+  } catch (e) {
+    console.error('[geo] error:', e);
+    return NextResponse.json({ ip: null, country: null, language: null, error: 'detect_failed' });
+  }
+}
+
+
 async function handleRoute(request, resolvedParams, method) {
   try {
     const pathSegments = resolvedParams?.path || [];
@@ -2141,6 +2218,7 @@ async function handleRoute(request, resolvedParams, method) {
       case 'upload-pdf': return await handlePDFUpload(method, body);
       case 'contact': return await handleContact(method, body);
       case 'stats': return await handleStats(searchParams);
+      case 'geo': return await handleGeoDetect(request);
       case 'marinas': {
         const { handleMarinas } = await import('./marinas');
         const db = await getDb();
