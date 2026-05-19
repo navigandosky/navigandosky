@@ -1764,19 +1764,16 @@ function SmartDomoApp() {
     e.posizione?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Show loading while verifying auth
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
-
   // Unified render - stable root element prevents DOM reconciliation errors
   return (
     <>
-      {!backendReady && (
+      {authLoading && (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        </div>
+      )}
+
+      {!authLoading && !backendReady && (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
           <div className="text-center">
             <div className="mb-6">
@@ -1805,11 +1802,11 @@ function SmartDomoApp() {
         </div>
       )}
 
-      {backendReady && !currentUser && (
+      {!authLoading && backendReady && !currentUser && (
         <LoginPage onLogin={handleLogin} />
       )}
 
-      {backendReady && currentUser && (
+      {!authLoading && backendReady && currentUser && (
     <div className="min-h-screen bg-gray-50">
       
       {/* Header */}
@@ -2868,19 +2865,21 @@ function SmartDomoApp() {
 class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorMessage: '' };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    // For insertBefore DOM errors, don't show error screen - these are non-fatal
+    if (error?.name === 'NotFoundError' || error?.message?.includes('insertBefore')) {
+      return null; // Don't update state - let React continue
+    }
+    return { hasError: true, errorMessage: error?.message || 'Errore sconosciuto' };
   }
 
   componentDidCatch(error, errorInfo) {
-    // Suppress insertBefore DOM errors caused by third-party SDK DOM manipulation
     if (error?.name === 'NotFoundError' || error?.message?.includes('insertBefore')) {
-      console.warn('Suppressed DOM reconciliation error (third-party SDK conflict):', error.message);
-      this.setState({ hasError: false });
-      return;
+      console.warn('Non-fatal DOM error suppressed:', error.message);
+      return; // Do NOT setState - prevents infinite loop
     }
     console.error('App error:', error, errorInfo);
   }
@@ -2891,8 +2890,9 @@ class AppErrorBoundary extends React.Component {
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center p-8">
             <h2 className="text-xl font-bold mb-4">Si è verificato un errore</h2>
+            <p className="text-gray-500 mb-4 text-sm">{this.state.errorMessage}</p>
             <button
-              onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+              onClick={() => window.location.reload()}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Ricarica Pagina
