@@ -44,6 +44,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
   const [paymentMethods, setPaymentMethods] = useState([]); // metodi disponibili da company config
   const [generatedLink, setGeneratedLink] = useState(null); // hosted URL SumUp dopo creazione
   const [searchDate, setSearchDate] = useState(''); // ricerca slot per data specifica (YYYY-MM-DD)
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // Reset al chiudere
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
         setPaymentMarked(true);
         setGeneratedLink(null);
         setSearchDate('');
+        setTermsAccepted(false);
       }, 300);
     }
   }, [open]);
@@ -130,6 +132,10 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
       toast.error('Compila tutti i campi obbligatori');
       return;
     }
+    if (!termsAccepted) {
+      toast.error('È necessario confermare l\'accettazione delle condizioni di vendita');
+      return;
+    }
     setLoading(true);
     try {
       // Determina status/payment_status finale lato client (verrà confermato dal backend)
@@ -161,6 +167,9 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
           // Flag che indica all'admin la modalità desiderata (post-process)
           admin_created: true,
           admin_payment_intent: paymentMethod,
+          // Accettazione condizioni di vendita
+          terms_accepted: true,
+          terms_accepted_at: new Date().toISOString(),
         }),
       });
       const created = await res.json();
@@ -489,6 +498,36 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
                 </div>
               </label>
             </div>
+
+            {/* CONDIZIONI DI VENDITA + FLAG ACCETTAZIONE */}
+            {(selectedExp?.refund_conditions || selectedExp?.terms_pdf_url) && (
+              <div className="border-2 border-amber-300 rounded-lg p-3 bg-amber-50/60 space-y-2 mt-3">
+                <h4 className="font-semibold flex items-center gap-2 text-amber-900 text-sm">📋 Condizioni di Vendita</h4>
+                {selectedExp?.refund_conditions && (
+                  <div>
+                    <p className="text-xs font-semibold text-amber-900 mb-1">Condizioni di Rimborso</p>
+                    <p className="text-xs text-gray-700 whitespace-pre-wrap bg-white p-2 rounded border max-h-32 overflow-y-auto">{selectedExp.refund_conditions}</p>
+                  </div>
+                )}
+                {selectedExp?.terms_pdf_url && (
+                  <a href={selectedExp.terms_pdf_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 underline font-medium">
+                    📎 Scarica le Condizioni di Servizio (PDF)
+                  </a>
+                )}
+              </div>
+            )}
+            <div className={`flex items-start gap-3 p-3 border-2 rounded-lg mt-2 ${termsAccepted ? 'bg-emerald-50/60 border-emerald-300' : 'bg-rose-50/40 border-rose-300'}`}>
+              <input
+                id="nbd_terms"
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={e => setTermsAccepted(e.target.checked)}
+                className="mt-1 w-5 h-5 cursor-pointer accent-emerald-600 flex-shrink-0"
+              />
+              <label htmlFor="nbd_terms" className="text-sm cursor-pointer select-none flex-1">
+                <span className="font-semibold text-slate-900">Il cliente dichiara</span> di aver preso visione delle condizioni di rimborso{selectedExp?.terms_pdf_url ? ' e del documento delle condizioni di servizio (PDF)' : ''} e di <strong>accettarle incondizionatamente</strong>. <span className="text-red-600">*</span>
+              </label>
+            </div>
           </div>
         )}
 
@@ -552,7 +591,13 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
               Avanti<ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           ) : (
-            <Button type="button" onClick={handleCreate} disabled={loading} className="bg-green-600 hover:bg-green-700">
+            <Button
+              type="button"
+              onClick={handleCreate}
+              disabled={loading || !termsAccepted}
+              title={!termsAccepted ? 'Spunta la conferma di accettazione delle condizioni' : ''}
+              className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {loading ? 'Creazione...' : (paymentMethod === 'PAYMENT_LINK' ? '🔗 Crea + Genera Link' : '✅ Crea Prenotazione')}
             </Button>
           ))}
