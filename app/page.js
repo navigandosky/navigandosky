@@ -39,6 +39,7 @@ const TransportLogsListLazy = dynamic(() => import('./components/TransportLogsLi
 const TransportLogsRegistryLazy = dynamic(() => import('./components/TransportLogsRegistry'), { ssr: false });
 // Bulk Slots Delete (Super Admin only)
 const BulkSlotsDeleteLazy = dynamic(() => import('./components/BulkSlotsDelete'), { ssr: false });
+const SuperAdminBookingDeleteLazy = dynamic(() => import('./components/SuperAdminBookingDelete'), { ssr: false });
 // Procedura Rimborsi (Company Admin + Super Admin)
 const RefundsManagementLazy = dynamic(() => import('./components/RefundsManagement'), { ssr: false });
 const WarehouseAdminLazy = dynamic(() => import('./components/WarehouseAdmin'), { ssr: false });
@@ -3950,14 +3951,22 @@ function AdminDashboard({ currentUser, onLogout }) {
         {/* Bookings */}
         <TabsContent value="bookings" className="space-y-4">
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <h2 className="text-xl font-semibold">Prenotazioni ({filteredBookingsTab.length})</h2>
-              <Button
-                onClick={() => setShowNewBookingDialog(true)}
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
-              >
-                <Plus className="w-4 h-4 mr-2" />Crea Prenotazione
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                {isSuperAdmin && (
+                  <SuperAdminBookingDeleteLazy
+                    isSuperAdmin={isSuperAdmin}
+                    onDeleted={() => load()}
+                  />
+                )}
+                <Button
+                  onClick={() => setShowNewBookingDialog(true)}
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
+                >
+                  <Plus className="w-4 h-4 mr-2" />Crea Prenotazione
+                </Button>
+              </div>
             </div>
             
             {/* Filtri Avanzati */}

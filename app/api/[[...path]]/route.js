@@ -2175,6 +2175,63 @@ async function handleGeoDetect(request) {
 }
 
 
+// === ADMIN: ELIMINAZIONE FORZATA PRENOTAZIONI PER CODICE (Super Admin) ===
+// Permette di eliminare DEFINITIVAMENTE prenotazioni anche CONFIRMED, in base ai codici (booking_ref).
+// Protezione:
+//  - header x-super-admin: 1 (settato dal frontend solo se ruolo=SUPER_ADMIN)
+//  - token di conferma "ELIMINA DEFINITIVAMENTE" nel body
+async function handleAdminBookingsForceDelete(action, body, request) {
+  try {
+    const adminFlag = request.headers.get('x-super-admin');
+    if (adminFlag !== '1') {
+      return NextResponse.json({ error: 'Operazione riservata al Super Admin' }, { status: 403 });
+    }
+
+    const refs = Array.isArray(body?.refs) ? body.refs.map(r => String(r || '').trim().toUpperCase()).filter(Boolean) : [];
+    if (refs.length === 0) {
+      return NextResponse.json({ error: 'Indica almeno un codice prenotazione (es. MK-2026-0011)' }, { status: 400 });
+    }
+    if (refs.length > 50) {
+      return NextResponse.json({ error: 'Massimo 50 prenotazioni alla volta' }, { status: 400 });
+    }
+
+    const db = await getDb();
+    const col = db.collection('bookings');
+    const found = await col.find({ booking_ref: { $in: refs } }, { projection: { _id: 0, booking_ref: 1, id: 1, customer_name: 1, customer_email: 1, status: 1, total_amount: 1, seats: 1, slot_datetime: 1, experience_id: 1, agency_id: 1, agency_name: 1, payment_method: 1, payment_status: 1, slot_id: 1 } }).toArray();
+    const foundRefs = new Set(found.map(b => b.booking_ref));
+    const missing = refs.filter(r => !foundRefs.has(r));
+
+    if (action === 'preview') {
+      return NextResponse.json({ requested: refs.length, found: found.length, missing, bookings: found });
+    }
+
+    if (action === 'execute') {
+      if ((body?.confirm_token || '') !== 'ELIMINA DEFINITIVAMENTE') {
+        return NextResponse.json({ error: 'Token di conferma non valido. Digita esattamente "ELIMINA DEFINITIVAMENTE".' }, { status: 400 });
+      }
+      if (found.length === 0) {
+        return NextResponse.json({ error: 'Nessuna prenotazione trovata con i codici indicati.' }, { status: 404 });
+      }
+      // Libera i posti sugli slot per prenotazioni attive
+      const slotsCol = db.collection('slots');
+      for (const b of found) {
+        if (b.slot_id && ['CONFIRMED', 'PENDING', 'PENDING_VERIFICATION', 'HELD'].includes(b.status)) {
+          try { await slotsCol.updateOne({ id: b.slot_id }, { $inc: { booked_seats: -Number(b.seats || 0) } }); } catch (e) {}
+        }
+      }
+      try { await db.collection('refunds').deleteMany({ booking_id: { $in: found.map(b => b.id) } }); } catch (e) {}
+      const r = await col.deleteMany({ booking_ref: { $in: refs } });
+      return NextResponse.json({ deleted: r.deletedCount, missing, refs: found.map(b => b.booking_ref) });
+    }
+
+    return NextResponse.json({ error: 'Azione non valida: usa /preview o /execute' }, { status: 400 });
+  } catch (err) {
+    console.error('[admin-bookings-force-delete] error:', err);
+    return NextResponse.json({ error: err.message || 'Errore server' }, { status: 500 });
+  }
+}
+
+
 async function handleRoute(request, resolvedParams, method) {
   try {
     const pathSegments = resolvedParams?.path || [];
@@ -2230,6 +2287,11 @@ async function handleRoute(request, resolvedParams, method) {
       case 'contact': return await handleContact(method, body);
       case 'stats': return await handleStats(searchParams);
       case 'geo': return await handleGeoDetect(request);
+      case 'admin-bookings-force-delete': {
+        if (method !== 'POST') return NextResponse.json({ error: 'Solo POST' }, { status: 405 });
+        const action = pathSegments[1] || ''; // 'preview' | 'execute'
+        return await handleAdminBookingsForceDelete(action, body, request);
+      }
       case 'warehouse': {
         const db = await getDb();
         const sub = pathSegments[1] || '';
