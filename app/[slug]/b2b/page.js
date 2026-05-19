@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 const NewBookingDialog = dynamic(() => import('@/app/components/NewBookingDialog'), { ssr: false });
+const CommissionPieChart = dynamic(() => import('@/app/components/CommissionPieChart'), { ssr: false });
 
 const API_BASE = '/api';
 
@@ -34,6 +35,7 @@ export default function AgencyB2BPortal() {
   const [stats, setStats] = useState({});
   const [showNewBookingDialog, setShowNewBookingDialog] = useState(false);
   const [prefillExperienceId, setPrefillExperienceId] = useState(null);
+  const [showCommissionChart, setShowCommissionChart] = useState(false);
 
   // Filtri Report (clonati dalla company)
   const [filters, setFilters] = useState({
@@ -734,14 +736,21 @@ export default function AgencyB2BPortal() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card
+                onClick={() => setShowCommissionChart(true)}
+                className="cursor-pointer hover:shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setShowCommissionChart(true); }}
+              >
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Provvigioni</p>
                       <p className="text-3xl font-bold mt-2">{fmtPrice(stats.total_commission)}</p>
+                      <p className="text-[10px] text-purple-600 mt-1 font-medium">Clicca per vedere ripartizione →</p>
                     </div>
-                    <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center group-hover:bg-purple-200">
                       <TrendingUp className="w-6 h-6 text-purple-600" />
                     </div>
                   </div>
@@ -1194,6 +1203,18 @@ export default function AgencyB2BPortal() {
                 .then(d => setBookings(Array.isArray(d) ? d : []));
             }
           }}
+        />
+      )}
+
+      {/* Popup Grafico a Torta Provvigioni */}
+      {showCommissionChart && (
+        <CommissionPieChart
+          open={showCommissionChart}
+          onClose={() => setShowCommissionChart(false)}
+          bookings={bookings}
+          experiences={experiences}
+          agencyDiscountPct={Number(agency?.discount_percentage) || 0}
+          totalCommission={stats?.total_commission || 0}
         />
       )}
     </div>
