@@ -1812,7 +1812,6 @@ function SmartDomoApp() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Toaster position="top-right" richColors />
       
       {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-50">
@@ -2867,6 +2866,7 @@ function SmartDomoApp() {
 function App() {
   return (
     <LanguageProvider>
+      <Toaster position="top-right" richColors />
       <SmartDomoApp />
     </LanguageProvider>
   );
