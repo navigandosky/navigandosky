@@ -33,6 +33,7 @@ export default function AgencyB2BPortal() {
   const [bookings, setBookings] = useState([]);
   const [stats, setStats] = useState({});
   const [showNewBookingDialog, setShowNewBookingDialog] = useState(false);
+  const [prefillExperienceId, setPrefillExperienceId] = useState(null);
 
   // Filtri Report (clonati dalla company)
   const [filters, setFilters] = useState({
@@ -816,6 +817,15 @@ export default function AgencyB2BPortal() {
                             <span>👥 Max {exp.max_capacity} posti</span>
                             {exp.meeting_point && <span>📍 {exp.meeting_point}</span>}
                           </div>
+                          <div className="mt-3 flex justify-end">
+                            <Button
+                              size="sm"
+                              onClick={() => { setPrefillExperienceId(exp.id); setShowNewBookingDialog(true); }}
+                              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm"
+                            >
+                              <Plus className="w-4 h-4 mr-2" />Crea Prenotazione
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </Card>
@@ -1170,10 +1180,11 @@ export default function AgencyB2BPortal() {
       {showNewBookingDialog && (
         <NewBookingDialog
           open={showNewBookingDialog}
-          onClose={() => setShowNewBookingDialog(false)}
+          onClose={() => { setShowNewBookingDialog(false); setPrefillExperienceId(null); }}
           companyId={agency?.company_id}
           agencyId={agency?.id}
           agencyName={agency?.name}
+          prefillExperienceId={prefillExperienceId}
           currentUser={{ username: agency?.name || 'agency', company_id: agency?.company_id }}
           onCreated={() => {
             // Ricarica prenotazioni

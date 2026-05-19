@@ -24,7 +24,7 @@ function getPriceTierForDate(experience, date) {
   return null;
 }
 
-export default function NewBookingDialog({ open, onClose, currentUser, companyId: propCompanyId, agencyId: propAgencyId, agencyName: propAgencyName, onCreated }) {
+export default function NewBookingDialog({ open, onClose, currentUser, companyId: propCompanyId, agencyId: propAgencyId, agencyName: propAgencyName, prefillExperienceId, onCreated }) {
   // Risolvi company_id: priorità a prop, poi a currentUser
   const companyId = propCompanyId || currentUser?.company_id || null;
   const agencyId = propAgencyId || null;
@@ -72,16 +72,25 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
         if (companyId) params.set('company_id', companyId);
         const r = await fetch(`/api/experiences?${params.toString()}`);
         const data = await r.json();
-        setExperiences(Array.isArray(data) ? data.filter(e => e.is_active !== false) : []);
+        const list = Array.isArray(data) ? data.filter(e => e.is_active !== false) : [];
+        setExperiences(list);
         // Carica metodi di pagamento configurati per questa company
         if (companyId) {
           const pmRes = await fetch(`/api/companies/${companyId}/payment-methods`);
           const pmData = await pmRes.json();
           setPaymentMethods(Array.isArray(pmData?.methods) ? pmData.methods : []);
         }
+        // Se è stata passata una esperienza pre-selezionata, saltala allo step 2
+        if (prefillExperienceId) {
+          const exp = list.find(e => e.id === prefillExperienceId);
+          if (exp) {
+            setSelectedExp(exp);
+            setStep(2);
+          }
+        }
       } catch (e) { console.error(e); }
     })();
-  }, [open, companyId]);
+  }, [open, companyId, prefillExperienceId]);
 
   // Carica slot quando si sceglie un'esperienza
   useEffect(() => {
