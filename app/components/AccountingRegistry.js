@@ -108,8 +108,10 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
     (bookings || []).forEach(b => {
       if (companyId && b.company_id && b.company_id !== companyId) return;
       const total = Number(b.total_amount || 0);
-      const paid = b.payment_status === 'PAID' || b.status === 'CONFIRMED';
-      const date = b.created_at || b.slot_date || b.updated_at;
+      const refundedAmount = Number(b.refund_amount || 0);
+      const isRefunded = b.payment_status === 'REFUNDED' || b.refund_status === 'COMPLETED';
+      const paid = !isRefunded && (b.payment_status === 'PAID' || b.status === 'CONFIRMED');
+      const date = b.refund_completed_at || b.created_at || b.slot_date || b.updated_at;
       list.push({
         id: `bk-${b.id}`,
         source: 'EXPERIENCE',
@@ -118,11 +120,14 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
         customer: b.customer_name || b.customer_email || '—',
         description: b.experience_name || 'Prenotazione esperienza',
         payment_method: b.payment_method || 'NONE',
-        payment_status: paid ? 'PAID' : (b.status === 'PENDING_VERIFICATION' ? 'PENDING' : 'UNPAID'),
+        payment_status: isRefunded ? 'REFUNDED' : (paid ? 'PAID' : (b.status === 'PENDING_VERIFICATION' ? 'PENDING' : 'UNPAID')),
         booking_status: b.status,
         amount: total,
-        paid_amount: paid ? total : 0,
+        paid_amount: isRefunded ? -refundedAmount : (paid ? total : 0),
         marina_id: null,
+        refund_iban: b.refund_iban || '',
+        refund_cro: b.refund_transfer_reference || '',
+        refund_date: b.refund_completed_at || b.refund_transfer_date || '',
         raw: b,
       });
     });
@@ -469,6 +474,7 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
                   <SelectItem value="PARTIAL">Parziale</SelectItem>
                   <SelectItem value="UNPAID">Non pagato</SelectItem>
                   <SelectItem value="PENDING">In verifica</SelectItem>
+                  <SelectItem value="REFUNDED">Rimborsato</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -557,8 +563,12 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
                           t.payment_status === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
                           t.payment_status === 'PARTIAL' ? 'bg-amber-100 text-amber-800' :
                           t.payment_status === 'PENDING' ? 'bg-blue-100 text-blue-800' :
+                          t.payment_status === 'REFUNDED' ? 'bg-purple-100 text-purple-800' :
                           'bg-red-100 text-red-800'
-                        }`}>{t.payment_status}</Badge>
+                        }`}>{t.payment_status === 'REFUNDED' ? 'Rimborsato' : t.payment_status}</Badge>
+                        {t.refund_cro && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5">CRO: {t.refund_cro}</div>
+                        )}
                       </td>
                       <td className="p-3 text-right font-medium">{fmtEur(t.amount)}</td>
                       <td className="p-3 text-right text-emerald-700 font-medium">{fmtEur(t.paid_amount)}</td>
