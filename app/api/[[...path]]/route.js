@@ -597,16 +597,58 @@ async function handleBookings(method, id, body, action, sp) {
       return json(result);
     }
     if (body.action === 'update_details') {
+      const existing = await col.findOne({ id });
+      if (!existing) return json({ error: 'Prenotazione non trovata' }, 404);
       const updates = {};
       if (body.customer_name) updates.customer_name = body.customer_name;
       if (body.customer_email) updates.customer_email = body.customer_email;
       if (body.customer_phone) updates.customer_phone = body.customer_phone;
       if (body.special_requests !== undefined) updates.special_requests = body.special_requests;
       if (body.participants) updates.participants = body.participants;
-      if (body.seats) updates.seats = Number(body.seats);
       if (body.seat_assignments !== undefined) updates.seat_assignments = body.seat_assignments;
+
+      // === Aggiornamento posti + ricalcolo prezzo ===
+      const newSeats = body.seats != null ? Number(body.seats) : null;
+      const newUnitPrice = body.unit_price != null ? Number(body.unit_price) : null;
+      const oldSeats = Number(existing.seats) || 0;
+
+      // Validazione capacità slot se i posti cambiano
+      if (newSeats != null && newSeats !== oldSeats) {
+        if (newSeats < 1) return json({ error: 'Numero posti deve essere almeno 1' }, 400);
+        const slotsCol = db.collection('slots');
+        const slot = await slotsCol.findOne({ id: existing.slot_id });
+        if (slot) {
+          const avail = (Number(slot.max_seats) || 0) - (Number(slot.booked_seats) || 0) - (Number(slot.blocked_seats) || 0);
+          const delta = newSeats - oldSeats;
+          if (delta > 0 && delta > avail) {
+            return json({ error: `Posti insufficienti nello slot: disponibili ${avail}, richiesti ulteriori ${delta}` }, 400);
+          }
+          // Aggiorna booked_seats sullo slot in modo atomico
+          await slotsCol.updateOne({ id: existing.slot_id }, { $inc: { booked_seats: delta } });
+        }
+        updates.seats = newSeats;
+      }
+
+      // Aggiornamento prezzo unitario / totale
+      const finalSeats = newSeats != null ? newSeats : oldSeats;
+      if (newUnitPrice != null) {
+        updates.b2c_price = newUnitPrice;
+        // Aggiorna anche b2b_price se booking ha agency (mantenendo sconto agency, qui lo riallineiamo al B2C come prezzo applicato)
+        if (existing.agency_id) updates.b2b_price = newUnitPrice;
+      }
+      // Ricalcola total_amount se è cambiato seats o unit_price
+      if (newSeats != null || newUnitPrice != null) {
+        const unit = newUnitPrice != null ? newUnitPrice : (Number(existing.b2c_price) || Number(existing.unit_price) || 0);
+        updates.total_amount = Math.round(unit * finalSeats * 100) / 100;
+        updates.price_recalculated_at = new Date().toISOString();
+      } else if (body.total_amount != null) {
+        // Override esplicito
+        updates.total_amount = Number(body.total_amount);
+      }
+
       const result = await col.findOneAndUpdate({ id }, { $set: updates }, { returnDocument: 'after' });
       if (!result) return json({ error: 'Non trovato' }, 404);
+      if (result._id) delete result._id;
       return json(result);
     }
     const result = await col.findOneAndUpdate(

@@ -2222,22 +2222,76 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
 
       {/* Edit Booking Dialog */}
       <Dialog open={!!editBk} onOpenChange={() => setEditBk(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Modifica Prenotazione {editBk?.booking_ref}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>Nome</Label><Input value={editForm.customer_name || ''} onChange={e => setEditForm({ ...editForm, customer_name: e.target.value })} /></div>
-            <div><Label>Email</Label><Input value={editForm.customer_email || ''} onChange={e => setEditForm({ ...editForm, customer_email: e.target.value })} /></div>
-            <div><Label>Telefono</Label><Input value={editForm.customer_phone || ''} onChange={e => setEditForm({ ...editForm, customer_phone: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Nome</Label><Input value={editForm.customer_name || ''} onChange={e => setEditForm({ ...editForm, customer_name: e.target.value })} /></div>
+              <div><Label>Email</Label><Input value={editForm.customer_email || ''} onChange={e => setEditForm({ ...editForm, customer_email: e.target.value })} /></div>
+              <div><Label>Telefono</Label><Input value={editForm.customer_phone || ''} onChange={e => setEditForm({ ...editForm, customer_phone: e.target.value })} /></div>
+              <div><Label>Stato</Label><Input value={editBk?.status || ''} disabled className="bg-slate-50" /></div>
+            </div>
             <div><Label>Richieste speciali</Label><Textarea value={editForm.special_requests || ''} onChange={e => setEditForm({ ...editForm, special_requests: e.target.value })} /></div>
-            
+
+            {/* === RICALCOLO POSTI / PREZZO === */}
+            <div className="border-2 border-blue-200 bg-blue-50/40 rounded-lg p-3 space-y-2">
+              <Label className="text-sm font-bold flex items-center gap-2 text-blue-900">
+                💰 Posti e Prezzo (ricalcolo automatico)
+              </Label>
+              {(() => {
+                const seatsNow = Number(editForm.seats ?? editBk?.seats ?? 0) || 0;
+                const unitNow = Number(editForm.unit_price ?? editBk?.b2c_price ?? editBk?.unit_price ?? (editBk?.total_amount && editBk?.seats ? editBk.total_amount/editBk.seats : 0)) || 0;
+                const totalNow = Math.round(seatsNow * unitNow * 100) / 100;
+                const oldTotal = Number(editBk?.total_amount) || 0;
+                const diff = Math.round((totalNow - oldTotal) * 100) / 100;
+                return (
+                  <div className="grid grid-cols-3 gap-2 items-end">
+                    <div>
+                      <Label className="text-xs">N. Posti</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={seatsNow}
+                        onChange={e => setEditForm({ ...editForm, seats: Number(e.target.value) || 1 })}
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Prezzo Unit. (€)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={unitNow}
+                        onChange={e => setEditForm({ ...editForm, unit_price: Number(e.target.value) || 0 })}
+                        className="h-9"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Totale Ricalcolato</Label>
+                      <div className="h-9 px-3 py-1.5 rounded-md border border-blue-300 bg-white font-bold text-blue-700 text-base">{fmtPrice(totalNow)}</div>
+                    </div>
+                    <div className="col-span-3 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Importo precedente: <strong>{fmtPrice(oldTotal)}</strong></span>
+                      {diff !== 0 && (
+                        <span className={diff > 0 ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold'}>
+                          {diff > 0 ? '↑ +' : '↓ '}{fmtPrice(Math.abs(diff))}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             {editBk && editBk.seats > 0 && (
               <div className="border-t pt-3 space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-2">
                   <Ship className="w-4 h-4" />
-                  Assegnazione Posti ({editBk.seats} {editBk.seats === 1 ? 'posto' : 'posti'})
+                  Assegnazione Posti ({Number(editForm.seats ?? editBk.seats)} {Number(editForm.seats ?? editBk.seats) === 1 ? 'posto' : 'posti'})
                 </Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {Array.from({ length: editBk.seats }).map((_, idx) => (
+                  {Array.from({ length: Number(editForm.seats ?? editBk.seats) }).map((_, idx) => (
                     <Input
                       key={idx}
                       placeholder={`Posto ${idx + 1}`}
@@ -2255,7 +2309,7 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
             )}
             
             <div className="flex gap-2 pt-2">
-              <Button className="flex-1" onClick={saveBookingEdit}>Salva Modifiche</Button>
+              <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={saveBookingEdit}>💾 Salva e Ricalcola</Button>
               <Button variant="destructive" onClick={async () => {
                 if (!confirm(`⚠️ Confermi di voler CANCELLARE la prenotazione ${editBk.booking_ref || ''}?\n\nL'operazione e' definitiva. Eventuali pagamenti dovranno essere rimborsati separatamente.`)) return;
                 await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'cancel' } });
@@ -6195,22 +6249,61 @@ function AdminDashboard({ currentUser, onLogout }) {
 
       {/* Edit Booking Dialog */}
       <Dialog open={!!editBk} onOpenChange={() => setEditBk(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Modifica Prenotazione {editBk?.booking_ref}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div><Label>Nome</Label><Input value={editForm.customer_name || ''} onChange={e => setEditForm({ ...editForm, customer_name: e.target.value })} /></div>
-            <div><Label>Email</Label><Input value={editForm.customer_email || ''} onChange={e => setEditForm({ ...editForm, customer_email: e.target.value })} /></div>
-            <div><Label>Telefono</Label><Input value={editForm.customer_phone || ''} onChange={e => setEditForm({ ...editForm, customer_phone: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Nome</Label><Input value={editForm.customer_name || ''} onChange={e => setEditForm({ ...editForm, customer_name: e.target.value })} /></div>
+              <div><Label>Email</Label><Input value={editForm.customer_email || ''} onChange={e => setEditForm({ ...editForm, customer_email: e.target.value })} /></div>
+              <div><Label>Telefono</Label><Input value={editForm.customer_phone || ''} onChange={e => setEditForm({ ...editForm, customer_phone: e.target.value })} /></div>
+              <div><Label>Stato</Label><Input value={editBk?.status || ''} disabled className="bg-slate-50" /></div>
+            </div>
             <div><Label>Richieste speciali</Label><Textarea value={editForm.special_requests || ''} onChange={e => setEditForm({ ...editForm, special_requests: e.target.value })} /></div>
-            
+
+            {/* === RICALCOLO POSTI / PREZZO === */}
+            <div className="border-2 border-blue-200 bg-blue-50/40 rounded-lg p-3 space-y-2">
+              <Label className="text-sm font-bold flex items-center gap-2 text-blue-900">
+                💰 Posti e Prezzo (ricalcolo automatico)
+              </Label>
+              {(() => {
+                const seatsNow = Number(editForm.seats ?? editBk?.seats ?? 0) || 0;
+                const unitNow = Number(editForm.unit_price ?? editBk?.b2c_price ?? editBk?.unit_price ?? (editBk?.total_amount && editBk?.seats ? editBk.total_amount/editBk.seats : 0)) || 0;
+                const totalNow = Math.round(seatsNow * unitNow * 100) / 100;
+                const oldTotal = Number(editBk?.total_amount) || 0;
+                const diff = Math.round((totalNow - oldTotal) * 100) / 100;
+                return (
+                  <div className="grid grid-cols-3 gap-2 items-end">
+                    <div>
+                      <Label className="text-xs">N. Posti</Label>
+                      <Input type="number" min="1" value={seatsNow} onChange={e => setEditForm({ ...editForm, seats: Number(e.target.value) || 1 })} className="h-9" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Prezzo Unit. (€)</Label>
+                      <Input type="number" min="0" step="0.01" value={unitNow} onChange={e => setEditForm({ ...editForm, unit_price: Number(e.target.value) || 0 })} className="h-9" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Totale Ricalcolato</Label>
+                      <div className="h-9 px-3 py-1.5 rounded-md border border-blue-300 bg-white font-bold text-blue-700 text-base">{fmtPrice(totalNow)}</div>
+                    </div>
+                    <div className="col-span-3 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Importo precedente: <strong>{fmtPrice(oldTotal)}</strong></span>
+                      {diff !== 0 && (
+                        <span className={diff > 0 ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold'}>{diff > 0 ? '↑ +' : '↓ '}{fmtPrice(Math.abs(diff))}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             {editBk && editBk.seats > 0 && (
               <div className="border-t pt-3 space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-2">
                   <Ship className="w-4 h-4" />
-                  Assegnazione Posti ({editBk.seats} {editBk.seats === 1 ? 'posto' : 'posti'})
+                  Assegnazione Posti ({Number(editForm.seats ?? editBk.seats)} {Number(editForm.seats ?? editBk.seats) === 1 ? 'posto' : 'posti'})
                 </Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {Array.from({ length: editBk.seats }).map((_, idx) => (
+                  {Array.from({ length: Number(editForm.seats ?? editBk.seats) }).map((_, idx) => (
                     <Input
                       key={idx}
                       placeholder={`Posto ${idx + 1}`}
@@ -6228,7 +6321,7 @@ function AdminDashboard({ currentUser, onLogout }) {
             )}
             
             <div className="flex gap-2 pt-2">
-              <Button className="flex-1" onClick={saveBookingEdit}>Salva Modifiche</Button>
+              <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={saveBookingEdit}>💾 Salva e Ricalcola</Button>
               <Button variant="destructive" onClick={async () => { await api(`bookings/${editBk.id}`, { method: 'PUT', body: { action: 'cancel' } }); toast.success('Cancellata'); setEditBk(null); await load(); }}>Cancella</Button>
             </div>
           </div>
