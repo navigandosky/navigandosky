@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
@@ -1776,7 +1776,7 @@ function SmartDomoApp() {
   // Show loading screen while backend is starting up
   if (!backendReady) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+      <div key="backend-loading" className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="mb-6">
             <Building2 className="h-16 w-16 text-blue-400 mx-auto animate-pulse" />
@@ -1807,11 +1807,11 @@ function SmartDomoApp() {
 
   // Show login page if not authenticated
   if (!currentUser) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage key="login-page" onLogin={handleLogin} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div key="dashboard" className="min-h-screen bg-gray-50">
       
       {/* Header */}
       <header className="bg-white border-b shadow-sm sticky top-0 z-50">
@@ -2863,12 +2863,55 @@ function SmartDomoApp() {
   );
 }
 
+// Error Boundary to catch DOM manipulation errors (e.g., from Matterport SDK + React reconciliation)
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    // Suppress insertBefore DOM errors caused by third-party SDK DOM manipulation
+    if (error?.name === 'NotFoundError' || error?.message?.includes('insertBefore')) {
+      console.warn('Suppressed DOM reconciliation error (third-party SDK conflict):', error.message);
+      this.setState({ hasError: false });
+      return;
+    }
+    console.error('App error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center p-8">
+            <h2 className="text-xl font-bold mb-4">Si è verificato un errore</h2>
+            <button
+              onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Ricarica Pagina
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
-    <LanguageProvider>
-      <Toaster position="top-right" richColors />
-      <SmartDomoApp />
-    </LanguageProvider>
+    <AppErrorBoundary>
+      <LanguageProvider>
+        <Toaster position="top-right" richColors />
+        <SmartDomoApp />
+      </LanguageProvider>
+    </AppErrorBoundary>
   );
 }
 
