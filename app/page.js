@@ -1602,37 +1602,7 @@ function BookingWizard({ experience, slot, setView }) {
         </CardHeader>
         <CardContent className="pt-6">
           {step===1&&(<div className="space-y-6"><div><Label className="text-base font-semibold">Numero di Partecipanti</Label><p className="text-sm text-muted-foreground mb-3">Max {maxAvail} posti</p><div className="flex items-center gap-4"><Button variant="outline" size="icon" onClick={()=>setSeats(Math.max(1,seats-1))} disabled={seats<=1}>-</Button><span className="text-2xl font-bold w-12 text-center">{seats}</span><Button variant="outline" size="icon" onClick={()=>setSeats(Math.min(maxAvail,seats+1))} disabled={seats>=maxAvail}>+</Button></div></div><Separator /><div className="flex justify-between text-lg"><span>Totale provvisorio</span><span className="font-bold text-primary">{fmtPrice(subtotal)}</span></div></div>)}
-          {step===2&&(<div className="space-y-6"><div><h3 className="font-semibold mb-4">Dati del Referente</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><Label>Nome *</Label><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Mario Rossi"/></div><div><Label>Email *</Label><Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="mario@email.com"/></div><div><Label>Telefono *</Label><Input type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="+39 333 1234567"/></div></div></div>{seats>1&&<div><h3 className="font-semibold mb-3">Altri Partecipanti</h3>{Array.from({length:seats-1}).map((_,i)=>(<Input key={i} className="mb-2" placeholder={`Partecipante ${i+2}`} value={participants[i]?.name||''} onChange={e=>{const p=[...participants];p[i]={...p[i],name:e.target.value};setParticipants(p);}}/>))}</div>}<div><Label>Richieste Speciali</Label><Textarea value={form.special_requests} onChange={e=>setForm({...form,special_requests:e.target.value})} placeholder="Allergie, esigenze..."/></div>
-            {/* Condizioni di Rimborso + Servizio + Flag accettazione */}
-            {(experience.refund_conditions || experience.terms_pdf_url) && (
-              <div className="border-2 border-amber-300 rounded-lg p-4 bg-amber-50/60 space-y-3">
-                <h3 className="font-semibold flex items-center gap-2 text-amber-900">📋 Condizioni di Vendita</h3>
-                {experience.refund_conditions && (
-                  <div>
-                    <p className="text-xs font-semibold text-amber-900 mb-1">Condizioni di Rimborso</p>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-white p-2 rounded border">{experience.refund_conditions}</p>
-                  </div>
-                )}
-                {experience.terms_pdf_url && (
-                  <a href={experience.terms_pdf_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 underline font-medium">
-                    📎 Scarica le Condizioni di Servizio (PDF)
-                  </a>
-                )}
-              </div>
-            )}
-            <div className="flex items-start gap-3 p-3 border rounded-lg bg-blue-50/40 border-blue-200">
-              <input
-                id="terms_accepted"
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={e => setTermsAccepted(e.target.checked)}
-                className="mt-1 w-4 h-4 cursor-pointer accent-blue-600"
-              />
-              <label htmlFor="terms_accepted" className="text-sm cursor-pointer select-none flex-1">
-                <span className="font-medium text-blue-900">Dichiaro</span> di aver preso visione delle condizioni di rimborso{experience.terms_pdf_url ? ' e del documento delle condizioni di servizio (PDF)' : ''} e di <strong>accettarle incondizionatamente</strong>. <span className="text-red-600">*</span>
-              </label>
-            </div>
-            </div>)}
+          {step===2&&(<div className="space-y-6"><div><h3 className="font-semibold mb-4">Dati del Referente</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><Label>Nome *</Label><Input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Mario Rossi"/></div><div><Label>Email *</Label><Input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="mario@email.com"/></div><div><Label>Telefono *</Label><Input type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="+39 333 1234567"/></div></div></div>{seats>1&&<div><h3 className="font-semibold mb-3">Altri Partecipanti</h3>{Array.from({length:seats-1}).map((_,i)=>(<Input key={i} className="mb-2" placeholder={`Partecipante ${i+2}`} value={participants[i]?.name||''} onChange={e=>{const p=[...participants];p[i]={...p[i],name:e.target.value};setParticipants(p);}}/>))}</div>}<div><Label>Richieste Speciali</Label><Textarea value={form.special_requests} onChange={e=>setForm({...form,special_requests:e.target.value})} placeholder="Allergie, esigenze..."/></div></div>)}
           {step===3&&(<div className="space-y-6"><div><h3 className="font-semibold mb-2">Hai un Codice Sconto?</h3><div className="flex gap-3"><Input value={voucherCode} onChange={e=>setVoucherCode(e.target.value.toUpperCase())} placeholder="ES: BENVENUTO10" className="font-mono"/><Button onClick={validateVoucher} variant="secondary"><Tag className="w-4 h-4 mr-2"/>Applica</Button></div>{voucherResult&&<div className={`mt-3 p-3 rounded-lg text-sm ${voucherResult.valid?'bg-green-50 text-green-800 border border-green-200':'bg-red-50 text-red-800 border border-red-200'}`}>{voucherResult.valid?<p><CheckCircle2 className="w-4 h-4 inline mr-1"/>Risparmi {fmtPrice(discount)}</p>:<p>{voucherResult.error}</p>}</div>}</div><Separator /><div className="space-y-2"><div className="flex justify-between"><span>Subtotale ({seats} pers.)</span><span>{fmtPrice(subtotal)}</span></div>{discount>0&&<div className="flex justify-between text-green-600"><span>Sconto</span><span>-{fmtPrice(discount)}</span></div>}<Separator /><div className="flex justify-between text-lg font-bold"><span>Totale</span><span className="text-primary">{fmtPrice(total)}</span></div></div></div>)}
           {step===4&&(
             <div className="space-y-6">
@@ -1767,12 +1737,42 @@ function BookingWizard({ experience, slot, setView }) {
                   </p>
                 </div>
               )}
+
+              {/* === CONDIZIONI DI VENDITA + FLAG ACCETTAZIONE (obbligatorio per procedere) === */}
+              {(experience.refund_conditions || experience.terms_pdf_url) && (
+                <div className="border-2 border-amber-300 rounded-lg p-4 bg-amber-50/60 space-y-3">
+                  <h3 className="font-semibold flex items-center gap-2 text-amber-900">📋 Condizioni di Vendita</h3>
+                  {experience.refund_conditions && (
+                    <div>
+                      <p className="text-xs font-semibold text-amber-900 mb-1">Condizioni di Rimborso</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap bg-white p-2 rounded border">{experience.refund_conditions}</p>
+                    </div>
+                  )}
+                  {experience.terms_pdf_url && (
+                    <a href={experience.terms_pdf_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 underline font-medium">
+                      📎 Scarica le Condizioni di Servizio (PDF)
+                    </a>
+                  )}
+                </div>
+              )}
+              <div className={`flex items-start gap-3 p-3 border-2 rounded-lg ${termsAccepted ? 'bg-emerald-50/60 border-emerald-300' : 'bg-rose-50/40 border-rose-300'}`}>
+                <input
+                  id="terms_accepted"
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={e => setTermsAccepted(e.target.checked)}
+                  className="mt-1 w-5 h-5 cursor-pointer accent-emerald-600"
+                />
+                <label htmlFor="terms_accepted" className="text-sm cursor-pointer select-none flex-1">
+                  <span className="font-semibold text-slate-900">Dichiaro</span> di aver preso visione delle condizioni di rimborso{experience.terms_pdf_url ? ' e del documento delle condizioni di servizio (PDF)' : ''} e di <strong>accettarle incondizionatamente</strong>. <span className="text-red-600">*</span>
+                </label>
+              </div>
             </div>
           )}
         </CardContent>
         <CardFooter className="flex justify-between border-t pt-6 bg-gray-50">
           <Button variant="outline" onClick={()=>step===1?setView('detail',{experience}):setStep(step-1)} className="border-2 border-gray-400 hover:bg-gray-100 font-semibold"><ArrowLeft className="w-4 h-4 mr-2"/>{step===1?'Indietro':'Precedente'}</Button>
-          {step<4?<Button onClick={()=>{if(step===2&&(!form.name||!form.email||!form.phone)){toast.error('Compila tutti i campi');return;}setStep(step+1);}} className="bg-primary text-white hover:bg-primary/90 font-semibold px-6">Continua <ChevronRight className="w-4 h-4 ml-2"/></Button>:<Button onClick={handleBook} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6">{loading?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:<CreditCard className="w-4 h-4 mr-2"/>}Conferma e Paga {fmtPrice(total)}</Button>}
+          {step<4?<Button onClick={()=>{if(step===2&&(!form.name||!form.email||!form.phone)){toast.error('Compila tutti i campi');return;}setStep(step+1);}} className="bg-primary text-white hover:bg-primary/90 font-semibold px-6">Continua <ChevronRight className="w-4 h-4 ml-2"/></Button>:<Button onClick={handleBook} disabled={loading || !termsAccepted} title={!termsAccepted ? 'Accetta le Condizioni di Vendita per procedere' : ''} className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 disabled:opacity-50 disabled:cursor-not-allowed">{loading?<RefreshCw className="w-4 h-4 mr-2 animate-spin"/>:<CreditCard className="w-4 h-4 mr-2"/>}Conferma e Paga {fmtPrice(total)}</Button>}
         </CardFooter>
       </Card>
     </div>
