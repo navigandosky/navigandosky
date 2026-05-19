@@ -89,13 +89,38 @@ export default function AgencyB2BPortal() {
         fetch(`${API_BASE}/bookings?agency_id=${agency.id}`).then(r => r.json())
       ]);
       
-      setExperiences(Array.isArray(exps) ? exps : []);
-      setBookings(Array.isArray(bks) ? bks : []);
+      const expsArr = Array.isArray(exps) ? exps : [];
+      const bksArr = Array.isArray(bks) ? bks : [];
+      setExperiences(expsArr);
+      setBookings(bksArr);
       
-      // Calcola statistiche
-      const confirmedBookings = (Array.isArray(bks) ? bks : []).filter(b => b.status === 'CONFIRMED');
-      const totalRevenue = confirmedBookings.reduce((sum, b) => sum + (b.price_b2b || 0), 0);
-      const totalCommission = confirmedBookings.reduce((sum, b) => sum + ((b.price_b2c || 0) - (b.price_b2b || 0)), 0);
+      // Calcola statistiche (CONFIRMED) usando la stessa logica di getBookingPrices con sconto agenzia
+      const discountPct = Number(agency?.discount_percentage) || 0;
+      const confirmedBookings = bksArr.filter(b => b.status === 'CONFIRMED');
+      let totalRevenue = 0;
+      let totalCommission = 0;
+      confirmedBookings.forEach(b => {
+        const seats = Number(b.seats) || 0;
+        let b2cUnit = Number(b.b2c_price ?? b.price_b2c ?? 0) || 0;
+        if (!b2cUnit) {
+          const exp = expsArr.find(e => e.id === b.experience_id);
+          if (exp) {
+            const slotDate = (b.slot_datetime || '').split('T')[0];
+            let chosen = null;
+            if (slotDate && Array.isArray(exp.price_tiers)) {
+              chosen = exp.price_tiers.find(t => (!t.start_date || slotDate >= t.start_date) && (!t.end_date || slotDate <= t.end_date));
+            }
+            b2cUnit = Number(chosen?.price_b2c ?? exp.price_b2c) || 0;
+          }
+        }
+        if (!b2cUnit && seats && b.total_amount) {
+          b2cUnit = Number(b.total_amount) / seats;
+        }
+        const b2cTot = b2cUnit * seats;
+        const comm = b2cTot * (discountPct / 100);
+        totalCommission += comm;
+        totalRevenue += (b2cTot - comm);
+      });
       
       setStats({
         total_bookings: confirmedBookings.length,
@@ -147,7 +172,7 @@ export default function AgencyB2BPortal() {
     toast.success('Disconnesso');
   };
 
-  const fmtPrice = (val) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(val || 0);
+  const fmtPrice = (val) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(val) || 0);
   const fmtDate = (d) => {
     if (!d) return 'N/A';
     try { return format(new Date(d), 'dd MMM yyyy', { locale: it }); } 
@@ -206,6 +231,7 @@ export default function AgencyB2BPortal() {
   });
 
   // Helper: ricava prezzi B2C/B2B per una singola prenotazione, con fallback su experience.price_tiers se assenti sul booking
+  // Provvigione SEMPRE calcolata su agency.discount_percentage (la % di sconto/provvigione impostata nell'anagrafica agenzia)
   const getBookingPrices = (b) => {
     const seats = Number(b.seats) || 0;
     // Booking salva b2c_price / b2b_price come PREZZO UNITARIO
@@ -225,17 +251,26 @@ export default function AgencyB2BPortal() {
         if (!b2bUnit) b2bUnit = Number(chosen?.price_b2b ?? exp.price_b2b) || 0;
       }
     }
+    // Ultimo fallback: deriva b2cUnit dal total_amount/seats
+    if (!b2cUnit && seats && b.total_amount) {
+      b2cUnit = Number(b.total_amount) / seats;
+    }
     const b2cTotal = b2cUnit * seats;
-    const b2bTotal = b2bUnit * seats;
-    const commission = Math.max(0, b2cTotal - b2bTotal);
-    return { b2cUnit, b2bUnit, b2cTotal, b2bTotal, commission };
+    // PROVVIGIONE = B2C * % sconto agenzia (valore configurato sull'anagrafica agenzia)
+    const discountPct = Number(agency?.discount_percentage) || 0;
+    const commission = b2cTotal * (discountPct / 100);
+    // B2B effettivo per l'agenzia = B2C - provvigione
+    const b2bTotal = b2cTotal - commission;
+    // Per coerenza ricalcolo b2bUnit dal b2bTotal
+    const b2bUnitEffective = seats > 0 ? (b2bTotal / seats) : b2bUnit;
+    return { b2cUnit, b2bUnit: b2bUnitEffective, b2cTotal, b2bTotal, commission };
   };
 
-  // Totali dinamici basati sui filtri (usa getBookingPrices per fallback)
+  // Totali dinamici basati sui filtri (usa getBookingPrices per coerenza con provvigione su % agenzia)
   const totals = {
     count: filteredBookings.length,
     seats: filteredBookings.reduce((s, b) => s + (Number(b.seats) || 0), 0),
-    revenue: filteredBookings.reduce((s, b) => s + (Number(b.total_amount) || getBookingPrices(b).b2bTotal), 0),
+    revenue: filteredBookings.reduce((s, b) => s + getBookingPrices(b).b2bTotal, 0),
     b2c_revenue: filteredBookings.reduce((s, b) => s + getBookingPrices(b).b2cTotal, 0),
     commission: filteredBookings.reduce((s, b) => s + getBookingPrices(b).commission, 0),
   };
