@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import {
   Bike, Car, Home, Building2, Ship, MapPin, Users, BedDouble, Bath,
-  Clock, Euro, ArrowLeft, Calendar as CalIcon, CheckCircle2, XCircle, Search,
+  Clock, Euro, ArrowLeft, Calendar as CalIcon, CheckCircle2, XCircle, Search, FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -294,9 +294,27 @@ export function RentalDetailPage({ unit, setView }) {
             <p className="text-sm text-muted-foreground">
               Riceverai una conferma via email all'indirizzo <b>{submitted.customer?.email}</b>. Verrai contattato a breve per finalizzare la prenotazione.
             </p>
-            <Button onClick={() => setView('rentals')} className="bg-teal-600 hover:bg-teal-700">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Torna alle Locazioni
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="border-blue-500 text-blue-700 hover:bg-blue-50"
+                onClick={async () => {
+                  try {
+                    toast.loading('Generazione PDF...', { id: 'pdf-public' });
+                    const { downloadRentalVoucherPdf } = await import('@/lib/rentalVoucherPdf');
+                    await downloadRentalVoucherPdf(submitted, unit, {});
+                    toast.success('Voucher scaricato', { id: 'pdf-public' });
+                  } catch (e) {
+                    toast.error(`Errore PDF: ${e.message}`, { id: 'pdf-public' });
+                  }
+                }}
+              >
+                <FileText className="w-4 h-4 mr-2" /> Scarica Voucher PDF
+              </Button>
+              <Button onClick={() => setView('rentals')} className="bg-teal-600 hover:bg-teal-700">
+                <ArrowLeft className="w-4 h-4 mr-2" /> Torna alle Locazioni
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

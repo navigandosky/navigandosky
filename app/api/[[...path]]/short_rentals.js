@@ -473,6 +473,29 @@ export async function handleRentalBookings(method, id, body, action, sp, db) {
     };
     await col.insertOne(item);
     delete item._id;
+
+    // Send confirmation email (non-blocking, fire-and-forget)
+    if (item.customer?.email) {
+      (async () => {
+        try {
+          const { sendRentalConfirmationEmail } = await import('./rental_voucher_email');
+          const company = await db.collection('companies').findOne({ id: item.company_id });
+          const result = await sendRentalConfirmationEmail(item, unit, company);
+          if (result?.ok) {
+            console.log(`[rental-bookings] confirmation email sent: ${item.booking_number} -> ${item.customer.email} via ${result.provider}`);
+            await col.updateOne(
+              { id: item.id },
+              { $set: { confirmation_email_sent_at: new Date().toISOString(), confirmation_email_provider: result.provider } }
+            );
+          } else if (!result?.skipped) {
+            console.warn(`[rental-bookings] email failed: ${result?.error}`);
+          }
+        } catch (e) {
+          console.error('[rental-bookings] email exception:', e?.message);
+        }
+      })();
+    }
+
     return json(item, 201);
   }
 

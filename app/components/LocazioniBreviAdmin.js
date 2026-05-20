@@ -14,6 +14,7 @@ import {
   Bike, Car, Home, Building2, Ship, Plus, Trash2, Edit, Calendar as CalIcon,
   RefreshCw, Euro, MapPin, Users, BedDouble, Bath, Clock, AlertCircle,
   CheckCircle2, XCircle, Search, Eye, Save, Link2, Mail, Copy, ExternalLink,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -932,6 +933,24 @@ function BookingsTab({ bookings, units, reload }) {
   const [viewing, setViewing] = useState(null);
   const [paymentLinkFor, setPaymentLinkFor] = useState(null);
 
+  const downloadVoucher = async (b) => {
+    try {
+      toast.loading('Generazione PDF...', { id: 'pdf-rent' });
+      const unit = units.find((u) => u.id === b.unit_id) || { name: b.unit_name };
+      let company = null;
+      if (b.company_id) {
+        const res = await fetch(`/api/companies/${b.company_id}`);
+        if (res.ok) company = await res.json();
+      }
+      const { downloadRentalVoucherPdf } = await import('@/lib/rentalVoucherPdf');
+      await downloadRentalVoucherPdf(b, unit, company || {});
+      toast.success('Voucher PDF scaricato', { id: 'pdf-rent' });
+    } catch (e) {
+      console.error(e);
+      toast.error(`Errore PDF: ${e.message}`, { id: 'pdf-rent' });
+    }
+  };
+
   const filtered = useMemo(() => {
     return bookings.filter((b) => {
       if (statusFilter !== 'ALL' && b.status !== statusFilter) return false;
@@ -1087,6 +1106,7 @@ function BookingsTab({ bookings, units, reload }) {
                       <td className="p-2 text-center">
                         <div className="flex justify-center gap-1">
                           <Button size="icon" variant="ghost" onClick={() => setViewing(b)} title="Dettagli"><Eye className="w-4 h-4" /></Button>
+                          <Button size="icon" variant="ghost" className="text-blue-700" onClick={() => downloadVoucher(b)} title="Scarica Voucher PDF"><FileText className="w-4 h-4" /></Button>
                           <Button size="icon" variant="ghost" className="text-emerald-700" onClick={() => setPaymentLinkFor(b)} title="Link Pagamento SumUp"><Link2 className="w-4 h-4" /></Button>
                           <Button size="icon" variant="ghost" className="text-red-600" onClick={() => deleteBooking(b)} title="Elimina"><Trash2 className="w-4 h-4" /></Button>
                         </div>
