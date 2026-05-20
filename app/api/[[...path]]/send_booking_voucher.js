@@ -13,7 +13,7 @@ async function getDb() {
 }
 
 const fmtEur = n => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n || 0));
-const fmtDateTime = iso => iso ? new Date(iso).toLocaleString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+const fmtDateTime = iso => iso ? new Date(iso).toLocaleString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '-';
 
 async function sendViaResend({ from, to, subject, html }) {
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY non configurata');

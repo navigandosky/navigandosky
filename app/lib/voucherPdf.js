@@ -2,7 +2,8 @@
 import { jsPDF } from 'jspdf';
 
 const fmtEur = n => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n || 0));
-const fmtDateTime = iso => iso ? new Date(iso).toLocaleString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+// Solo data (senza ora) - l'orario corretto è già indicato nel nome dell'esperienza
+const fmtDateTime = iso => iso ? new Date(iso).toLocaleString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '-';
 
 // Carica un'immagine come dataURL (per inserirla nel PDF con jspdf)
 const loadImageAsDataUrl = (url) => new Promise((resolve) => {
