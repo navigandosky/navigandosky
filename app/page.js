@@ -47,6 +47,8 @@ const WarehouseAdminLazy = dynamic(() => import('./components/WarehouseAdmin'), 
 const PaymentLinkDialogLazy = dynamic(() => import('./components/PaymentLinkDialog'), { ssr: false });
 // Backup Manager (Super Admin only)
 const BackupManagerLazy = dynamic(() => import('./components/BackupManager'), { ssr: false });
+// Locazioni Brevi (Short-Term Rentals - Bike/Car/Apartment/Villa/Boat)
+const LocazioniBreviAdminLazy = dynamic(() => import('./components/LocazioniBreviAdmin'), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -57,7 +59,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2, Database
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2, Database, Home
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -2792,12 +2794,12 @@ function AdminDashboard({ currentUser, onLogout }) {
   };
 
   // Vista Moduli - permette di nascondere sezioni della dashboard
-  // 'all' | 'experiences' | 'marina' | 'cantiere' | 'magazzino'
+  // 'all' | 'experiences' | 'marina' | 'cantiere' | 'magazzino' | 'locazioni'
   const [viewMode, setViewMode] = useState('all');
   useEffect(() => {
     try {
       const saved = localStorage.getItem('admin_view_mode');
-      if (saved && ['all', 'experiences', 'marina', 'cantiere', 'magazzino'].includes(saved)) {
+      if (saved && ['all', 'experiences', 'marina', 'cantiere', 'magazzino', 'locazioni'].includes(saved)) {
         setViewMode(saved);
       }
     } catch {}
@@ -2813,6 +2815,7 @@ function AdminDashboard({ currentUser, onLogout }) {
       'marina': 'marina-bookings',
       'cantiere': 'cantiere',
       'magazzino': 'magazzino',
+      'locazioni': 'locazioni',
     };
     setActiveTab(defaultTabPerMode[mode] || 'overview');
   };
@@ -2820,6 +2823,7 @@ function AdminDashboard({ currentUser, onLogout }) {
   const showMarina = viewMode === 'all' || viewMode === 'marina';
   const showCantiere = viewMode === 'all' || viewMode === 'cantiere';
   const showMagazzino = viewMode === 'all' || viewMode === 'magazzino';
+  const showLocazioni = viewMode === 'all' || viewMode === 'locazioni';
   
   // Filtri Report
   const [filters, setFilters] = useState({
@@ -3564,6 +3568,14 @@ function AdminDashboard({ currentUser, onLogout }) {
               >
                 📦 Magazzino
               </button>
+              <button
+                type="button"
+                onClick={() => changeViewMode('locazioni')}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'locazioni' ? 'bg-white shadow text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Mostra solo modulo Locazioni Brevi"
+              >
+                🏖️ Locazioni Brevi
+              </button>
             </div>
           )}
           <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
@@ -3739,6 +3751,18 @@ function AdminDashboard({ currentUser, onLogout }) {
             </div>
             <TabsTrigger value="magazzino" className="text-white data-[state=active]:bg-white data-[state=active]:text-rose-800 hover:bg-white/20 font-semibold">
               <Package className="w-4 h-4 mr-1.5" />Articoli, Bolle e Inventario
+            </TabsTrigger>
+          </TabsList>
+        )}
+
+        {/* Modulo LOCAZIONI BREVI */}
+        {showLocazioni && currentUser?.company_id && (
+          <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-teal-600 via-cyan-600 to-teal-700 p-2 rounded-lg shadow-md w-full">
+            <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
+              <Home className="w-4 h-4" />Locazioni Brevi
+            </div>
+            <TabsTrigger value="locazioni" className="text-white data-[state=active]:bg-white data-[state=active]:text-teal-800 hover:bg-white/20 font-semibold">
+              <Home className="w-4 h-4 mr-1.5" />Bici · Auto · Appartamenti · Ville · Barche
             </TabsTrigger>
           </TabsList>
         )}
@@ -5881,6 +5905,15 @@ function AdminDashboard({ currentUser, onLogout }) {
                 resources={resources || []}
                 currentUser={currentUser}
               />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* LOCAZIONI BREVI - tutti gli utenti company */}
+        {currentUser?.company_id && (
+          <TabsContent value="locazioni" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Home className="w-8 h-8 mx-auto animate-pulse text-teal-600" /></div>}>
+              <LocazioniBreviAdminLazy currentUser={currentUser} isSuperAdmin={isSuperAdmin} />
             </Suspense>
           </TabsContent>
         )}

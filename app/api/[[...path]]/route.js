@@ -2420,6 +2420,33 @@ async function handleRoute(request, resolvedParams, method) {
         const db = await getDb();
         return await handleMarinaBookings(method, id, body, action, searchParams, db);
       }
+      // === LOCAZIONI BREVI (Short-Term Rentals) ===
+      case 'rental-units': {
+        const db = await getDb();
+        // /api/rental-units/availability  (GET)
+        if (id === 'availability') {
+          const { handleRentalAvailability } = await import('./short_rentals');
+          return await handleRentalAvailability(searchParams, db);
+        }
+        // /api/rental-units/price-check  (POST)
+        if (id === 'price-check') {
+          if (method !== 'POST') return json({ error: 'Solo POST' }, 405);
+          const { handlePriceCheck } = await import('./short_rentals');
+          return await handlePriceCheck(body, db);
+        }
+        const { handleRentalUnits } = await import('./short_rentals');
+        return await handleRentalUnits(method, id, body, action, searchParams, db);
+      }
+      case 'rental-bookings': {
+        const db = await getDb();
+        const { handleRentalBookings } = await import('./short_rentals');
+        return await handleRentalBookings(method, id, body, action, searchParams, db);
+      }
+      case 'rental-stats': {
+        const db = await getDb();
+        const { handleRentalStats } = await import('./short_rentals');
+        return await handleRentalStats(searchParams, db);
+      }
       case 'send-receipt-email': {
         const { handleSendReceiptEmail } = await import('./send_email');
         return await handleSendReceiptEmail(method, body);
