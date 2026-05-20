@@ -1944,7 +1944,15 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
   const getCompanyName = (cid) => {
     if (!cid) return '—';
     const c = (companies || []).find(co => co.id === cid);
-    return c ? c.name : `#${String(cid).slice(0,6)}`;
+    if (!c) return `#${String(cid).slice(0,6)}`;
+    // Tronca nomi lunghi: "MARLIN SUB S.N.C. DI CORONAS GIOVANNA E PUTZU EMANUEL" → "Marlin Sub"
+    // Strategia: prendi solo la parte prima della prima forma giuridica (S.R.L., S.N.C., S.A.S., S.P.A.)
+    let display = c.short_name || c.name;
+    const idx = display.search(/\s+(S\.R\.L\.|S\.N\.C\.|S\.A\.S\.|S\.P\.A\.|SRL|SNC|SAS|SPA|S\.S\.|SS|SARL|LTD|GMBH)/i);
+    if (idx > 0) display = display.slice(0, idx).trim();
+    // Hard cap 18 caratteri con ellipsis
+    if (display.length > 18) display = display.slice(0, 18).trim() + '…';
+    return display;
   };
 
   // Helper: scarica il PDF "Registro Trasportati" salvato dallo skipper per (resourceId, date).
@@ -2687,6 +2695,82 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [resBookings, setResBookings] = useState(null);
   // Link Pagamento Online (SumUp) - solo Company Admin
   const [showPaymentLinkDialog, setShowPaymentLinkDialog] = useState(false);
+
+  // === Funzioni Gestione Utenti Multi-Tenant (Super Admin) ===
+  // Carica gli utenti della società selezionata
+  const loadCompanyUsers = useCallback(async (companyId) => {
+    if (!companyId) return;
+    try {
+      const r = await fetch(`/api/users?company_id=${companyId}`);
+      const data = await r.json();
+      setCompanyUsers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('loadCompanyUsers:', e);
+      setCompanyUsers([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (showUsersDialog && selectedCompany?.id) loadCompanyUsers(selectedCompany.id);
+  }, [showUsersDialog, selectedCompany, loadCompanyUsers]);
+
+  // Crea o aggiorna utente
+  const createOrUpdateUser = async () => {
+    try {
+      if (!userForm.email || (!userForm.id && !userForm.password)) {
+        toast.error('Email e password (per nuovi utenti) sono obbligatori');
+        return;
+      }
+      const isEdit = !!userForm.id;
+      const url = isEdit ? `/api/users/${userForm.id}` : '/api/users';
+      const method = isEdit ? 'PUT' : 'POST';
+      const payload = {
+        email: userForm.email,
+        username: userForm.username || '',
+        role: userForm.role || 'COMPANY_ADMIN',
+        company_id: selectedCompany?.id || userForm.company_id || null,
+        is_active: userForm.is_active !== false,
+        full_name: userForm.full_name || '',
+        phone: userForm.phone || '',
+      };
+      if (userForm.password) payload.password = userForm.password;
+
+      const r = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        toast.error(data?.error || 'Errore salvataggio utente');
+        return;
+      }
+      toast.success(isEdit ? 'Utente aggiornato' : 'Utente creato');
+      setShowUserForm(false);
+      setUserForm({});
+      if (selectedCompany?.id) await loadCompanyUsers(selectedCompany.id);
+    } catch (e) {
+      toast.error('Errore: ' + e.message);
+    }
+  };
+
+  // Elimina utente
+  const deleteUser = async (userId) => {
+    if (!userId) return;
+    if (!confirm('Eliminare definitivamente questo utente?')) return;
+    try {
+      const r = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toast.error(data?.error || 'Errore eliminazione utente');
+        return;
+      }
+      toast.success('Utente eliminato');
+      if (selectedCompany?.id) await loadCompanyUsers(selectedCompany.id);
+    } catch (e) {
+      toast.error('Errore: ' + e.message);
+    }
+  };
 
   // Vista Moduli - permette di nascondere sezioni della dashboard
   // 'all' | 'experiences' | 'marina' | 'cantiere' | 'magazzino'
@@ -3658,7 +3742,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         {/* Overview */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[{l:'Prenotazioni',v:stats.total_bookings||0,i:CreditCard,c:'text-blue-600 bg-blue-100',show:showExperiences},{l:'Fatturato',v:fmtPrice(stats.total_revenue||0),i:BarChart3,c:'text-green-600 bg-green-100',show:true},{l:'Esperienze',v:stats.total_experiences||0,i:Compass,c:'text-purple-600 bg-purple-100',show:showExperiences},{l:'Risorse',v:stats.total_resources||0,i:Ship,c:'text-amber-600 bg-amber-100',show:true}].filter(s=>s.show).map((s,i)=>(
+            {[{l:'Prenotazioni',v:stats.total_bookings||0,i:CreditCard,c:'text-blue-600 bg-blue-100',show:showExperiences},{l:'Fatturato Esperienze',v:fmtPrice(stats.total_revenue||0),i:BarChart3,c:'text-green-600 bg-green-100',show:showExperiences},{l:'Esperienze',v:stats.total_experiences||0,i:Compass,c:'text-purple-600 bg-purple-100',show:showExperiences},{l:'Risorse',v:stats.total_resources||0,i:Ship,c:'text-amber-600 bg-amber-100',show:showExperiences}].filter(s=>s.show).map((s,i)=>(
               <Card key={i}><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-sm text-muted-foreground">{s.l}</p><p className="text-2xl font-bold mt-1">{s.v}</p></div><div className={`w-12 h-12 rounded-full flex items-center justify-center ${s.c}`}><s.i className="w-6 h-6"/></div></div></CardContent></Card>
             ))}
           </div>
@@ -4768,7 +4852,7 @@ function AdminDashboard({ currentUser, onLogout }) {
 
           {/* Dialog Creazione Nuova Società */}
           <Dialog open={showCompanyDialog} onOpenChange={setShowCompanyDialog}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Building2 className="w-5 h-5" />
@@ -4956,13 +5040,29 @@ function AdminDashboard({ currentUser, onLogout }) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Password Admin *</Label>
-                      <Input 
-                        type="password"
-                        placeholder="Password123!"
-                        value={newCompanyForm.admin_password || ''}
-                        onChange={e => setNewCompanyForm({...newCompanyForm, admin_password: e.target.value})}
-                      />
+                      <Label>Password Admin {!newCompanyForm.id && <span className="text-red-500">*</span>}</Label>
+                      <div className="relative">
+                        <Input 
+                          type={newCompanyForm._show_admin_password ? 'text' : 'password'}
+                          placeholder={newCompanyForm.id ? "Lascia vuoto per non modificare" : "Password123!"}
+                          value={newCompanyForm.admin_password || ''}
+                          onChange={e => setNewCompanyForm({...newCompanyForm, admin_password: e.target.value})}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setNewCompanyForm({...newCompanyForm, _show_admin_password: !newCompanyForm._show_admin_password})}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900"
+                          title={newCompanyForm._show_admin_password ? 'Nascondi' : 'Mostra'}
+                        >
+                          {newCompanyForm._show_admin_password ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {newCompanyForm.id && (
+                        <p className="text-xs text-amber-600">
+                          ⚠️ Per motivi di sicurezza la password attuale non è recuperabile (hash bcrypt). Inserisci una nuova password per reimpostarla.
+                        </p>
+                      )}
                     </div>
                   </div>
                   
@@ -5528,16 +5628,60 @@ function AdminDashboard({ currentUser, onLogout }) {
                       </div>
                       
                       <div className="space-y-2">
-                        <Label>Password *</Label>
-                        <Input 
-                          type="password"
-                          placeholder={userForm.id ? "Lascia vuoto per non modificare" : "Password123!"}
-                          value={userForm.password || ''}
-                          onChange={e => setUserForm({...userForm, password: e.target.value})}
-                        />
+                        <Label>Password {!userForm.id && <span className="text-red-500">*</span>}</Label>
+                        <div className="relative">
+                          <Input 
+                            type={userForm._show_password ? 'text' : 'password'}
+                            placeholder={userForm.id ? "Lascia vuoto per non modificare" : "Password123!"}
+                            value={userForm.password || ''}
+                            onChange={e => setUserForm({...userForm, password: e.target.value})}
+                            className="pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setUserForm({...userForm, _show_password: !userForm._show_password})}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900"
+                            title={userForm._show_password ? 'Nascondi' : 'Mostra'}
+                          >
+                            {userForm._show_password ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           Minimo 8 caratteri, almeno una maiuscola, un numero e un carattere speciale
                         </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Ruolo *</Label>
+                        <select
+                          value={userForm.role || 'COMPANY_ADMIN'}
+                          onChange={e => setUserForm({...userForm, role: e.target.value})}
+                          className="w-full border rounded-md px-3 py-2 text-sm"
+                        >
+                          <option value="COMPANY_ADMIN">Company Admin</option>
+                          <option value="SKIPPER">Skipper</option>
+                          <option value="STAFF">Staff</option>
+                          <option value="SUPER_ADMIN">Super Admin</option>
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Nome completo</Label>
+                          <Input
+                            value={userForm.full_name || ''}
+                            onChange={e => setUserForm({...userForm, full_name: e.target.value})}
+                            placeholder="Mario Rossi"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Telefono</Label>
+                          <Input
+                            value={userForm.phone || ''}
+                            onChange={e => setUserForm({...userForm, phone: e.target.value})}
+                            placeholder="+39 ..."
+                          />
+                        </div>
                       </div>
                       
                       <div className="flex items-center gap-2">
@@ -6054,7 +6198,7 @@ function AdminDashboard({ currentUser, onLogout }) {
               </div>
             )}
             
-            <Button className="w-full" onClick={async ()=>{
+            <Button className="w-full" disabled={formData._generating} onClick={async ()=>{
               // Genera slot giornalieri con tariffe stagionali
               if (!formData.experience_id || !formData.period_start || !formData.period_end) {
                 toast.error('Compila tutti i campi obbligatori');
@@ -6067,53 +6211,78 @@ function AdminDashboard({ currentUser, onLogout }) {
               const timeEnd = formData.time_end || '13:00';
               const experience = formData.selectedExperience;
               
+              // Calcola totale giorni per progress bar
+              const oneDay = 24 * 60 * 60 * 1000;
+              const totalDays = Math.round((endDate - startDate) / oneDay) + 1;
+              
               let created = 0;
               let currentDate = new Date(startDate);
+              setFormData(prev => ({ ...prev, _generating: true, _progress: 0, _total_days: totalDays }));
+              const toastId = toast.loading(`Generazione slot in corso... 0/${totalDays}`);
               
-              while (currentDate <= endDate) {
-                const dateStr = currentDate.toISOString().split('T')[0];
-                const startDatetime = `${dateStr}T${timeStart}:00Z`;
-                const endDatetime = `${dateStr}T${timeEnd}:00Z`;
-                
-                // Calcola fascia di prezzo per questa data
-                let priceOverride = null;
-                if (experience?.price_tiers) {
-                  const tier = getPriceTierForDate(experience, dateStr);
-                  if (tier && tier.price_b2c) {
-                    priceOverride = tier.price_b2c;
+              try {
+                while (currentDate <= endDate) {
+                  const dateStr = currentDate.toISOString().split('T')[0];
+                  const startDatetime = `${dateStr}T${timeStart}:00Z`;
+                  const endDatetime = `${dateStr}T${timeEnd}:00Z`;
+                  
+                  // Calcola fascia di prezzo per questa data
+                  let priceOverride = null;
+                  if (experience?.price_tiers) {
+                    const tier = getPriceTierForDate(experience, dateStr);
+                    if (tier && tier.price_b2c) {
+                      priceOverride = tier.price_b2c;
+                    }
                   }
+                  
+                  // Crea lo slot
+                  const slotData = {
+                    experience_id: formData.experience_id,
+                    resource_ids: formData.resource_ids || [],
+                    start_datetime: startDatetime,
+                    end_datetime: endDatetime,
+                    max_seats: formData.max_seats || 12,
+                    status: 'OPEN'
+                  };
+                  
+                  if (priceOverride && priceOverride !== experience.price_b2c) {
+                    slotData.price_override = priceOverride;
+                  }
+                  
+                  await api('slots', { method: 'POST', body: slotData });
+                  created++;
+                  // Update progress
+                  setFormData(prev => ({ ...prev, _progress: created }));
+                  toast.loading(`Generazione slot in corso... ${created}/${totalDays}`, { id: toastId });
+                  
+                  currentDate.setDate(currentDate.getDate() + 1);
                 }
                 
-                // Crea lo slot
-                const slotData = {
-                  experience_id: formData.experience_id,
-                  resource_ids: formData.resource_ids || [],
-                  start_datetime: startDatetime,
-                  end_datetime: endDatetime,
-                  max_seats: formData.max_seats || 12,
-                  status: 'OPEN'
-                };
-                
-                // Aggiungi price_override solo se diverso dal prezzo base
-                if (priceOverride && priceOverride !== experience.price_b2c) {
-                  slotData.price_override = priceOverride;
-                }
-                
-                await api('slots', { method: 'POST', body: slotData });
-                created++;
-                
-                // Prossimo giorno
-                currentDate.setDate(currentDate.getDate() + 1);
+                toast.success(`✅ ${created} slot creati con tariffe stagionali applicate!`, { id: toastId });
+                setShowDialog(null);
+                setFormData({});
+                await load();
+              } catch (e) {
+                toast.error(`Errore generazione slot: ${e.message}`, { id: toastId });
+                setFormData(prev => ({ ...prev, _generating: false }));
               }
-              
-              toast.success(`${created} slot creati con tariffe stagionali applicate!`);
-              setShowDialog(null);
-              setFormData({});
-              await load();
             }}>
-              <CalIcon className="w-4 h-4 mr-2" />
-              Crea Slot Giornalieri Automatici
+              {formData._generating ? (
+                <><RefreshCw className="w-4 h-4 mr-2 animate-spin" />Generazione in corso... {formData._progress || 0}/{formData._total_days || 0}</>
+              ) : (
+                <><CalIcon className="w-4 h-4 mr-2" />Crea Slot Giornalieri Automatici</>
+              )}
             </Button>
+            
+            {/* Progress bar */}
+            {formData._generating && formData._total_days > 0 && (
+              <div className="w-full bg-slate-200 rounded-full h-2 mt-2 overflow-hidden">
+                <div
+                  className="h-2 bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+                  style={{ width: `${Math.round(((formData._progress || 0) / formData._total_days) * 100)}%` }}
+                />
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
