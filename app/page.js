@@ -5559,12 +5559,29 @@ function AdminDashboard({ currentUser, onLogout }) {
                                   <p className="text-sm text-muted-foreground">{user.email}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 mt-3">
-                                <Badge className="text-xs">COMPANY ADMIN</Badge>
+                              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                {(() => {
+                                  const roleMap = {
+                                    'SUPER_ADMIN':   { label: 'SUPER ADMIN',   cls: 'bg-purple-600 text-white' },
+                                    'COMPANY_ADMIN': { label: 'COMPANY ADMIN', cls: 'bg-blue-600 text-white' },
+                                    'SKIPPER':       { label: 'SKIPPER',       cls: 'bg-emerald-600 text-white' },
+                                    'STAFF':         { label: 'STAFF',         cls: 'bg-amber-600 text-white' },
+                                  };
+                                  const r = roleMap[user.role] || { label: user.role || 'UTENTE', cls: 'bg-slate-600 text-white' };
+                                  return <Badge className={`text-xs ${r.cls}`}>{r.label}</Badge>;
+                                })()}
                                 {user.is_active ? (
                                   <Badge className="text-xs bg-green-100 text-green-800">Attivo</Badge>
                                 ) : (
                                   <Badge variant="secondary" className="text-xs">Disattivato</Badge>
+                                )}
+                                {user.full_name && (
+                                  <span className="text-xs text-slate-600">· {user.full_name}</span>
+                                )}
+                                {user.role === 'SKIPPER' && Array.isArray(user.assigned_resource_ids) && user.assigned_resource_ids.length > 0 && (
+                                  <Badge variant="outline" className="text-xs bg-emerald-50">
+                                    🛥️ {user.assigned_resource_ids.length} risors{user.assigned_resource_ids.length === 1 ? 'a' : 'e'}
+                                  </Badge>
                                 )}
                                 <span className="text-xs text-muted-foreground">
                                   Creato: {new Date(user.created_at).toLocaleDateString('it-IT')}
