@@ -75,7 +75,26 @@ const getExpImage = (exp) => {
   if (!img || img === '/uploads/placeholder.jpg') return DEFAULT_EXP_IMG;
   return img;
 };
-const TYPE_LABELS = { GITA_GOMMONE: 'Gita in Gommone', GITA_BARCA: 'Gita in Barca', VISITA_GUIDATA: 'Visita Guidata', NOLEGGIO_NATANTE: 'Noleggio Natante' };
+const TYPE_LABELS = {
+  GITA_GOMMONE: '🚤 Gita in Gommone',
+  GITA_BARCA: '⛵ Gita in Barca',
+  VISITA_GUIDATA: '👤 Visita Guidata',
+  NOLEGGIO_NATANTE: '🛥️ Noleggio Natante',
+  TOUR_SUP: '🏄 Tour SUP',
+  TOUR_KAYAK: '🛶 Tour Kayak / Canoa',
+  SNORKELING: '🤿 Snorkeling',
+  DIVING: '🐠 Diving / Immersione',
+  HIKING: '🥾 Trekking / Escursione',
+  BIKE_TOUR: '🚴 Bike Tour',
+  COOKING_CLASS: '🍳 Lezione di cucina',
+  WINE_TASTING: '🍷 Degustazione vino',
+  VACATION_RENTAL: '🏠 Affitto Appartamento',
+  ROOM_STAY: '🛏️ Soggiorno (Stanza)',
+  VILLA_STAY: '🏡 Affitto Villa',
+  EVENT: '🎉 Evento',
+  TRANSFER: '🚐 Transfer',
+  FISHING: '🎣 Pesca turistica',
+};
 const TYPE_ICONS = { GITA_GOMMONE: Ship, GITA_BARCA: Ship, VISITA_GUIDATA: Compass, NOLEGGIO_NATANTE: Anchor };
 
 // Wrapper per toast che filtra messaggi generici
@@ -5906,7 +5925,43 @@ function AdminDashboard({ currentUser, onLogout }) {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nuova Esperienza</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
-            <div><Label>Tipo</Label><Select value={formData.type||'GITA_GOMMONE'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GITA_GOMMONE">Gita in Gommone</SelectItem><SelectItem value="GITA_BARCA">Gita in Barca</SelectItem><SelectItem value="VISITA_GUIDATA">Visita Guidata</SelectItem><SelectItem value="NOLEGGIO_NATANTE">Noleggio Natante</SelectItem></SelectContent></Select></div>
+            <div><Label>Tipo</Label>{(() => {
+              const stdSet = new Set(Object.keys(TYPE_LABELS));
+              const customMap = new globalThis.Map();
+              (experiences || []).forEach(e => {
+                if (e?.type && !stdSet.has(e.type) && !customMap.has(e.type)) {
+                  customMap.set(e.type, { value: e.type, label: '⚙️ ' + e.type.replace(/_/g,' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) });
+                }
+              });
+              return (
+                <Select value={formData.type||'GITA_GOMMONE'} onValueChange={v=>{
+                  if (v === '__custom__') {
+                    const customLabel = prompt('Inserisci il nome della nuova tipologia esperienza (es: "Tour Enogastronomico"):');
+                    if (customLabel && customLabel.trim()) {
+                      const slug = customLabel.trim().toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,'');
+                      if (slug) setFormData({...formData, type: slug});
+                    }
+                  } else {
+                    setFormData({...formData, type: v});
+                  }
+                }}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent className="max-h-80">
+                    {Object.entries(TYPE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+                    {[...customMap.values()].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                    <SelectItem value="__custom__" className="text-blue-600 font-semibold border-t mt-1 pt-2">
+                      ➕ Aggiungi tipologia personalizzata...
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              );
+            })()}
+            {formData.type && !Object.keys(TYPE_LABELS).includes(formData.type) && (
+              <p className="text-xs text-blue-600 mt-1">
+                Tipologia personalizzata: <code className="bg-blue-50 px-1 rounded">{formData.type}</code>
+              </p>
+            )}
+            </div>
             <div><Label>Descrizione</Label><Textarea value={formData.description||''} onChange={e=>setFormData({...formData,description:e.target.value})}/></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (min)</Label><Input type="number" value={formData.duration_minutes||''} onChange={e=>setFormData({...formData,duration_minutes:e.target.value})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
@@ -5991,7 +6046,43 @@ function AdminDashboard({ currentUser, onLogout }) {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Modifica Esperienza</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
-            <div><Label>Tipo</Label><Select value={formData.type||'GITA_GOMMONE'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GITA_GOMMONE">Gita in Gommone</SelectItem><SelectItem value="GITA_BARCA">Gita in Barca</SelectItem><SelectItem value="VISITA_GUIDATA">Visita Guidata</SelectItem><SelectItem value="NOLEGGIO_NATANTE">Noleggio Natante</SelectItem></SelectContent></Select></div>
+            <div><Label>Tipo</Label>{(() => {
+              const stdSet = new Set(Object.keys(TYPE_LABELS));
+              const customMap = new globalThis.Map();
+              (experiences || []).forEach(e => {
+                if (e?.type && !stdSet.has(e.type) && !customMap.has(e.type)) {
+                  customMap.set(e.type, { value: e.type, label: '⚙️ ' + e.type.replace(/_/g,' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) });
+                }
+              });
+              return (
+                <Select value={formData.type||'GITA_GOMMONE'} onValueChange={v=>{
+                  if (v === '__custom__') {
+                    const customLabel = prompt('Inserisci il nome della nuova tipologia esperienza (es: "Tour Enogastronomico"):');
+                    if (customLabel && customLabel.trim()) {
+                      const slug = customLabel.trim().toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,'');
+                      if (slug) setFormData({...formData, type: slug});
+                    }
+                  } else {
+                    setFormData({...formData, type: v});
+                  }
+                }}>
+                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectContent className="max-h-80">
+                    {Object.entries(TYPE_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+                    {[...customMap.values()].map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                    <SelectItem value="__custom__" className="text-blue-600 font-semibold border-t mt-1 pt-2">
+                      ➕ Aggiungi tipologia personalizzata...
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              );
+            })()}
+            {formData.type && !Object.keys(TYPE_LABELS).includes(formData.type) && (
+              <p className="text-xs text-blue-600 mt-1">
+                Tipologia personalizzata: <code className="bg-blue-50 px-1 rounded">{formData.type}</code>
+              </p>
+            )}
+            </div>
             <div><Label>Descrizione</Label><Textarea value={formData.description||''} onChange={e=>setFormData({...formData,description:e.target.value})}/></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (ore)</Label><Input type="number" value={formData.duration_hours||''} onChange={e=>setFormData({...formData,duration_hours:e.target.value,duration_minutes:e.target.value*60})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
