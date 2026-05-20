@@ -12,8 +12,12 @@ const CATEGORY_LABEL = {
   BOAT: 'Barca',
 };
 
-// Carica un'immagine come dataURL (per inserirla nel PDF)
+// Carica un'immagine come dataURL (per inserirla nel PDF) con timeout di 3s
 const loadImageAsDataUrl = (url) => new Promise((resolve) => {
+  let done = false;
+  const finish = (val) => { if (!done) { done = true; resolve(val); } };
+  // Timeout di 3s per evitare blocchi in ambienti headless
+  setTimeout(() => finish(null), 3000);
   try {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -24,12 +28,12 @@ const loadImageAsDataUrl = (url) => new Promise((resolve) => {
         canvas.height = img.naturalHeight || img.height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
-        resolve({ dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height });
-      } catch { resolve(null); }
+        finish({ dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height });
+      } catch { finish(null); }
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => finish(null);
     img.src = url;
-  } catch { resolve(null); }
+  } catch { finish(null); }
 });
 
 export async function generateRentalVoucherPdf(booking, unit, company, opts = {}) {

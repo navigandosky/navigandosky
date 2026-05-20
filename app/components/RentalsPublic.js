@@ -301,7 +301,7 @@ export function RentalDetailPage({ unit, setView }) {
                 onClick={async () => {
                   try {
                     toast.loading('Generazione PDF...', { id: 'pdf-public' });
-                    const { downloadRentalVoucherPdf } = await import('@/lib/rentalVoucherPdf');
+                    const { downloadRentalVoucherPdf } = await import('@/app/lib/rentalVoucherPdf');
                     await downloadRentalVoucherPdf(submitted, unit, {});
                     toast.success('Voucher scaricato', { id: 'pdf-public' });
                   } catch (e) {

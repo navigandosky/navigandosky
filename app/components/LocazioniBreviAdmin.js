@@ -942,7 +942,7 @@ function BookingsTab({ bookings, units, reload }) {
         const res = await fetch(`/api/companies/${b.company_id}`);
         if (res.ok) company = await res.json();
       }
-      const { downloadRentalVoucherPdf } = await import('@/lib/rentalVoucherPdf');
+      const { downloadRentalVoucherPdf } = await import('@/app/lib/rentalVoucherPdf');
       await downloadRentalVoucherPdf(b, unit, company || {});
       toast.success('Voucher PDF scaricato', { id: 'pdf-rent' });
     } catch (e) {
