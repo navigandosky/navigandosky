@@ -6129,7 +6129,64 @@ function AdminDashboard({ currentUser, onLogout }) {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Nuova Risorsa</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Nome</Label><Input value={formData.name||''} onChange={e=>setFormData({...formData,name:e.target.value})}/></div>
-            <div><Label>Tipo</Label><Select value={formData.type||'GUIDE'} onValueChange={v=>setFormData({...formData,type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GUIDE">Guida</SelectItem><SelectItem value="BOAT">Imbarcazione</SelectItem></SelectContent></Select></div>
+            {(() => {
+              const STANDARD_TYPES = [
+                { value: 'GUIDE', label: '👤 Guida' },
+                { value: 'BOAT', label: '⛵ Imbarcazione' },
+                { value: 'SUP', label: '🏄 Tavola Sup' },
+                { value: 'CANOA', label: '🛶 Canoa' },
+                { value: 'GOMMONE_NOLEGGIO', label: '🚤 Gommone Noleggio' },
+                { value: 'STANZA', label: '🛏️ Stanza' },
+                { value: 'APPARTAMENTO', label: '🏠 Appartamento' },
+                { value: 'VILLA', label: '🏡 Villa' },
+                { value: 'POSTO_EVENTO', label: '🎪 Posto Evento' },
+                { value: 'POSTO_MANIFESTAZIONE', label: '🎉 Posto Manifestazione' },
+              ];
+              const stdSet = new Set(STANDARD_TYPES.map(t => t.value));
+              const customMap = new globalThis.Map();
+              (resources || []).forEach(r => {
+                if (r?.type && !stdSet.has(r.type) && !customMap.has(r.type)) {
+                  customMap.set(r.type, { value: r.type, label: '⚙️ ' + r.type.replace(/_/g,' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) });
+                }
+              });
+              const allTypes = [...STANDARD_TYPES, ...customMap.values()];
+              return (
+                <div>
+                  <Label>Tipo</Label>
+                  <Select value={formData.type||'GUIDE'} onValueChange={v=>{
+                    if (v === '__custom__') {
+                      const customLabel = prompt('Inserisci il nome della nuova tipologia (es: "Bici Elettrica"):');
+                      if (customLabel && customLabel.trim()) {
+                        const slug = customLabel.trim().toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,'');
+                        if (slug) setFormData({...formData, type: slug});
+                      }
+                    } else {
+                      setFormData({...formData, type: v});
+                    }
+                  }}>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {allTypes.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      <SelectItem value="__custom__" className="text-blue-600 font-semibold border-t mt-1 pt-2">
+                        ➕ Aggiungi tipologia personalizzata...
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formData.type && !stdSet.has(formData.type) && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      Tipologia personalizzata: <code className="bg-blue-50 px-1 rounded">{formData.type}</code>
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+            {/* Mostra Capacità (posti) per tipologie pertinenti */}
+            {['SUP','CANOA','GOMMONE_NOLEGGIO','STANZA','APPARTAMENTO','VILLA','POSTO_EVENTO','POSTO_MANIFESTAZIONE'].includes(formData.type) && (
+              <div>
+                <Label>Capacità (posti)</Label>
+                <Input type="number" value={formData.capacity||''} onChange={e=>setFormData({...formData,capacity:e.target.value})} placeholder="Es: 4"/>
+              </div>
+            )}
             {formData.type==='BOAT'&&<><div><Label>Tipo Imbarcazione</Label><Select value={formData.boat_type||'GOMMONE'} onValueChange={v=>setFormData({...formData,boat_type:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="GOMMONE">Gommone</SelectItem><SelectItem value="NATANTE">Natante</SelectItem><SelectItem value="IMBARCAZIONE">Imbarcazione</SelectItem><SelectItem value="GOMMONE_SKIPPER">Gommone con Skipper</SelectItem><SelectItem value="BARCA_SKIPPER">Barca con Skipper</SelectItem><SelectItem value="BARCA_VELA_SKIPPER">Barca a Vela con Skipper</SelectItem><SelectItem value="BARCA">Barca</SelectItem></SelectContent></Select></div><div><Label>Capacita (posti)</Label><Input type="number" value={formData.capacity||''} onChange={e=>setFormData({...formData,capacity:e.target.value})}/></div><div className="grid grid-cols-2 gap-3"><div><Label>Marca Motore</Label><Input value={formData.marca||''} onChange={e=>setFormData({...formData,marca:e.target.value})} placeholder="es: Yamaha, Mercury"/></div><div><Label>Potenza (HP)</Label><Input type="number" value={formData.potenza_motore||''} onChange={e=>setFormData({...formData,potenza_motore:e.target.value})} placeholder="es: 150"/></div></div><div className="grid grid-cols-2 gap-3"><div><Label>Consumo Orario (L/h)</Label><Input type="number" step="0.1" value={formData.consumo_orario_litri||''} onChange={e=>setFormData({...formData,consumo_orario_litri:e.target.value})} placeholder="es: 25.5"/></div><div><Label>Ore Motore Inizio Stagione</Label><Input type="number" value={formData.ore_inizio_stagione||''} onChange={e=>setFormData({...formData,ore_inizio_stagione:e.target.value})} placeholder="es: 1250"/></div></div><div><Label>GPS IMEI (Balin.app)</Label><Input value={formData.gps_imei||''} onChange={e=>setFormData({...formData,gps_imei:e.target.value})} placeholder="359633109558000"/></div></>}
             <div><Label>Descrizione</Label><Textarea value={formData.bio||''} onChange={e=>setFormData({...formData,bio:e.target.value})}/></div>
             <div><Label>Email</Label><Input value={formData.email||''} onChange={e=>setFormData({...formData,email:e.target.value})}/></div>
