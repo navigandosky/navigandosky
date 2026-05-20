@@ -101,7 +101,6 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
     ['Partecipanti:', String(booking.seats || 1)],
   ];
   if (experience?.meeting_point) rows.push(['Ritrovo:', experience.meeting_point]);
-  if (experience?.meeting_point_map_url) rows.push(['Maps:', experience.meeting_point_map_url]);
   if (experience?.duration_minutes) rows.push(['Durata:', `${Math.floor(experience.duration_minutes / 60)}h ${experience.duration_minutes % 60}min`]);
 
   rows.forEach(([k, v]) => {
@@ -111,6 +110,25 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
     doc.text(split, valueCol, y);
     y += 5 * Math.max(1, split.length);
   });
+
+  // Link Google Maps cliccabile (sotto Ritrovo)
+  if (experience?.meeting_point_map_url) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(75, 85, 99);
+    doc.text('Maps:', labelCol, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(37, 99, 235); // blu link
+    const linkLabel = 'Apri in Google Maps →';
+    doc.textWithLink(linkLabel, valueCol, y, { url: experience.meeting_point_map_url });
+    // sottolineatura
+    const linkWidth = doc.getTextWidth(linkLabel);
+    doc.setDrawColor(37, 99, 235);
+    doc.setLineWidth(0.2);
+    doc.line(valueCol, y + 0.5, valueCol + linkWidth, y + 0.5);
+    doc.setTextColor(31, 41, 55); // reset
+    y += 5;
+  }
+
   y += 4;
 
   // Totale + stato

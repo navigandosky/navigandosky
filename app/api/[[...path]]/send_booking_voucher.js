@@ -57,6 +57,7 @@ function buildProvisionalVoucherHtml({ booking, experience, company, bankTransfe
       <tr><td style="padding:6px 0;color:#6b7280;width:140px;">Esperienza:</td><td style="padding:6px 0;"><strong>${experience?.name || booking.experience_name || '-'}</strong></td></tr>
       <tr><td style="padding:6px 0;color:#6b7280;">Data e ora:</td><td style="padding:6px 0;"><strong style="text-transform:capitalize;">${fmtDateTime(booking.slot_datetime)}</strong></td></tr>
       <tr><td style="padding:6px 0;color:#6b7280;">Partecipanti:</td><td style="padding:6px 0;"><strong>${booking.seats}</strong></td></tr>
+      ${experience?.meeting_point ? `<tr><td style="padding:6px 0;color:#6b7280;">Punto di ritrovo:</td><td style="padding:6px 0;"><strong>📍 ${experience.meeting_point}</strong>${experience?.meeting_point_map_url ? `<br><a href="${experience.meeting_point_map_url}" target="_blank" style="display:inline-block;margin-top:6px;padding:8px 14px;background:#4285F4;color:white;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;">🗺️ Apri in Google Maps</a>` : ''}</td></tr>` : ''}
       <tr><td style="padding:6px 0;color:#6b7280;">Totale:</td><td style="padding:6px 0;"><strong style="color:${baseColor};font-size:16px;">${fmtEur(booking.total_amount)}</strong></td></tr>
     </table>
 
