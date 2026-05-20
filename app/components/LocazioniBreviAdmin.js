@@ -58,33 +58,44 @@ export default function LocazioniBreviAdmin({ currentUser, isSuperAdmin }) {
   const [units, setUnits] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [agencies, setAgencies] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  // SuperAdmin global company filter (null = all)
+  const [saCompanyFilter, setSaCompanyFilter] = useState(null);
 
-  const companyId = currentUser?.company_id || null;
-  const qsCompany = companyId ? `?company_id=${companyId}` : '';
+  // Effective company_id for queries: company admin → their own; super admin → selected filter (or none)
+  const effectiveCompanyId = currentUser?.company_id || saCompanyFilter || null;
+  const qsCompany = effectiveCompanyId ? `?company_id=${effectiveCompanyId}` : '';
 
   // ------- Load Data -------
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [uRes, bRes, sRes, aRes] = await Promise.all([
+      const promises = [
         fetch(`/api/rental-units${qsCompany}`).then((r) => r.json()),
         fetch(`/api/rental-bookings${qsCompany}`).then((r) => r.json()),
         fetch(`/api/rental-stats${qsCompany}`).then((r) => r.json()),
         fetch(`/api/agencies${qsCompany}`).then((r) => r.json()).catch(() => []),
-      ]);
+      ];
+      // Load companies once (for SuperAdmin selector)
+      if (isSuperAdmin) {
+        promises.push(fetch('/api/companies').then((r) => r.json()).catch(() => []));
+      }
+      const results = await Promise.all(promises);
+      const [uRes, bRes, sRes, aRes, cRes] = results;
       setUnits(Array.isArray(uRes) ? uRes : []);
       setBookings(Array.isArray(bRes) ? bRes : []);
       setStats(sRes || null);
       setAgencies(Array.isArray(aRes) ? aRes : []);
+      if (isSuperAdmin) setCompanies(Array.isArray(cRes) ? cRes : []);
     } catch (e) {
       console.error(e);
       toast.error('Errore caricamento Locazioni Brevi');
     } finally {
       setLoading(false);
     }
-  }, [qsCompany]);
+  }, [qsCompany, isSuperAdmin]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -105,6 +116,33 @@ export default function LocazioniBreviAdmin({ currentUser, isSuperAdmin }) {
         </Button>
       </div>
 
+      {/* SuperAdmin Company Filter */}
+      {isSuperAdmin && companies.length > 0 && (
+        <Card className="border-2 border-purple-200 bg-purple-50">
+          <CardContent className="py-3 flex items-center gap-3 flex-wrap">
+            <Badge className="bg-purple-600">SUPER ADMIN</Badge>
+            <Label className="text-sm font-semibold">Vista Company:</Label>
+            <Select value={saCompanyFilter || 'ALL'} onValueChange={(v) => setSaCompanyFilter(v === 'ALL' ? null : v)}>
+              <SelectTrigger className="w-[260px] bg-white"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">🌐 Tutte le Company (globale)</SelectItem>
+                {companies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>🏢 {c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {saCompanyFilter && (
+              <Badge className="bg-amber-500 text-white">
+                Filtro attivo: {companies.find((c) => c.id === saCompanyFilter)?.name || ''}
+              </Badge>
+            )}
+            <span className="text-xs text-purple-700 ml-auto">
+              Nuove unità verranno create per la company selezionata
+            </span>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1 bg-slate-100">
           <TabsTrigger value="dashboard"><CalIcon className="w-4 h-4 mr-1.5" />Dashboard</TabsTrigger>
@@ -119,7 +157,7 @@ export default function LocazioniBreviAdmin({ currentUser, isSuperAdmin }) {
         </TabsContent>
 
         <TabsContent value="units">
-          <UnitsTab units={units} companyId={companyId} reload={load} />
+          <UnitsTab units={units} companyId={effectiveCompanyId} reload={load} isSuperAdmin={isSuperAdmin} companies={companies} />
         </TabsContent>
 
         <TabsContent value="calendar">
@@ -131,7 +169,7 @@ export default function LocazioniBreviAdmin({ currentUser, isSuperAdmin }) {
         </TabsContent>
 
         <TabsContent value="new-booking">
-          <NewBookingTab units={units} agencies={agencies} companyId={companyId} reload={load} switchToBookings={() => setActiveTab('bookings')} />
+          <NewBookingTab units={units} agencies={agencies} companyId={effectiveCompanyId} reload={load} switchToBookings={() => setActiveTab('bookings')} isSuperAdmin={isSuperAdmin} companies={companies} />
         </TabsContent>
       </Tabs>
     </div>
@@ -272,7 +310,7 @@ function emptyUnit() {
   };
 }
 
-function UnitsTab({ units, companyId, reload }) {
+function UnitsTab({ units, companyId, reload, isSuperAdmin, companies }) {
   const [filterCat, setFilterCat] = useState('ALL');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null);
@@ -402,14 +440,16 @@ function UnitsTab({ units, companyId, reload }) {
           companyId={companyId}
           onClose={() => { setShowForm(false); setEditing(null); }}
           onSaved={() => { setShowForm(false); setEditing(null); reload(); }}
+          isSuperAdmin={isSuperAdmin}
+          companies={companies}
         />
       )}
     </div>
   );
 }
 
-function UnitFormDialog({ unit, companyId, onClose, onSaved }) {
-  const [form, setForm] = useState(unit);
+function UnitFormDialog({ unit, companyId, onClose, onSaved, isSuperAdmin, companies }) {
+  const [form, setForm] = useState({ ...unit, company_id: unit.company_id || companyId || null });
   const [saving, setSaving] = useState(false);
   const isEdit = !!unit.id;
   const cm = catMeta(form.category);
@@ -459,11 +499,15 @@ function UnitFormDialog({ unit, companyId, onClose, onSaved }) {
     e?.preventDefault();
     if (!form.name?.trim()) { toast.error('Nome obbligatorio'); return; }
     if (Number(form.base_price) < 0) { toast.error('Prezzo non valido'); return; }
+    if (isSuperAdmin && !form.company_id) {
+      toast.error('Seleziona la Company di destinazione');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         ...form,
-        company_id: companyId,
+        company_id: form.company_id || companyId || null,
         quantity: form.unit_mode === 'POOL' ? Number(form.quantity || 1) : 1,
         base_price: Number(form.base_price || 0),
         deposit_percentage: Number(form.deposit_percentage || 0),
@@ -512,6 +556,27 @@ function UnitFormDialog({ unit, companyId, onClose, onSaved }) {
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-4">
+          {/* Super Admin: Company selector */}
+          {isSuperAdmin && (
+            <Card className="border-purple-300 bg-purple-50">
+              <CardContent className="py-3">
+                <Label className="text-sm font-semibold flex items-center gap-2 mb-2">
+                  <Badge className="bg-purple-600 text-xs">SUPER ADMIN</Badge>
+                  Company di destinazione *
+                </Label>
+                <Select value={form.company_id || ''} onValueChange={(v) => set('company_id', v)}>
+                  <SelectTrigger className="bg-white"><SelectValue placeholder="Seleziona company..." /></SelectTrigger>
+                  <SelectContent>
+                    {(companies || []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>🏢 {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-purple-700 mt-1">L'unità sarà visibile solo agli utenti della company selezionata.</p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Categoria */}
           <div className="grid grid-cols-5 gap-2">
             {CATEGORIES.map((c) => {
@@ -1088,9 +1153,10 @@ function Info({ label, value }) {
 // =====================================================================
 // NEW BOOKING TAB
 // =====================================================================
-function NewBookingTab({ units, agencies, companyId, reload, switchToBookings }) {
+function NewBookingTab({ units, agencies, companyId, reload, switchToBookings, isSuperAdmin, companies }) {
   const activeUnits = useMemo(() => units.filter((u) => u.is_active), [units]);
   const [unitId, setUnitId] = useState('');
+  const [bookingCompanyId, setBookingCompanyId] = useState(companyId || '');
   const [startDate, setStartDate] = useState(todayISO());
   const [endDate, setEndDate] = useState(addDays(todayISO(), 1));
   const [quantity, setQuantity] = useState(1);
@@ -1103,6 +1169,16 @@ function NewBookingTab({ units, agencies, companyId, reload, switchToBookings })
   const [checking, setChecking] = useState(false);
   const [availability, setAvailability] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // Auto-prefill bookingCompanyId from selected unit (or fallback to companyId prop)
+  useEffect(() => {
+    if (unitId) {
+      const u = activeUnits.find((x) => x.id === unitId);
+      if (u?.company_id) setBookingCompanyId(u.company_id);
+    } else if (companyId) {
+      setBookingCompanyId(companyId);
+    }
+  }, [unitId, companyId, activeUnits]);
 
   const unit = useMemo(() => activeUnits.find((u) => u.id === unitId), [activeUnits, unitId]);
 
@@ -1163,7 +1239,7 @@ function NewBookingTab({ units, agencies, companyId, reload, switchToBookings })
         payment_method: paymentMethod,
         payment_status: paymentStatus,
         notes,
-        company_id: companyId,
+        company_id: bookingCompanyId || companyId || null,
         status: 'CONFIRMED',
       };
       const res = await fetch('/api/rental-bookings', {
