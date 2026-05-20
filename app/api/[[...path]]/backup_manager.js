@@ -269,6 +269,125 @@ export async function handleDeleteBackup(method, request, id) {
   }
 }
 
+// === POST /api/admin/backups/upload
+// Accetta un file .archive.gz esterno (es. backup scaricato su dispositivo esterno e ricaricato).
+// FormData: { file: <File>, note?: string }
+// Validazione:
+//   1) file presente con nome che finisce in .gz o .archive
+//   2) magic bytes gzip (0x1f 0x8b)
+//   3) mongorestore --dry-run per verificare struttura dump valida
+export async function handleUploadBackup(method, request) {
+  if (method !== 'POST') return json({ error: 'Use POST' }, 405);
+  if (!isSuperAdmin(request)) return json({ error: 'Solo Super Admin' }, 403);
+
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file');
+    const note = (formData.get('note') || '').toString().slice(0, 200);
+    const triggeredBy = (formData.get('triggered_by') || 'super_admin_import').toString().slice(0, 60);
+
+    if (!file || typeof file.arrayBuffer !== 'function') {
+      return json({ error: 'File mancante o non valido' }, 400);
+    }
+    const origName = file.name || 'upload.archive.gz';
+    if (!/\.(gz|archive)$/i.test(origName)) {
+      return json({ error: 'File deve avere estensione .gz o .archive' }, 400);
+    }
+    // Limite dimensione: 500 MB (sicurezza)
+    if (file.size > 500 * 1024 * 1024) {
+      return json({ error: 'File troppo grande (max 500 MB)' }, 413);
+    }
+
+    if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+    // Leggi i bytes e verifica magic gzip
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = Buffer.from(arrayBuffer);
+    if (bytes.length < 2 || bytes[0] !== 0x1f || bytes[1] !== 0x8b) {
+      return json({ error: 'Il file non è un archivio gzip valido (magic bytes mancanti)' }, 400);
+    }
+
+    // Nome file destinazione - genera nuovo timestamp per evitare collisioni
+    const ts = nowISO();
+    const filename = `maretrek-${ts}-UPLOAD.archive.gz`;
+    const manifestName = `maretrek-${ts}-UPLOAD.manifest.json`;
+    const filepath = path.join(BACKUP_DIR, filename);
+    const manifestPath = path.join(BACKUP_DIR, manifestName);
+
+    // Salva su disco
+    fs.writeFileSync(filepath, bytes);
+
+    // Verifica struttura tramite mongorestore --dryRun
+    const mongo = parseMongoUrl(process.env.MONGO_URL);
+    const verifyArgs = [
+      `--host=${mongo.host}`,
+      `--port=${mongo.port}`,
+      `--archive=${filepath}`,
+      '--gzip',
+      '--dryRun',
+      '--quiet',
+    ];
+    const verifyRes = spawnSync('mongorestore', verifyArgs, {
+      env: { ...process.env },
+      timeout: 60_000,
+      encoding: 'utf8',
+    });
+
+    let verificationOk = verifyRes.status === 0;
+    let verificationDetails = null;
+    if (!verificationOk) {
+      // Rimuovi file invalido e ritorna errore
+      try { fs.unlinkSync(filepath); } catch {}
+      return json({
+        error: 'File non riconosciuto come dump MongoDB valido',
+        details: (verifyRes.stderr || verifyRes.stdout || '').split('\n').slice(-5).join('\n'),
+      }, 400);
+    }
+    verificationDetails = (verifyRes.stdout || verifyRes.stderr || '').split('\n').slice(-3).join('\n');
+
+    // Manifest
+    const manifest = {
+      id: `bk_${ts}_UPLOAD`,
+      type: 'UPLOAD',
+      filename,
+      manifest_file: manifestName,
+      created_at: new Date().toISOString(),
+      size_bytes: bytes.length,
+      size_human: humanSize(bytes.length),
+      db_name: mongo.db,
+      original_filename: origName,
+      verification_passed: true,
+      verification_details: verificationDetails,
+      note: note || `Backup importato da file esterno: ${origName}`,
+      triggered_by: triggeredBy,
+      app_version: 'maretrek-1.0',
+    };
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+
+    return json({
+      ok: true,
+      message: 'Backup importato con successo',
+      backup: { ...manifest, _archive_exists: true },
+    });
+  } catch (e) {
+    console.error('[upload backup] exception:', e);
+    return json({ error: e.message }, 500);
+  }
+}
+
+function nowISO() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+}
+
+function humanSize(b) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  if (b < 1024 * 1024 * 1024) return `${(b / 1024 / 1024).toFixed(2)} MB`;
+  return `${(b / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
 function parseMongoUrl(url) {
   const m = (url || '').match(/^mongodb:\/\/(?:([^:]+):([^@]+)@)?([^:/]+)(?::(\d+))?\/([^?]+)/);
   if (!m) throw new Error(`Invalid MONGO_URL: ${url}`);

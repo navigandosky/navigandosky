@@ -1,0 +1,16 @@
+{
+  "id": "bk_2026-05-20_02-20-02_UPLOAD",
+  "type": "UPLOAD",
+  "filename": "maretrek-2026-05-20_02-20-02-UPLOAD.archive.gz",
+  "manifest_file": "maretrek-2026-05-20_02-20-02-UPLOAD.manifest.json",
+  "created_at": "2026-05-20T02:20:02.609Z",
+  "size_bytes": 266132,
+  "size_human": "259.9 KB",
+  "db_name": "maretrek",
+  "original_filename": "maretrek-2026-05-19_21-32-06-MANUAL.archive.gz",
+  "verification_passed": true,
+  "verification_details": "",
+  "note": "Test upload",
+  "triggered_by": "super_admin_import",
+  "app_version": "maretrek-1.0"
+}

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from 'sonner';
 import {
   Database, Download, Trash2, RotateCw, Play, AlertTriangle, CheckCircle2,
-  Clock, HardDrive, RefreshCw, Save, ShieldAlert, History, Plus
+  Clock, HardDrive, RefreshCw, Save, ShieldAlert, History, Plus, Upload, FileArchive
 } from 'lucide-react';
 
 /**
@@ -34,6 +34,13 @@ export default function BackupManager({ currentUser }) {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [newBackupNote, setNewBackupNote] = useState('');
   const [showNewDialog, setShowNewDialog] = useState(false);
+  // Upload backup esterno
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadNote, setUploadNote] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragActive, setDragActive] = useState(false);
 
   const headers = {
     'Content-Type': 'application/json',
@@ -147,6 +154,87 @@ export default function BackupManager({ currentUser }) {
       .catch(e => toast.error('Errore: ' + e.message));
   };
 
+  // === Upload backup esterno ===
+  const handleFileSelect = (file) => {
+    if (!file) return;
+    if (!/\.(gz|archive)$/i.test(file.name)) {
+      toast.error('File deve avere estensione .gz o .archive');
+      return;
+    }
+    if (file.size > 500 * 1024 * 1024) {
+      toast.error('File troppo grande (max 500 MB)');
+      return;
+    }
+    setUploadFile(file);
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile) {
+      toast.error('Seleziona prima un file');
+      return;
+    }
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Usa XHR per avere progresso upload
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const formData = new FormData();
+        formData.append('file', uploadFile);
+        if (uploadNote) formData.append('note', uploadNote);
+        formData.append('triggered_by', currentUser?.username || 'super_admin_import');
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const d = JSON.parse(xhr.responseText);
+              resolve(d);
+            } catch { resolve(null); }
+          } else {
+            let errMsg = `HTTP ${xhr.status}`;
+            try {
+              const d = JSON.parse(xhr.responseText);
+              errMsg = d.error || errMsg;
+            } catch {}
+            reject(new Error(errMsg));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Errore di rete'));
+        xhr.open('POST', '/api/admin/backups/upload');
+        xhr.setRequestHeader('X-User-Role', 'SUPER_ADMIN');
+        xhr.send(formData);
+      });
+
+      toast.success(`✅ Backup importato: ${uploadFile.name}`);
+      setShowUploadDialog(false);
+      setUploadFile(null);
+      setUploadNote('');
+      setUploadProgress(0);
+      await load();
+    } catch (e) {
+      toast.error('Errore upload: ' + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDragEnter = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(true); };
+  const handleDragLeave = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(false); };
+  const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleFileSelect(f);
+  };
+
   const formatDate = (iso) => {
     try {
       return new Date(iso).toLocaleString('it-IT', { dateStyle: 'medium', timeStyle: 'short' });
@@ -210,6 +298,9 @@ export default function BackupManager({ currentUser }) {
             <Button onClick={() => setShowNewDialog(true)} className="bg-emerald-600 hover:bg-emerald-700">
               <Plus className="w-4 h-4 mr-1" />Nuovo Backup Manuale
             </Button>
+            <Button onClick={() => setShowUploadDialog(true)} variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50">
+              <Upload className="w-4 h-4 mr-1" />Importa Backup Esterno
+            </Button>
             <Button variant="outline" onClick={load} disabled={loading}>
               <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />Aggiorna
             </Button>
@@ -263,7 +354,11 @@ export default function BackupManager({ currentUser }) {
                         <div className="text-xs text-slate-500">{formatDate(b.created_at)}</div>
                       </td>
                       <td className="py-2 px-2">
-                        <Badge variant="outline" className={b.type === 'AUTO' ? 'bg-emerald-50' : 'bg-blue-50'}>
+                        <Badge variant="outline" className={
+                          b.type === 'AUTO' ? 'bg-emerald-50' :
+                          b.type === 'MANUAL' ? 'bg-blue-50' :
+                          b.type === 'UPLOAD' ? 'bg-purple-50' : 'bg-slate-50'
+                        }>
                           {b.type}
                         </Badge>
                       </td>
@@ -420,6 +515,121 @@ export default function BackupManager({ currentUser }) {
               variant="destructive"
             >
               <Trash2 className="w-4 h-4 mr-1" />Elimina
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Dialog: Importa Backup Esterno */}
+      <Dialog open={showUploadDialog} onOpenChange={(o) => { if (!uploading) { setShowUploadDialog(o); if (!o) { setUploadFile(null); setUploadNote(''); setUploadProgress(0); } } }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-blue-600" />Importa Backup Esterno
+            </DialogTitle>
+            <DialogDescription>
+              Carica un file di backup MongoDB (<code>.archive.gz</code>) precedentemente
+              scaricato da questo sistema o da un altro ambiente. Il file verrà validato
+              automaticamente con <code>mongorestore --dryRun</code> prima di essere salvato.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {/* Drag & drop zone */}
+            <div
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById('bk-file-input')?.click()}
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition ${
+                dragActive ? 'border-blue-500 bg-blue-50' :
+                uploadFile ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+              }`}
+            >
+              <input
+                id="bk-file-input"
+                type="file"
+                accept=".gz,.archive"
+                className="hidden"
+                onChange={e => handleFileSelect(e.target.files?.[0])}
+                disabled={uploading}
+              />
+              {!uploadFile ? (
+                <>
+                  <FileArchive className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                  <div className="font-semibold text-sm">Trascina qui il file di backup</div>
+                  <div className="text-xs text-slate-500 mt-1">oppure clicca per selezionare dal dispositivo</div>
+                  <div className="text-xs text-slate-400 mt-2">Formati supportati: .archive.gz · Max 500 MB</div>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
+                  <div className="font-semibold text-sm text-emerald-800">{uploadFile.name}</div>
+                  <div className="text-xs text-slate-500 mt-1">{formatBytes(uploadFile.size)}</div>
+                  {!uploading && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setUploadFile(null); }}
+                      className="text-xs text-red-600 hover:underline mt-2"
+                    >
+                      Rimuovi e scegli un altro file
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Note campo */}
+            <div>
+              <Label htmlFor="up-note">Nota (opzionale)</Label>
+              <Input
+                id="up-note"
+                value={uploadNote}
+                onChange={e => setUploadNote(e.target.value)}
+                placeholder="Es: Backup da disco esterno datato 15/04"
+                disabled={uploading}
+                maxLength={200}
+              />
+            </div>
+
+            {/* Progress bar */}
+            {uploading && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-600">
+                  <span>Caricamento in corso...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-2 bg-gradient-to-r from-blue-500 to-emerald-500 transition-all"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs text-amber-800">
+              <strong>⚠️ Nota:</strong> dopo l'importazione, il backup sarà disponibile nell'indice
+              con tipo <Badge variant="outline" className="bg-purple-50">UPLOAD</Badge>.
+              Per ripristinare i dati nel database attuale, usa il pulsante <code>Ripristina</code>
+              (rotella) sulla riga corrispondente.
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUploadDialog(false)} disabled={uploading}>
+              Annulla
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={!uploadFile || uploading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {uploading ? (
+                <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />Caricamento {uploadProgress}%</>
+              ) : (
+                <><Upload className="w-4 h-4 mr-1" />Importa Backup</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

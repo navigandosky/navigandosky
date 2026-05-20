@@ -2280,7 +2280,11 @@ async function handleRoute(request, resolvedParams, method) {
     const { searchParams } = new URL(request.url);
     let body = null;
     if (['POST', 'PUT'].includes(method)) {
-      try { body = await request.json(); } catch (e) { body = {}; }
+      // Non consumare body per multipart/form-data: il handler farà request.formData()
+      const ct = (request.headers.get('content-type') || '').toLowerCase();
+      if (!ct.includes('multipart/form-data')) {
+        try { body = await request.json(); } catch (e) { body = {}; }
+      }
     }
     const entity = pathSegments[0];
     const id = pathSegments[1];
@@ -2451,6 +2455,8 @@ async function handleRoute(request, resolvedParams, method) {
           if (!sub2) return await bm.handleListBackups(method, request);
           // /api/admin/backups/create (POST)
           if (sub2 === 'create' && !sub3) return await bm.handleCreateBackup(method, request, body);
+          // /api/admin/backups/upload (POST multipart)
+          if (sub2 === 'upload' && !sub3) return await bm.handleUploadBackup(method, request);
           // /api/admin/backups/{id}/download (GET)
           if (sub3 === 'download') return await bm.handleDownloadBackup(method, request, sub2);
           // /api/admin/backups/{id}/restore (POST)

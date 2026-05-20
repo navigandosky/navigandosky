@@ -1,590 +1,377 @@
 #!/usr/bin/env python3
 """
-MongoDB Backup System Backend Testing
-Tests all backup endpoints with proper authorization and validation
+MongoDB Backup Upload Endpoint Testing
+Tests the NEW POST /api/admin/backups/upload endpoint
 """
 
 import requests
-import json
 import os
-import time
-from typing import Dict, Any, Optional
+import gzip
+import tempfile
+from pathlib import Path
 
-# Read base URL from .env
-BASE_URL = None
-with open('/app/.env', 'r') as f:
-    for line in f:
-        if line.startswith('NEXT_PUBLIC_BASE_URL='):
-            BASE_URL = line.split('=', 1)[1].strip()
-            break
-
-if not BASE_URL:
-    raise Exception("NEXT_PUBLIC_BASE_URL not found in .env")
-
+# Base URL from environment
+BASE_URL = "https://sardinia-tours-hub.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
-BACKUP_DIR = "/app/backups"
 
-# Test counters
-tests_passed = 0
-tests_failed = 0
-test_results = []
+# Test results tracking
+test_results = {
+    "passed": 0,
+    "failed": 0,
+    "tests": []
+}
 
-def log_test(test_name: str, passed: bool, details: str = ""):
+def log_test(name, passed, details=""):
     """Log test result"""
-    global tests_passed, tests_failed
     status = "✅ PASS" if passed else "❌ FAIL"
-    print(f"{status}: {test_name}")
+    print(f"\n{status}: {name}")
     if details:
         print(f"  Details: {details}")
     
-    test_results.append({
-        "test": test_name,
+    test_results["tests"].append({
+        "name": name,
         "passed": passed,
         "details": details
     })
-    
     if passed:
-        tests_passed += 1
+        test_results["passed"] += 1
     else:
-        tests_failed += 1
+        test_results["failed"] += 1
 
-def test_list_backups_without_auth():
-    """TEST 1: GET /api/admin/backups without X-User-Role header should return 403"""
-    try:
-        response = requests.get(f"{API_BASE}/admin/backups", timeout=10)
+def print_summary():
+    """Print test summary"""
+    total = test_results["passed"] + test_results["failed"]
+    print("\n" + "="*80)
+    print(f"TEST SUMMARY: {test_results['passed']}/{total} tests passed")
+    print("="*80)
+    for test in test_results["tests"]:
+        status = "✅" if test["passed"] else "❌"
+        print(f"{status} {test['name']}")
+    print("="*80)
+
+# Headers for authenticated requests
+AUTH_HEADERS = {
+    "X-User-Role": "SUPER_ADMIN"
+}
+
+print("="*80)
+print("MONGODB BACKUP UPLOAD ENDPOINT TESTING")
+print("="*80)
+print(f"Base URL: {BASE_URL}")
+print(f"Testing endpoint: POST /api/admin/backups/upload")
+print("="*80)
+
+# Store uploaded backup ID for cleanup
+uploaded_backup_id = None
+
+# ============================================================================
+# TEST 1: Happy path - valid backup upload
+# ============================================================================
+print("\n\n### TEST 1: Happy path - Upload valid backup file")
+try:
+    # Get an existing backup file from /app/backups/
+    backup_dir = Path("/app/backups")
+    backup_files = list(backup_dir.glob("*.archive.gz"))
+    
+    if not backup_files:
+        log_test("Test 1 - Happy path", False, "No backup files found in /app/backups/")
+    else:
+        # Use the first available backup file
+        backup_file = backup_files[0]
+        print(f"Using backup file: {backup_file.name}")
         
-        if response.status_code == 403:
-            data = response.json()
-            if data.get('error') == 'Solo Super Admin':
-                log_test("List backups without auth returns 403", True, "Correct error message")
-                return True
+        with open(backup_file, 'rb') as f:
+            files = {
+                'file': (backup_file.name, f, 'application/gzip')
+            }
+            data = {
+                'note': 'Test upload from test_agent',
+                'triggered_by': 'test_agent'
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/admin/backups/upload",
+                headers=AUTH_HEADERS,
+                files=files,
+                data=data,
+                timeout=60
+            )
+        
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text[:500]}")
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('ok') and result.get('backup'):
+                backup = result['backup']
+                uploaded_backup_id = backup.get('id')
+                
+                # Verify backup structure
+                required_fields = ['id', 'type', 'filename', 'size_bytes', 'verification_passed', 'original_filename']
+                missing_fields = [f for f in required_fields if f not in backup]
+                
+                if missing_fields:
+                    log_test("Test 1 - Happy path", False, f"Missing fields: {missing_fields}")
+                elif backup['type'] != 'UPLOAD':
+                    log_test("Test 1 - Happy path", False, f"Expected type='UPLOAD', got '{backup['type']}'")
+                elif not backup['verification_passed']:
+                    log_test("Test 1 - Happy path", False, "verification_passed is False")
+                else:
+                    # Verify backup appears in list
+                    list_response = requests.get(
+                        f"{API_BASE}/admin/backups",
+                        headers=AUTH_HEADERS,
+                        timeout=30
+                    )
+                    
+                    if list_response.status_code == 200:
+                        backups_list = list_response.json().get('backups', [])
+                        found = any(b['id'] == uploaded_backup_id for b in backups_list)
+                        
+                        if found:
+                            log_test("Test 1 - Happy path", True, 
+                                   f"Backup uploaded successfully with ID: {uploaded_backup_id}, type=UPLOAD, verification_passed=True")
+                        else:
+                            log_test("Test 1 - Happy path", False, "Uploaded backup not found in list")
+                    else:
+                        log_test("Test 1 - Happy path", False, f"Failed to verify backup in list: {list_response.status_code}")
             else:
-                log_test("List backups without auth returns 403", False, f"Wrong error message: {data.get('error')}")
-                return False
+                log_test("Test 1 - Happy path", False, f"Response missing 'ok' or 'backup': {result}")
         else:
-            log_test("List backups without auth returns 403", False, f"Expected 403, got {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("List backups without auth returns 403", False, f"Exception: {str(e)}")
-        return False
+            log_test("Test 1 - Happy path", False, f"Expected 200, got {response.status_code}: {response.text[:200]}")
+            
+except Exception as e:
+    log_test("Test 1 - Happy path", False, f"Exception: {str(e)}")
 
-def test_list_backups_with_auth():
-    """TEST 2: GET /api/admin/backups with SUPER_ADMIN header should return 200 with proper structure"""
-    try:
-        headers = {"X-User-Role": "SUPER_ADMIN"}
-        response = requests.get(f"{API_BASE}/admin/backups", headers=headers, timeout=10)
+# ============================================================================
+# TEST 2: Unauthorized - no X-User-Role header
+# ============================================================================
+print("\n\n### TEST 2: Unauthorized - Upload without X-User-Role header")
+try:
+    backup_dir = Path("/app/backups")
+    backup_files = list(backup_dir.glob("*.archive.gz"))
+    
+    if backup_files:
+        backup_file = backup_files[0]
         
-        if response.status_code != 200:
-            log_test("List backups with auth returns 200", False, f"Expected 200, got {response.status_code}")
-            return False, None
+        with open(backup_file, 'rb') as f:
+            files = {
+                'file': (backup_file.name, f, 'application/gzip')
+            }
+            
+            # No auth headers
+            response = requests.post(
+                f"{API_BASE}/admin/backups/upload",
+                files=files,
+                timeout=30
+            )
         
-        data = response.json()
-        
-        # Check required fields
-        required_fields = ['ok', 'backups', 'totals', 'scheduler', 'backup_dir']
-        missing_fields = [f for f in required_fields if f not in data]
-        
-        if missing_fields:
-            log_test("List backups with auth returns 200", False, f"Missing fields: {missing_fields}")
-            return False, None
-        
-        # Check ok is true
-        if data['ok'] != True:
-            log_test("List backups with auth returns 200", False, f"ok field is {data['ok']}, expected True")
-            return False, None
-        
-        # Check backups is array
-        if not isinstance(data['backups'], list):
-            log_test("List backups with auth returns 200", False, "backups is not an array")
-            return False, None
-        
-        # Check totals structure
-        totals = data['totals']
-        totals_fields = ['size_bytes', 'auto', 'manual', 'total_documents']
-        missing_totals = [f for f in totals_fields if f not in totals]
-        if missing_totals:
-            log_test("List backups with auth returns 200", False, f"Missing totals fields: {missing_totals}")
-            return False, None
-        
-        # Check scheduler structure
-        scheduler = data['scheduler']
-        if not scheduler:
-            log_test("List backups with auth returns 200", False, "scheduler is null or missing")
-            return False, None
-        
-        scheduler_fields = ['initialized', 'cron_expression', 'timezone', 'next_run']
-        missing_scheduler = [f for f in scheduler_fields if f not in scheduler]
-        if missing_scheduler:
-            log_test("List backups with auth returns 200", False, f"Missing scheduler fields: {missing_scheduler}")
-            return False, None
-        
-        # Verify scheduler is initialized
-        if scheduler['initialized'] != True:
-            log_test("List backups with auth returns 200", False, f"scheduler.initialized is {scheduler['initialized']}, expected True")
-            return False, None
-        
-        # Verify cron expression
-        if scheduler['cron_expression'] != '30 23 * * *':
-            log_test("List backups with auth returns 200", False, f"cron_expression is {scheduler['cron_expression']}, expected '30 23 * * *'")
-            return False, None
-        
-        # Verify timezone
-        if scheduler['timezone'] != 'Europe/Rome':
-            log_test("List backups with auth returns 200", False, f"timezone is {scheduler['timezone']}, expected 'Europe/Rome'")
-            return False, None
-        
-        # Verify backup_dir
-        if data['backup_dir'] != '/app/backups':
-            log_test("List backups with auth returns 200", False, f"backup_dir is {data['backup_dir']}, expected '/app/backups'")
-            return False, None
-        
-        details = f"Found {len(data['backups'])} backups, scheduler initialized: {scheduler['initialized']}, next_run: {scheduler.get('next_run', 'N/A')}"
-        log_test("List backups with auth returns 200", True, details)
-        return True, data
-    except Exception as e:
-        log_test("List backups with auth returns 200", False, f"Exception: {str(e)}")
-        return False, None
-
-def test_create_backup_without_auth():
-    """TEST 3: POST /api/admin/backups/create without auth should return 403"""
-    try:
-        payload = {"note": "Test backup", "triggered_by": "test_agent"}
-        response = requests.post(f"{API_BASE}/admin/backups/create", json=payload, timeout=120)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text[:200]}")
         
         if response.status_code == 403:
-            data = response.json()
-            if data.get('error') == 'Solo Super Admin':
-                log_test("Create backup without auth returns 403", True, "Correct error message")
-                return True
-            else:
-                log_test("Create backup without auth returns 403", False, f"Wrong error message: {data.get('error')}")
-                return False
+            log_test("Test 2 - Unauthorized", True, "Correctly returned 403 without auth header")
         else:
-            log_test("Create backup without auth returns 403", False, f"Expected 403, got {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("Create backup without auth returns 403", False, f"Exception: {str(e)}")
-        return False
+            log_test("Test 2 - Unauthorized", False, f"Expected 403, got {response.status_code}")
+    else:
+        log_test("Test 2 - Unauthorized", False, "No backup files available for testing")
+        
+except Exception as e:
+    log_test("Test 2 - Unauthorized", False, f"Exception: {str(e)}")
 
-def test_create_backup_with_auth():
-    """TEST 4: POST /api/admin/backups/create with auth should create backup and return 200"""
+# ============================================================================
+# TEST 3: Invalid extension - upload .txt file
+# ============================================================================
+print("\n\n### TEST 3: Invalid extension - Upload .txt file")
+try:
+    # Create a temporary text file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as tmp:
+        tmp.write("This is a test text file, not a backup")
+        tmp_path = tmp.name
+    
     try:
-        headers = {"X-User-Role": "SUPER_ADMIN", "Content-Type": "application/json"}
-        payload = {"note": "Test automated backup from test_agent", "triggered_by": "test_agent"}
+        with open(tmp_path, 'rb') as f:
+            files = {
+                'file': ('test.txt', f, 'text/plain')
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/admin/backups/upload",
+                headers=AUTH_HEADERS,
+                files=files,
+                timeout=30
+            )
         
-        print("  Creating backup (this may take 30-60 seconds)...")
-        response = requests.post(f"{API_BASE}/admin/backups/create", headers=headers, json=payload, timeout=120)
-        
-        if response.status_code != 200:
-            log_test("Create backup with auth returns 200", False, f"Expected 200, got {response.status_code}: {response.text}")
-            return False, None
-        
-        data = response.json()
-        
-        # Check required fields
-        if data.get('ok') != True:
-            log_test("Create backup with auth returns 200", False, f"ok field is {data.get('ok')}, expected True")
-            return False, None
-        
-        if 'backup' not in data:
-            log_test("Create backup with auth returns 200", False, "backup field missing in response")
-            return False, None
-        
-        if 'elapsed_ms' not in data:
-            log_test("Create backup with auth returns 200", False, "elapsed_ms field missing in response")
-            return False, None
-        
-        backup = data['backup']
-        
-        # Check backup structure
-        backup_fields = ['id', 'type', 'filename', 'manifest_file', 'created_at', 'size_bytes', 'size_human', 'db_name', 'collections', 'total_documents', 'note', 'triggered_by']
-        missing_fields = [f for f in backup_fields if f not in backup]
-        if missing_fields:
-            log_test("Create backup with auth returns 200", False, f"Missing backup fields: {missing_fields}")
-            return False, None
-        
-        # Verify type is MANUAL
-        if backup['type'] != 'MANUAL':
-            log_test("Create backup with auth returns 200", False, f"backup type is {backup['type']}, expected MANUAL")
-            return False, None
-        
-        # Verify note
-        if backup['note'] != "Test automated backup from test_agent":
-            log_test("Create backup with auth returns 200", False, f"note mismatch: {backup['note']}")
-            return False, None
-        
-        # Verify triggered_by
-        if backup['triggered_by'] != 'test_agent':
-            log_test("Create backup with auth returns 200", False, f"triggered_by is {backup['triggered_by']}, expected test_agent")
-            return False, None
-        
-        # Verify file exists
-        backup_file = os.path.join(BACKUP_DIR, backup['filename'])
-        if not os.path.exists(backup_file):
-            log_test("Create backup with auth returns 200", False, f"Backup file not found: {backup_file}")
-            return False, None
-        
-        # Verify manifest exists
-        manifest_file = os.path.join(BACKUP_DIR, backup['manifest_file'])
-        if not os.path.exists(manifest_file):
-            log_test("Create backup with auth returns 200", False, f"Manifest file not found: {manifest_file}")
-            return False, None
-        
-        details = f"Backup created: {backup['id']}, size: {backup['size_human']}, documents: {backup['total_documents']}, elapsed: {data['elapsed_ms']}ms"
-        log_test("Create backup with auth returns 200", True, details)
-        return True, backup
-    except Exception as e:
-        log_test("Create backup with auth returns 200", False, f"Exception: {str(e)}")
-        return False, None
-
-def test_backup_appears_in_list(backup_id: str):
-    """TEST 5: Verify created backup appears in GET /api/admin/backups"""
-    try:
-        headers = {"X-User-Role": "SUPER_ADMIN"}
-        response = requests.get(f"{API_BASE}/admin/backups", headers=headers, timeout=10)
-        
-        if response.status_code != 200:
-            log_test("Created backup appears in list", False, f"GET returned {response.status_code}")
-            return False
-        
-        data = response.json()
-        backups = data.get('backups', [])
-        
-        # Find backup by id
-        found = any(b['id'] == backup_id for b in backups)
-        
-        if found:
-            log_test("Created backup appears in list", True, f"Backup {backup_id} found in list")
-            return True
-        else:
-            log_test("Created backup appears in list", False, f"Backup {backup_id} not found in list of {len(backups)} backups")
-            return False
-    except Exception as e:
-        log_test("Created backup appears in list", False, f"Exception: {str(e)}")
-        return False
-
-def test_download_backup_without_auth(backup_id: str):
-    """TEST 6: GET /api/admin/backups/{id}/download without auth should return 403"""
-    try:
-        response = requests.get(f"{API_BASE}/admin/backups/{backup_id}/download", timeout=10)
-        
-        if response.status_code == 403:
-            # For download endpoint, response might be JSON or text
-            try:
-                data = response.json()
-                if data.get('error') == 'Solo Super Admin':
-                    log_test("Download backup without auth returns 403", True, "Correct error message")
-                    return True
-            except:
-                pass
-            log_test("Download backup without auth returns 403", True, "Returns 403")
-            return True
-        else:
-            log_test("Download backup without auth returns 403", False, f"Expected 403, got {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("Download backup without auth returns 403", False, f"Exception: {str(e)}")
-        return False
-
-def test_download_backup_with_auth(backup_id: str):
-    """TEST 7: GET /api/admin/backups/{id}/download with auth should return gzip file"""
-    try:
-        headers = {"X-User-Role": "SUPER_ADMIN"}
-        response = requests.get(f"{API_BASE}/admin/backups/{backup_id}/download", headers=headers, timeout=30)
-        
-        if response.status_code != 200:
-            log_test("Download backup with auth returns 200", False, f"Expected 200, got {response.status_code}")
-            return False
-        
-        # Check Content-Type
-        content_type = response.headers.get('Content-Type', '')
-        if 'application/gzip' not in content_type:
-            log_test("Download backup with auth returns 200", False, f"Content-Type is {content_type}, expected application/gzip")
-            return False
-        
-        # Check Content-Disposition
-        content_disposition = response.headers.get('Content-Disposition', '')
-        if 'attachment' not in content_disposition:
-            log_test("Download backup with auth returns 200", False, f"Content-Disposition missing attachment: {content_disposition}")
-            return False
-        
-        # Check body is non-empty
-        if len(response.content) == 0:
-            log_test("Download backup with auth returns 200", False, "Response body is empty")
-            return False
-        
-        details = f"Downloaded {len(response.content)} bytes, Content-Type: {content_type}"
-        log_test("Download backup with auth returns 200", True, details)
-        return True
-    except Exception as e:
-        log_test("Download backup with auth returns 200", False, f"Exception: {str(e)}")
-        return False
-
-def test_download_nonexistent_backup():
-    """TEST 8: GET /api/admin/backups/{nonexistent_id}/download should return 404"""
-    try:
-        headers = {"X-User-Role": "SUPER_ADMIN"}
-        response = requests.get(f"{API_BASE}/admin/backups/nonexistent_backup_id_12345/download", headers=headers, timeout=10)
-        
-        if response.status_code == 404:
-            log_test("Download non-existent backup returns 404", True, "Correct 404 response")
-            return True
-        else:
-            log_test("Download non-existent backup returns 404", False, f"Expected 404, got {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("Download non-existent backup returns 404", False, f"Exception: {str(e)}")
-        return False
-
-def test_restore_without_confirm(backup_id: str):
-    """TEST 9: POST /api/admin/backups/{id}/restore without confirm should return 400"""
-    try:
-        headers = {"X-User-Role": "SUPER_ADMIN", "Content-Type": "application/json"}
-        payload = {}
-        response = requests.post(f"{API_BASE}/admin/backups/{backup_id}/restore", headers=headers, json=payload, timeout=10)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text[:200]}")
         
         if response.status_code == 400:
-            data = response.json()
-            error = data.get('error', '')
-            if 'RIPRISTINA-DEFINITIVO' in error:
-                log_test("Restore without confirm returns 400", True, "Correct error message about RIPRISTINA-DEFINITIVO")
-                return True
+            result = response.json()
+            if 'estensione' in result.get('error', '').lower() or 'extension' in result.get('error', '').lower():
+                log_test("Test 3 - Invalid extension", True, "Correctly rejected .txt file with 400")
             else:
-                log_test("Restore without confirm returns 400", False, f"Wrong error message: {error}")
-                return False
+                log_test("Test 3 - Invalid extension", False, f"Got 400 but wrong error message: {result.get('error')}")
         else:
-            log_test("Restore without confirm returns 400", False, f"Expected 400, got {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("Restore without confirm returns 400", False, f"Exception: {str(e)}")
-        return False
+            log_test("Test 3 - Invalid extension", False, f"Expected 400, got {response.status_code}")
+    finally:
+        os.unlink(tmp_path)
+        
+except Exception as e:
+    log_test("Test 3 - Invalid extension", False, f"Exception: {str(e)}")
 
-def test_restore_with_wrong_confirm(backup_id: str):
-    """TEST 10: POST /api/admin/backups/{id}/restore with wrong confirm value should return 400"""
+# ============================================================================
+# TEST 4: Not a gzip - file without gzip magic bytes
+# ============================================================================
+print("\n\n### TEST 4: Not a gzip - File without gzip magic bytes")
+try:
+    # Create a file with .archive.gz extension but not gzip content
+    with tempfile.NamedTemporaryFile(mode='wb', suffix='.archive.gz', delete=False) as tmp:
+        tmp.write(b"This is not gzip content, just plain text")
+        tmp_path = tmp.name
+    
     try:
-        headers = {"X-User-Role": "SUPER_ADMIN", "Content-Type": "application/json"}
-        payload = {"confirm": "wrong-value"}
-        response = requests.post(f"{API_BASE}/admin/backups/{backup_id}/restore", headers=headers, json=payload, timeout=10)
+        with open(tmp_path, 'rb') as f:
+            files = {
+                'file': ('fake.archive.gz', f, 'application/gzip')
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/admin/backups/upload",
+                headers=AUTH_HEADERS,
+                files=files,
+                timeout=30
+            )
+        
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text[:200]}")
         
         if response.status_code == 400:
-            data = response.json()
-            error = data.get('error', '')
-            if 'RIPRISTINA-DEFINITIVO' in error:
-                log_test("Restore with wrong confirm returns 400", True, "Correct error message")
-                return True
+            result = response.json()
+            error_msg = result.get('error', '').lower()
+            if 'magic' in error_msg or 'gzip' in error_msg:
+                log_test("Test 4 - Not a gzip", True, "Correctly rejected non-gzip file with 400")
             else:
-                log_test("Restore with wrong confirm returns 400", False, f"Wrong error message: {error}")
-                return False
+                log_test("Test 4 - Not a gzip", False, f"Got 400 but wrong error message: {result.get('error')}")
         else:
-            log_test("Restore with wrong confirm returns 400", False, f"Expected 400, got {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("Restore with wrong confirm returns 400", False, f"Exception: {str(e)}")
-        return False
-
-def test_restore_nonexistent_backup():
-    """TEST 11: POST /api/admin/backups/{nonexistent_id}/restore should return 404"""
-    try:
-        headers = {"X-User-Role": "SUPER_ADMIN", "Content-Type": "application/json"}
-        payload = {"confirm": "RIPRISTINA-DEFINITIVO"}
-        response = requests.post(f"{API_BASE}/admin/backups/nonexistent_backup_id_12345/restore", headers=headers, json=payload, timeout=10)
+            log_test("Test 4 - Not a gzip", False, f"Expected 400, got {response.status_code}")
+    finally:
+        os.unlink(tmp_path)
         
-        if response.status_code == 404:
-            log_test("Restore non-existent backup returns 404", True, "Correct 404 response")
-            return True
-        else:
-            log_test("Restore non-existent backup returns 404", False, f"Expected 404, got {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("Restore non-existent backup returns 404", False, f"Exception: {str(e)}")
-        return False
+except Exception as e:
+    log_test("Test 4 - Not a gzip", False, f"Exception: {str(e)}")
 
-def test_delete_backup_without_auth(backup_id: str):
-    """TEST 12: DELETE /api/admin/backups/{id} without auth should return 403"""
+# ============================================================================
+# TEST 5: Invalid dump - valid gzip but not a mongodump
+# ============================================================================
+print("\n\n### TEST 5: Invalid dump - Valid gzip but not a mongodump")
+try:
+    # Create a valid gzip file with random content (not a mongodump)
+    with tempfile.NamedTemporaryFile(mode='wb', suffix='.archive.gz', delete=False) as tmp:
+        # Write gzip-compressed random content
+        with gzip.open(tmp.name, 'wb') as gz:
+            gz.write(b"This is random content, not a MongoDB dump\n" * 100)
+        tmp_path = tmp.name
+    
     try:
-        response = requests.delete(f"{API_BASE}/admin/backups/{backup_id}", timeout=10)
+        with open(tmp_path, 'rb') as f:
+            files = {
+                'file': ('random.archive.gz', f, 'application/gzip')
+            }
+            
+            response = requests.post(
+                f"{API_BASE}/admin/backups/upload",
+                headers=AUTH_HEADERS,
+                files=files,
+                timeout=60
+            )
         
-        if response.status_code == 403:
-            data = response.json()
-            if data.get('error') == 'Solo Super Admin':
-                log_test("Delete backup without auth returns 403", True, "Correct error message")
-                return True
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text[:300]}")
+        
+        if response.status_code == 400:
+            result = response.json()
+            error_msg = result.get('error', '').lower()
+            if 'dump' in error_msg or 'mongodb' in error_msg or 'valido' in error_msg:
+                log_test("Test 5 - Invalid dump", True, "Correctly rejected invalid MongoDB dump with 400")
             else:
-                log_test("Delete backup without auth returns 403", False, f"Wrong error message: {data.get('error')}")
-                return False
+                log_test("Test 5 - Invalid dump", False, f"Got 400 but wrong error message: {result.get('error')}")
         else:
-            log_test("Delete backup without auth returns 403", False, f"Expected 403, got {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("Delete backup without auth returns 403", False, f"Exception: {str(e)}")
-        return False
+            log_test("Test 5 - Invalid dump", False, f"Expected 400, got {response.status_code}")
+    finally:
+        os.unlink(tmp_path)
+        
+except Exception as e:
+    log_test("Test 5 - Invalid dump", False, f"Exception: {str(e)}")
 
-def test_delete_backup_with_auth(backup_id: str, backup_filename: str, manifest_filename: str):
-    """TEST 13: DELETE /api/admin/backups/{id} with auth should delete backup"""
+# ============================================================================
+# TEST 6: Cleanup - Delete uploaded backup
+# ============================================================================
+print("\n\n### TEST 6: Cleanup - Delete uploaded backup")
+if uploaded_backup_id:
     try:
-        headers = {"X-User-Role": "SUPER_ADMIN"}
-        response = requests.delete(f"{API_BASE}/admin/backups/{backup_id}", headers=headers, timeout=10)
+        response = requests.delete(
+            f"{API_BASE}/admin/backups/{uploaded_backup_id}",
+            headers=AUTH_HEADERS,
+            timeout=30
+        )
         
-        if response.status_code != 200:
-            log_test("Delete backup with auth returns 200", False, f"Expected 200, got {response.status_code}")
-            return False
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text[:200]}")
         
-        data = response.json()
-        
-        if data.get('ok') != True:
-            log_test("Delete backup with auth returns 200", False, f"ok field is {data.get('ok')}, expected True")
-            return False
-        
-        if data.get('id') != backup_id:
-            log_test("Delete backup with auth returns 200", False, f"id mismatch: {data.get('id')} vs {backup_id}")
-            return False
-        
-        # Verify files are deleted
-        backup_file = os.path.join(BACKUP_DIR, backup_filename)
-        manifest_file = os.path.join(BACKUP_DIR, manifest_filename)
-        
-        if os.path.exists(backup_file):
-            log_test("Delete backup with auth returns 200", False, f"Backup file still exists: {backup_file}")
-            return False
-        
-        if os.path.exists(manifest_file):
-            log_test("Delete backup with auth returns 200", False, f"Manifest file still exists: {manifest_file}")
-            return False
-        
-        log_test("Delete backup with auth returns 200", True, f"Backup {backup_id} deleted successfully")
-        return True
-    except Exception as e:
-        log_test("Delete backup with auth returns 200", False, f"Exception: {str(e)}")
-        return False
-
-def test_deleted_backup_not_in_list(backup_id: str):
-    """TEST 14: Verify deleted backup does not appear in GET /api/admin/backups"""
-    try:
-        headers = {"X-User-Role": "SUPER_ADMIN"}
-        response = requests.get(f"{API_BASE}/admin/backups", headers=headers, timeout=10)
-        
-        if response.status_code != 200:
-            log_test("Deleted backup not in list", False, f"GET returned {response.status_code}")
-            return False
-        
-        data = response.json()
-        backups = data.get('backups', [])
-        
-        # Verify backup is NOT in list
-        found = any(b['id'] == backup_id for b in backups)
-        
-        if not found:
-            log_test("Deleted backup not in list", True, f"Backup {backup_id} correctly removed from list")
-            return True
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('ok'):
+                # Verify backup is deleted
+                list_response = requests.get(
+                    f"{API_BASE}/admin/backups",
+                    headers=AUTH_HEADERS,
+                    timeout=30
+                )
+                
+                if list_response.status_code == 200:
+                    backups_list = list_response.json().get('backups', [])
+                    found = any(b['id'] == uploaded_backup_id for b in backups_list)
+                    
+                    if not found:
+                        log_test("Test 6 - Cleanup", True, f"Backup {uploaded_backup_id} successfully deleted")
+                    else:
+                        log_test("Test 6 - Cleanup", False, "Backup still appears in list after deletion")
+                else:
+                    log_test("Test 6 - Cleanup", False, f"Failed to verify deletion: {list_response.status_code}")
+            else:
+                log_test("Test 6 - Cleanup", False, f"Delete response missing 'ok': {result}")
         else:
-            log_test("Deleted backup not in list", False, f"Backup {backup_id} still appears in list")
-            return False
+            log_test("Test 6 - Cleanup", False, f"Expected 200, got {response.status_code}")
+            
     except Exception as e:
-        log_test("Deleted backup not in list", False, f"Exception: {str(e)}")
-        return False
+        log_test("Test 6 - Cleanup", False, f"Exception: {str(e)}")
+else:
+    log_test("Test 6 - Cleanup", False, "No backup ID to cleanup (Test 1 may have failed)")
 
-def test_delete_nonexistent_backup():
-    """TEST 15: DELETE /api/admin/backups/{nonexistent_id} should return 404"""
-    try:
-        headers = {"X-User-Role": "SUPER_ADMIN"}
-        response = requests.delete(f"{API_BASE}/admin/backups/nonexistent_backup_id_12345", headers=headers, timeout=10)
-        
-        if response.status_code == 404:
-            log_test("Delete non-existent backup returns 404", True, "Correct 404 response")
-            return True
-        else:
-            log_test("Delete non-existent backup returns 404", False, f"Expected 404, got {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("Delete non-existent backup returns 404", False, f"Exception: {str(e)}")
-        return False
-
-def main():
-    print("=" * 80)
-    print("MongoDB Backup System Backend Testing")
-    print("=" * 80)
-    print(f"Base URL: {BASE_URL}")
-    print(f"API Base: {API_BASE}")
-    print(f"Backup Dir: {BACKUP_DIR}")
-    print("=" * 80)
-    print()
+# ============================================================================
+# BONUS: Verify backup file exists on disk
+# ============================================================================
+print("\n\n### BONUS: Verify backup files exist on disk")
+try:
+    backup_dir = Path("/app/backups")
+    upload_backups = list(backup_dir.glob("*-UPLOAD.archive.gz"))
+    upload_manifests = list(backup_dir.glob("*-UPLOAD.manifest.json"))
     
-    # TEST 1: List backups without auth
-    test_list_backups_without_auth()
+    print(f"Found {len(upload_backups)} UPLOAD backup files")
+    print(f"Found {len(upload_manifests)} UPLOAD manifest files")
     
-    # TEST 2: List backups with auth
-    success, list_data = test_list_backups_with_auth()
-    
-    # TEST 3: Create backup without auth
-    test_create_backup_without_auth()
-    
-    # TEST 4: Create backup with auth
-    success, backup_data = test_create_backup_with_auth()
-    
-    if success and backup_data:
-        backup_id = backup_data['id']
-        backup_filename = backup_data['filename']
-        manifest_filename = backup_data['manifest_file']
-        
-        # TEST 5: Verify backup appears in list
-        test_backup_appears_in_list(backup_id)
-        
-        # TEST 6: Download backup without auth
-        test_download_backup_without_auth(backup_id)
-        
-        # TEST 7: Download backup with auth
-        test_download_backup_with_auth(backup_id)
-        
-        # TEST 8: Download non-existent backup
-        test_download_nonexistent_backup()
-        
-        # TEST 9: Restore without confirm
-        test_restore_without_confirm(backup_id)
-        
-        # TEST 10: Restore with wrong confirm
-        test_restore_with_wrong_confirm(backup_id)
-        
-        # TEST 11: Restore non-existent backup
-        test_restore_nonexistent_backup()
-        
-        # TEST 12: Delete backup without auth
-        test_delete_backup_without_auth(backup_id)
-        
-        # TEST 13: Delete backup with auth
-        test_delete_backup_with_auth(backup_id, backup_filename, manifest_filename)
-        
-        # TEST 14: Verify deleted backup not in list
-        test_deleted_backup_not_in_list(backup_id)
-        
-        # TEST 15: Delete non-existent backup
-        test_delete_nonexistent_backup()
+    if len(upload_backups) > 0:
+        print(f"✅ UPLOAD backup files exist on disk")
+        for f in upload_backups[:3]:  # Show first 3
+            print(f"  - {f.name} ({f.stat().st_size} bytes)")
     else:
-        print("\n⚠️  Skipping tests that depend on backup creation (tests 5-15)")
-        print("   Reason: Backup creation failed or returned no data")
-    
-    # Print summary
-    print()
-    print("=" * 80)
-    print("TEST SUMMARY")
-    print("=" * 80)
-    print(f"Total Tests: {tests_passed + tests_failed}")
-    print(f"✅ Passed: {tests_passed}")
-    print(f"❌ Failed: {tests_failed}")
-    print(f"Success Rate: {(tests_passed / (tests_passed + tests_failed) * 100):.1f}%")
-    print("=" * 80)
-    
-    if tests_failed > 0:
-        print("\nFailed Tests:")
-        for result in test_results:
-            if not result['passed']:
-                print(f"  ❌ {result['test']}")
-                if result['details']:
-                    print(f"     {result['details']}")
-    
-    print()
-    
-    # Exit with appropriate code
-    exit(0 if tests_failed == 0 else 1)
+        print(f"⚠️  No UPLOAD backup files found (may have been cleaned up)")
+        
+except Exception as e:
+    print(f"❌ Error checking disk files: {str(e)}")
 
-if __name__ == "__main__":
-    main()
+# Print final summary
+print_summary()
+
+# Exit with appropriate code
+exit(0 if test_results["failed"] == 0 else 1)
