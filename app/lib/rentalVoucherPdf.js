@@ -222,7 +222,25 @@ export async function generateRentalVoucherPdf(booking, unit, company, opts = {}
     PAID: 'Pagato',
     REFUNDED: 'Rimborsato',
   }[booking.payment_status] || booking.payment_status;
-  doc.text(`Stato pagamento: ${payStatusLabel}`, M + 5, y + 30);
+  // Mappa metodi di pagamento → label leggibile
+  const PAYMENT_METHOD_LABELS = {
+    SUMUP: 'SumUp',
+    STRIPE: 'Stripe',
+    POS: 'POS / Carta',
+    CASH: 'Contanti',
+    BANK_TRANSFER: 'Bonifico Bancario',
+    BONIFICO: 'Bonifico Bancario',
+    PAYPAL: 'PayPal',
+    SATISPAY: 'Satispay',
+    INVOICE: 'Fattura Differita',
+    OTHER: 'Altro',
+  };
+  const pmRaw = booking.payment_method || booking.paymentMethod;
+  const pmLabel = pmRaw ? (PAYMENT_METHOD_LABELS[pmRaw] || pmRaw) : null;
+  const statoLine = pmLabel
+    ? `Stato pagamento: ${payStatusLabel}  ·  Metodo: ${pmLabel}`
+    : `Stato pagamento: ${payStatusLabel}`;
+  doc.text(statoLine, M + 5, y + 30);
 
   if (hasAgency) {
     doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(67, 56, 202);

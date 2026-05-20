@@ -92,6 +92,14 @@ function buildHtml({ booking, unit, company }) {
         <tr><td style="padding:4px 0;color:#0f766e;">Importo totale:</td><td style="padding:4px 0;text-align:right;"><strong style="color:${headerBg};font-size:18px;">${fmtEur(booking.total_amount)}</strong></td></tr>
         <tr><td style="padding:4px 0;color:#6b7280;">Acconto richiesto (${booking.deposit_pct || 0}%):</td><td style="padding:4px 0;text-align:right;color:#2563eb;"><strong>${fmtEur(booking.deposit_amount)}</strong></td></tr>
         <tr><td style="padding:4px 0;color:#6b7280;">Saldo:</td><td style="padding:4px 0;text-align:right;"><strong>${fmtEur(booking.balance_amount)}</strong></td></tr>
+        ${(() => {
+          const PAY_LABELS = { SUMUP:'SumUp', STRIPE:'Stripe', POS:'POS / Carta', CASH:'Contanti', BANK_TRANSFER:'Bonifico Bancario', BONIFICO:'Bonifico Bancario', PAYPAL:'PayPal', SATISPAY:'Satispay', INVOICE:'Fattura Differita', OTHER:'Altro' };
+          const PAY_STATUS_LABELS = { PENDING:'Da pagare', PARTIAL:'Acconto versato', PAID:'Pagato', REFUNDED:'Rimborsato' };
+          const pmRaw = booking.payment_method;
+          const pmLbl = pmRaw ? (PAY_LABELS[pmRaw] || pmRaw) : null;
+          const psLbl = PAY_STATUS_LABELS[booking.payment_status] || booking.payment_status || '—';
+          return `<tr><td style="padding:4px 0;color:#6b7280;border-top:1px dashed #d1d5db;">Stato pagamento:</td><td style="padding:4px 0;text-align:right;border-top:1px dashed #d1d5db;"><strong>${escapeHtml(psLbl)}</strong>${pmLbl ? ` · <span style="color:#6b7280;">${escapeHtml(pmLbl)}</span>` : ''}</td></tr>`;
+        })()}
       </table>
     </div>
 

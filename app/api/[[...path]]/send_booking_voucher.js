@@ -128,7 +128,12 @@ function buildFinalVoucherHtml({ booking, experience, company }) {
       ${experience?.meeting_point ? `<tr><td style="padding:6px 0;color:#6b7280;">Punto di ritrovo:</td><td style="padding:6px 0;"><strong>📍 ${experience.meeting_point}</strong>${resolveMapsUrl(experience) ? `<br><a href="${resolveMapsUrl(experience)}" target="_blank" style="display:inline-block;margin-top:6px;padding:8px 14px;background:#4285F4;color:white;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;">🗺️ Apri in Google Maps</a>` : ''}</td></tr>` : ''}
       ${experience?.duration_minutes ? `<tr><td style="padding:6px 0;color:#6b7280;">Durata:</td><td style="padding:6px 0;">${Math.floor(experience.duration_minutes / 60)}h ${experience.duration_minutes % 60}min</td></tr>` : ''}
       <tr><td style="padding:6px 0;color:#6b7280;">Totale Pagato:</td><td style="padding:6px 0;"><strong style="color:${baseColor};font-size:16px;">${fmtEur(booking.total_amount)}</strong></td></tr>
-      <tr><td style="padding:6px 0;color:#6b7280;">Stato:</td><td style="padding:6px 0;"><span style="background:#dcfce7;color:#065f46;padding:3px 10px;border-radius:12px;font-weight:600;font-size:12px;">✅ PAGATO</span></td></tr>
+      <tr><td style="padding:6px 0;color:#6b7280;">Stato:</td><td style="padding:6px 0;"><span style="background:#dcfce7;color:#065f46;padding:3px 10px;border-radius:12px;font-weight:600;font-size:12px;">✅ PAGATO</span>${(() => {
+        const PAY_LABELS = { SUMUP:'SumUp', STRIPE:'Stripe', POS:'POS / Carta', CASH:'Contanti', BANK_TRANSFER:'Bonifico Bancario', BONIFICO:'Bonifico Bancario', PAYPAL:'PayPal', SATISPAY:'Satispay', INVOICE:'Fattura Differita', OTHER:'Altro' };
+        const pm = booking.payment_method;
+        const lbl = pm ? (PAY_LABELS[pm] || pm) : null;
+        return lbl ? ` <span style="color:#6b7280;font-size:12px;">·</span> <span style="color:#374151;font-size:12px;">Metodo: <strong>${lbl}</strong></span>` : '';
+      })()}</td></tr>
     </table>
 
     <div style="background:#eff6ff;border:1px solid #3b82f6;border-radius:8px;padding:14px;margin:20px 0;font-size:13px;color:#1e40af;">

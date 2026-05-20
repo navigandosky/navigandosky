@@ -161,7 +161,26 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
   doc.text(fmtEur(booking.total_amount), W - M - 5, y + 12, { align: 'right' });
   doc.setFontSize(9).setFont('helvetica', 'normal');
   doc.setTextColor(75, 85, 99);
-  doc.text('Stato: ' + (isFinal ? 'PAGATO' : 'IN ATTESA DI VERIFICA'), M + 5, y + 17);
+  // Mappa metodi di pagamento → label leggibile
+  const PAYMENT_METHOD_LABELS = {
+    SUMUP: 'SumUp',
+    STRIPE: 'Stripe',
+    POS: 'POS / Carta',
+    CASH: 'Contanti',
+    BANK_TRANSFER: 'Bonifico Bancario',
+    BONIFICO: 'Bonifico Bancario',
+    PAYPAL: 'PayPal',
+    SATISPAY: 'Satispay',
+    INVOICE: 'Fattura Differita',
+    OTHER: 'Altro',
+  };
+  const pmRaw = booking.payment_method || booking.paymentMethod;
+  const pmLabel = pmRaw ? (PAYMENT_METHOD_LABELS[pmRaw] || pmRaw) : null;
+  const statoLabel = isFinal ? 'PAGATO' : 'IN ATTESA DI VERIFICA';
+  const statoLine = pmLabel
+    ? `Stato: ${statoLabel}  ·  Metodo: ${pmLabel}`
+    : `Stato: ${statoLabel}`;
+  doc.text(statoLine, M + 5, y + 17);
   // Venduto da agenzia + contatti
   if (hasAgency) {
     const agencyName = booking.agency_name || opts?.agencyName;
