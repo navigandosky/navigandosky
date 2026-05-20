@@ -3756,7 +3756,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         )}
 
         {/* Modulo LOCAZIONI BREVI */}
-        {showLocazioni && currentUser?.company_id && (
+        {showLocazioni && (currentUser?.company_id || isSuperAdmin) && (
           <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-teal-600 via-cyan-600 to-teal-700 p-2 rounded-lg shadow-md w-full">
             <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
               <Home className="w-4 h-4" />Locazioni Brevi
@@ -5909,8 +5909,8 @@ function AdminDashboard({ currentUser, onLogout }) {
           </TabsContent>
         )}
 
-        {/* LOCAZIONI BREVI - tutti gli utenti company */}
-        {currentUser?.company_id && (
+        {/* LOCAZIONI BREVI - tutti gli utenti company + Super Admin */}
+        {(currentUser?.company_id || isSuperAdmin) && (
           <TabsContent value="locazioni" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Home className="w-8 h-8 mx-auto animate-pulse text-teal-600" /></div>}>
               <LocazioniBreviAdminLazy currentUser={currentUser} isSuperAdmin={isSuperAdmin} />
