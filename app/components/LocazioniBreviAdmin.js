@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import {
   Bike, Car, Home, Building2, Ship, Plus, Trash2, Edit, Calendar as CalIcon,
   RefreshCw, Euro, MapPin, Users, BedDouble, Bath, Clock, AlertCircle,
-  CheckCircle2, XCircle, Search, Eye, Save,
+  CheckCircle2, XCircle, Search, Eye, Save, Link2, Mail, Copy, ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -99,6 +99,13 @@ export default function LocazioniBreviAdmin({ currentUser, isSuperAdmin }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Badge to remind which company is currently filtered (SuperAdmin only)
+  const filterBadge = isSuperAdmin && saCompanyFilter ? (
+    <Badge className="bg-amber-500 text-white text-xs">
+      📌 Vista filtrata: {companies.find((c) => c.id === saCompanyFilter)?.name || ''}
+    </Badge>
+  ) : null;
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -153,22 +160,27 @@ export default function LocazioniBreviAdmin({ currentUser, isSuperAdmin }) {
         </TabsList>
 
         <TabsContent value="dashboard">
+          {filterBadge && <div className="mb-3">{filterBadge}</div>}
           <DashboardTab stats={stats} units={units} bookings={bookings} />
         </TabsContent>
 
         <TabsContent value="units">
+          {filterBadge && <div className="mb-3">{filterBadge}</div>}
           <UnitsTab units={units} companyId={effectiveCompanyId} reload={load} isSuperAdmin={isSuperAdmin} companies={companies} />
         </TabsContent>
 
         <TabsContent value="calendar">
+          {filterBadge && <div className="mb-3">{filterBadge}</div>}
           <CalendarTab units={units} bookings={bookings} />
         </TabsContent>
 
         <TabsContent value="bookings">
+          {filterBadge && <div className="mb-3">{filterBadge}</div>}
           <BookingsTab bookings={bookings} units={units} reload={load} />
         </TabsContent>
 
         <TabsContent value="new-booking">
+          {filterBadge && <div className="mb-3">{filterBadge}</div>}
           <NewBookingTab units={units} agencies={agencies} companyId={effectiveCompanyId} reload={load} switchToBookings={() => setActiveTab('bookings')} isSuperAdmin={isSuperAdmin} companies={companies} />
         </TabsContent>
       </Tabs>
@@ -306,6 +318,7 @@ function emptyUnit() {
     min_duration: '',
     seasonal_pricing: [],
     is_active: true,
+    is_visible_on_home: true,
     notes: '',
   };
 }
@@ -733,15 +746,27 @@ function UnitFormDialog({ unit, companyId, onClose, onSaved, isSuperAdmin, compa
             </CardContent>
           </Card>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is_active"
-              checked={form.is_active !== false}
-              onChange={(e) => set('is_active', e.target.checked)}
-              className="h-4 w-4"
-            />
-            <Label htmlFor="is_active" className="cursor-pointer">Unità attiva (prenotabile)</Label>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="is_active"
+                checked={form.is_active !== false}
+                onChange={(e) => set('is_active', e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="is_active" className="cursor-pointer">Unità attiva (prenotabile)</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="is_visible_on_home"
+                checked={form.is_visible_on_home !== false}
+                onChange={(e) => set('is_visible_on_home', e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="is_visible_on_home" className="cursor-pointer">🌐 Visibile sul sito pubblico (home page Locazioni)</Label>
+            </div>
           </div>
 
           <DialogFooter>
@@ -905,6 +930,7 @@ function BookingsTab({ bookings, units, reload }) {
   const [catFilter, setCatFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [viewing, setViewing] = useState(null);
+  const [paymentLinkFor, setPaymentLinkFor] = useState(null);
 
   const filtered = useMemo(() => {
     return bookings.filter((b) => {
@@ -1060,8 +1086,9 @@ function BookingsTab({ bookings, units, reload }) {
                       </td>
                       <td className="p-2 text-center">
                         <div className="flex justify-center gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => setViewing(b)}><Eye className="w-4 h-4" /></Button>
-                          <Button size="icon" variant="ghost" className="text-red-600" onClick={() => deleteBooking(b)}><Trash2 className="w-4 h-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => setViewing(b)} title="Dettagli"><Eye className="w-4 h-4" /></Button>
+                          <Button size="icon" variant="ghost" className="text-emerald-700" onClick={() => setPaymentLinkFor(b)} title="Link Pagamento SumUp"><Link2 className="w-4 h-4" /></Button>
+                          <Button size="icon" variant="ghost" className="text-red-600" onClick={() => deleteBooking(b)} title="Elimina"><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       </td>
                     </tr>
@@ -1074,7 +1101,197 @@ function BookingsTab({ bookings, units, reload }) {
       )}
 
       {viewing && <BookingDetailDialog booking={viewing} onClose={() => setViewing(null)} />}
+      {paymentLinkFor && (
+        <RentalPaymentLinkDialog
+          booking={paymentLinkFor}
+          onClose={() => setPaymentLinkFor(null)}
+          onUpdated={() => { setPaymentLinkFor(null); reload(); }}
+        />
+      )}
     </div>
+  );
+}
+
+// ===== Rental Payment Link Dialog =====
+function RentalPaymentLinkDialog({ booking, onClose, onUpdated }) {
+  const totalDue = Number(booking.total_amount || 0);
+  const paidTotal = (booking.integration_payments || []).filter(p => p.status === 'PAID').reduce((s, p) => s + Number(p.amount || 0), 0);
+  const remaining = Math.max(0, Math.round((totalDue - paidTotal) * 100) / 100);
+  const depositDue = Math.max(0, Math.round((Number(booking.deposit_amount || 0) - paidTotal) * 100) / 100);
+
+  const [amount, setAmount] = useState(depositDue > 0 ? depositDue : remaining);
+  const [paymentType, setPaymentType] = useState(depositDue > 0 ? 'deposit' : 'balance');
+  const [description, setDescription] = useState('');
+  const [customerName, setCustomerName] = useState(booking.customer?.name || '');
+  const [customerEmail, setCustomerEmail] = useState(booking.customer?.email || '');
+  const [sendVia, setSendVia] = useState('show');
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const handlePaymentTypeChange = (v) => {
+    setPaymentType(v);
+    if (v === 'deposit') setAmount(depositDue > 0 ? depositDue : Number(booking.deposit_amount || 0));
+    else if (v === 'balance') setAmount(remaining);
+    else if (v === 'full') setAmount(totalDue);
+  };
+
+  const generateLink = async () => {
+    if (!customerName.trim() || !customerEmail.trim()) {
+      toast.error('Nome ed email cliente obbligatori');
+      return;
+    }
+    const amt = Number(amount);
+    if (!amt || amt <= 0) {
+      toast.error('Importo non valido');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await fetch('/api/rental-payment-link/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          booking_id: booking.id,
+          booking_number: booking.booking_number,
+          customer_name: customerName,
+          customer_email: customerEmail,
+          amount: amt,
+          description: description || undefined,
+          send_via: sendVia,
+          payment_type: paymentType,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.details || 'Errore');
+      setResult(data);
+      if (sendVia === 'email' && data.email_sent) {
+        toast.success(`Email inviata a ${customerEmail} (${data.email_provider})`);
+      } else if (sendVia === 'email' && data.warning) {
+        toast.warning(data.warning);
+      } else {
+        toast.success('Link generato');
+      }
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(result.hosted_url);
+      toast.success('Link copiato');
+    } catch {
+      toast.error('Impossibile copiare');
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Link2 className="w-5 h-5 text-emerald-700" />Link Pagamento SumUp</DialogTitle>
+          <DialogDescription>Genera un link di pagamento sicuro per la prenotazione {booking.booking_number}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          {/* Summary */}
+          <Card className="bg-slate-50">
+            <CardContent className="pt-4 text-sm grid grid-cols-2 gap-x-3 gap-y-1">
+              <div className="text-muted-foreground">Prenotazione:</div><div className="font-semibold">{booking.booking_number}</div>
+              <div className="text-muted-foreground">Unità:</div><div>{booking.unit_name}</div>
+              <div className="text-muted-foreground">Totale:</div><div className="font-bold">{fmtEur(totalDue)}</div>
+              <div className="text-muted-foreground">Già pagato:</div><div className="text-emerald-700">{fmtEur(paidTotal)}</div>
+              <div className="text-muted-foreground">Residuo:</div><div className="font-bold text-amber-700">{fmtEur(remaining)}</div>
+              <div className="text-muted-foreground">Acconto richiesto:</div><div>{fmtEur(Number(booking.deposit_amount || 0))} ({booking.deposit_pct}%)</div>
+            </CardContent>
+          </Card>
+
+          {!result && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Tipo Pagamento</Label>
+                  <Select value={paymentType} onValueChange={handlePaymentTypeChange}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="deposit">💳 Acconto residuo</SelectItem>
+                      <SelectItem value="balance">💰 Saldo residuo</SelectItem>
+                      <SelectItem value="full">📋 Totale</SelectItem>
+                      <SelectItem value="custom">✏️ Importo libero</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Importo (€) *</Label>
+                  <Input type="number" step="0.01" min="0.01" value={amount} onChange={(e) => { setAmount(e.target.value); setPaymentType('custom'); }} />
+                </div>
+              </div>
+              <div>
+                <Label>Descrizione (opzionale)</Label>
+                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={`Locazione ${booking.booking_number} - ${booking.unit_name}`} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Nome Cliente *</Label>
+                  <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Email Cliente *</Label>
+                  <Input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label>Consegna Link</Label>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="sendVia" value="show" checked={sendVia === 'show'} onChange={() => setSendVia('show')} />
+                    <Eye className="w-4 h-4" /> Mostra link a schermo
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="sendVia" value="email" checked={sendVia === 'email'} onChange={() => setSendVia('email')} />
+                    <Mail className="w-4 h-4" /> Invia via Email
+                  </label>
+                </div>
+              </div>
+            </>
+          )}
+
+          {result && (
+            <Card className="border-emerald-500 bg-emerald-50">
+              <CardContent className="pt-4 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-700 font-semibold">
+                  <CheckCircle2 className="w-5 h-5" /> Link generato con successo
+                </div>
+                <div className="bg-white p-2 rounded border text-xs break-all font-mono">{result.hosted_url}</div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" onClick={copyLink} variant="outline"><Copy className="w-3 h-3 mr-1" />Copia Link</Button>
+                  <Button size="sm" asChild className="bg-emerald-600 hover:bg-emerald-700">
+                    <a href={result.hosted_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-3 h-3 mr-1" />Apri</a>
+                  </Button>
+                </div>
+                <div className="text-xs text-slate-600">
+                  <b>Riferimento:</b> {result.checkout_reference}<br />
+                  <b>Importo:</b> {fmtEur(result.amount)}
+                  {result.email_sent && <><br /><b>Email:</b> inviata a {customerEmail} ({result.email_provider})</>}
+                  {result.warning && <><br /><span className="text-amber-700">⚠ {result.warning}</span></>}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onUpdated(); }}>Chiudi</Button>
+          {!result && (
+            <Button onClick={generateLink} disabled={generating} className="bg-emerald-600 hover:bg-emerald-700">
+              {generating ? 'Generazione...' : <><Link2 className="w-4 h-4 mr-2" />Genera Link</>}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

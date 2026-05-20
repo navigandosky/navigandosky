@@ -2504,6 +2504,19 @@ async function handleRoute(request, resolvedParams, method) {
         }
         return new Response(JSON.stringify({ error: 'payment-link endpoint not found' }), { status: 404 });
       }
+      case 'rental-payment-link': {
+        // Sub-route: /api/rental-payment-link/create | /api/rental-payment-link/lookup
+        const sub = pathSegments[1];
+        if (sub === 'create') {
+          const { handleCreateRentalPaymentLink } = await import('./rental_payment_link');
+          return await handleCreateRentalPaymentLink(method, body);
+        }
+        if (sub === 'lookup') {
+          const { handleLookupRentalBooking } = await import('./rental_payment_link');
+          return await handleLookupRentalBooking(method, searchParams);
+        }
+        return new Response(JSON.stringify({ error: 'rental-payment-link endpoint not found' }), { status: 404 });
+      }
       case 'admin': {
         // Sub-route: /api/admin/backups | /api/admin/backups/create | /api/admin/backups/{id}/...
         const sub = pathSegments[1];

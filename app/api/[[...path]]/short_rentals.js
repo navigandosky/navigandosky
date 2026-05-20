@@ -125,9 +125,25 @@ export async function handleRentalUnits(method, id, body, action, sp, db) {
     if (sp.get('company_id')) filter.company_id = sp.get('company_id');
     if (sp.get('category')) filter.category = sp.get('category');
     if (sp.get('active') === 'true') filter.is_active = true;
-    const items = await col.find(filter).sort({ category: 1, name: 1 }).toArray();
+    const isPublic = sp.get('public') === 'true';
+    if (isPublic) {
+      filter.is_active = true;
+      filter.is_visible_on_home = { $ne: false };
+    }
+    let items = await col.find(filter).sort({ category: 1, name: 1 }).toArray();
     // Remove MongoDB _id from all items
     items.forEach(item => delete item._id);
+    // For public, exclude units from suspended companies
+    if (isPublic) {
+      const suspended = await db.collection('companies').find(
+        { is_active: false },
+        { projection: { id: 1 } }
+      ).toArray();
+      const suspendedIds = new Set(suspended.map((c) => c.id));
+      if (suspendedIds.size > 0) {
+        items = items.filter((u) => !u.company_id || !suspendedIds.has(u.company_id));
+      }
+    }
     return json(items);
   }
 
@@ -178,6 +194,7 @@ export async function handleRentalUnits(method, id, body, action, sp, db) {
       min_duration: body.min_duration ? Number(body.min_duration) : null,
       deposit_percentage: body.deposit_percentage ? Number(body.deposit_percentage) : 30,
       is_active: body.is_active !== false,
+      is_visible_on_home: body.is_visible_on_home !== false, // default true
       notes: body.notes || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

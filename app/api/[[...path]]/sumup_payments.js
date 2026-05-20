@@ -130,12 +130,23 @@ export async function handleSumupWebhook(method, body) {
     // 1) Cerca booking principale (campo sumup_checkout_id)
     let booking = await db.collection('bookings').findOne({ sumup_checkout_id: checkoutId });
     let isIntegration = false;
+    let isRental = false;
     let integrationEntry = null;
 
     // 2) Se non trovato, prova come integrazione (campo integration_payments[].id)
     if (!booking) {
       booking = await db.collection('bookings').findOne({ 'integration_payments.id': checkoutId });
       if (booking) {
+        isIntegration = true;
+        integrationEntry = (booking.integration_payments || []).find(p => p.id === checkoutId);
+      }
+    }
+
+    // 3) Se ancora non trovato, prova come rental_bookings integration_payments
+    if (!booking) {
+      booking = await db.collection('rental_bookings').findOne({ 'integration_payments.id': checkoutId });
+      if (booking) {
+        isRental = true;
         isIntegration = true;
         integrationEntry = (booking.integration_payments || []).find(p => p.id === checkoutId);
       }
@@ -162,10 +173,12 @@ export async function handleSumupWebhook(method, body) {
     const status = checkout.status; // PAID | PENDING | FAILED | EXPIRED
 
     if (isIntegration) {
+      const targetCol = isRental ? 'rental_bookings' : 'bookings';
+      const refLabel = isRental ? booking.booking_number : booking.booking_ref;
       // Aggiorna SOLO la voce integration nell'array, non lo status principale del booking
       if (status === 'PAID' && integrationEntry?.status !== 'PAID') {
         const txId = checkout?.transactions?.[0]?.id || null;
-        await db.collection('bookings').updateOne(
+        await db.collection(targetCol).updateOne(
           { id: booking.id, 'integration_payments.id': checkoutId },
           { $set: {
             'integration_payments.$.status': 'PAID',
@@ -174,9 +187,22 @@ export async function handleSumupWebhook(method, body) {
             integration_payments_updated_at: new Date().toISOString(),
           } }
         );
-        console.log('[sumup webhook] integrazione PAID:', booking.booking_ref, 'amount:', integrationEntry?.amount);
+        // Per rental: aggiorna anche payment_status del booking principale
+        if (isRental) {
+          const paidTotal = (booking.integration_payments || [])
+            .filter(p => p.id === checkoutId ? true : p.status === 'PAID')
+            .reduce((s, p) => s + Number(p.amount || 0), 0);
+          const newPaymentStatus = paidTotal >= Number(booking.total_amount || 0) - 0.01
+            ? 'PAID'
+            : (paidTotal > 0 ? 'PARTIAL' : booking.payment_status);
+          await db.collection('rental_bookings').updateOne(
+            { id: booking.id },
+            { $set: { payment_status: newPaymentStatus, updated_at: new Date().toISOString() } }
+          );
+        }
+        console.log(`[sumup webhook] integrazione PAID (${isRental ? 'rental' : 'exp'}):`, refLabel, 'amount:', integrationEntry?.amount);
       } else if ((status === 'FAILED' || status === 'EXPIRED') && integrationEntry?.status !== 'FAILED') {
-        await db.collection('bookings').updateOne(
+        await db.collection(targetCol).updateOne(
           { id: booking.id, 'integration_payments.id': checkoutId },
           { $set: {
             'integration_payments.$.status': 'FAILED',

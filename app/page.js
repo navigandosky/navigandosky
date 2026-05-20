@@ -49,6 +49,9 @@ const PaymentLinkDialogLazy = dynamic(() => import('./components/PaymentLinkDial
 const BackupManagerLazy = dynamic(() => import('./components/BackupManager'), { ssr: false });
 // Locazioni Brevi (Short-Term Rentals - Bike/Car/Apartment/Villa/Boat)
 const LocazioniBreviAdminLazy = dynamic(() => import('./components/LocazioniBreviAdmin'), { ssr: false });
+// Locazioni Brevi - Public catalog + detail
+const RentalsCatalogPageLazy = dynamic(() => import('./components/RentalsPublic').then(m => ({ default: m.RentalsCatalogPage })), { ssr: false });
+const RentalDetailPageLazy = dynamic(() => import('./components/RentalsPublic').then(m => ({ default: m.RentalDetailPage })), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -553,6 +556,13 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, curren
           >
             <Anchor className="w-4 h-4" /> Posti Barca
           </a>
+          <button
+            type="button"
+            onClick={() => setView('rentals')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-1.5 ${view === 'rentals' || view === 'rental-detail' ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}
+          >
+            🏖️ Locazioni
+          </button>
           {[['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
             <button 
               key={v} 
@@ -783,7 +793,7 @@ function Footer({ companyBrand, currentUser }) {
 }
 
 // ============ HOME PAGE ============
-function HomePage({ setView, experiences, companyBrand }) {
+function HomePage({ setView, experiences, rentalUnits = [], companyBrand }) {
   const { language } = useLanguage();
   const featuredSource = useMemo(() => experiences.slice(0, 3), [experiences]);
   const { translated: featured, isTranslating: isTransHome } = useTranslatedItems(
@@ -791,6 +801,7 @@ function HomePage({ setView, experiences, companyBrand }) {
     language,
     ['name', 'description']
   );
+  const featuredRentals = useMemo(() => (rentalUnits || []).slice(0, 3), [rentalUnits]);
   const heroImg = companyBrand?.hero_image || HERO_IMG;
   const logoUrl = companyBrand?.logo_url || LOGO_URL;
   const brandName = companyBrand?.name || 'Maretrek';
@@ -821,6 +832,60 @@ function HomePage({ setView, experiences, companyBrand }) {
           })}
         </div>
       </section>
+
+      {/* === LOCAZIONI BREVI SECTION === */}
+      {featuredRentals.length > 0 && (
+        <section className="bg-gradient-to-b from-slate-50 to-white py-16">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-wrap items-end justify-between mb-8 gap-3">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-bold flex items-center gap-2">
+                  🏖️ Locazioni Brevi
+                </h2>
+                <p className="text-muted-foreground mt-1">Bici, Auto, Appartamenti, Ville e Barche per la tua vacanza</p>
+              </div>
+              <Button variant="outline" className="border-teal-500 text-teal-700 hover:bg-teal-50" onClick={() => setView('rentals')}>
+                Vedi tutte <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {featuredRentals.map((u) => {
+                const sp = (() => {
+                  if (Array.isArray(u.seasonal_pricing) && u.seasonal_pricing.length > 0) {
+                    const prices = u.seasonal_pricing.map(s => Number(s.price_per_unit || 0)).filter(p => p > 0);
+                    if (prices.length > 0) return { price: Math.min(...prices), isFromTiers: true };
+                  }
+                  return { price: Number(u.base_price || 0), isFromTiers: false };
+                })();
+                const catLabel = {BIKE: 'Bici', CAR: 'Auto', APARTMENT: 'Appartamento', VILLA: 'Villa', BOAT: 'Barca'}[u.category] || u.category;
+                const catBg = {BIKE: 'bg-emerald-100 text-emerald-800', CAR: 'bg-blue-100 text-blue-800', APARTMENT: 'bg-amber-100 text-amber-800', VILLA: 'bg-purple-100 text-purple-800', BOAT: 'bg-cyan-100 text-cyan-800'}[u.category] || 'bg-slate-100';
+                const img = u.images?.[0] || 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=800&q=80';
+                return (
+                  <Card key={u.id} className="card-hover overflow-hidden cursor-pointer border-0 shadow-lg" onClick={() => setView('rental-detail', { rentalUnit: u })}>
+                    <div className="relative h-48">
+                      <img src={img} alt={u.name} className="w-full h-full object-cover" />
+                      <div className="absolute top-3 left-3"><Badge className={catBg}>{catLabel}</Badge></div>
+                      <div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-teal-700 flex items-baseline gap-1">
+                        {sp.isFromTiers && <span className="text-[10px] font-normal opacity-75">da</span>}
+                        {fmtPrice(sp.price)}
+                        <span className="text-[10px] font-normal">/{u.duration_unit === 'NIGHTS' ? 'notte' : 'giorno'}</span>
+                      </div>
+                    </div>
+                    <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{u.name}</CardTitle></CardHeader>
+                    <CardContent className="pb-4">
+                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{u.description || u.location || '—'}</p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        {u.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{u.location}</span>}
+                        {(u.category === 'APARTMENT' || u.category === 'VILLA') && u.max_guests && <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {u.max_guests}</span>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
       <section className="container mx-auto px-4 py-16">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Perche Scegliere Maretrek</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -6980,8 +7045,10 @@ export default function App() {
   const [view, setView] = useState('home');
   const [experiences, setExperiences] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [rentalUnits, setRentalUnits] = useState([]); // Public-visible rental units
   const [selectedExperience, setSelectedExperience] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedRentalUnit, setSelectedRentalUnit] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   
   // Autenticazione
@@ -7025,20 +7092,23 @@ export default function App() {
     }
   }, []);
 
-  // Carica companies e experiences all'avvio
+  // Carica companies, experiences e rental units pubblici all'avvio
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [companiesRes, experiencesRes] = await Promise.all([
+        const [companiesRes, experiencesRes, rentalsRes] = await Promise.all([
           fetch('/api/companies'),
-          fetch('/api/experiences')
+          fetch('/api/experiences'),
+          fetch('/api/rental-units?public=true'),
         ]);
         
         const companiesData = await companiesRes.json();
         const experiencesData = await experiencesRes.json();
+        const rentalsData = await rentalsRes.json();
         
         setCompanies(Array.isArray(companiesData) ? companiesData : []);
         setExperiences(Array.isArray(experiencesData) ? experiencesData : []);
+        setRentalUnits(Array.isArray(rentalsData) ? rentalsData : []);
       } catch (err) {
         console.error('Error loading initial data:', err);
       }
@@ -7115,6 +7185,7 @@ export default function App() {
   const navigate = (newView, data = {}) => {
     if (data.experience) setSelectedExperience(data.experience);
     if (data.slot) setSelectedSlot(data.slot);
+    if (data.rentalUnit) setSelectedRentalUnit(data.rentalUnit);
     setView(newView);
     setMobileOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -7132,8 +7203,10 @@ export default function App() {
           currentUser={currentUser}
         />
         <main className="flex-1">
-          {view === 'home' && <HomePage setView={navigate} experiences={experiences} companyBrand={companyBrand} currentUser={currentUser} />}
+          {view === 'home' && <HomePage setView={navigate} experiences={experiences} rentalUnits={rentalUnits} companyBrand={companyBrand} currentUser={currentUser} />}
           {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} currentUser={currentUser} companies={companies} companyBrand={companyBrand} />}
+          {view === 'rentals' && <Suspense fallback={<div className="text-center py-16"><Home className="w-8 h-8 mx-auto animate-pulse text-teal-600" /></div>}><RentalsCatalogPageLazy setView={navigate} rentalUnits={rentalUnits} companies={companies} companyBrand={companyBrand} /></Suspense>}
+          {view === 'rental-detail' && <Suspense fallback={<div className="text-center py-16"><Home className="w-8 h-8 mx-auto animate-pulse text-teal-600" /></div>}><RentalDetailPageLazy unit={selectedRentalUnit} setView={navigate} /></Suspense>}
           {view === 'detail' && <ExperienceDetail experience={selectedExperience} setView={navigate} />}
           {view === 'booking' && <BookingWizard experience={selectedExperience} slot={selectedSlot} setView={navigate} />}
           {view === 'admin' && (
