@@ -1966,7 +1966,40 @@ async function handleCompaniesNew(method, id, body, action, sp) {
       total_revenue: 0
     };
     await col.insertOne(item);
-    return json(item, 201);
+
+    // Crea automaticamente l'utente admin se passati i dati dal form
+    let adminUserCreated = null;
+    if (body.admin_username && body.admin_password) {
+      try {
+        const adminEmail = body.admin_email || `${body.admin_username.toLowerCase()}@${slug || 'company'}.local`;
+        const usersCol = db.collection('users');
+        const existing = await usersCol.findOne({ $or: [{ username: body.admin_username }, { email: adminEmail }] });
+        if (!existing) {
+          const hashedPwd = await bcrypt.hash(body.admin_password, 10);
+          const adminUser = {
+            id: uuidv4(),
+            email: adminEmail,
+            username: body.admin_username,
+            password: hashedPwd,
+            role: 'COMPANY_ADMIN',
+            company_id: item.id,
+            permissions: [],
+            is_active: true,
+            full_name: body.admin_full_name || body.admin_username,
+            created_at: new Date().toISOString(),
+          };
+          await usersCol.insertOne(adminUser);
+          adminUserCreated = { username: adminUser.username, email: adminUser.email, id: adminUser.id };
+          console.log('[handleCompaniesNew] Admin user created:', adminUser.username, 'for company', item.id);
+        } else {
+          console.warn('[handleCompaniesNew] Admin user già esistente:', existing.username);
+        }
+      } catch (e) {
+        console.error('[handleCompaniesNew] Errore creazione admin user:', e.message);
+      }
+    }
+
+    return json({ ...item, _admin_user_created: adminUserCreated }, 201);
   }
   
   if (method === 'PUT' && id) {
