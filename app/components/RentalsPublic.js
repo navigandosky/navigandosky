@@ -25,7 +25,28 @@ const CATEGORIES = [
   { value: 'BOAT', label: 'Barca', icon: Ship, color: 'bg-cyan-100 text-cyan-800' },
 ];
 
-const DEFAULT_IMG = 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=800&q=80';
+// Placeholder data-URI when no photo is uploaded (clean gradient, no random unsplash photo)
+const buildPlaceholder = (category, label) => {
+  const palette = {
+    BIKE: { from: '#10b981', to: '#059669' },
+    CAR: { from: '#3b82f6', to: '#1e40af' },
+    APARTMENT: { from: '#f59e0b', to: '#b45309' },
+    VILLA: { from: '#a855f7', to: '#6b21a8' },
+    BOAT: { from: '#06b6d4', to: '#0e7490' },
+  }[category] || { from: '#64748b', to: '#334155' };
+  const safe = String(label || '').replace(/[<>&"]/g, '').slice(0, 60);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+    <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${palette.from}"/><stop offset="100%" stop-color="${palette.to}"/>
+    </linearGradient></defs>
+    <rect width="800" height="400" fill="url(#g)"/>
+    <text x="400" y="195" font-family="system-ui,sans-serif" font-size="42" font-weight="700" text-anchor="middle" fill="white" opacity="0.95">${safe}</text>
+    <text x="400" y="240" font-family="system-ui,sans-serif" font-size="18" text-anchor="middle" fill="white" opacity="0.75">Foto in arrivo</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+const DEFAULT_IMG = buildPlaceholder('BOAT', 'Locazione Breve');
 
 const fmtEur = (n) => (Number(n) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('it-IT') : '—');
@@ -146,11 +167,11 @@ function UnitCard({ unit, onSelect }) {
   const cm = catMeta(unit.category);
   const Icon = cm.icon;
   const sp = startingPrice(unit);
-  const img = unit.images?.[0] || DEFAULT_IMG;
+  const img = unit.images?.[0] || buildPlaceholder(unit.category, unit.name);
   return (
     <Card className="overflow-hidden cursor-pointer hover:shadow-xl transition border-0 shadow" onClick={onSelect}>
       <div className="relative h-48">
-        <img src={img} alt={unit.name} className="w-full h-full object-cover" onError={(e) => { e.target.src = DEFAULT_IMG; }} />
+        <img src={img} alt={unit.name} className="w-full h-full object-cover" onError={(e) => { e.target.src = buildPlaceholder(unit.category, unit.name); }} />
         <div className="absolute top-3 left-3">
           <Badge className={cm.color}><Icon className="w-3 h-3 mr-1" />{cm.label}</Badge>
         </div>
@@ -321,7 +342,7 @@ export function RentalDetailPage({ unit, setView }) {
     );
   }
 
-  const img = unit.images?.[0] || DEFAULT_IMG;
+  const img = unit.images?.[0] || buildPlaceholder(unit.category, unit.name);
 
   return (
     <div className="bg-slate-50 min-h-screen pb-12">
@@ -337,11 +358,20 @@ export function RentalDetailPage({ unit, setView }) {
         {/* Left: details */}
         <div className="lg:col-span-2 space-y-4">
           <div className="relative h-64 md:h-80 rounded-lg overflow-hidden">
-            <img src={img} alt={unit.name} className="w-full h-full object-cover" onError={(e) => { e.target.src = DEFAULT_IMG; }} />
+            <img src={img} alt={unit.name} className="w-full h-full object-cover" onError={(e) => { e.target.src = buildPlaceholder(unit.category, unit.name); }} />
             <div className="absolute top-4 left-4">
               <Badge className={cm.color}><Icon className="w-4 h-4 mr-1" />{cm.label}</Badge>
             </div>
           </div>
+
+          {/* Photo Gallery (if multiple) */}
+          {Array.isArray(unit.images) && unit.images.length > 1 && (
+            <div className="grid grid-cols-4 gap-2">
+              {unit.images.slice(1, 5).map((u, i) => (
+                <img key={i} src={u} alt={`Foto ${i + 2}`} className="w-full h-20 object-cover rounded border" onError={(e) => { e.target.style.display = 'none'; }} />
+              ))}
+            </div>
+          )}
 
           <Card>
             <CardHeader>

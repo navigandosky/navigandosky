@@ -14,7 +14,7 @@ import {
   Bike, Car, Home, Building2, Ship, Plus, Trash2, Edit, Calendar as CalIcon,
   RefreshCw, Euro, MapPin, Users, BedDouble, Bath, Clock, AlertCircle,
   CheckCircle2, XCircle, Search, Eye, Save, Link2, Mail, Copy, ExternalLink,
-  FileText,
+  FileText, Upload, X, ImageIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -462,13 +462,119 @@ function UnitsTab({ units, companyId, reload, isSuperAdmin, companies }) {
   );
 }
 
+// ===== Rental Image Uploader =====
+function RentalImageUploader({ images = [], onChange, maxImages = 5 }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const remaining = maxImages - images.length;
+    if (files.length > remaining) {
+      toast.error(`Massimo ${maxImages} immagini. Spazio disponibile: ${remaining}`);
+      return;
+    }
+    setUploading(true);
+    const base64Images = [];
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`${file.name} supera 5 MB`);
+        continue;
+      }
+      if (!file.type.startsWith('image/')) {
+        toast.error(`${file.name} non è un'immagine valida`);
+        continue;
+      }
+      const reader = new FileReader();
+      const b64 = await new Promise((resolve) => {
+        reader.onload = (ev) => resolve(ev.target.result);
+        reader.readAsDataURL(file);
+      });
+      base64Images.push(b64);
+    }
+    if (base64Images.length === 0) { setUploading(false); return; }
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: base64Images }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Errore upload');
+      const uploaded = data.urls || [];
+      const updated = [...images, ...uploaded];
+      onChange(updated);
+      toast.success(`${uploaded.length} ${uploaded.length === 1 ? 'immagine caricata' : 'immagini caricate'}`);
+    } catch (err) {
+      toast.error(err.message);
+    }
+    setUploading(false);
+  };
+
+  const removeImage = (idx) => {
+    const updated = images.filter((_, i) => i !== idx);
+    onChange(updated);
+  };
+
+  const moveToFirst = (idx) => {
+    if (idx === 0) return;
+    const updated = [...images];
+    const [moved] = updated.splice(idx, 1);
+    updated.unshift(moved);
+    onChange(updated);
+    toast.success('Impostata come copertina');
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-2 text-sm font-semibold">
+        <ImageIcon className="w-4 h-4" />
+        Foto Unità (max {maxImages}) <span className="text-xs text-muted-foreground font-normal">- la prima è la copertina</span>
+      </Label>
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+        {images.map((url, idx) => (
+          <div key={idx} className="relative group">
+            <img src={url} alt={`Foto ${idx + 1}`} className={`w-full h-24 object-cover rounded-lg border-2 ${idx === 0 ? 'border-teal-500' : 'border-slate-200'}`} />
+            {idx === 0 && (
+              <Badge className="absolute top-1 left-1 bg-teal-600 text-[10px] px-1.5 py-0">Copertina</Badge>
+            )}
+            <button
+              type="button"
+              onClick={() => removeImage(idx)}
+              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Rimuovi"
+            >
+              <X className="w-3 h-3" />
+            </button>
+            {idx > 0 && (
+              <button
+                type="button"
+                onClick={() => moveToFirst(idx)}
+                className="absolute bottom-1 right-1 bg-teal-600 text-white rounded text-[10px] px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Imposta come copertina"
+              >
+                ⭐ Copertina
+              </button>
+            )}
+          </div>
+        ))}
+        {images.length < maxImages && (
+          <label className="w-full h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors text-muted-foreground">
+            <input type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" disabled={uploading} />
+            {uploading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Upload className="w-5 h-5 mb-1" /><span className="text-xs">Carica</span></>}
+          </label>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">Formati JPG/PNG/WebP. Max 5 MB per immagine. Senza foto verrà mostrata un'immagine generica.</p>
+    </div>
+  );
+}
+
 function UnitFormDialog({ unit, companyId, onClose, onSaved, isSuperAdmin, companies }) {
   const [form, setForm] = useState({ ...unit, company_id: unit.company_id || companyId || null });
   const [saving, setSaving] = useState(false);
   const isEdit = !!unit.id;
-  const cm = catMeta(form.category);
-
-  // Auto-set duration_unit when category changes (only on create)
+  const cm = catMeta(form.category);  // Auto-set duration_unit when category changes (only on create)
   useEffect(() => {
     if (!isEdit) {
       const meta = CATEGORIES.find((c) => c.value === form.category);
@@ -703,6 +809,17 @@ function UnitFormDialog({ unit, companyId, onClose, onSaved, isSuperAdmin, compa
               <Input type="number" min="0" max="100" value={form.deposit_percentage} onChange={(e) => set('deposit_percentage', e.target.value)} />
             </div>
           </div>
+
+          {/* Foto Unità */}
+          <Card className="bg-slate-50 border-dashed">
+            <CardContent className="pt-4">
+              <RentalImageUploader
+                images={Array.isArray(form.images) ? form.images : []}
+                onChange={(imgs) => set('images', imgs)}
+                maxImages={5}
+              />
+            </CardContent>
+          </Card>
 
           {/* Tariffe stagionali */}
           <Card className="bg-slate-50 border-dashed">

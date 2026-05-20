@@ -859,7 +859,12 @@ function HomePage({ setView, experiences, rentalUnits = [], companyBrand }) {
                 })();
                 const catLabel = {BIKE: 'Bici', CAR: 'Auto', APARTMENT: 'Appartamento', VILLA: 'Villa', BOAT: 'Barca'}[u.category] || u.category;
                 const catBg = {BIKE: 'bg-emerald-100 text-emerald-800', CAR: 'bg-blue-100 text-blue-800', APARTMENT: 'bg-amber-100 text-amber-800', VILLA: 'bg-purple-100 text-purple-800', BOAT: 'bg-cyan-100 text-cyan-800'}[u.category] || 'bg-slate-100';
-                const img = u.images?.[0] || 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?w=800&q=80';
+                // Placeholder SVG gradient se nessuna foto caricata
+                const _palette = {BIKE: ['#10b981','#059669'], CAR: ['#3b82f6','#1e40af'], APARTMENT: ['#f59e0b','#b45309'], VILLA: ['#a855f7','#6b21a8'], BOAT: ['#06b6d4','#0e7490']}[u.category] || ['#64748b','#334155'];
+                const _safeName = String(u.name || '').replace(/[<>&"]/g, '').slice(0, 60);
+                const _svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><defs><linearGradient id="g${u.id}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${_palette[0]}"/><stop offset="100%" stop-color="${_palette[1]}"/></linearGradient></defs><rect width="800" height="400" fill="url(#g${u.id})"/><text x="400" y="195" font-family="system-ui,sans-serif" font-size="40" font-weight="700" text-anchor="middle" fill="white" opacity="0.95">${_safeName}</text><text x="400" y="240" font-family="system-ui,sans-serif" font-size="18" text-anchor="middle" fill="white" opacity="0.75">Foto in arrivo</text></svg>`;
+                const _placeholder = `data:image/svg+xml;utf8,${encodeURIComponent(_svg)}`;
+                const img = u.images?.[0] || _placeholder;
                 return (
                   <Card key={u.id} className="card-hover overflow-hidden cursor-pointer border-0 shadow-lg" onClick={() => setView('rental-detail', { rentalUnit: u })}>
                     <div className="relative h-48">
