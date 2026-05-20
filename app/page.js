@@ -4585,7 +4585,11 @@ function AdminDashboard({ currentUser, onLogout }) {
 
         {/* Skippers - Gestione account skipper */}
         <TabsContent value="skippers" className="space-y-4">
-          <SkippersAdminLazy companyId={currentUser?.company_id || (companies?.[0]?.id)} />
+          <SkippersAdminLazy
+            companyId={currentUser?.company_id || (companies?.[0]?.id)}
+            companies={companies}
+            isSuperAdmin={isSuperAdmin}
+          />
         </TabsContent>
 
         {/* Mappa Flotta GPS */}

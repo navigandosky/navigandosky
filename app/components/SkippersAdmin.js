@@ -7,24 +7,31 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Anchor, Plus, Edit, Trash2, Users, Phone, Mail, Key } from 'lucide-react';
+import { Anchor, Plus, Edit, Trash2, Users, Phone, Mail, Key, Building2 } from 'lucide-react';
 
 const ROLE = 'SKIPPER';
 
-export default function SkippersAdmin({ companyId }) {
+export default function SkippersAdmin({ companyId, companies = [], isSuperAdmin = false }) {
   const [skippers, setSkippers] = useState([]);
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  // Per Super Admin: selettore company (default = prima company con skipper effettivi)
+  const [selectedCompanyId, setSelectedCompanyId] = useState(companyId || '');
+
+  // Risolve l'effective company id (priorità: scelta Super Admin > prop companyId > prima company)
+  const effectiveCompanyId = isSuperAdmin
+    ? (selectedCompanyId || companyId || companies?.[0]?.id || '')
+    : (companyId || '');
 
   const load = async () => {
-    if (!companyId) return;
+    if (!effectiveCompanyId) return;
     setLoading(true);
     try {
       const [usersRes, resRes] = await Promise.all([
-        fetch(`/api/users?company_id=${companyId}&role=${ROLE}`),
-        fetch(`/api/resources?company_id=${companyId}`),
+        fetch(`/api/users?company_id=${effectiveCompanyId}&role=${ROLE}`),
+        fetch(`/api/resources?company_id=${effectiveCompanyId}`),
       ]);
       const users = await usersRes.json();
       const allResources = await resRes.json();
@@ -38,14 +45,14 @@ export default function SkippersAdmin({ companyId }) {
     }
   };
 
-  useEffect(() => { load(); }, [companyId]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [effectiveCompanyId]);
 
   const handleSave = async (formData) => {
     setLoading(true);
     try {
       const url = editing ? `/api/users/${editing.id}` : '/api/users';
       const method = editing ? 'PUT' : 'POST';
-      const payload = { ...formData, role: ROLE, company_id: companyId };
+      const payload = { ...formData, role: ROLE, company_id: effectiveCompanyId };
       if (editing && !formData.password) delete payload.password;
       const res = await fetch(url, {
         method,
@@ -74,24 +81,49 @@ export default function SkippersAdmin({ companyId }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Anchor className="w-5 h-5 text-blue-600" />
             Gestione Skipper
           </h3>
-          <p className="text-sm text-muted-foreground">Crea account skipper, assegna risorse e gestisci credenziali</p>
+          <p className="text-sm text-muted-foreground">Archivio unificato — collegato a Utenti, Risorse e Check-in/Registro Trasportati</p>
         </div>
-        <Button onClick={() => { setEditing(null); setShowForm(true); }}>
-          <Plus className="w-4 h-4 mr-1" /> Nuovo Skipper
-        </Button>
+        <div className="flex items-center gap-2">
+          {isSuperAdmin && companies && companies.length > 0 && (
+            <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5">
+              <Building2 className="w-4 h-4 text-purple-600" />
+              <Label className="text-xs text-purple-700 m-0">Company:</Label>
+              <select
+                value={effectiveCompanyId}
+                onChange={(e) => setSelectedCompanyId(e.target.value)}
+                className="bg-white border border-purple-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+              >
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <Button onClick={() => { setEditing(null); setShowForm(true); }} disabled={!effectiveCompanyId}>
+            <Plus className="w-4 h-4 mr-1" /> Nuovo Skipper
+          </Button>
+        </div>
       </div>
 
-      {skippers.length === 0 && !loading && (
+      {!effectiveCompanyId && (
+        <Card>
+          <CardContent className="py-6 text-center text-sm text-amber-700 bg-amber-50">
+            ⚠️ Seleziona una Company per visualizzare gli skipper
+          </CardContent>
+        </Card>
+      )}
+
+      {effectiveCompanyId && skippers.length === 0 && !loading && (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
             <Anchor className="w-10 h-10 mx-auto opacity-40 mb-2" />
-            Nessuno skipper creato. Crea il primo account per iniziare.
+            Nessuno skipper per questa company. Crea il primo account per iniziare.
           </CardContent>
         </Card>
       )}
