@@ -2783,9 +2783,19 @@ function AdminDashboard({ currentUser, onLogout }) {
       }
     } catch {}
   }, []);
+  const [activeTab, setActiveTab] = useState('overview');
   const changeViewMode = (mode) => {
     setViewMode(mode);
     try { localStorage.setItem('admin_view_mode', mode); } catch {}
+    // Resetta il tab attivo per evitare di mostrare contenuti di altri moduli
+    const defaultTabPerMode = {
+      'all': 'overview',
+      'experiences': 'experiences',
+      'marina': 'marina-bookings',
+      'cantiere': 'cantiere',
+      'magazzino': 'magazzino',
+    };
+    setActiveTab(defaultTabPerMode[mode] || 'overview');
   };
   const showExperiences = viewMode === 'all' || viewMode === 'experiences';
   const showMarina = viewMode === 'all' || viewMode === 'marina';
@@ -3569,7 +3579,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         />
       )}
 
-      <Tabs defaultValue="overview" className="space-y-3">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
         {/* Riga 1: Tab Esperienze (sfondo neutro) */}
         {showExperiences && (
         <TabsList className="flex-wrap h-auto gap-1">

@@ -1,0 +1,16 @@
+{
+  "id": "bk_2026-05-20_04-52-03_UPLOAD",
+  "type": "UPLOAD",
+  "filename": "maretrek-2026-05-20_04-52-03-UPLOAD.archive.gz",
+  "manifest_file": "maretrek-2026-05-20_04-52-03-UPLOAD.manifest.json",
+  "created_at": "2026-05-20T04:52:03.903Z",
+  "size_bytes": 137223,
+  "size_human": "134.0 KB",
+  "db_name": "maretrek",
+  "original_filename": "MARLIN 20 05 26 PRE 6 50.gz",
+  "verification_passed": true,
+  "verification_details": "",
+  "note": "Backup importato da file esterno: MARLIN 20 05 26 PRE 6 50.gz",
+  "triggered_by": "Admin_Trivorsrl",
+  "app_version": "maretrek-1.0"
+}
