@@ -15,6 +15,14 @@ async function getDb() {
 const fmtEur = n => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n || 0));
 const fmtDateTime = iso => iso ? new Date(iso).toLocaleString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '-';
 
+// Risolve URL Google Maps: priorità a meeting_point_map_url, fallback a ricerca su meeting_point
+const resolveMapsUrl = (exp) => {
+  if (!exp) return null;
+  if (exp.meeting_point_map_url) return exp.meeting_point_map_url;
+  if (exp.meeting_point) return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(exp.meeting_point)}`;
+  return null;
+};
+
 async function sendViaResend({ from, to, subject, html }) {
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY non configurata');
   const { Resend } = await import('resend');
@@ -57,7 +65,7 @@ function buildProvisionalVoucherHtml({ booking, experience, company, bankTransfe
       <tr><td style="padding:6px 0;color:#6b7280;width:140px;">Esperienza:</td><td style="padding:6px 0;"><strong>${experience?.name || booking.experience_name || '-'}</strong></td></tr>
       <tr><td style="padding:6px 0;color:#6b7280;">Data e ora:</td><td style="padding:6px 0;"><strong style="text-transform:capitalize;">${fmtDateTime(booking.slot_datetime)}</strong></td></tr>
       <tr><td style="padding:6px 0;color:#6b7280;">Partecipanti:</td><td style="padding:6px 0;"><strong>${booking.seats}</strong></td></tr>
-      ${experience?.meeting_point ? `<tr><td style="padding:6px 0;color:#6b7280;">Punto di ritrovo:</td><td style="padding:6px 0;"><strong>📍 ${experience.meeting_point}</strong>${experience?.meeting_point_map_url ? `<br><a href="${experience.meeting_point_map_url}" target="_blank" style="display:inline-block;margin-top:6px;padding:8px 14px;background:#4285F4;color:white;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;">🗺️ Apri in Google Maps</a>` : ''}</td></tr>` : ''}
+      ${experience?.meeting_point ? `<tr><td style="padding:6px 0;color:#6b7280;">Punto di ritrovo:</td><td style="padding:6px 0;"><strong>📍 ${experience.meeting_point}</strong>${resolveMapsUrl(experience) ? `<br><a href="${resolveMapsUrl(experience)}" target="_blank" style="display:inline-block;margin-top:6px;padding:8px 14px;background:#4285F4;color:white;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;">🗺️ Apri in Google Maps</a>` : ''}</td></tr>` : ''}
       <tr><td style="padding:6px 0;color:#6b7280;">Totale:</td><td style="padding:6px 0;"><strong style="color:${baseColor};font-size:16px;">${fmtEur(booking.total_amount)}</strong></td></tr>
     </table>
 
@@ -117,7 +125,7 @@ function buildFinalVoucherHtml({ booking, experience, company }) {
       <tr><td style="padding:6px 0;color:#6b7280;width:140px;">Esperienza:</td><td style="padding:6px 0;"><strong>${experience?.name || booking.experience_name || '-'}</strong></td></tr>
       <tr><td style="padding:6px 0;color:#6b7280;">Data e ora:</td><td style="padding:6px 0;"><strong style="text-transform:capitalize;">${fmtDateTime(booking.slot_datetime)}</strong></td></tr>
       <tr><td style="padding:6px 0;color:#6b7280;">Partecipanti:</td><td style="padding:6px 0;"><strong>${booking.seats}</strong></td></tr>
-      ${experience?.meeting_point ? `<tr><td style="padding:6px 0;color:#6b7280;">Punto di ritrovo:</td><td style="padding:6px 0;"><strong>📍 ${experience.meeting_point}</strong>${experience?.meeting_point_map_url ? `<br><a href="${experience.meeting_point_map_url}" target="_blank" style="display:inline-block;margin-top:6px;padding:8px 14px;background:#4285F4;color:white;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;">🗺️ Apri in Google Maps</a>` : ''}</td></tr>` : ''}
+      ${experience?.meeting_point ? `<tr><td style="padding:6px 0;color:#6b7280;">Punto di ritrovo:</td><td style="padding:6px 0;"><strong>📍 ${experience.meeting_point}</strong>${resolveMapsUrl(experience) ? `<br><a href="${resolveMapsUrl(experience)}" target="_blank" style="display:inline-block;margin-top:6px;padding:8px 14px;background:#4285F4;color:white;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;">🗺️ Apri in Google Maps</a>` : ''}</td></tr>` : ''}
       ${experience?.duration_minutes ? `<tr><td style="padding:6px 0;color:#6b7280;">Durata:</td><td style="padding:6px 0;">${Math.floor(experience.duration_minutes / 60)}h ${experience.duration_minutes % 60}min</td></tr>` : ''}
       <tr><td style="padding:6px 0;color:#6b7280;">Totale Pagato:</td><td style="padding:6px 0;"><strong style="color:${baseColor};font-size:16px;">${fmtEur(booking.total_amount)}</strong></td></tr>
       <tr><td style="padding:6px 0;color:#6b7280;">Stato:</td><td style="padding:6px 0;"><span style="background:#dcfce7;color:#065f46;padding:3px 10px;border-radius:12px;font-weight:600;font-size:12px;">✅ PAGATO</span></td></tr>

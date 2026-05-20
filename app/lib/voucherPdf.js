@@ -101,7 +101,12 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
     ['Partecipanti:', String(booking.seats || 1)],
   ];
   if (experience?.meeting_point) rows.push(['Ritrovo:', experience.meeting_point]);
-  if (experience?.duration_minutes) rows.push(['Durata:', `${Math.floor(experience.duration_minutes / 60)}h ${experience.duration_minutes % 60}min`]);
+
+  // Maps URL: priorità a quello configurato sull'esperienza, fallback a ricerca sul meeting_point
+  let mapsUrl = experience?.meeting_point_map_url || null;
+  if (!mapsUrl && experience?.meeting_point) {
+    mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(experience.meeting_point)}`;
+  }
 
   rows.forEach(([k, v]) => {
     doc.setFont('helvetica', 'bold'); doc.text(k, labelCol, y);
@@ -109,23 +114,31 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
     const split = doc.splitTextToSize(String(v), W - valueCol - M);
     doc.text(split, valueCol, y);
     y += 5 * Math.max(1, split.length);
+
+    // Subito dopo "Ritrovo:" inserisci il link Maps cliccabile
+    if (k === 'Ritrovo:' && mapsUrl) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(75, 85, 99);
+      doc.text('Maps:', labelCol, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(37, 99, 235); // blu link
+      const linkLabel = 'Apri in Google Maps →';
+      doc.textWithLink(linkLabel, valueCol, y, { url: mapsUrl });
+      // sottolineatura
+      const linkWidth = doc.getTextWidth(linkLabel);
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(0.2);
+      doc.line(valueCol, y + 0.5, valueCol + linkWidth, y + 0.5);
+      doc.setTextColor(31, 41, 55); // reset
+      y += 5;
+    }
   });
 
-  // Link Google Maps cliccabile (sotto Ritrovo)
-  if (experience?.meeting_point_map_url) {
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(75, 85, 99);
-    doc.text('Maps:', labelCol, y);
+  // Durata in fondo (dopo Maps)
+  if (experience?.duration_minutes) {
+    doc.setFont('helvetica', 'bold'); doc.text('Durata:', labelCol, y);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(37, 99, 235); // blu link
-    const linkLabel = 'Apri in Google Maps →';
-    doc.textWithLink(linkLabel, valueCol, y, { url: experience.meeting_point_map_url });
-    // sottolineatura
-    const linkWidth = doc.getTextWidth(linkLabel);
-    doc.setDrawColor(37, 99, 235);
-    doc.setLineWidth(0.2);
-    doc.line(valueCol, y + 0.5, valueCol + linkWidth, y + 0.5);
-    doc.setTextColor(31, 41, 55); // reset
+    doc.text(`${Math.floor(experience.duration_minutes / 60)}h ${experience.duration_minutes % 60}min`, valueCol, y);
     y += 5;
   }
 
