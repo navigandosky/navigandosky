@@ -3767,22 +3767,43 @@ function AdminDashboard({ currentUser, onLogout }) {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
-        {/* Riga 1: Tab Esperienze (sfondo neutro) */}
+        {/* Riga 1A: Gestione Operativa (azzurro) */}
         {showExperiences && (
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="experiences"><Compass className="w-4 h-4 mr-1.5" />{t('experiences')}</TabsTrigger>
-          <TabsTrigger value="bookings"><CreditCard className="w-4 h-4 mr-1.5" />{t('bookings')}</TabsTrigger>
-          <TabsTrigger value="gantt"><CalIcon className="w-4 h-4 mr-1.5" />{t('calendar')}</TabsTrigger>
-          <TabsTrigger value="fleet"><Map className="w-4 h-4 mr-1.5" />{t('fleet_map')}</TabsTrigger>
+        <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-sky-600 via-cyan-600 to-blue-600 p-2 rounded-lg shadow-md w-full">
+          <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/40 pr-3 drop-shadow">
+            <Eye className="w-4 h-4" />Gestione Operativa
+          </div>
+          <TabsTrigger value="gantt" className="text-white data-[state=active]:bg-white data-[state=active]:text-sky-800 hover:bg-white/20 font-semibold"><CalIcon className="w-4 h-4 mr-1.5" />{t('calendar')}</TabsTrigger>
+          <TabsTrigger value="bookings" className="text-white data-[state=active]:bg-white data-[state=active]:text-sky-800 hover:bg-white/20 font-semibold"><CreditCard className="w-4 h-4 mr-1.5" />{t('bookings')}</TabsTrigger>
+          <TabsTrigger value="fleet" className="text-white data-[state=active]:bg-white data-[state=active]:text-sky-800 hover:bg-white/20 font-semibold"><Map className="w-4 h-4 mr-1.5" />{t('fleet_map')}</TabsTrigger>
+        </TabsList>
+        )}
+
+        {/* Riga 1B: Creazione Prodotto Esperienza (verde) */}
+        {showExperiences && (
+        <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 p-2 rounded-lg shadow-md w-full">
+          <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/40 pr-3 drop-shadow">
+            <Compass className="w-4 h-4" />Creazione Prodotto "Esperienza"
+          </div>
+          <TabsTrigger value="resources" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
+          <TabsTrigger value="skippers" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold"><Anchor className="w-4 h-4 mr-1.5" />Skipper</TabsTrigger>
+          <TabsTrigger value="experiences" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold"><Compass className="w-4 h-4 mr-1.5" />{t('experiences')}</TabsTrigger>
+          <TabsTrigger value="slots" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold"><CalIcon className="w-4 h-4 mr-1.5" />{t('slots')}</TabsTrigger>
+          <TabsTrigger value="gps-setup" className="text-white data-[state=active]:bg-white data-[state=active]:text-emerald-800 hover:bg-white/20 font-semibold"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
+        </TabsList>
+        )}
+
+        {/* Riga 1C: Strumenti Trasversali (neutro slate) */}
+        {showExperiences && (
+        <TabsList className="flex-wrap h-auto gap-1 bg-slate-100 p-2 rounded-lg w-full">
+          <div className="flex items-center gap-2 px-3 mr-2 text-slate-700 font-semibold text-xs uppercase tracking-wider border-r border-slate-300 pr-3">
+            <BarChart3 className="w-4 h-4" />Reportistica & Partner
+          </div>
+          <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
           <TabsTrigger value="reports"><BarChart3 className="w-4 h-4 mr-1.5" />{t('reports')}</TabsTrigger>
-          <TabsTrigger value="slots"><CalIcon className="w-4 h-4 mr-1.5" />{t('slots')}</TabsTrigger>
-          <TabsTrigger value="resources"><Ship className="w-4 h-4 mr-1.5" />{t('resources')}</TabsTrigger>
           <TabsTrigger value="agencies"><Building2 className="w-4 h-4 mr-1.5" />{t('agencies')}</TabsTrigger>
-          <TabsTrigger value="skippers"><Anchor className="w-4 h-4 mr-1.5" />Skipper</TabsTrigger>
           {isSuperAdmin && <TabsTrigger value="companies"><Building2 className="w-4 h-4 mr-1.5" />Multi-Tenant</TabsTrigger>}
           {isSuperAdmin && <TabsTrigger value="backups"><Database className="w-4 h-4 mr-1.5" />Backup DB</TabsTrigger>}
-          <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1.5" />{t('overview')}</TabsTrigger>
-          <TabsTrigger value="gps-setup"><Navigation className="w-4 h-4 mr-1.5" />{t('gps_setup')}</TabsTrigger>
         </TabsList>
         )}
 
