@@ -1032,16 +1032,16 @@ function CalendarTab({ units, bookings }) {
                       </td>
                       {days.map((d, i) => {
                         const bks = isDayBooked(u.id, d);
-                        let cellClass = 'bg-emerald-50';
+                        let cellClass = 'bg-emerald-400';
                         let title = 'Disponibile';
                         if (bks.length > 0) {
                           if (u.unit_mode === 'POOL') {
                             const used = bks.reduce((s, b) => s + Number(b.quantity || 1), 0);
                             const pct = used / Number(u.quantity || 1);
-                            cellClass = pct >= 1 ? 'bg-red-300' : pct >= 0.5 ? 'bg-amber-300' : 'bg-amber-100';
+                            cellClass = pct >= 1 ? 'bg-red-500' : pct >= 0.5 ? 'bg-orange-400' : 'bg-amber-300';
                             title = `${used}/${u.quantity} occupate`;
                           } else {
-                            cellClass = 'bg-red-300';
+                            cellClass = 'bg-red-500';
                             title = bks[0].customer?.name || 'Prenotata';
                           }
                         }
@@ -1053,10 +1053,10 @@ function CalendarTab({ units, bookings }) {
               </tbody>
             </table>
             <div className="flex items-center gap-4 mt-3 text-xs">
-              <div className="flex items-center gap-1"><div className="w-4 h-4 bg-emerald-50 border" />Disponibile</div>
-              <div className="flex items-center gap-1"><div className="w-4 h-4 bg-amber-100 border" />Parziale (pool)</div>
-              <div className="flex items-center gap-1"><div className="w-4 h-4 bg-amber-300 border" />Quasi piena</div>
-              <div className="flex items-center gap-1"><div className="w-4 h-4 bg-red-300 border" />Prenotata</div>
+              <div className="flex items-center gap-1"><div className="w-4 h-4 bg-emerald-400 border" />Disponibile</div>
+              <div className="flex items-center gap-1"><div className="w-4 h-4 bg-amber-300 border" />Parziale (pool)</div>
+              <div className="flex items-center gap-1"><div className="w-4 h-4 bg-orange-400 border" />Quasi piena</div>
+              <div className="flex items-center gap-1"><div className="w-4 h-4 bg-red-500 border" />Prenotata</div>
             </div>
           </div>
         )}
