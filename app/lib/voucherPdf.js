@@ -1,5 +1,6 @@
 // PDF Voucher generator - client-side using jspdf
 import { jsPDF } from 'jspdf';
+import { getPaymentDestination } from './paymentDestination';
 
 const fmtEur = n => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n || 0));
 // Solo data (senza ora) - l'orario corretto è già indicato nel nome dell'esperienza
@@ -147,11 +148,14 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
   // Totale + stato
   doc.setFillColor(243, 244, 246);
   const hasAgency = !!(booking.agency_name || opts?.agencyName);
-  // Calcola altezza box in base ai contatti agenzia disponibili
+  // Calcola altezza box in base ai contatti agenzia disponibili + riga destinazione
   const agencyEmail = booking.agency_email || opts?.agencyEmail || null;
   const agencyPhone = booking.agency_phone || opts?.agencyPhone || null;
   const agencyContactsCount = (agencyEmail ? 1 : 0) + (agencyPhone ? 1 : 0);
-  const totalBoxH = hasAgency ? (22 + 6 + agencyContactsCount * 5) : 22;
+  const pmRawForBox = booking.payment_method || booking.paymentMethod;
+  const willShowDest = !!(pmRawForBox && pmRawForBox !== 'NONE');
+  const destExtraH = willShowDest ? 5 : 0;
+  const totalBoxH = hasAgency ? (22 + 6 + agencyContactsCount * 5 + destExtraH) : (22 + destExtraH);
   doc.roundedRect(M, y, W - 2 * M, totalBoxH, 2, 2, 'F');
   doc.setFontSize(10).setFont('helvetica', 'normal');
   doc.setTextColor(75, 85, 99);
@@ -181,10 +185,21 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
     ? `Stato: ${statoLabel}  ·  Metodo: ${pmLabel}`
     : `Stato: ${statoLabel}`;
   doc.text(statoLine, M + 5, y + 17);
+  // Destinazione incasso (solo se PAGATO o metodo definito)
+  if (pmRaw && pmRaw !== 'NONE') {
+    const dest = getPaymentDestination(pmRaw, company);
+    if (dest && dest.detail && dest.detail !== 'Non specificato') {
+      doc.setFontSize(8).setFont('helvetica', 'italic');
+      doc.setTextColor(107, 114, 128);
+      doc.text(`Destinazione incasso: ${dest.detail}`, M + 5, y + 22);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(75, 85, 99);
+    }
+  }
   // Venduto da agenzia + contatti
   if (hasAgency) {
     const agencyName = booking.agency_name || opts?.agencyName;
-    let lineY = y + 24;
+    let lineY = y + (destShown ? 29 : 24);
     doc.setFontSize(9).setFont('helvetica', 'bold');
     doc.setTextColor(67, 56, 202);
     doc.text(`Venduto da: ${agencyName}`, M + 5, lineY);

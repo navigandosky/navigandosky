@@ -1,6 +1,8 @@
 // Generatore Ricevuta (PDF + Word editabile) per contratti marina
 // IVA 10% scorporata dal totale (totale = imponibile + IVA 10%)
 
+import { getPaymentDestination } from './paymentDestination';
+
 const fmtEur = (n) => (Number(n) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '';
 
@@ -169,10 +171,20 @@ async function buildReceiptPdfDoc(contract, company, payment = null) {
   doc.text(`Saldo rimanente: ${fmtEur(data.balance_remaining)}${data.is_full_settlement ? '  ✓ SALDATO' : ''}`, 14, y); y += 8;
   doc.setTextColor(40);
 
-  // Metodo pagamento
+  // Metodo pagamento + Destinazione incasso
   if (data.method) {
     doc.setFontSize(9);
     doc.text(`Metodo: ${data.method}${data.reference ? ' · Rif: ' + data.reference : ''}`, 14, y); y += 5;
+    // Destinazione incasso (SumUp account / IBAN / Cassa)
+    // Per le marine, usa marina come prima fonte
+    const marina = contract?.marina || null;
+    const dest = getPaymentDestination(data.method, company, marina);
+    if (dest && dest.detail && dest.detail !== 'Non specificato') {
+      doc.setFontSize(8); doc.setTextColor(90);
+      const txt = `Destinazione incasso: ${dest.detail}`;
+      doc.text(txt.length > 110 ? txt.slice(0, 110) + '…' : txt, 14, y); y += 5;
+      doc.setFontSize(9); doc.setTextColor(40);
+    }
   }
   if (data.notes) {
     doc.text(`Note: ${data.notes}`, 14, y); y += 5;
@@ -314,6 +326,13 @@ export async function downloadReceiptDOCX(contract, company, payment = null) {
     line('Totale incassato', fmtEur(data.paid_total)),
     new Paragraph({ children: [new TextRun({ text: `Saldo rimanente: ${fmtEur(data.balance_remaining)}${data.is_full_settlement ? '  ✓ SALDATO' : ''}`, bold: true, color: data.balance_remaining > 0 ? 'C8501E' : '0E8C44', size: 22 })] }),
     ...(data.method ? [line('Metodo pagamento', `${data.method}${data.reference ? ' · Rif: ' + data.reference : ''}`)] : []),
+    ...(data.method ? (() => {
+      const dest = getPaymentDestination(data.method, company, contract?.marina || null);
+      if (dest && dest.detail && dest.detail !== 'Non specificato') {
+        return [line('Destinazione incasso', dest.detail)];
+      }
+      return [];
+    })() : []),
     ...(data.notes ? [line('Note', data.notes)] : []),
 
     new Paragraph({ spacing: { before: 400 }, alignment: AlignmentType.CENTER, children: [

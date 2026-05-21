@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Download, FileSpreadsheet, FileText, Wallet, TrendingUp, RefreshCw, Search, Calendar as CalIcon, CreditCard, Anchor, Ship, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
+import { getPaymentDestination } from '@/app/lib/paymentDestination';
 
 const PAYMENT_LABEL = {
   ONLINE: 'SumUp/Online',
@@ -100,6 +101,18 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
 
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [companyId]);
 
+  // Lookup helpers per recuperare company/marina di una transazione
+  const companiesById = useMemo(() => {
+    const m = {};
+    (companies || []).forEach(c => { if (c?.id) m[c.id] = c; });
+    return m;
+  }, [companies]);
+  const marinasById = useMemo(() => {
+    const m = {};
+    (marinas || []).forEach(mr => { if (mr?.id) m[mr.id] = mr; });
+    return m;
+  }, [marinas]);
+
   // Unifica tutte le transazioni in formato comune
   const allTransactions = useMemo(() => {
     const list = [];
@@ -112,6 +125,8 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
       const isRefunded = b.payment_status === 'REFUNDED' || b.refund_status === 'COMPLETED';
       const paid = !isRefunded && (b.payment_status === 'PAID' || b.status === 'CONFIRMED');
       const date = b.refund_completed_at || b.created_at || b.slot_date || b.updated_at;
+      const cmp = companiesById[b.company_id] || null;
+      const dest = getPaymentDestination(b.payment_method, cmp);
       list.push({
         id: `bk-${b.id}`,
         source: 'EXPERIENCE',
@@ -125,6 +140,8 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
         amount: total,
         paid_amount: isRefunded ? -refundedAmount : (paid ? total : 0),
         marina_id: null,
+        destination_label: paid || isRefunded ? dest.label : (b.payment_method ? dest.label : '—'),
+        destination_detail: dest.detail,
         refund_iban: b.refund_iban || '',
         refund_cro: b.refund_transfer_reference || '',
         refund_date: b.refund_completed_at || b.refund_transfer_date || '',
@@ -200,6 +217,16 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
         amount: total,
         paid_amount: paidAmount,
         marina_id: mb.marina_id || q?.marina_id || null,
+        destination_label: (() => {
+          const mar = marinasById[mb.marina_id || q?.marina_id];
+          const cmp = companiesById[mb.company_id];
+          return getPaymentDestination(paymentMethod, cmp, mar).label;
+        })(),
+        destination_detail: (() => {
+          const mar = marinasById[mb.marina_id || q?.marina_id];
+          const cmp = companiesById[mb.company_id];
+          return getPaymentDestination(paymentMethod, cmp, mar).detail;
+        })(),
         payments_count: Array.isArray(mb.payments) ? mb.payments.length : 0,
         raw: mb,
       });
@@ -235,12 +262,14 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
         amount: total,
         paid_amount: ps === 'PAID' ? total : paidAmount,
         marina_id: cq.marina_id || null,
+        destination_label: getPaymentDestination(normalizePaymentMethod(cq.payment_method), companiesById[cq.company_id]).label,
+        destination_detail: getPaymentDestination(normalizePaymentMethod(cq.payment_method), companiesById[cq.company_id]).detail,
         raw: cq,
       });
     });
 
     return list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-  }, [bookings, marinaBookings, portQuotes, cantiereQuotes, companyId]);
+  }, [bookings, marinaBookings, portQuotes, cantiereQuotes, companyId, companiesById, marinasById]);
 
   // Applica filtri
   const filtered = useMemo(() => {
@@ -529,6 +558,7 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
                   <th className="p-3">Cliente</th>
                   <th className="p-3">Descrizione</th>
                   <th className="p-3">Pagamento</th>
+                  <th className="p-3">Destinazione Incasso</th>
                   <th className="p-3">Stato</th>
                   <th className="p-3 text-right">Importo</th>
                   <th className="p-3 text-right">Incassato</th>
@@ -537,7 +567,7 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={10} className="p-10 text-center text-muted-foreground">Nessuna transazione nel periodo selezionato.</td></tr>
+                  <tr><td colSpan={11} className="p-10 text-center text-muted-foreground">Nessuna transazione nel periodo selezionato.</td></tr>
                 ) : filtered.map(t => {
                   const SourceIcon = SOURCE_ICON[t.source] || Ship;
                   const residuo = t.amount - t.paid_amount;
@@ -557,6 +587,14 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
                         <Badge className={`${PM_COLOR(t.payment_method)} border-0 text-[11px]`}>
                           {PAYMENT_LABEL[t.payment_method] || t.payment_method}
                         </Badge>
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className="text-[11px] font-mono text-slate-700 bg-slate-100 px-2 py-1 rounded inline-block max-w-[180px] truncate"
+                          title={t.destination_detail || t.destination_label || ''}
+                        >
+                          {t.destination_label || '—'}
+                        </span>
                       </td>
                       <td className="p-3">
                         <Badge className={`text-[11px] border-0 ${
@@ -582,7 +620,7 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
               {filtered.length > 0 && (
                 <tfoot className="bg-gradient-to-r from-emerald-50 to-teal-50 border-t-2 border-emerald-300 sticky bottom-0">
                   <tr>
-                    <td colSpan={7} className="p-3 text-right uppercase text-xs font-bold tracking-wide text-muted-foreground">
+                    <td colSpan={8} className="p-3 text-right uppercase text-xs font-bold tracking-wide text-muted-foreground">
                       Totali ({filtered.length} {filtered.length === 1 ? 'movimento' : 'movimenti'})
                     </td>
                     <td className="p-3 text-right font-bold text-indigo-700">{fmtEur(kpis.totalAmount)}</td>

@@ -1,5 +1,6 @@
 // PDF Voucher generator for Locazioni Brevi - client-side using jspdf
 import { jsPDF } from 'jspdf';
+import { getPaymentDestination } from './paymentDestination';
 
 const fmtEur = (n) => new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(Number(n || 0));
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString('it-IT', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }) : '-');
@@ -194,7 +195,9 @@ export async function generateRentalVoucherPdf(booking, unit, company, opts = {}
   // === TOTALE / ACCONTO / SALDO ===
   doc.setFillColor(243, 244, 246);
   const hasAgency = !!(booking.agency_name);
-  const totalBoxH = hasAgency ? 40 : 32;
+  const pmForBox = booking.payment_method || booking.paymentMethod;
+  const willShowDestBox = !!(pmForBox && pmForBox !== 'NONE');
+  const totalBoxH = hasAgency ? (40 + (willShowDestBox ? 6 : 0)) : (32 + (willShowDestBox ? 6 : 0));
   doc.roundedRect(M, y, W - 2 * M, totalBoxH, 2, 2, 'F');
 
   doc.setFontSize(10).setFont('helvetica', 'normal');
@@ -242,9 +245,20 @@ export async function generateRentalVoucherPdf(booking, unit, company, opts = {}
     : `Stato pagamento: ${payStatusLabel}`;
   doc.text(statoLine, M + 5, y + 30);
 
+  // Destinazione incasso (SumUp account / IBAN / Cassa)
+  if (pmRaw && pmRaw !== 'NONE') {
+    const dest = getPaymentDestination(pmRaw, company);
+    if (dest && dest.detail && dest.detail !== 'Non specificato') {
+      doc.setFontSize(8).setFont('helvetica', 'italic').setTextColor(107, 114, 128);
+      const txt = `Destinazione: ${dest.detail}`;
+      doc.text(txt.length > 95 ? txt.slice(0, 95) + '…' : txt, M + 5, y + 35);
+      doc.setFont('helvetica', 'normal').setTextColor(75, 85, 99).setFontSize(9);
+    }
+  }
+
   if (hasAgency) {
     doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(67, 56, 202);
-    doc.text(`Venduto da: ${booking.agency_name}`, M + 5, y + 36);
+    doc.text(`Venduto da: ${booking.agency_name}`, M + 5, y + (willShowDestBox ? 41 : 36));
   }
   y += totalBoxH + 6;
 
