@@ -6,6 +6,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { handleWarehouseArticles, handleWarehouseSales, handleWarehouseReport } from './warehouse';
+import { handleAiProductSearch } from './ai_product_search';
 
 let cachedDb = null;
 
@@ -2380,6 +2381,7 @@ async function handleRoute(request, resolvedParams, method) {
         if (sub === 'report') return await handleWarehouseReport(method, searchParams, db);
         return NextResponse.json({ error: 'Route magazzino non trovata' }, { status: 404 });
       }
+      case 'ai-product-search': return await handleAiProductSearch(method, body);
       case 'marinas': {
         const { handleMarinas } = await import('./marinas');
         const db = await getDb();
