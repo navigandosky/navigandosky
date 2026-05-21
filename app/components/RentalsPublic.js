@@ -163,7 +163,7 @@ export function RentalsCatalogPage({ setView, rentalUnits = [], companies = [], 
           </CardContent></Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filtered.map((u) => <UnitCard key={u.id} unit={u} onSelect={() => setView('rental-detail', { rentalUnit: u })} />)}
+            {filtered.map((u) => <UnitCard key={u.id} unit={u} companies={companies} onSelect={() => setView('rental-detail', { rentalUnit: u })} />)}
           </div>
         )}
       </section>
@@ -171,11 +171,19 @@ export function RentalsCatalogPage({ setView, rentalUnits = [], companies = [], 
   );
 }
 
-function UnitCard({ unit, onSelect }) {
+function UnitCard({ unit, onSelect, companies = [] }) {
   const cm = catMeta(unit.category);
   const Icon = cm.icon;
   const sp = startingPrice(unit);
   const img = unit.images?.[0] || buildPlaceholder(unit.category, unit.name);
+  const companyAbbrev = (() => {
+    const c = (companies || []).find(x => x.id === unit.company_id);
+    if (!c) return null;
+    const raw = c.short_name || c.name || '';
+    const cleaned = raw.replace(/\b(s\.?n\.?c\.?|s\.?r\.?l\.?|s\.?p\.?a\.?|s\.?a\.?s\.?|di\s+.+)$/gi, '').trim();
+    const w = cleaned.split(/\s+/).filter(Boolean).slice(0, 2).map(x => x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()).join(' ');
+    return w || null;
+  })();
   return (
     <Card className="overflow-hidden cursor-pointer hover:shadow-xl transition border-0 shadow" onClick={onSelect}>
       <div className="relative h-48">
@@ -202,6 +210,11 @@ function UnitCard({ unit, onSelect }) {
             {unit.max_guests && <span className="flex items-center gap-1"><Users className="w-3 h-3" />{unit.max_guests} ospiti</span>}
             {unit.bedrooms && <span className="flex items-center gap-1"><BedDouble className="w-3 h-3" />{unit.bedrooms}</span>}
             {unit.bathrooms && <span className="flex items-center gap-1"><Bath className="w-3 h-3" />{unit.bathrooms}</span>}
+          </div>
+        )}
+        {companyAbbrev && (
+          <div className="pt-1 flex justify-end">
+            <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-semibold whitespace-nowrap" title="Fornitore">🏢 {companyAbbrev}</span>
           </div>
         )}
         <Button className="w-full mt-2 bg-teal-600 hover:bg-teal-700">

@@ -848,8 +848,17 @@ function Footer({ companyBrand, currentUser }) {
 }
 
 // ============ HOME PAGE ============
-function HomePage({ setView, experiences, rentalUnits = [], companyBrand }) {
+function HomePage({ setView, experiences, rentalUnits = [], companies = [], companyBrand }) {
   const { language } = useLanguage();
+  // Helper per abbreviare nome company (es. "MARLIN SUB S.N.C. DI CORONAS..." -> "Marlin Sub")
+  const abbrevCompany = (cid) => {
+    const c = companies.find(x => x.id === cid);
+    if (!c) return null;
+    const raw = c.short_name || c.name || '';
+    const cleaned = raw.replace(/\b(s\.?n\.?c\.?|s\.?r\.?l\.?|s\.?p\.?a\.?|s\.?a\.?s\.?|di\s+.+)$/gi, '').trim();
+    const words = cleaned.split(/\s+/).filter(Boolean).slice(0, 2);
+    return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  };
   // Ordina per home_priority (1-8 ASC), poi prezzo B2C decrescente, max 8 items in vetrina
   const sortByPriority = (a, b) => {
     const pa = Number(a.home_priority || 0);
@@ -902,7 +911,7 @@ function HomePage({ setView, experiences, rentalUnits = [], companyBrand }) {
             <Card key={exp.id} className="card-hover overflow-hidden cursor-pointer border-0 shadow-lg" onClick={() => setView('detail', { experience: exp })}>
               <div className="relative h-48"><img src={getExpImage(exp)} alt={exp.name} className="w-full h-full object-cover" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div><div className="absolute bottom-3 right-3 bg-white/95 backdrop-blur px-3 py-1 rounded-full font-bold text-primary flex items-baseline gap-1">{sp.isFromTiers && <span className="text-[10px] font-normal opacity-75">da</span>}{fmtPrice(sp.price)}</div></div>
               <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle></CardHeader>
-              <CardContent className="pb-4"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex items-center gap-4 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h{exp.duration_minutes%60>0?` ${exp.duration_minutes%60}min`:''}</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span></div></CardContent>
+              <CardContent className="pb-4"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><div className="flex items-center gap-3"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h{exp.duration_minutes%60>0?` ${exp.duration_minutes%60}min`:''}</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span></div>{abbrevCompany(exp.company_id) && <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-semibold whitespace-nowrap" title="Fornitore">🏢 {abbrevCompany(exp.company_id)}</span>}</div></CardContent>
             </Card>
             );
           })}
@@ -955,9 +964,12 @@ function HomePage({ setView, experiences, rentalUnits = [], companyBrand }) {
                     <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{u.name}</CardTitle></CardHeader>
                     <CardContent className="pb-4">
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{u.description || u.location || '—'}</p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        {u.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{u.location}</span>}
-                        {(u.category === 'APARTMENT' || u.category === 'VILLA') && u.max_guests && <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {u.max_guests}</span>}
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3">
+                          {u.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{u.location}</span>}
+                          {(u.category === 'APARTMENT' || u.category === 'VILLA') && u.max_guests && <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {u.max_guests}</span>}
+                        </div>
+                        {abbrevCompany(u.company_id) && <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-semibold whitespace-nowrap" title="Fornitore">🏢 {abbrevCompany(u.company_id)}</span>}
                       </div>
                     </CardContent>
                   </Card>
@@ -1077,7 +1089,7 @@ function CatalogPage({ setView, experiences, currentUser, companies, companyBran
             <Card key={exp.id} className="card-hover overflow-hidden border shadow-sm cursor-pointer group" onClick={() => setView('detail', { experience: exp })}>
               <div className="relative h-52 overflow-hidden"><img src={getExpImage(exp)} alt={exp.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e)=>{e.target.src=DEFAULT_EXP_IMG;}} /><div className="absolute top-3 left-3"><TypeBadge type={exp.type} /></div></div>
               <CardHeader className="pb-2"><CardTitle className="text-lg leading-tight">{exp.name}</CardTitle><CardDescription className="flex items-center gap-1 text-xs"><MapPin className="w-3 h-3" />{exp.meeting_point}</CardDescription>{isSuperAdmin && exp.company_id && (<div className="mt-2"><Badge className="bg-purple-100 text-purple-800 text-xs">{getCompanyName(exp.company_id)}</Badge></div>)}</CardHeader>
-              <CardContent className="pb-2"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h{exp.duration_minutes%60>0?` ${exp.duration_minutes%60}min`:''}</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span><span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span></div></CardContent>
+              <CardContent className="pb-2"><p className="text-sm text-muted-foreground line-clamp-2 mb-3">{exp.description}</p><div className="flex items-center justify-between gap-2 text-xs text-muted-foreground"><div className="flex flex-wrap gap-3"><span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{Math.floor(exp.duration_minutes/60)}h{exp.duration_minutes%60>0?` ${exp.duration_minutes%60}min`:''}</span><span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />Max {exp.max_capacity}</span><span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" />{(exp.languages||[]).join(', ')}</span></div>{(() => { const c = (companies||[]).find(x => x.id === exp.company_id); if (!c) return null; const raw = c.short_name || c.name || ''; const cleaned = raw.replace(/\b(s\.?n\.?c\.?|s\.?r\.?l\.?|s\.?p\.?a\.?|s\.?a\.?s\.?|di\s+.+)$/gi, '').trim(); const w = cleaned.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x.charAt(0).toUpperCase()+x.slice(1).toLowerCase()).join(' '); return w ? <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-semibold whitespace-nowrap" title="Fornitore">🏢 {w}</span> : null; })()}</div></CardContent>
               <CardFooter className="pt-0 flex justify-between items-center"><div className="flex items-baseline gap-1">{sp.isFromTiers && <span className="text-xs font-normal text-muted-foreground">da</span>}<span className="text-2xl font-bold text-primary">{fmtPrice(sp.price)}</span><span className="text-xs font-normal text-muted-foreground">{t('per_person')}</span></div><Button size="sm">{t('discover')} <ChevronRight className="w-4 h-4 ml-1" /></Button></CardFooter>
             </Card>
             );
@@ -7354,7 +7366,7 @@ export default function App() {
           currentUser={currentUser}
         />
         <main className="flex-1">
-          {view === 'home' && <HomePage setView={navigate} experiences={experiences} rentalUnits={rentalUnits} companyBrand={companyBrand} currentUser={currentUser} />}
+          {view === 'home' && <HomePage setView={navigate} experiences={experiences} rentalUnits={rentalUnits} companies={companies} companyBrand={companyBrand} currentUser={currentUser} />}
           {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} currentUser={currentUser} companies={companies} companyBrand={companyBrand} />}
           {view === 'rentals' && <Suspense fallback={<div className="text-center py-16"><Home className="w-8 h-8 mx-auto animate-pulse text-teal-600" /></div>}><RentalsCatalogPageLazy setView={navigate} rentalUnits={rentalUnits} companies={companies} companyBrand={companyBrand} /></Suspense>}
           {view === 'rental-detail' && <Suspense fallback={<div className="text-center py-16"><Home className="w-8 h-8 mx-auto animate-pulse text-teal-600" /></div>}><RentalDetailPageLazy unit={selectedRentalUnit} setView={navigate} /></Suspense>}
