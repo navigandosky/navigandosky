@@ -195,6 +195,7 @@ export async function handleRentalUnits(method, id, body, action, sp, db) {
       deposit_percentage: body.deposit_percentage ? Number(body.deposit_percentage) : 30,
       is_active: body.is_active !== false,
       is_visible_on_home: body.is_visible_on_home !== false, // default true
+      home_priority: Math.max(0, Math.min(8, Number(body.home_priority || 0))),
       notes: body.notes || '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -210,6 +211,7 @@ export async function handleRentalUnits(method, id, body, action, sp, db) {
     if (rest.quantity !== undefined) rest.quantity = Math.max(1, Number(rest.quantity || 1));
     if (rest.base_price !== undefined) rest.base_price = Number(rest.base_price || 0);
     if (rest.deposit_percentage !== undefined) rest.deposit_percentage = Number(rest.deposit_percentage || 0);
+    if (rest.home_priority !== undefined) rest.home_priority = Math.max(0, Math.min(8, Number(rest.home_priority || 0)));
     if (Array.isArray(rest.seasonal_pricing)) {
       rest.seasonal_pricing = rest.seasonal_pricing.slice(0, 4).map(s => ({
         id: s.id || uuidv4(),

@@ -74,11 +74,19 @@ export function RentalsCatalogPage({ setView, rentalUnits = [], companies = [], 
   const [q, setQ] = useState('');
 
   const filtered = useMemo(() => {
+    const sortFn = (a, b) => {
+      const pa = Number(a.home_priority || 0);
+      const pb = Number(b.home_priority || 0);
+      if (pa > 0 && pb > 0) return pa - pb;
+      if (pa > 0) return -1;
+      if (pb > 0) return 1;
+      return Number(b.base_price || 0) - Number(a.base_price || 0);
+    };
     return rentalUnits.filter((u) => {
       if (catFilter !== 'ALL' && u.category !== catFilter) return false;
       if (q && !u.name?.toLowerCase().includes(q.toLowerCase()) && !u.location?.toLowerCase().includes(q.toLowerCase())) return false;
       return true;
-    });
+    }).sort(sortFn);
   }, [rentalUnits, catFilter, q]);
 
   const brandName = companyBrand?.name || 'Maretrek';

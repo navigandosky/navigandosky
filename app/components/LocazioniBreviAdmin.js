@@ -821,6 +821,31 @@ function UnitFormDialog({ unit, companyId, onClose, onSaved, isSuperAdmin, compa
             </CardContent>
           </Card>
 
+          {/* Priorità Vetrina Home */}
+          <Card className="bg-amber-50 border-2 border-amber-200">
+            <CardContent className="pt-4">
+              <Label className="flex items-center gap-2 mb-2">
+                ⭐ Priorità Vetrina Home
+                <span className="text-[11px] text-muted-foreground font-normal">(0 = automatico per prezzo, 1-8 = slot fisso)</span>
+              </Label>
+              <Select value={String(form.home_priority || 0)} onValueChange={(v) => set('home_priority', Number(v))}>
+                <SelectTrigger className="bg-white max-w-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">🔁 Automatico (ordinato per prezzo)</SelectItem>
+                  <SelectItem value="1">🥇 Slot 1 (in cima)</SelectItem>
+                  <SelectItem value="2">🥈 Slot 2</SelectItem>
+                  <SelectItem value="3">🥉 Slot 3</SelectItem>
+                  <SelectItem value="4">🏅 Slot 4</SelectItem>
+                  <SelectItem value="5">🏅 Slot 5</SelectItem>
+                  <SelectItem value="6">🏅 Slot 6</SelectItem>
+                  <SelectItem value="7">🏅 Slot 7</SelectItem>
+                  <SelectItem value="8">🏅 Slot 8</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-amber-700 mt-1.5">L'home page e il catalogo Locazioni mostrano fino a 8 unità prioritarie nei rispettivi slot. Le altre seguono ordinate per prezzo decrescente.</p>
+            </CardContent>
+          </Card>
+
           {/* Tariffe stagionali */}
           <Card className="bg-slate-50 border-dashed">
             <CardHeader className="py-3">

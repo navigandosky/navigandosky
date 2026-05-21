@@ -371,7 +371,7 @@ function ImageUploader({ images = [], onChange, maxImages = 3 }) {
     <div className="space-y-3">
       <Label className="flex items-center gap-2">
         <ImageIcon className="w-4 h-4" />
-        Immagini (max {maxImages})
+        Immagini (max {maxImages}) <span className="text-xs text-muted-foreground font-normal">— la prima è la <b>copertina</b>. Usa ◀ ▶ per riordinare.</span>
       </Label>
       
       <div className="grid grid-cols-3 gap-3">
@@ -380,15 +380,70 @@ function ImageUploader({ images = [], onChange, maxImages = 3 }) {
             <img
               src={img.startsWith('data:') ? img : img}
               alt={`Preview ${idx + 1}`}
-              className="w-full h-24 object-cover rounded-lg border"
+              className={`w-full h-28 object-cover rounded-lg border-2 ${idx === 0 ? 'border-teal-500' : 'border-slate-200'}`}
             />
+            {idx === 0 && (
+              <span className="absolute top-1 left-1 bg-teal-600 text-white text-[10px] px-1.5 py-0.5 rounded font-semibold">⭐ Copertina</span>
+            )}
+            <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">#{idx + 1}</span>
             <button
               type="button"
               onClick={() => removeImage(idx)}
+              title="Rimuovi"
               className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <X className="w-3 h-3" />
             </button>
+            {/* Reorder controls */}
+            <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {idx > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = [...previews];
+                    [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
+                    setPreviews(updated);
+                    onChange(updated);
+                  }}
+                  title="Sposta a sinistra"
+                  className="bg-slate-700 text-white rounded p-1 hover:bg-slate-800"
+                >
+                  ◀
+                </button>
+              )}
+              {idx < previews.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = [...previews];
+                    [updated[idx + 1], updated[idx]] = [updated[idx], updated[idx + 1]];
+                    setPreviews(updated);
+                    onChange(updated);
+                  }}
+                  title="Sposta a destra"
+                  className="bg-slate-700 text-white rounded p-1 hover:bg-slate-800"
+                >
+                  ▶
+                </button>
+              )}
+              {idx > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = [...previews];
+                    const [moved] = updated.splice(idx, 1);
+                    updated.unshift(moved);
+                    setPreviews(updated);
+                    onChange(updated);
+                    toast.success('Impostata come copertina');
+                  }}
+                  title="Imposta come copertina"
+                  className="bg-teal-600 text-white rounded p-1 text-[10px] font-semibold hover:bg-teal-700 px-1.5"
+                >
+                  ⭐
+                </button>
+              )}
+            </div>
           </div>
         ))}
         
@@ -795,13 +850,34 @@ function Footer({ companyBrand, currentUser }) {
 // ============ HOME PAGE ============
 function HomePage({ setView, experiences, rentalUnits = [], companyBrand }) {
   const { language } = useLanguage();
-  const featuredSource = useMemo(() => experiences.slice(0, 3), [experiences]);
+  // Ordina per home_priority (1-8 ASC), poi prezzo B2C decrescente, max 8 items in vetrina
+  const sortByPriority = (a, b) => {
+    const pa = Number(a.home_priority || 0);
+    const pb = Number(b.home_priority || 0);
+    if (pa > 0 && pb > 0) return pa - pb;
+    if (pa > 0) return -1;
+    if (pb > 0) return 1;
+    const priceA = Number(a.price_b2c || 0);
+    const priceB = Number(b.price_b2c || 0);
+    return priceB - priceA;
+  };
+  const sortRentalsByPriority = (a, b) => {
+    const pa = Number(a.home_priority || 0);
+    const pb = Number(b.home_priority || 0);
+    if (pa > 0 && pb > 0) return pa - pb;
+    if (pa > 0) return -1;
+    if (pb > 0) return 1;
+    const priceA = Number(a.base_price || 0);
+    const priceB = Number(b.base_price || 0);
+    return priceB - priceA;
+  };
+  const featuredSource = useMemo(() => [...experiences].sort(sortByPriority).slice(0, 8), [experiences]);
   const { translated: featured, isTranslating: isTransHome } = useTranslatedItems(
     featuredSource,
     language,
     ['name', 'description']
   );
-  const featuredRentals = useMemo(() => (rentalUnits || []).slice(0, 3), [rentalUnits]);
+  const featuredRentals = useMemo(() => [...(rentalUnits || [])].sort(sortRentalsByPriority).slice(0, 8), [rentalUnits]);
   const heroImg = companyBrand?.hero_image || HERO_IMG;
   const logoUrl = companyBrand?.logo_url || LOGO_URL;
   const brandName = companyBrand?.name || 'Maretrek';
@@ -938,12 +1014,22 @@ function CatalogPage({ setView, experiences, currentUser, companies, companyBran
     displayExperiences = experiences.filter(e => e.company_id === currentUser.company_id);
   }
   
-  const filtered = useMemo(() => displayExperiences.filter(e => {
-    if (typeF !== 'ALL' && e.type !== typeF) return false;
-    if (langF !== 'ALL' && !(e.languages||[]).includes(langF)) return false;
-    if (q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
-  }), [displayExperiences, typeF, langF, q]);
+  const filtered = useMemo(() => {
+    const sortFn = (a, b) => {
+      const pa = Number(a.home_priority || 0);
+      const pb = Number(b.home_priority || 0);
+      if (pa > 0 && pb > 0) return pa - pb;
+      if (pa > 0) return -1;
+      if (pb > 0) return 1;
+      return Number(b.price_b2c || 0) - Number(a.price_b2c || 0);
+    };
+    return displayExperiences.filter(e => {
+      if (typeF !== 'ALL' && e.type !== typeF) return false;
+      if (langF !== 'ALL' && !(e.languages||[]).includes(langF)) return false;
+      if (q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
+      return true;
+    }).sort(sortFn);
+  }, [displayExperiences, typeF, langF, q]);
   
   // Traduzione on-demand delle esperienze filtrate
   const { translated: filteredTranslated, isTranslating } = useTranslatedItems(
@@ -6068,6 +6154,24 @@ function AdminDashboard({ currentUser, onLogout }) {
             <div><Label>Descrizione</Label><Textarea value={formData.description||''} onChange={e=>setFormData({...formData,description:e.target.value})}/></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata (min)</Label><Input type="number" value={formData.duration_minutes||''} onChange={e=>setFormData({...formData,duration_minutes:e.target.value})}/></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-3">
+              <Label className="flex items-center gap-2 mb-2">⭐ Priorità Vetrina Home <span className="text-[11px] text-muted-foreground font-normal">(0 = automatico per prezzo, 1-8 = slot fisso in vetrina)</span></Label>
+              <Select value={String(formData.home_priority||0)} onValueChange={v=>setFormData({...formData,home_priority:Number(v)})}>
+                <SelectTrigger className="bg-white max-w-xs"><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">🔁 Automatico (ordinato per prezzo)</SelectItem>
+                  <SelectItem value="1">🥇 Slot 1 (in cima)</SelectItem>
+                  <SelectItem value="2">🥈 Slot 2</SelectItem>
+                  <SelectItem value="3">🥉 Slot 3</SelectItem>
+                  <SelectItem value="4">🏅 Slot 4</SelectItem>
+                  <SelectItem value="5">🏅 Slot 5</SelectItem>
+                  <SelectItem value="6">🏅 Slot 6</SelectItem>
+                  <SelectItem value="7">🏅 Slot 7</SelectItem>
+                  <SelectItem value="8">🏅 Slot 8</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-amber-700 mt-1.5">L'home page mostra fino a 8 esperienze prioritarie nei rispettivi slot. Le altre seguono ordinate per prezzo decrescente.</p>
+            </div>
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
             <div>
               <Label className="flex items-center gap-1">📍 Link Google Maps <span className="text-xs text-muted-foreground font-normal">(opzionale)</span></Label>
@@ -6189,6 +6293,24 @@ function AdminDashboard({ currentUser, onLogout }) {
             <div><Label>Descrizione</Label><Textarea value={formData.description||''} onChange={e=>setFormData({...formData,description:e.target.value})}/></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Durata</Label><div className="flex gap-1.5 items-center"><Input type="number" min="0" placeholder="Ore" value={Math.floor((formData.duration_minutes||0)/60)||''} onChange={e=>{const h=parseInt(e.target.value)||0;const m=(formData.duration_minutes||0)%60;const tot=h*60+m;setFormData({...formData,duration_hours:h,duration_minutes:tot});}} className="w-20"/><span className="text-xs text-muted-foreground">h</span><Input type="number" min="0" max="59" step="5" placeholder="Minuti" value={(formData.duration_minutes||0)%60||''} onChange={e=>{const m=Math.max(0,Math.min(59,parseInt(e.target.value)||0));const h=Math.floor((formData.duration_minutes||0)/60);const tot=h*60+m;setFormData({...formData,duration_hours:h,duration_minutes:tot});}} className="w-20"/><span className="text-xs text-muted-foreground">min</span></div><p className="text-[11px] text-muted-foreground mt-1">es. 0h 40min · 1h 30min · 3h 0min</p></div><div><Label>Capacita Max</Label><Input type="number" value={formData.max_capacity||''} onChange={e=>setFormData({...formData,max_capacity:e.target.value})}/></div></div>
             <div className="grid grid-cols-2 gap-3"><div><Label>Prezzo B2C</Label><Input type="number" value={formData.price_b2c||''} onChange={e=>setFormData({...formData,price_b2c:e.target.value})}/></div><div><Label>Prezzo B2B</Label><Input type="number" value={formData.price_b2b||''} onChange={e=>setFormData({...formData,price_b2b:e.target.value})}/></div></div>
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-3">
+              <Label className="flex items-center gap-2 mb-2">⭐ Priorità Vetrina Home <span className="text-[11px] text-muted-foreground font-normal">(0 = automatico per prezzo, 1-8 = slot fisso in vetrina)</span></Label>
+              <Select value={String(formData.home_priority||0)} onValueChange={v=>setFormData({...formData,home_priority:Number(v)})}>
+                <SelectTrigger className="bg-white max-w-xs"><SelectValue/></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">🔁 Automatico (ordinato per prezzo)</SelectItem>
+                  <SelectItem value="1">🥇 Slot 1 (in cima)</SelectItem>
+                  <SelectItem value="2">🥈 Slot 2</SelectItem>
+                  <SelectItem value="3">🥉 Slot 3</SelectItem>
+                  <SelectItem value="4">🏅 Slot 4</SelectItem>
+                  <SelectItem value="5">🏅 Slot 5</SelectItem>
+                  <SelectItem value="6">🏅 Slot 6</SelectItem>
+                  <SelectItem value="7">🏅 Slot 7</SelectItem>
+                  <SelectItem value="8">🏅 Slot 8</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-amber-700 mt-1.5">L'home page mostra fino a 8 esperienze prioritarie nei rispettivi slot. Le altre seguono ordinate per prezzo decrescente.</p>
+            </div>
             <div><Label>Punto d'Incontro</Label><Input value={formData.meeting_point||''} onChange={e=>setFormData({...formData,meeting_point:e.target.value})}/></div>
             <div>
               <Label className="flex items-center gap-1">📍 Link Google Maps <span className="text-xs text-muted-foreground font-normal">(opzionale)</span></Label>
