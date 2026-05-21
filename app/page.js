@@ -605,12 +605,29 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, curren
               {l}
             </button>
           ))}
-          <a 
-            href="/posti-barca"
+          <button
+            type="button"
+            onClick={() => {
+              // Mostra overlay immediato e prefetch poi naviga
+              try {
+                const ov = document.createElement('div');
+                ov.id = 'marina-loader';
+                ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:system-ui;backdrop-filter:blur(4px);';
+                ov.innerHTML = `
+                  <div style="width:64px;height:64px;border:5px solid rgba(255,255,255,0.25);border-top-color:#06b6d4;border-radius:50%;animation:mspin 0.9s linear infinite;margin-bottom:20px;"></div>
+                  <h2 style="font-size:22px;font-weight:700;margin:0 0 8px;">⚓ Caricamento Posti Barca</h2>
+                  <p style="font-size:14px;opacity:0.85;margin:0;">Attendere connessione sistema Marine...</p>
+                  <style>@keyframes mspin { to { transform: rotate(360deg) } }</style>
+                `;
+                document.body.appendChild(ov);
+              } catch {}
+              // Naviga (Next gestisce il routing client-side se possibile, altrimenti hard nav)
+              window.location.href = '/posti-barca';
+            }}
             className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors text-gray-700 hover:bg-gray-100 hover:text-gray-900 flex items-center gap-1.5"
           >
             <Anchor className="w-4 h-4" /> Posti Barca
-          </a>
+          </button>
           <button
             type="button"
             onClick={() => setView('rentals')}
@@ -661,7 +678,20 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, curren
           {[['home', t('home')], ['catalog', t('experiences')]].map(([v, l]) => (
             <button key={v} onClick={() => { setView(v); setMobileOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium ${view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>{l}</button>
           ))}
-          <a href="/posti-barca" className="block px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-muted">⚓ Posti Barca</a>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                const ov = document.createElement('div');
+                ov.id = 'marina-loader';
+                ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:system-ui;backdrop-filter:blur(4px);';
+                ov.innerHTML = `<div style="width:64px;height:64px;border:5px solid rgba(255,255,255,0.25);border-top-color:#06b6d4;border-radius:50%;animation:mspin 0.9s linear infinite;margin-bottom:20px;"></div><h2 style="font-size:22px;font-weight:700;margin:0 0 8px;">⚓ Caricamento Posti Barca</h2><p style="font-size:14px;opacity:0.85;margin:0;">Attendere connessione sistema Marine...</p><style>@keyframes mspin { to { transform: rotate(360deg) } }</style>`;
+                document.body.appendChild(ov);
+              } catch {}
+              window.location.href = '/posti-barca';
+            }}
+            className="w-full text-left block px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-muted"
+          >⚓ Posti Barca</button>
           {[['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
             <button key={v} onClick={() => { setView(v); setMobileOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium ${view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>{l}</button>
           ))}
@@ -7278,6 +7308,18 @@ export default function App() {
     };
     
     loadInitialData();
+  }, []);
+
+  // Prefetch passivo della route /posti-barca in background per velocizzare il primo accesso
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const t = setTimeout(() => {
+      try {
+        // Fetch della pagina per scaldare cache Next.js (non blocca rendering)
+        fetch('/posti-barca', { method: 'GET', cache: 'force-cache' }).catch(() => {});
+      } catch {}
+    }, 1500);
+    return () => clearTimeout(t);
   }, []);
 
   const handleLoginSuccess = async (user) => {
