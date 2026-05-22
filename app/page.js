@@ -24,6 +24,8 @@ const PortSettingsManagerLazy = dynamic(() => import('./components/PortRegistrie
 const CantiereAdminLazy = dynamic(() => import('./components/CantiereAdmin'), { ssr: false });
 // Marina Bookings (Step 3 - richieste prenotazione)
 const MarinaBookingsLazy = dynamic(() => import('./components/MarinaBookings'), { ssr: false });
+// Marina Berth Calendar (Step 3 - vista calendario per posto barca)
+const MarinaBerthCalendarLazy = dynamic(() => import('./components/MarinaBerthCalendar'), { ssr: false });
 // Nuovo Preventivo Posto Barca (dialog admin)
 const NewQuoteDialogLazy = dynamic(() => import('./components/NewQuoteDialog'), { ssr: false });
 const NewBookingDialogLazy = dynamic(() => import('./components/NewBookingDialog'), { ssr: false });
