@@ -3959,6 +3959,14 @@ function AdminDashboard({ currentUser, onLogout }) {
                   ⚓ Marina
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => changeViewMode('locazioni')}
+                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'locazioni' ? 'bg-white shadow text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Mostra solo modulo Locazioni Brevi"
+              >
+                🏖️ Locazioni Brevi
+              </button>
               {(isMarlinSub || isSuperAdmin) && (
                 <button
                   type="button"
@@ -3976,14 +3984,6 @@ function AdminDashboard({ currentUser, onLogout }) {
                 title="Mostra solo modulo magazzino"
               >
                 📦 Magazzino
-              </button>
-              <button
-                type="button"
-                onClick={() => changeViewMode('locazioni')}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'locazioni' ? 'bg-white shadow text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
-                title="Mostra solo modulo Locazioni Brevi"
-              >
-                🏖️ Locazioni Brevi
               </button>
             </div>
           )}
