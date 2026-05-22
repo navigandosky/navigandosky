@@ -176,12 +176,18 @@ export async function handleMarinaQuote(method, body, db) {
   // Verifica se il periodo cade in stagione estiva (mesi 6-10: giugno-ottobre)
   const isInBoatingSeason = startMonth >= 6 && endMonth <= 10;
   // Logica STAGIONALE (Giugno-Settembre):
-  //  - applica se la permanenza cade nella stagione estiva (giu-ott) con durata ≥ 4 mesi (120 giorni)
-  //  - oppure se il periodo copre interamente i 4 mesi di stagione (1/6 - 30/9)
+  //  - applica se il periodo copre l'intera stagione 1/6 - 30/9 (rigoroso)
+  //  - oppure se copre SOSTANZIALMENTE la stagione (inizia entro 15/6 e termina dopo il 14/9)
+  //  - oppure se la permanenza cade in stagione estiva (giu-ott) e dura ≥ 90 giorni (3 mesi pieni)
   const seasonStart = new Date(start.getFullYear(), 5, 1);   // 1 giugno
   const seasonEnd = new Date(start.getFullYear(), 8, 30);    // 30 settembre
+  const seasonEarlyStart = new Date(start.getFullYear(), 5, 15); // 15 giugno
+  const seasonEarlyEnd = new Date(start.getFullYear(), 8, 14);   // 14 settembre
   const coversFullSeason = start <= seasonStart && end >= seasonEnd;
-  const eligibleSeasonal = coversFullSeason || (isInBoatingSeason && days >= 120);
+  const coversSubstantialSeason = start <= seasonEarlyStart && end >= seasonEarlyEnd;
+  const eligibleSeasonal = coversFullSeason
+    || coversSubstantialSeason
+    || (isInBoatingSeason && days >= 90);
   
   // Opzione 1: tariffa giornaliera (somma giorni per mese) - SEMPRE mostrata per confronto
   if (pricing.daily_by_month) {
