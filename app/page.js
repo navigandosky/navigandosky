@@ -2137,6 +2137,80 @@ const ResourceBookingsList = memo(function ResourceBookingsList({ resource, book
   );
 });
 
+// ============ MARINA MAP EMBED (iframe vista mappa gestione) ============
+function MarinaMapEmbed({ ownedMarinas, globalMarinaFilter }) {
+  // Determina la marina iniziale: filtro globale se valido, altrimenti la prima
+  const initialMarina = useMemo(() => {
+    if (globalMarinaFilter && globalMarinaFilter !== 'ALL') {
+      return ownedMarinas.find(m => m.id === globalMarinaFilter) || ownedMarinas[0];
+    }
+    return ownedMarinas[0];
+  }, [ownedMarinas, globalMarinaFilter]);
+
+  const [selectedSlug, setSelectedSlug] = useState(initialMarina?.slug || '');
+
+  useEffect(() => {
+    if (initialMarina?.slug && !selectedSlug) setSelectedSlug(initialMarina.slug);
+  }, [initialMarina, selectedSlug]);
+
+  if (!ownedMarinas || ownedMarinas.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-10 text-center text-muted-foreground">
+          Nessuna marina disponibile.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const mapUrl = selectedSlug ? `/posti-barca/${selectedSlug}/mappa` : '';
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center justify-between flex-wrap gap-2">
+          <span className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-blue-600" />
+            Vista Mappa Gestione
+          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {ownedMarinas.length > 1 && (
+              <Select value={selectedSlug} onValueChange={setSelectedSlug}>
+                <SelectTrigger className="w-[220px]"><SelectValue placeholder="Seleziona marina" /></SelectTrigger>
+                <SelectContent>
+                  {ownedMarinas.map(m => <SelectItem key={m.id} value={m.slug}>{m.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            {mapUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(mapUrl, '_blank', 'noopener')}
+                title="Apri la mappa in una nuova scheda"
+              >
+                ↗ Apri in nuova scheda
+              </Button>
+            )}
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        {mapUrl ? (
+          <iframe
+            src={mapUrl}
+            title="Mappa Gestione Posti Barca"
+            className="w-full border-0 rounded-b-lg"
+            style={{ height: 'calc(100vh - 280px)', minHeight: '600px' }}
+          />
+        ) : (
+          <div className="p-10 text-center text-muted-foreground">Seleziona una marina per visualizzare la mappa.</div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ============ SUPER ADMIN: RIPROGRAMMAZIONE PRENOTAZIONE ============
 function SuperAdminReschedulePanel({ booking, onDone }) {
   const initialIso = booking?.slot_datetime || '';
@@ -4086,6 +4160,9 @@ function AdminDashboard({ currentUser, onLogout }) {
             </TabsTrigger>
             <TabsTrigger value="marina-calendar" className="text-white data-[state=active]:bg-white data-[state=active]:text-cyan-800 hover:bg-white/20">
               <CalIcon className="w-4 h-4 mr-1.5" />Calendario Posti Barca
+            </TabsTrigger>
+            <TabsTrigger value="marina-map" className="text-white data-[state=active]:bg-white data-[state=active]:text-cyan-800 hover:bg-white/20">
+              <MapPin className="w-4 h-4 mr-1.5" />Vista Mappa Gestione
             </TabsTrigger>
           </TabsList>
         )}
@@ -6292,6 +6369,16 @@ function AdminDashboard({ currentUser, onLogout }) {
             <Suspense fallback={<div className="text-center py-8"><CalIcon className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <MarinaBerthCalendarLazy currentUser={currentUser} marinaFilterId={globalMarinaFilter} />
             </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin / Owner Marine: Vista Mappa Gestione (iframe della mappa admin) */}
+        {hasMarinaOwnership && (
+          <TabsContent value="marina-map" className="space-y-4">
+            <MarinaMapEmbed
+              ownedMarinas={ownedMarinas}
+              globalMarinaFilter={globalMarinaFilter}
+            />
           </TabsContent>
         )}
 
