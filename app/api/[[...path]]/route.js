@@ -105,12 +105,64 @@ async function handleExperiences(method, id, body, sp) {
     if (updates.max_capacity) updates.max_capacity = Number(updates.max_capacity);
     if (updates.price_b2c) updates.price_b2c = Number(updates.price_b2c);
     if (updates.price_b2b) updates.price_b2b = Number(updates.price_b2b);
+
+    // Recupera il documento PRIMA per confrontare le price_tiers
+    const previous = await col.findOne({ id });
+
     const result = await col.findOneAndUpdate(
       { id },
       { $set: updates },
       { returnDocument: 'after' }
     );
     if (!result) return json({ error: 'Non trovato' }, 404);
+
+    // === AUTO-SYNC SLOT FUTURE quando cambiano le price_tiers ===
+    // Se price_tiers (o price_b2c base) sono cambiati, ricalcoliamo il price_override
+    // degli slot futuri NON marcati come override manuale.
+    const tiersChanged = JSON.stringify(previous?.price_tiers || []) !== JSON.stringify(result.price_tiers || []);
+    const basePriceChanged = Number(previous?.price_b2c || 0) !== Number(result.price_b2c || 0);
+    if (tiersChanged || basePriceChanged) {
+      try {
+        const slotsCol = db.collection('slots');
+        const nowIso = new Date().toISOString();
+        const futureSlots = await slotsCol.find({
+          experience_id: id,
+          start_datetime: { $gte: nowIso },
+          $or: [
+            { price_override_manual: { $exists: false } },
+            { price_override_manual: false },
+          ],
+        }).toArray();
+        const tiers = Array.isArray(result.price_tiers) ? result.price_tiers : [];
+        const basePrice = Number(result.price_b2c || 0);
+        let updatedCount = 0;
+        for (const slot of futureSlots) {
+          const dateStr = String(slot.start_datetime).slice(0, 10);
+          let newPrice = basePrice;
+          for (const tier of tiers) {
+            if (!tier?.start_date || !tier?.end_date) continue;
+            if (dateStr >= tier.start_date && dateStr <= tier.end_date) {
+              newPrice = Number(tier.price_b2c || basePrice);
+              break;
+            }
+          }
+          if (Number(slot.price_override || 0) !== newPrice) {
+            await slotsCol.updateOne(
+              { id: slot.id },
+              { $set: { price_override: newPrice, price_synced_at: new Date().toISOString() } }
+            );
+            updatedCount++;
+          }
+        }
+        if (updatedCount > 0) {
+          console.log(`[experiences PUT] Auto-sync: ${updatedCount} slot futuri aggiornati per experience ${id}`);
+        }
+        result._slots_synced = updatedCount;
+      } catch (e) {
+        console.error('[experiences PUT] Errore auto-sync slots:', e);
+      }
+    }
+
     return json(result);
   }
 
