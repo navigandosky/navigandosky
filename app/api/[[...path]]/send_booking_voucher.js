@@ -23,16 +23,20 @@ const resolveMapsUrl = (exp) => {
   return null;
 };
 
-async function sendViaResend({ from, to, subject, html }) {
+async function sendViaResend({ from, to, cc, subject, html }) {
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY non configurata');
   const { Resend } = await import('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const result = await resend.emails.send({
+  const payload = {
     from,
     to: Array.isArray(to) ? to : [to],
     subject,
     html,
-  });
+  };
+  if (cc) {
+    payload.cc = Array.isArray(cc) ? cc : [cc];
+  }
+  const result = await resend.emails.send(payload);
   if (result.error) throw new Error(`Resend: ${result.error.message || JSON.stringify(result.error)}`);
   return { ok: true, message_id: result.data?.id, provider: 'resend' };
 }
@@ -176,6 +180,23 @@ export async function handleSendBookingVoucher(method, body) {
     const experience = await db.collection('experiences').findOne({ id: booking.experience_id });
     const company = booking.company_id ? await db.collection('companies').findOne({ id: booking.company_id }) : null;
 
+    // Se la prenotazione è stata venduta da un'agenzia, recupera la sua email per metterla in CC
+    let agencyCc = null;
+    if (booking.agency_id) {
+      const agency = await db.collection('agencies').findOne({ id: booking.agency_id });
+      if (agency?.email) {
+        // Evita di duplicare in cc l'email del cliente (se per caso coincidono)
+        if (String(agency.email).toLowerCase() !== String(booking.customer_email).toLowerCase()) {
+          agencyCc = agency.email;
+        }
+      }
+    } else if (booking.agency_email) {
+      // Fallback: campo agency_email diretto sul booking
+      if (String(booking.agency_email).toLowerCase() !== String(booking.customer_email).toLowerCase()) {
+        agencyCc = booking.agency_email;
+      }
+    }
+
     // Per voucher provvisorio: includi coordinate bonifico
     let bankTransfer = null;
     if (type === 'PROVISIONAL' && booking.payment_method === 'BANK_TRANSFER') {
@@ -208,6 +229,7 @@ export async function handleSendBookingVoucher(method, body) {
       const result = await sendViaResend({
         from: fromFinal,
         to: booking.customer_email,
+        cc: agencyCc, // CC all'agenzia se presente
         subject,
         html,
       });
@@ -217,9 +239,10 @@ export async function handleSendBookingVoucher(method, body) {
         { $set: {
           [`voucher_email_${type.toLowerCase()}_sent_at`]: new Date().toISOString(),
           [`voucher_email_${type.toLowerCase()}_message_id`]: result.message_id || null,
+          [`voucher_email_${type.toLowerCase()}_cc_agency`]: agencyCc || null,
         } }
       );
-      return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ ...result, cc_agency: agencyCc }), { headers: { 'Content-Type': 'application/json' } });
     } catch (e) {
       console.error('[send-booking-voucher] Resend fallito:', e.message);
       return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });

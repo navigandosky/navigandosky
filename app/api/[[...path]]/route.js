@@ -7,6 +7,7 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { handleWarehouseArticles, handleWarehouseSales, handleWarehouseReport } from './warehouse';
 import { handleAiProductSearch } from './ai_product_search';
+import { handleBookingReschedule } from './booking_reschedule';
 
 let cachedDb = null;
 
@@ -2354,6 +2355,10 @@ async function handleRoute(request, resolvedParams, method) {
         // bookings/by-resource -> prenotazioni per risorsa e data
         if (id === 'by-resource') {
           return await handleBookingsByResource(method, searchParams);
+        }
+        // bookings/:id/reschedule -> riprogrammazione data Super Admin
+        if (action === 'reschedule') {
+          return await handleBookingReschedule(method, id, body);
         }
         return await handleBookings(method, id, body, action, searchParams);
       case 'vouchers': return await handleVouchers(method, id, body, action, searchParams);

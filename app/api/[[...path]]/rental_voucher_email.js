@@ -128,21 +128,23 @@ function buildHtml({ booking, unit, company }) {
 </body></html>`;
 }
 
-async function sendViaResend({ from, to, subject, html }) {
+async function sendViaResend({ from, to, cc, subject, html }) {
   if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY non configurata');
   const { Resend } = await import('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const r = await resend.emails.send({
+  const payload = {
     from,
     to: Array.isArray(to) ? to : [to],
     subject,
     html,
-  });
+  };
+  if (cc) payload.cc = Array.isArray(cc) ? cc : [cc];
+  const r = await resend.emails.send(payload);
   if (r.error) throw new Error(`Resend: ${r.error.message || JSON.stringify(r.error)}`);
   return { ok: true, message_id: r.data?.id, provider: 'resend' };
 }
 
-async function sendViaSmtp({ from, to, subject, html }) {
+async function sendViaSmtp({ from, to, cc, subject, html }) {
   const nodemailer = await import('nodemailer');
   const host = process.env.SMTP_HOST || 'smtps.aruba.it';
   const port = Number(process.env.SMTP_PORT || 465);
@@ -154,9 +156,9 @@ async function sendViaSmtp({ from, to, subject, html }) {
     auth: { user, pass },
     tls: { rejectUnauthorized: false },
   });
-  const info = await transporter.sendMail({
-    from, to, subject, html,
-  });
+  const mailOpts = { from, to, subject, html };
+  if (cc) mailOpts.cc = cc;
+  const info = await transporter.sendMail(mailOpts);
   return { ok: true, message_id: info.messageId, provider: 'smtp' };
 }
 
@@ -172,6 +174,29 @@ export async function sendRentalConfirmationEmail(booking, unit, company) {
   const subject = `${isPending ? 'Richiesta ricevuta' : 'Conferma prenotazione'} ${booking.booking_number} - ${fromName}`;
   const html = buildHtml({ booking, unit, company });
 
+  // Se prenotazione venduta da agenzia, recupera email per CC
+  let agencyCc = null;
+  if (booking.agency_id || booking.agency_email) {
+    try {
+      // getDb locale (definito dentro send_booking_voucher.js)
+      const { MongoClient: MC } = await import('mongodb');
+      const cl = new MC(process.env.MONGO_URL);
+      await cl.connect();
+      const db = cl.db(process.env.DB_NAME);
+      let agencyEmail = booking.agency_email;
+      if (!agencyEmail && booking.agency_id) {
+        const ag = await db.collection('agencies').findOne({ id: booking.agency_id });
+        agencyEmail = ag?.email || null;
+      }
+      await cl.close();
+      if (agencyEmail && String(agencyEmail).toLowerCase() !== String(booking.customer.email).toLowerCase()) {
+        agencyCc = agencyEmail;
+      }
+    } catch (e) {
+      console.warn('[rental-voucher] Failed to resolve agency email for CC:', e.message);
+    }
+  }
+
   const resendFromEmail = process.env.RESEND_FROM_EMAIL || process.env.SMTP_USER;
   const smtpFromEmail = process.env.SMTP_USER || process.env.SMTP_FROM_EMAIL;
 
@@ -181,6 +206,7 @@ export async function sendRentalConfirmationEmail(booking, unit, company) {
       return await sendViaResend({
         from: `${fromName} <${resendFromEmail}>`,
         to: booking.customer.email,
+        cc: agencyCc,
         subject,
         html,
       });
@@ -194,6 +220,7 @@ export async function sendRentalConfirmationEmail(booking, unit, company) {
     return await sendViaSmtp({
       from: `"${fromName}" <${smtpFromEmail}>`,
       to: booking.customer.email,
+      cc: agencyCc,
       subject,
       html,
     });

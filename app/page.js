@@ -62,7 +62,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2, Database, Home
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2, Database, Home, Sparkles
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -2135,6 +2135,128 @@ const ResourceBookingsList = memo(function ResourceBookingsList({ resource, book
   );
 });
 
+// ============ SUPER ADMIN: RIPROGRAMMAZIONE PRENOTAZIONE ============
+function SuperAdminReschedulePanel({ booking, onDone }) {
+  const initialIso = booking?.slot_datetime || '';
+  const initialLocal = initialIso ? new Date(initialIso).toISOString().slice(0, 16) : '';
+  const [newDt, setNewDt] = useState(initialLocal);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [force, setForce] = useState(false);
+  const [lastError, setLastError] = useState(null);
+
+  const submit = async () => {
+    if (!newDt) {
+      toast.error('Seleziona una nuova data e ora');
+      return;
+    }
+    const newIso = new Date(newDt).toISOString();
+    if (newIso === initialIso) {
+      toast.info('La data selezionata è uguale a quella attuale. Nessun cambiamento.');
+      return;
+    }
+    const confirmMsg = `⚠️ Confermi lo spostamento della prenotazione ${booking.booking_ref}?\n\nDA: ${initialIso ? new Date(initialIso).toLocaleString('it-IT') : '—'}\nA:  ${new Date(newDt).toLocaleString('it-IT')}\n\nQuesta operazione aggiorna gli slot e l'occupazione posti.`;
+    if (!confirm(confirmMsg)) return;
+
+    setBusy(true);
+    setLastError(null);
+    try {
+      const resp = await fetch(`/api/bookings/${booking.id}/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_slot_datetime: newIso,
+          force,
+          note,
+          requested_by: 'SUPER_ADMIN',
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        setLastError(data);
+        if (data.error?.includes('Capacità insufficiente') && !force) {
+          toast.error(`${data.error} Spunta 'Forza overbooking' per procedere.`);
+        } else {
+          toast.error(data.error || 'Errore durante la riprogrammazione');
+        }
+        setBusy(false);
+        return;
+      }
+      toast.success(`✅ Prenotazione spostata al ${new Date(newDt).toLocaleString('it-IT')}${data.slot_created ? ' (nuovo slot creato)' : ''}`);
+      onDone?.();
+    } catch (e) {
+      toast.error('Errore di rete: ' + e.message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="border-2 border-violet-300 bg-violet-50/60 rounded-lg p-3 space-y-3">
+      <Label className="text-sm font-bold flex items-center gap-2 text-violet-900">
+        <Sparkles className="w-4 h-4" />
+        Super Admin · Riprogrammazione Data
+      </Label>
+      <p className="text-xs text-violet-700">
+        Solo Super Admin può cambiare data/ora di una prenotazione anche se CONFERMATA. L'operazione verifica la disponibilità sul nuovo slot e aggiorna automaticamente l'occupazione posti.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Label className="text-xs text-slate-600">Data/ora attuale</Label>
+          <div className="h-9 px-3 py-1.5 rounded-md border bg-white text-sm font-mono">
+            {initialIso ? new Date(initialIso).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+          </div>
+        </div>
+        <div>
+          <Label className="text-xs text-slate-600">Nuova data/ora *</Label>
+          <Input
+            type="datetime-local"
+            value={newDt}
+            onChange={(e) => setNewDt(e.target.value)}
+            className="h-9"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-xs text-slate-600">Note operative (opzionali)</Label>
+        <Input
+          placeholder="Es: richiesta dal cliente, cambio meteo, etc."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="h-9"
+        />
+      </div>
+
+      <label className="flex items-center gap-2 text-xs cursor-pointer">
+        <input
+          type="checkbox"
+          checked={force}
+          onChange={(e) => setForce(e.target.checked)}
+          className="w-4 h-4 accent-rose-600"
+        />
+        <span className="text-rose-700 font-medium">Forza overbooking (ignora capacità slot di destinazione)</span>
+      </label>
+
+      {lastError && lastError.available !== undefined && (
+        <div className="text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded p-2">
+          ℹ️ Slot destinazione: disponibili <b>{lastError.available}</b>, richiesti <b>{lastError.required}</b>.
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <Button
+          onClick={submit}
+          disabled={busy || !newDt}
+          className="bg-violet-600 text-white hover:bg-violet-700"
+        >
+          {busy ? <><RefreshCw className="w-4 h-4 mr-1 animate-spin" />In corso...</> : <><CalIcon className="w-4 h-4 mr-1" />Riprogramma Data</>}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ============ GANTT CALENDAR ============
 const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBookings, experiences, companies, isSuperAdmin, onRefresh }) {
   const [weekOff, setWeekOff] = useState(0);
@@ -2463,6 +2585,19 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
               <div><Label>Stato</Label><Input value={editBk?.status || ''} disabled className="bg-slate-50" /></div>
             </div>
             <div><Label>Richieste speciali</Label><Textarea value={editForm.special_requests || ''} onChange={e => setEditForm({ ...editForm, special_requests: e.target.value })} /></div>
+
+            {/* === SUPER ADMIN: RIPROGRAMMAZIONE DATA === */}
+            {isSuperAdmin && editBk && (
+              <SuperAdminReschedulePanel
+                booking={editBk}
+                onDone={() => {
+                  setEditBk(null);
+                  if (typeof onRefresh === 'function') onRefresh();
+                  else if (typeof load === 'function') load();
+                  else window.location.reload();
+                }}
+              />
+            )}
 
             {/* === RICALCOLO POSTI / PREZZO === */}
             <div className="border-2 border-blue-200 bg-blue-50/40 rounded-lg p-3 space-y-2">
@@ -6933,6 +7068,19 @@ function AdminDashboard({ currentUser, onLogout }) {
               <div><Label>Stato</Label><Input value={editBk?.status || ''} disabled className="bg-slate-50" /></div>
             </div>
             <div><Label>Richieste speciali</Label><Textarea value={editForm.special_requests || ''} onChange={e => setEditForm({ ...editForm, special_requests: e.target.value })} /></div>
+
+            {/* === SUPER ADMIN: RIPROGRAMMAZIONE DATA === */}
+            {isSuperAdmin && editBk && (
+              <SuperAdminReschedulePanel
+                booking={editBk}
+                onDone={() => {
+                  setEditBk(null);
+                  if (typeof onRefresh === 'function') onRefresh();
+                  else if (typeof load === 'function') load();
+                  else window.location.reload();
+                }}
+              />
+            )}
 
             {/* === RICALCOLO POSTI / PREZZO === */}
             <div className="border-2 border-blue-200 bg-blue-50/40 rounded-lg p-3 space-y-2">
