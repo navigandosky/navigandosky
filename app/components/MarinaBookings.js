@@ -38,6 +38,7 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
   const [rejectReason, setRejectReason] = useState('');
   // Assegnazione posto barca
   const [assigning, setAssigning] = useState(null); // booking corrente da assegnare
+  const [assigningMode, setAssigningMode] = useState('contract'); // 'contract' | 'standby'
   const [berths, setBerths] = useState([]);
   const [loadingBerths, setLoadingBerths] = useState(false);
   const [selectedBerthId, setSelectedBerthId] = useState('');

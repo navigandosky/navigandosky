@@ -4082,6 +4082,9 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="marina-bookings" className="text-white data-[state=active]:bg-white data-[state=active]:text-cyan-800 hover:bg-white/20">
               <Ship className="w-4 h-4 mr-1.5" />Richieste Prenotazione Marine
             </TabsTrigger>
+            <TabsTrigger value="marina-calendar" className="text-white data-[state=active]:bg-white data-[state=active]:text-cyan-800 hover:bg-white/20">
+              <CalIcon className="w-4 h-4 mr-1.5" />Calendario Posti Barca
+            </TabsTrigger>
           </TabsList>
         )}
 
@@ -6277,6 +6280,15 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsContent value="marina-bookings" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <MarinaBookingsLazy currentUser={currentUser} marinaFilterId={globalMarinaFilter} />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin / Owner Marine: Calendario Posti Barca */}
+        {hasMarinaOwnership && (
+          <TabsContent value="marina-calendar" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><CalIcon className="w-8 h-8 mx-auto animate-pulse" /></div>}>
+              <MarinaBerthCalendarLazy currentUser={currentUser} marinaFilterId={globalMarinaFilter} />
             </Suspense>
           </TabsContent>
         )}
