@@ -10,7 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
   Ship, RefreshCw, Search, FileText, CheckCircle2, XCircle, CreditCard, FileSignature,
-  Eye, Trash2, Anchor, Calendar, Euro, AlertCircle,
+  Eye, Trash2, Anchor, Calendar, Euro, AlertCircle, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -133,9 +133,10 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
   };
 
   const convertToContract = async (b) => {
-    // Apri dialog assegnazione posto barca
+    // Apri dialog assegnazione posto barca per CONTRATTO
     setAssigning(b);
-    setSelectedBerthId('');
+    setAssigningMode('contract');
+    setSelectedBerthId(b.berth_id || '');
     setForceOverride(false);
     setLoadingBerths(true);
     try {
@@ -147,6 +148,33 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
     } finally { setLoadingBerths(false); }
   };
 
+  const confirmStandby = async (b) => {
+    // Apri stesso dialog ma in modalità STANDBY (pre-assegnazione provvisoria)
+    setAssigning(b);
+    setAssigningMode('standby');
+    setSelectedBerthId(b.berth_id || '');
+    setForceOverride(false);
+    setLoadingBerths(true);
+    try {
+      const r = await fetch(`/api/berths?marina_id=${b.marina_id}`);
+      const data = await r.json();
+      setBerths(Array.isArray(data) ? data : []);
+    } catch (e) {
+      toast.error('Errore caricamento posti');
+    } finally { setLoadingBerths(false); }
+  };
+
+  const releaseStandby = async (b) => {
+    if (!confirm(`Liberare il posto ${b.berth_label} in STANDBY per ${b.booking_number}?\n\nLa prenotazione resta attiva ma senza posto pre-assegnato.`)) return;
+    try {
+      const r = await fetch(`/api/marina-bookings/${b.id}?action=release-standby-berth`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Errore');
+      toast.success(`Posto ${b.berth_label} liberato`);
+      await load();
+    } catch (e) { toast.error(e.message); }
+  };
+
   const submitAssignBerth = async () => {
     if (!assigning || !selectedBerthId) {
       toast.error('Seleziona un posto barca');
@@ -154,7 +182,8 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
     }
     setSubmittingAssign(true);
     try {
-      const r = await fetch(`/api/marina-bookings/${assigning.id}?action=convert-to-contract`, {
+      const action = assigningMode === 'standby' ? 'assign-standby-berth' : 'convert-to-contract';
+      const r = await fetch(`/api/marina-bookings/${assigning.id}?action=${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ berth_id: selectedBerthId, force: forceOverride }),
@@ -170,7 +199,9 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
         }
         throw new Error(data.error || 'Errore');
       }
-      toast.success(`Contratto creato! Posto ${data.berth_label} assegnato.`);
+      toast.success(assigningMode === 'standby'
+        ? `⏳ STANDBY attivato! Posto ${data.berth_label} pre-assegnato (giallo sulla mappa).`
+        : `✅ Contratto creato! Posto ${data.berth_label} assegnato.`);
       setAssigning(null);
       setSelectedBerthId('');
       await load();
@@ -356,6 +387,29 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
                                 <FileSignature className="w-3 h-3 mr-1" />Contratto
                               </Button>
                             )}
+                            {/* 🟡 STANDBY: pre-assegna posto provvisorio in attesa di contratto */}
+                            {(b.status === 'PENDING' || b.status === 'CONFIRMED' || b.status === 'DEPOSIT_PAID') && !b.standby_occupation_id && (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-7 text-xs bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-300"
+                                title="Pre-assegna un posto in STANDBY (giallo sulla mappa)"
+                                onClick={() => confirmStandby(b)}
+                              >
+                                <Clock className="w-3 h-3 mr-1" />Standby
+                              </Button>
+                            )}
+                            {b.standby_occupation_id && b.status !== 'CONTRACT' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-yellow-700 hover:bg-yellow-50"
+                                title="Libera il posto STANDBY pre-assegnato"
+                                onClick={() => releaseStandby(b)}
+                              >
+                                <Clock className="w-3 h-3 mr-1" />Libera {b.berth_label}
+                              </Button>
+                            )}
                             {b.status !== 'REJECTED' && b.status !== 'CONTRACT' && (
                               <Button variant="ghost" size="icon" className="h-7 w-7" title="Rifiuta" onClick={() => setRejecting(b)}>
                                 <XCircle className="w-3.5 h-3.5 text-red-500" />
@@ -483,10 +537,11 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
         </Dialog>
       )}
 
-      {/* Dialog Assegna Posto Barca (Conversione in Contratto) */}
+      {/* Dialog Assegna Posto Barca (Standby o Contratto) */}
       {assigning && (
         <AssignBerthDialog
           booking={assigning}
+          mode={assigningMode}
           berths={berths}
           loading={loadingBerths}
           allBookings={bookings}
@@ -494,7 +549,7 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
           setSelectedBerthId={setSelectedBerthId}
           forceOverride={forceOverride}
           setForceOverride={setForceOverride}
-          onClose={() => { setAssigning(null); setBerths([]); setSelectedBerthId(''); }}
+          onClose={() => { setAssigning(null); setBerths([]); setSelectedBerthId(''); setAssigningMode('contract'); }}
           onConfirm={submitAssignBerth}
           submitting={submittingAssign}
         />
@@ -506,7 +561,7 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
 // =============================================================
 // SOTTO-COMPONENTE: Dialog Assegna Posto Barca
 // =============================================================
-function AssignBerthDialog({ booking, berths, loading, allBookings, selectedBerthId, setSelectedBerthId, forceOverride, setForceOverride, onClose, onConfirm, submitting }) {
+function AssignBerthDialog({ booking, mode = 'contract', berths, loading, allBookings, selectedBerthId, setSelectedBerthId, forceOverride, setForceOverride, onClose, onConfirm, submitting }) {
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const computeStatus = (berth) => {
     const occ = berth.current_occupation;
@@ -549,16 +604,22 @@ function AssignBerthDialog({ booking, berths, loading, allBookings, selectedBert
   const allFreeBerths = useMemo(() => berths.filter(b => computeStatus(b) === 'free'), [berths, today]);
 
   const selectedBerth = berths.find(b => b.id === selectedBerthId);
+  const isStandbyMode = mode === 'standby';
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" translate="no">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Anchor className="w-5 h-5 text-blue-600" />Assegna Posto Barca · {booking.booking_number}
+            {isStandbyMode ? <Clock className="w-5 h-5 text-yellow-600" /> : <Anchor className="w-5 h-5 text-blue-600" />}
+            {isStandbyMode ? '⏳ Conferma Standby · ' : 'Assegna Posto Barca · '}{booking.booking_number}
           </DialogTitle>
           <DialogDescription>
-            Seleziona un posto barca da assegnare al contratto. Cliente: <strong>{booking.customer?.name} {booking.customer?.surname}</strong> · Barca: <strong>{booking.boat?.name || '—'}</strong> ({boatLength}m)
+            {isStandbyMode ? (
+              <>Seleziona un posto da <strong>pre-assegnare in STANDBY</strong> (giallo sulla mappa) in attesa di contratto e pagamento finale. Cliente: <strong>{booking.customer?.name} {booking.customer?.surname}</strong> · Barca: <strong>{booking.boat?.name || '—'}</strong> ({boatLength}m)</>
+            ) : (
+              <>Seleziona un posto barca da assegnare al contratto. Cliente: <strong>{booking.customer?.name} {booking.customer?.surname}</strong> · Barca: <strong>{booking.boat?.name || '—'}</strong> ({boatLength}m)</>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -663,10 +724,10 @@ function AssignBerthDialog({ booking, berths, loading, allBookings, selectedBert
           <Button
             onClick={onConfirm}
             disabled={!selectedBerthId || submitting}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className={isStandbyMode ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'}
           >
-            {submitting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <FileSignature className="w-4 h-4 mr-2" />}
-            Crea Contratto e Assegna
+            {submitting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : (isStandbyMode ? <Clock className="w-4 h-4 mr-2" /> : <FileSignature className="w-4 h-4 mr-2" />)}
+            {isStandbyMode ? 'Conferma Standby (pre-assegna)' : 'Crea Contratto e Assegna'}
           </Button>
         </DialogFooter>
       </DialogContent>
