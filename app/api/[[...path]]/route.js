@@ -89,7 +89,7 @@ async function handleExperiences(method, id, body, sp) {
       images: body.images || [], // Array di URL immagini (max 3)
       terms_pdf_url: body.terms_pdf_url || '', // PDF condizioni servizio
       resource_ids: body.resource_ids || [],
-      price_tiers: body.price_tiers || [], // Fasce di prezzo stagionali (max 4)
+      price_tiers: body.price_tiers || [], // Fasce di prezzo stagionali (max 5)
       company_id: body.company_id || null, // Multi-Tenant
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

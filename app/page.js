@@ -6534,14 +6534,15 @@ function AdminDashboard({ currentUser, onLogout }) {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Tag className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Listini Prezzi Stagionali (4 Fasce)</h3>
+                <h3 className="text-lg font-semibold">Listini Prezzi Stagionali (5 Fasce)</h3>
               </div>
-              <p className="text-sm text-muted-foreground">Configura fino a 4 fasce di prezzo in base al periodo. I prezzi base sopra verranno usati se nessuna fascia copre la data.</p>
+              <p className="text-sm text-muted-foreground">Configura fino a 5 fasce di prezzo in base al periodo. I prezzi base sopra verranno usati se nessuna fascia copre la data.</p>
               
-              {[0, 1, 2, 3].map(tierIndex => {
+              {[0, 1, 2, 3, 4].map(tierIndex => {
                 const tier = (formData.price_tiers || [])[tierIndex] || {};
                 const updateTier = (field, value) => {
-                  const tiers = [...(formData.price_tiers || [{}, {}, {}, {}])];
+                  const tiers = [...(formData.price_tiers || [{}, {}, {}, {}, {}])];
+                  while (tiers.length < 5) tiers.push({});
                   tiers[tierIndex] = { ...tiers[tierIndex], [field]: value };
                   setFormData({ ...formData, price_tiers: tiers });
                 };
@@ -6550,14 +6551,14 @@ function AdminDashboard({ currentUser, onLogout }) {
                   <Card key={tierIndex} className="p-4 bg-muted/30">
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${tierIndex === 0 ? 'bg-red-500' : tierIndex === 1 ? 'bg-yellow-500' : tierIndex === 2 ? 'bg-green-500' : 'bg-gray-400'}`} />
+                        <div className={`w-3 h-3 rounded-full ${tierIndex === 0 ? 'bg-red-500' : tierIndex === 1 ? 'bg-orange-500' : tierIndex === 2 ? 'bg-yellow-500' : tierIndex === 3 ? 'bg-green-500' : 'bg-blue-500'}`} />
                         <Label className="font-semibold">Fascia {tierIndex + 1}</Label>
                       </div>
                       
                       <div>
                         <Label className="text-xs">Nome Fascia</Label>
                         <Input 
-                          placeholder={tierIndex === 0 ? "es: Alta Stagione" : tierIndex === 1 ? "es: Media Stagione" : tierIndex === 2 ? "es: Bassa Stagione" : "es: Fuori Stagione"}
+                          placeholder={tierIndex === 0 ? "es: Alta Stagione" : tierIndex === 1 ? "es: Media-Alta" : tierIndex === 2 ? "es: Media" : tierIndex === 3 ? "es: Bassa" : "es: Fuori Stagione"}
                           value={tier.tier_name || ''} 
                           onChange={e => updateTier('tier_name', e.target.value)}
                         />
