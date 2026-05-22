@@ -119,6 +119,66 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     };
 
     await col.insertOne(item);
+
+    // === STANDBY BERTH OCCUPATION ===
+    // Se è stato indicato un berth_id (o c'è converted_to_berth_id nel preventivo),
+    // occupiamo il posto in modalità STANDBY (giallo sulla mappa).
+    const standbyBerthId = body.berth_id || quoteData?.converted_to_berth_id || null;
+    if (standbyBerthId) {
+      try {
+        const berthsCol = db.collection('berths');
+        const berth = await berthsCol.findOne({ id: standbyBerthId });
+        if (berth) {
+          const today = new Date(); today.setHours(0, 0, 0, 0);
+          const occ = berth.current_occupation;
+          let isOccupied = false;
+          if (occ && occ.end_date) {
+            const endD = new Date(occ.end_date); endD.setHours(0, 0, 0, 0);
+            if (endD >= today) isOccupied = true;
+          }
+          if (!isOccupied || body.force_standby) {
+            const standbyOccupation = {
+              id: uuidv4(),
+              booking_id: item.id,
+              booking_number: item.booking_number,
+              customer: { ...item.customer },
+              boat: { ...item.boat },
+              start_date: item.start_date,
+              end_date: item.end_date,
+              total_amount: item.grand_total,
+              tariff_applied: { type: item.tariff_type, label: item.tariff_label, total: item.mooring_amount },
+              payment_status: 'IN_ATTESA',
+              payment_amount: 0,
+              payment_method: '',
+              payment_date: null,
+              notes: `Pre-assegnazione (STANDBY) per prenotazione ${item.booking_number} - in attesa di contratto`,
+              created_at: new Date().toISOString(),
+              created_by: 'standby:quote-to-booking',
+              is_standby: true, // 🟡 flag che marca l'occupazione come provvisoria
+            };
+            const history = berth.occupation_history || [];
+            if (berth.current_occupation && !berth.current_occupation.is_standby) {
+              history.push(berth.current_occupation);
+            }
+            await berthsCol.updateOne(
+              { id: standbyBerthId },
+              { $set: { current_occupation: standbyOccupation, occupation_history: history, updated_at: new Date().toISOString() } }
+            );
+            // Aggiorna booking con riferimento al berth
+            await col.updateOne(
+              { id: item.id },
+              { $set: { berth_id: standbyBerthId, berth_label: berth.label, standby_occupation_id: standbyOccupation.id, updated_at: new Date().toISOString() } }
+            );
+            item.berth_id = standbyBerthId;
+            item.berth_label = berth.label;
+            item.standby_occupation_id = standbyOccupation.id;
+          }
+        }
+      } catch (e) {
+        console.error('[marina-bookings POST] STANDBY berth occupation failed:', e);
+      }
+    }
+
     return new Response(JSON.stringify(item), { status: 201, headers: { 'Content-Type': 'application/json' } });
   }
 
@@ -366,7 +426,10 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
       const endD = new Date(occ.end_date); endD.setHours(0,0,0,0);
       if (endD >= today) isOccupied = true;
     }
-    if (isOccupied && !body.force) {
+    // 🟡 Caso speciale: se c'è già un'occupazione STANDBY per QUESTA stessa prenotazione,
+    // non è un conflitto: la trasformiamo in occupazione definitiva.
+    const isOurStandby = occ && occ.is_standby === true && occ.booking_id === b.id;
+    if (isOccupied && !isOurStandby && !body.force) {
       return new Response(JSON.stringify({
         error: `Posto ${berth.label} già occupato fino al ${occ.end_date}`,
         current: occ,
@@ -395,7 +458,10 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     };
 
     const history = berth.occupation_history || [];
-    if (berth.current_occupation) history.push(berth.current_occupation);
+    if (berth.current_occupation && !berth.current_occupation.is_standby) {
+      // Non archiviamo lo STANDBY: è la stessa prenotazione che diventa definitiva
+      history.push(berth.current_occupation);
+    }
     await berthsCol.updateOne(
       { id: body.berth_id },
       { $set: { current_occupation: occupation, occupation_history: history, updated_at: new Date().toISOString() } }
@@ -417,6 +483,107 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     return new Response(JSON.stringify({
       ok: true, booking: updated, berth_id: body.berth_id, berth_label: berth.label,
     }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // === ACTION: assign-standby-berth (admin) - pre-assegna un posto in STANDBY ===
+  // Utile quando una prenotazione PENDING non ha ancora un berth: l'admin
+  // sceglie un posto dalla mappa e questo diventa STANDBY (giallo).
+  if (method === 'POST' && id && action === 'assign-standby-berth') {
+    const b = await col.findOne({ id });
+    if (!b) return new Response(JSON.stringify({ error: 'Prenotazione non trovata' }), { status: 404 });
+    if (!body.berth_id) {
+      return new Response(JSON.stringify({ error: 'berth_id richiesto' }), { status: 400 });
+    }
+    if (b.status === 'CONTRACT' || b.status === 'CANCELLED' || b.status === 'REJECTED') {
+      return new Response(JSON.stringify({ error: `Operazione non consentita su prenotazione in stato ${b.status}` }), { status: 400 });
+    }
+
+    const berthsCol = db.collection('berths');
+    const berth = await berthsCol.findOne({ id: body.berth_id });
+    if (!berth) return new Response(JSON.stringify({ error: 'Posto barca non trovato' }), { status: 404 });
+
+    // Verifica disponibilità
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const occ = berth.current_occupation;
+    let isOccupied = false;
+    if (occ && occ.end_date) {
+      const endD = new Date(occ.end_date); endD.setHours(0, 0, 0, 0);
+      if (endD >= today) isOccupied = true;
+    }
+    if (isOccupied && !body.force) {
+      return new Response(JSON.stringify({
+        error: `Posto ${berth.label} già occupato fino al ${occ.end_date}`,
+        current: occ,
+      }), { status: 409 });
+    }
+
+    // Se esiste già un'occupazione STANDBY su altro berth per questa booking, prima la liberiamo
+    if (b.berth_id && b.berth_id !== body.berth_id && b.standby_occupation_id) {
+      const oldBerth = await berthsCol.findOne({ id: b.berth_id });
+      if (oldBerth?.current_occupation?.is_standby === true && oldBerth.current_occupation.booking_id === b.id) {
+        await berthsCol.updateOne(
+          { id: b.berth_id },
+          { $set: { current_occupation: null, updated_at: new Date().toISOString() } }
+        );
+      }
+    }
+
+    const standbyOccupation = {
+      id: uuidv4(),
+      booking_id: b.id,
+      booking_number: b.booking_number,
+      customer: { ...b.customer },
+      boat: { ...b.boat },
+      start_date: b.start_date,
+      end_date: b.end_date,
+      total_amount: b.grand_total,
+      tariff_applied: { type: b.tariff_type, label: b.tariff_label, total: b.mooring_amount },
+      payment_status: 'IN_ATTESA',
+      payment_amount: 0,
+      payment_method: '',
+      payment_date: null,
+      notes: body.notes || `Pre-assegnazione STANDBY per ${b.booking_number}`,
+      created_at: new Date().toISOString(),
+      created_by: body.requested_by || 'admin:standby',
+      is_standby: true,
+    };
+
+    const history = berth.occupation_history || [];
+    if (berth.current_occupation && !berth.current_occupation.is_standby) {
+      history.push(berth.current_occupation);
+    }
+    await berthsCol.updateOne(
+      { id: body.berth_id },
+      { $set: { current_occupation: standbyOccupation, occupation_history: history, updated_at: new Date().toISOString() } }
+    );
+    await col.updateOne({ id }, {
+      $set: {
+        berth_id: body.berth_id,
+        berth_label: berth.label,
+        standby_occupation_id: standbyOccupation.id,
+        updated_at: new Date().toISOString(),
+      }
+    });
+
+    return new Response(JSON.stringify({
+      ok: true, berth_id: body.berth_id, berth_label: berth.label, occupation: standbyOccupation,
+    }), { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // === ACTION: release-standby-berth (admin) - libera berth STANDBY senza cancellare la booking ===
+  if (method === 'POST' && id && action === 'release-standby-berth') {
+    const b = await col.findOne({ id });
+    if (!b || !b.berth_id) return new Response(JSON.stringify({ error: 'Nessun berth STANDBY associato' }), { status: 400 });
+    const berthsCol = db.collection('berths');
+    const berth = await berthsCol.findOne({ id: b.berth_id });
+    if (berth?.current_occupation?.is_standby === true && berth.current_occupation.booking_id === b.id) {
+      await berthsCol.updateOne(
+        { id: b.berth_id },
+        { $set: { current_occupation: null, updated_at: new Date().toISOString() } }
+      );
+    }
+    await col.updateOne({ id }, { $unset: { berth_id: '', berth_label: '', standby_occupation_id: '' }, $set: { updated_at: new Date().toISOString() } });
+    return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
   }
 
   // === UPDATE generico ===
@@ -441,6 +608,20 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
 
   // === DELETE ===
   if (method === 'DELETE' && id) {
+    // Se la booking ha un berth STANDBY associato, liberiamolo
+    const b = await col.findOne({ id });
+    if (b?.berth_id && b?.standby_occupation_id) {
+      try {
+        const berthsCol = db.collection('berths');
+        const berth = await berthsCol.findOne({ id: b.berth_id });
+        if (berth?.current_occupation?.is_standby === true && berth.current_occupation.booking_id === b.id) {
+          await berthsCol.updateOne(
+            { id: b.berth_id },
+            { $set: { current_occupation: null, updated_at: new Date().toISOString() } }
+          );
+        }
+      } catch (e) { console.error('[marina-bookings DELETE] standby release error:', e); }
+    }
     await col.deleteOne({ id });
     return new Response(null, { status: 204 });
   }

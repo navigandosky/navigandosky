@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
 // Calcola lo stato runtime di un berth basato sull'occupazione corrente.
-// Returns: 'free' | 'occupied' | 'releasing'
+// Returns: 'free' | 'standby' | 'occupied' | 'releasing'
 function computeStatus(berth) {
   const occ = berth.current_occupation;
   if (!occ || !occ.start_date || !occ.end_date) return 'free';
@@ -9,6 +9,8 @@ function computeStatus(berth) {
   const start = new Date(occ.start_date); start.setHours(0, 0, 0, 0);
   const end = new Date(occ.end_date); end.setHours(0, 0, 0, 0);
   if (today > end) return 'free'; // occupazione scaduta
+  // STANDBY: occupazione provvisoria (prenotazione in attesa di contratto)
+  if (occ.is_standby === true) return 'standby';
   // active or future occupation - check end date
   const diffDays = Math.ceil((end - today) / (1000 * 60 * 60 * 24));
   if (diffDays <= 1) return 'releasing'; // libera entro 1 giorno (oggi o domani)

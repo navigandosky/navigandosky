@@ -193,9 +193,10 @@ export default function MarinaMapPage() {
 
   const stats = useMemo(() => {
     const free = berths.filter(b => b.status === 'free').length;
+    const standby = berths.filter(b => b.status === 'standby').length;
     const occupied = berths.filter(b => b.status === 'occupied').length;
     const releasing = berths.filter(b => b.status === 'releasing').length;
-    return { free, occupied, releasing, total: berths.length };
+    return { free, standby, occupied, releasing, total: berths.length };
   }, [berths]);
 
   const handleBerthClick = (berth) => {
@@ -385,7 +386,7 @@ export default function MarinaMapPage() {
 
       <div className="container mx-auto px-4 py-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
           <Card className="border-2 shadow-sm"><CardContent className="p-3 text-center">
             <p className="text-2xl font-bold text-primary">{stats.total}</p>
             <p className="text-xs uppercase tracking-wide">Totali</p>
@@ -393,6 +394,10 @@ export default function MarinaMapPage() {
           <Card className="border-2 border-emerald-500 shadow-sm"><CardContent className="p-3 text-center">
             <p className="text-2xl font-bold text-emerald-600">{stats.free}</p>
             <p className="text-xs uppercase tracking-wide">Liberi</p>
+          </CardContent></Card>
+          <Card className="border-2 border-yellow-400 shadow-sm bg-yellow-50/40"><CardContent className="p-3 text-center">
+            <p className="text-2xl font-bold text-yellow-600">{stats.standby}</p>
+            <p className="text-xs uppercase tracking-wide">Standby</p>
           </CardContent></Card>
           <Card className="border-2 border-amber-500 shadow-sm"><CardContent className="p-3 text-center">
             <p className="text-2xl font-bold text-amber-500">{stats.releasing}</p>
@@ -403,7 +408,7 @@ export default function MarinaMapPage() {
             <p className="text-xs uppercase tracking-wide">Occupati</p>
           </CardContent></Card>
           <Card className="border-2 shadow-sm"><CardContent className="p-3 text-center">
-            <p className="text-2xl font-bold text-primary">{stats.total ? Math.round((stats.occupied + stats.releasing) / stats.total * 100) : 0}%</p>
+            <p className="text-2xl font-bold text-primary">{stats.total ? Math.round((stats.occupied + stats.releasing + stats.standby) / stats.total * 100) : 0}%</p>
             <p className="text-xs uppercase tracking-wide">Occupazione</p>
           </CardContent></Card>
         </div>
@@ -413,6 +418,7 @@ export default function MarinaMapPage() {
           <div className="flex flex-wrap items-center gap-4">
             <span className="font-semibold">Legenda:</span>
             <span className="flex items-center gap-1.5"><BoatIcon type="motor" status="free" small /> Libero</span>
+            <span className="flex items-center gap-1.5"><BoatIcon type="motor" status="standby" small /> <span className="font-medium text-yellow-700">Standby</span></span>
             <span className="flex items-center gap-1.5"><BoatIcon type="motor" status="releasing" small /> In liberazione</span>
             <span className="flex items-center gap-1.5"><BoatIcon type="motor" status="occupied" small /> Occupato</span>
             <span className="flex items-center gap-1.5"><Sailboat className="w-4 h-4 text-blue-700" /> Vela</span>
@@ -797,10 +803,18 @@ export default function MarinaMapPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" translate="no">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
-              {selectedBerth?.status === 'releasing' ? <Clock className="w-6 h-6 text-amber-500" /> : <Lock className="w-6 h-6 text-red-500" />}
+              {selectedBerth?.status === 'standby' ? <Clock className="w-6 h-6 text-yellow-500" /> 
+                : selectedBerth?.status === 'releasing' ? <Clock className="w-6 h-6 text-amber-500" /> 
+                : <Lock className="w-6 h-6 text-red-500" />}
               Posto {selectedBerth?.label}
-              <Badge className={selectedBerth?.status === 'releasing' ? 'bg-amber-100 text-amber-700 border-amber-300' : 'bg-red-100 text-red-700 border-red-300'}>
-                {selectedBerth?.status === 'releasing' ? 'IN LIBERAZIONE' : 'OCCUPATO'}
+              <Badge className={
+                selectedBerth?.status === 'standby' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' 
+                : selectedBerth?.status === 'releasing' ? 'bg-amber-100 text-amber-700 border-amber-300' 
+                : 'bg-red-100 text-red-700 border-red-300'
+              }>
+                {selectedBerth?.status === 'standby' ? '⏳ STANDBY' 
+                  : selectedBerth?.status === 'releasing' ? 'IN LIBERAZIONE' 
+                  : 'OCCUPATO'}
               </Badge>
             </DialogTitle>
           </DialogHeader>
@@ -1128,13 +1142,21 @@ function BerthSlotRealistic({ berth, side, onClick }) {
   const slotHeight = berth.length_max >= 12 ? 78 : berth.length_max >= 10 ? 70 : berth.length_max >= 8 ? 60 : 52;
 
   // Bordo dello slot (acqua tra finger pier)
-  const slotBorderColor = berth.status === 'free' ? 'rgba(34,197,94,0.3)' : berth.status === 'releasing' ? 'rgba(245,158,11,0.4)' : 'rgba(239,68,68,0.4)';
-  const slotBgColor = 'rgba(40,90,160,0.35)'; // acqua scura
+  const slotBorderColor = berth.status === 'free' ? 'rgba(34,197,94,0.3)' 
+    : berth.status === 'standby' ? 'rgba(234,179,8,0.5)' 
+    : berth.status === 'releasing' ? 'rgba(245,158,11,0.4)' 
+    : 'rgba(239,68,68,0.4)';
+  const slotBgColor = berth.status === 'standby' ? 'rgba(250,204,21,0.25)' : 'rgba(40,90,160,0.35)'; // acqua scura, giallo per standby
   
+  const statusLabel = berth.status === 'free' ? 'LIBERO' 
+    : berth.status === 'standby' ? `STANDBY (in attesa contratto) · ${customer?.name || ''} ${customer?.surname || ''} · barca: ${boat?.name || ''}` 
+    : berth.status === 'releasing' ? 'IN LIBERAZIONE' 
+    : `OCCUPATO da ${customer?.name || ''} ${customer?.surname || ''} · barca: ${boat?.name || ''}`;
+
   return (
     <button
       onClick={() => onClick(berth)}
-      title={`${berth.label} · max ${berth.length_max}m · ${berth.status === 'free' ? 'LIBERO' : berth.status === 'releasing' ? 'IN LIBERAZIONE' : `OCCUPATO da ${customer?.name || ''} ${customer?.surname || ''} · barca: ${boat?.name || ''}`}`}
+      title={`${berth.label} · max ${berth.length_max}m · ${statusLabel}`}
       className="group relative cursor-pointer transition-all hover:scale-105 hover:z-10"
       style={{ width: `${slotWidth}px`, height: `${slotHeight + (isOccupied && customerLabel ? 12 : 0)}px` }}
     >
@@ -1146,7 +1168,9 @@ function BerthSlotRealistic({ berth, side, onClick }) {
             fontSize: '8px',
             fontWeight: 800,
             color: 'white',
-            background: berth.status === 'releasing' ? 'rgba(245,158,11,0.95)' : 'rgba(168,85,247,0.95)',
+            background: berth.status === 'standby' ? 'rgba(234,179,8,0.95)' 
+              : berth.status === 'releasing' ? 'rgba(245,158,11,0.95)' 
+              : 'rgba(168,85,247,0.95)',
             borderRadius: '3px',
             padding: '1px 2px',
             boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
@@ -1154,7 +1178,7 @@ function BerthSlotRealistic({ berth, side, onClick }) {
             border: '1px solid white',
           }}
         >
-          {customerLabel}
+          {berth.status === 'standby' ? '⏳ ' : ''}{customerLabel}
         </div>
       )}
 
@@ -1212,6 +1236,7 @@ function BerthSlotRealistic({ berth, side, onClick }) {
 function BoatIcon({ type, status, length, small }) {
   const colorMap = {
     free: '#22c55e',       // verde (outline barca, slot dashed - non c'è barca)
+    standby: '#eab308',    // giallo (prenotazione in attesa contratto)
     occupied: '#ef4444',   // rosso
     releasing: '#f59e0b',  // ambra
   };

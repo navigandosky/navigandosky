@@ -11,5 +11,11 @@ export async function register() {
     } catch (e) {
       console.error('[instrumentation] Failed to init backup scheduler:', e?.message);
     }
+    try {
+      const cleanupMod = await import('./lib/marina_pending_cleanup.js');
+      cleanupMod.default?.init?.() || cleanupMod.init?.();
+    } catch (e) {
+      console.error('[instrumentation] Failed to init marina pending cleanup:', e?.message);
+    }
   }
 }

@@ -2387,6 +2387,19 @@ async function handleRoute(request, resolvedParams, method) {
         return NextResponse.json({ error: 'Route magazzino non trovata' }, { status: 404 });
       }
       case 'ai-product-search': return await handleAiProductSearch(method, body);
+      case 'marina-pending-cleanup': {
+        // Trigger manuale del cleanup PENDING overdue (solo admin)
+        if (method !== 'POST') return NextResponse.json({ error: 'POST only' }, { status: 405 });
+        try {
+          const cleanupMod = await import('../../../lib/marina_pending_cleanup.js');
+          const fn = cleanupMod.default?.runCleanup || cleanupMod.runCleanup;
+          const result = await fn('manual-api');
+          return NextResponse.json(result);
+        } catch (e) {
+          console.error('[marina-pending-cleanup manual]', e);
+          return NextResponse.json({ error: e.message }, { status: 500 });
+        }
+      }
       case 'marinas': {
         const { handleMarinas } = await import('./marinas');
         const db = await getDb();

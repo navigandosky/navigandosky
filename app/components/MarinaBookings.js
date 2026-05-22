@@ -305,6 +305,16 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
                         <td className="p-3">
                           <div className="font-mono font-semibold text-blue-700">{b.booking_number}</div>
                           {b.quote_number && <div className="text-[10px] text-muted-foreground">da: {b.quote_number}</div>}
+                          {b.berth_label && b.standby_occupation_id && (
+                            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 text-[10px] mt-1" title="Posto barca pre-assegnato in STANDBY">
+                              ⏳ STANDBY · {b.berth_label}
+                            </Badge>
+                          )}
+                          {b.requires_cancellation_review && (
+                            <Badge className="bg-red-100 text-red-800 border-red-300 text-[10px] mt-1 block" title={b.cancellation_review_reason || 'In attesa di revisione cancellazione'}>
+                              ⚠️ Da revisionare
+                            </Badge>
+                          )}
                         </td>
                         <td className="p-3 text-sm">{b.marina_name}</td>
                         <td className="p-3">
