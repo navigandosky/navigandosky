@@ -18,7 +18,9 @@ import { toast } from 'sonner';
 export default function MarinaBerthCalendar({ currentUser, marinaFilterId }) {
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const [marinas, setMarinas] = useState([]);
-  const [selectedMarinaId, setSelectedMarinaId] = useState(marinaFilterId || '');
+  // marinaFilterId può essere 'ALL' (filtro globale "tutte le marine") — non lo usiamo come selezione singola
+  const initialMarinaId = (marinaFilterId && marinaFilterId !== 'ALL') ? marinaFilterId : '';
+  const [selectedMarinaId, setSelectedMarinaId] = useState(initialMarinaId);
   const [berths, setBerths] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -42,10 +44,18 @@ export default function MarinaBerthCalendar({ currentUser, marinaFilterId }) {
         const data = await r.json();
         const list = Array.isArray(data) ? data : [];
         setMarinas(list);
-        // Auto-seleziona la prima se nessuna selezionata
-        if (!selectedMarinaId && list.length > 0) setSelectedMarinaId(list[0].id);
+        // Auto-seleziona la prima se nessuna selezionata (usando functional setter per evitare closure stale)
+        if (list.length > 0) {
+          setSelectedMarinaId(prev => {
+            // Se c'è già un id selezionato VALIDO (presente nella lista) lo manteniamo
+            if (prev && list.some(m => m.id === prev)) return prev;
+            return list[0].id;
+          });
+        } else {
+          setSelectedMarinaId('');
+        }
       } catch (e) {
-        toast.error('Errore caricamento marine');
+        toast.error('Errore caricamento marine: ' + (e.message || ''));
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
