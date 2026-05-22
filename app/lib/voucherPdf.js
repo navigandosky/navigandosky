@@ -186,14 +186,22 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
     : `Stato: ${statoLabel}`;
   doc.text(statoLine, M + 5, y + 17);
   // Destinazione incasso (solo se PAGATO o metodo definito)
+  let destShown = false;
   if (pmRaw && pmRaw !== 'NONE') {
-    const dest = getPaymentDestination(pmRaw, company);
-    if (dest && dest.detail && dest.detail !== 'Non specificato') {
-      doc.setFontSize(8).setFont('helvetica', 'italic');
-      doc.setTextColor(107, 114, 128);
-      doc.text(`Destinazione incasso: ${dest.detail}`, M + 5, y + 22);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(75, 85, 99);
+    try {
+      const dest = getPaymentDestination(pmRaw, company);
+      if (dest && dest.detail && dest.detail !== 'Non specificato') {
+        doc.setFontSize(8).setFont('helvetica', 'italic');
+        doc.setTextColor(107, 114, 128);
+        const txt = `Destinazione: ${dest.detail}`;
+        doc.text(txt.length > 95 ? txt.slice(0, 95) + '…' : txt, M + 5, y + 22);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(75, 85, 99);
+        destShown = true;
+      }
+    } catch (_e) {
+      // Fail-safe: continua senza destinazione se il helper fallisce
+      destShown = false;
     }
   }
   // Venduto da agenzia + contatti
