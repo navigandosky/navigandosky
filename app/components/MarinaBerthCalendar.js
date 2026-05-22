@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Calendar as CalIcon, Anchor, RefreshCw, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { toast } from 'sonner';
@@ -26,6 +27,7 @@ export default function MarinaBerthCalendar({ currentUser, marinaFilterId }) {
   const [loading, setLoading] = useState(false);
   const [windowDays, setWindowDays] = useState(30);
   const [startOffset, setStartOffset] = useState(0);
+  const [customCenterDate, setCustomCenterDate] = useState(''); // 'YYYY-MM-DD' - quando valorizzata mostra ±10 giorni intorno
   const [pontoonFilter, setPontoonFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | FREE | STANDBY | OCCUPIED
 
@@ -90,8 +92,23 @@ export default function MarinaBerthCalendar({ currentUser, marinaFilterId }) {
   useEffect(() => { load(); }, [load]);
 
   // Genera giorni della finestra
+  // - Se customCenterDate è impostata: mostra 10 giorni prima + il giorno scelto + 10 giorni dopo (21 giorni totali)
+  // - Altrimenti: finestra "windowDays" partendo da Oggi+startOffset
   const days = useMemo(() => {
     const arr = [];
+    if (customCenterDate) {
+      const center = new Date(customCenterDate + 'T00:00:00');
+      if (!isNaN(center.getTime())) {
+        const start = new Date(center);
+        start.setDate(center.getDate() - 10);
+        for (let i = 0; i < 21; i++) {
+          const d = new Date(start);
+          d.setDate(start.getDate() + i);
+          arr.push(d);
+        }
+        return arr;
+      }
+    }
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     start.setDate(start.getDate() + startOffset);
@@ -101,7 +118,7 @@ export default function MarinaBerthCalendar({ currentUser, marinaFilterId }) {
       arr.push(d);
     }
     return arr;
-  }, [windowDays, startOffset]);
+  }, [windowDays, startOffset, customCenterDate]);
 
   // Pontile uniques (per filtro)
   const pontoons = useMemo(() => {
@@ -198,7 +215,7 @@ export default function MarinaBerthCalendar({ currentUser, marinaFilterId }) {
                 <SelectItem value="OCCUPIED">🔴 Solo Occupati</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={String(windowDays)} onValueChange={(v) => setWindowDays(Number(v))}>
+            <Select value={String(windowDays)} onValueChange={(v) => { setWindowDays(Number(v)); setCustomCenterDate(''); }} disabled={!!customCenterDate}>
               <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="14">14 giorni</SelectItem>
@@ -207,9 +224,26 @@ export default function MarinaBerthCalendar({ currentUser, marinaFilterId }) {
                 <SelectItem value="90">90 giorni</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={() => setStartOffset((s) => s - windowDays)} title="Indietro"><ChevronLeft className="w-4 h-4" /></Button>
-            <Button variant="outline" size="sm" onClick={() => setStartOffset(0)} className={startOffset === 0 ? 'bg-blue-50' : ''}>Oggi</Button>
-            <Button variant="outline" size="sm" onClick={() => setStartOffset((s) => s + windowDays)} title="Avanti"><ChevronRight className="w-4 h-4" /></Button>
+            <Button variant="outline" size="sm" onClick={() => { setStartOffset((s) => s - windowDays); setCustomCenterDate(''); }} title="Indietro"><ChevronLeft className="w-4 h-4" /></Button>
+            <Button variant="outline" size="sm" onClick={() => { setStartOffset(0); setCustomCenterDate(''); }} className={!customCenterDate && startOffset === 0 ? 'bg-blue-50' : ''}>Oggi</Button>
+            <Button variant="outline" size="sm" onClick={() => { setStartOffset((s) => s + windowDays); setCustomCenterDate(''); }} title="Avanti"><ChevronRight className="w-4 h-4" /></Button>
+            {/* Date picker custom: centro ±10 giorni */}
+            <div className="flex items-center gap-1 border rounded-md px-2 py-0 bg-white" title="Centra la vista su una data specifica (±10 giorni)">
+              <CalIcon className="w-3.5 h-3.5 text-blue-600" />
+              <Input
+                type="date"
+                value={customCenterDate}
+                onChange={(e) => setCustomCenterDate(e.target.value)}
+                className="h-8 w-[150px] border-0 shadow-none focus-visible:ring-0 px-1 text-xs"
+              />
+              {customCenterDate && (
+                <button
+                  onClick={() => setCustomCenterDate('')}
+                  className="text-xs text-rose-600 hover:text-rose-800 px-1"
+                  title="Reset (torna a Oggi)"
+                >✕</button>
+              )}
+            </div>
             <Button variant="outline" size="sm" onClick={load} disabled={loading} title="Ricarica"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></Button>
           </div>
         </CardTitle>
