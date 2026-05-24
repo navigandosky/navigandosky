@@ -10,7 +10,7 @@ import sys
 from datetime import datetime, timedelta
 
 # Configuration
-BASE_URL = "https://sardinia-tours-hub.preview.emergentagent.com/api"
+BASE_URL = "https://marina-management.preview.emergentagent.com/api"
 HEADERS = {"Content-Type": "application/json"}
 
 class TestResults:

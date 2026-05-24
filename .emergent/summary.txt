@@ -1,0 +1,163 @@
+<analysis>### handover_summary
+
+**original_problem_statement**: Create a comprehensive booking engine for Maretrek, a tourism operator in Sardinia. The app manages guided tours, boat excursions, boat rentals, and short-term rentals (Locazioni Brevi). Include B2B/B2C catalogs, payments, Marina/Boatyard management, Skipper app, refunds, and GPS tracking.
+PRODUCT REQUIREMENTS: 
+- Support multi-tenant agencies and companies.
+- End-to-end booking flow including AI features, PDF vouchers, email confirmations, payment destination tracking, and dynamic pricing (5 seasonal tiers).
+- Complex Marina workflows including interactive maps, Standby berth allocations, and cron jobs for automatic pending request cleanup.
+
+**User's preferred language**: Italian
+INSTRUCT NEXT AGENT: You MUST automatically detect the user's primary language from their messages inside the <trajectory> tag and INSTRUCT next agent to respond in the user's preferred language only. **Rispondi all'utente ESCLUSIVAMENTE in Italiano.**
+
+**what currently exists?** 
+A mature, multi-tenant Next.js monolithic app using MongoDB. Features include B2C/B2B catalogs, Stripe/SumUp checkouts, Marinas & Boatyards management, Skipper app, GPS tracking, and a Locazioni Brevi module. Recently added an AI-powered Product Search for the warehouse, advanced payment destination tracking across all vouchers and accounting, Super Admin booking rescheduling, a Marina Standby workflow with cron cleanup, and a new Marina Berth Calendar view.
+
+**Last working item**: 
+    - Last item agent was working: Answering the user's query about how to fork/duplicate the project in Emergent before proceeding with final deployment preparations. 
+    - Status: NONE
+    - Agent Testing Done: N/A
+    - Which testing method agent to use? NA
+    - User Testing Done: N/A
+
+**All Pending/In progress Issue list**: 
+  Issue 1: Monolithic File Size ( & )
+     - Attempted fixes: The agent has created new components like , but  remains over 7600 lines long, and  is over 2700 lines. 
+     - Next debug checklist: Continue extracting distinct modules (Experiences admin, Marina admin) out of  into . 
+     - Why fix this issue and what will be achieved with the fix? Prevents context window limits, search-replace failures, and improves maintainability.
+     - Status: IN PROGRESS
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? Both
+     - Blocked on other issue: None
+
+**In progress Task List**: 
+  Task 1: Add Loading Overlay to B2B and Admin Navigation
+     - Where to resume: Modify the  component and mobile menu inside . Look at lines where B2B and Admin buttons are mapped. Add  logic to set  before calling  with a , mimicking the newly implemented Posti Barca navigation.
+     - What will be achieved with this? Gives users immediate visual feedback (loading screen) when switching to heavy admin views.
+     - Status: NOT STARTED (Agent from previous fork forgot to execute this as user gave priority to new features).
+     - Should Test frontend/backend/both after fix? Frontend
+     - Blocked on something: None
+
+**Upcoming and Future Tasks**
+    - P1: Refactor  and  to break down the monolithic structure.
+    - P2: Advanced GPS Features Extra (Push notifications/alerts in real-time for anomalous speeds).
+    - P3: Pre-deployment checks (cleaning up console logs, setting correct prod environment variables, checking backup schedulers on the upcoming fork).
+
+**Completed work in this session**
+- Added AI-powered Ricerca Articoli Simili in Warehouse using Gemini 2.5 Pro (, ).
+- Implemented Payment Destination tracking (SumUp, Bonifico, Stripe) in Accounting Registry and all PDF Vouchers/Receipts (, , , , ).
+- Fixed Marina Quotes Bug where seasonal tariffs weren't showing for certain boat lengths ().
+- Fixed  bug in Voucher PDF generation for Agencies ().
+- Added CC Agency feature to booking confirmation emails (, ).
+- Implemented Super Admin ability to reschedule dates for confirmed bookings with audit trail (, ).
+- Built Marina Standby Berth functionality with visual mapping (Yellow color), allocation workflows, and daily Cron cleanup script (, , , , ).
+- Added a 5th Seasonal Price Tier for Experiences and backfilled 161 existing slots to respect the new tiers (, ).
+- Added  view for Marina management with a +/- 10 days date picker.
+- Embedded interactive Marina Map view inside the Step 3 Reservations tab ().
+- Reordered dashboard buttons so Locazioni Brevi follows Marina.
+
+**Earlier issues found/mentioned but not fixed**
+   Issue 1: Context limit risks due to massive files
+   - Debug checklist: Modularize components and API routes.
+   - Why to solve this issue and what will be achieved with this? Prevents string replacement errors which occurred twice in this session.
+   - Should Test frontend/backend/both after fix: Both
+   - Is recurring issue? Y
+
+**Known issue recurrence from previous fork**
+  - Issue recurrence in previous fork: Monolithic file size continues to grow. 
+  - Recurrence count: 3
+  - Status: IN PROGRESS
+
+**Code Architecture**
+- : Main monolithic Dashboard wrapper (Critical: >7600 lines).
+- : Sub-components (, , , etc.).
+- : Main backend API dispatcher (Critical: >2700 lines).
+- : Helper libraries (, , , PDF generators).
+
+**Key Technical Concepts**
+Next.js 14 App Router, Tailwind CSS, MongoDB, , , unified RBAC ( collection), API Route handling with custom sub-routing inside .
+
+**key DB schema**
+  - : Tracks ,  (for reschedules), .
+  - : ,  (PENDING, CONTRACT), .
+  - : , .
+  - :  (Array of max 5 objects).
+
+**changes in tech stack**
+  - Introduced **Emergent Integrations Gateway** (using  model) for AI Vision & Search grounding features.
+
+**All files of reference** 
+-  (New)
+-  (New)
+-  (New)
+-  (New)
+-  (New Cron)
+-  (Updated to init new Cron)
+-  (Updated heavily)
+-  (Updated heavily)
+-  (Updated heavily)
+-  (Updated heavily)
+
+**Areas that need refactoring**:
+-  and . Do not add new major features directly to these files without extracting older components.
+
+**key api endpoints**
+- 
+- 
+- 
+- 
+- 
+
+**Critical Info for New Agent**
+- **Import Alias Fix:** The path alias  points to  not . Use  for Next.js app directory libraries.
+- **Cron Jobs**: Initialization happens in . The project currently runs  and .
+- **Standby Logic**: Marina berths can be placed in STANDBY (Yellow). This relies on  DB collection containing  and  being PENDING. Do not break this link.
+
+**documents and test reports created in this job**
+  - /app/test_result.md
+  - /app/memory/test_credentials.md
+
+**Last 10 User Messages and any pending HUMAN messages** 
+1. (User): Asked to correct the 5th price tier not applying to existing slots. (Completed by backfill & auto-sync).
+2. (User): Requested a Conferma Standby button in Marina Bookings to activate standby occupation. (Completed).
+3. (User): Reported an error when clicking the Standby button. (Completed - fixed missing state).
+4. (User): Requested a new Marina Berth Calendar view (like Locazioni Brevi) showing daily status for every berth. (Completed).
+5. (User): Reported error on load for the new calendar view. (Completed - fixed lazy load import).
+6. (User): Reported calendar showing empty. (Completed - fixed global filter default state).
+7. (User): Requested a +/- 10 days date picker for the new calendar view. (Completed).
+8. (User): Requested embedding the Vista Mappa Gestione in the Step 3 card. (Completed).
+9. (User): Requested reordering the Dashboard buttons to put Locazioni Brevi right after Marina. (Completed).
+10. (User): Asked if they can duplicate/fork the project before doing pre-deployment modifications. (Agent replied with instructions on how to use the Emergent Fork feature).
+
+**Project Health Check:**
+Broken: None.
+Mocked: None.
+
+**3rd Party Integrations**
+- OpenStreetMap / Leaflet (Mapping & Replays)
+- Balin.app (GPS tracking) - Requires User API Key
+- Resend (Emailing) - Requires User API Key 
+- SumUp (Payments & Payment Links) - Requires User API Key 
+- Stripe (Payments) - Requires User API Key 
+- OpenAI-compatible Emergent LLM Gateway (Gemini 2.5 Pro) - Uses Emergent LLM Key ()
+
+**Testing status**
+  - Testing agent used after significant changes: NO (Screenshot tool heavily relied upon instead)
+  - Troubleshoot agent used after agent stuck in loop: NO
+  - Test files created: None
+  - Known regressions: None
+
+**Credentials to test flow:**
+- Super Admin:  / 
+- Company Admin (Marlin):  / 
+- Company Admin (Test):  / 
+
+**What agent forgot to execute**
+- The agent from the previous session (and this session) forgot to apply the  pattern to B2B and Admin buttons in the top navbar and mobile menu (Task 1 under In progress Task List).
+
+**Debugging checklist for current issue**
+    Issue: Apply  pattern to B2B and Admin buttons.
+    
+    Frontend files to check: 
+     (lines where the B2B and Admin buttons map over  and mobile menu area)
+    
+    </analysis>

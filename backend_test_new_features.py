@@ -12,7 +12,7 @@ import sys
 from datetime import datetime
 
 # Base URL from environment
-BASE_URL = "https://sardinia-tours-hub.preview.emergentagent.com/api"
+BASE_URL = "https://marina-management.preview.emergentagent.com/api"
 
 # Test data
 TEST_IMEI = "863738076364539"  # Real Balin GPS data

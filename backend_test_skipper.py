@@ -11,7 +11,7 @@ import json
 from datetime import datetime
 
 # Configuration
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://sardinia-tours-hub.preview.emergentagent.com')
+BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://marina-management.preview.emergentagent.com')
 API_URL = f"{BASE_URL}/api"
 
 # Test credentials and IDs
@@ -627,7 +627,7 @@ def test_c4_get_logs_by_resource():
     
     try:
         resp = requests.get(
-            f"{API_URL}/transport-logs?resource_id=1b82206d-0ecb-42c5-9f5d-7ac68159e217",
+            f"{API_URL}/transport-logs?resource_id=marina-management",
             timeout=10
         )
         

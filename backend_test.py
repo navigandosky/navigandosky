@@ -10,7 +10,7 @@ import sys
 from datetime import datetime
 
 # Base URL from .env
-BASE_URL = "https://sardinia-tours-hub.preview.emergentagent.com/api"
+BASE_URL = "https://marina-management.preview.emergentagent.com/api"
 COMPANY_ID = "03f77ea6-95c7-49c4-a13b-df54bc28ecc2"  # Marlin Sub
 
 # Store IDs for cross-test usage

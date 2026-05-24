@@ -585,10 +585,21 @@ function PDFUploader({ pdfUrl = '', onChange }) {
 }
 
 // ============ NAVBAR ============
-function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, currentUser }) {
+function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, currentUser, setIsLoadingRoute }) {
   const { language, changeLanguage, t } = useLanguage();
   const logoUrl = companyBrand?.logo_url || LOGO_URL;
   const brandName = companyBrand?.name || 'Trivor';
+
+  // Helper: navigate to heavy view (b2b/admin) showing loading overlay first
+  const navigateHeavy = (v, opts = {}) => {
+    if (typeof setIsLoadingRoute === 'function') setIsLoadingRoute(v);
+    // Give the browser a tick to paint the overlay before triggering the heavy render
+    setTimeout(() => {
+      setView(v);
+      if (opts.closeMobile) setMobileOpen(false);
+      // Note: overlay is cleared by App-level useEffect once `view` matches the target
+    }, 30);
+  };
   
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border shadow-sm">
@@ -640,7 +651,7 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, curren
           {[['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
             <button 
               key={v} 
-              onClick={() => setView(v)} 
+              onClick={() => navigateHeavy(v)} 
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${view === v ? 'bg-primary text-primary-foreground shadow-sm' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'}`}
             >
               {l}
@@ -695,7 +706,7 @@ function NavBar({ view, setView, mobileOpen, setMobileOpen, companyBrand, curren
             className="w-full text-left block px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-muted"
           >⚓ Posti Barca</button>
           {[['b2b', t('b2b')], ['admin', t('admin')]].map(([v, l]) => (
-            <button key={v} onClick={() => { setView(v); setMobileOpen(false); }} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium ${view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>{l}</button>
+            <button key={v} onClick={() => navigateHeavy(v, { closeMobile: true })} className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium ${view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>{l}</button>
           ))}
           
           {/* Mobile Language Selector */}
@@ -7486,6 +7497,16 @@ import LoginScreen from '@/components/auth/LoginScreen';
 // ============ MAIN APP ============
 export default function App() {
   const [view, setView] = useState('home');
+  const [isLoadingRoute, setIsLoadingRoute] = useState(null);
+
+  // Clear the loading overlay once the target view has actually rendered.
+  // We delay clearance slightly to ensure heavy mount work has flushed.
+  useEffect(() => {
+    if (isLoadingRoute && view === isLoadingRoute) {
+      const t = setTimeout(() => setIsLoadingRoute(null), 150);
+      return () => clearTimeout(t);
+    }
+  }, [view, isLoadingRoute]);
   const [experiences, setExperiences] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [rentalUnits, setRentalUnits] = useState([]); // Public-visible rental units
@@ -7656,7 +7677,18 @@ export default function App() {
           setMobileOpen={setMobileOpen}
           companyBrand={companyBrand}
           currentUser={currentUser}
+          setIsLoadingRoute={setIsLoadingRoute}
         />
+        {isLoadingRoute && (
+          <div style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.85)', zIndex:9999, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', color:'white', fontFamily:'system-ui', backdropFilter:'blur(4px)' }}>
+            <div style={{ width:64, height:64, border:'5px solid rgba(255,255,255,0.25)', borderTopColor:'#06b6d4', borderRadius:'50%', animation:'mspin 0.9s linear infinite', marginBottom:20 }} />
+            <h2 style={{ fontSize:22, fontWeight:700, margin:'0 0 8px' }}>
+              {isLoadingRoute === 'admin' ? '🛠️ Caricamento Admin Panel' : isLoadingRoute === 'b2b' ? '🤝 Caricamento Area B2B' : '⏳ Caricamento'}
+            </h2>
+            <p style={{ fontSize:14, opacity:0.85, margin:0 }}>Attendere prego...</p>
+            <style>{`@keyframes mspin { to { transform: rotate(360deg) } }`}</style>
+          </div>
+        )}
         <main className="flex-1">
           {view === 'home' && <HomePage setView={navigate} experiences={experiences} rentalUnits={rentalUnits} companies={companies} companyBrand={companyBrand} currentUser={currentUser} />}
           {view === 'catalog' && <CatalogPage setView={navigate} experiences={experiences} currentUser={currentUser} companies={companies} companyBrand={companyBrand} />}
