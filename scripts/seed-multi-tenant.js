@@ -1,6 +1,7 @@
 // Script di seed per Multi-Tenant Architecture
 const { MongoClient } = require('mongodb');
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcryptjs');
 
 const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017/maretrek';
 
@@ -65,7 +66,7 @@ async function seed() {
     const superAdmin = {
       id: uuidv4(),
       email: 'superadmin@sardinia-tours.com',
-      password: 'SuperAdmin2025!',
+      password: await bcrypt.hash('SuperAdmin2025!', 10),
       role: 'SUPER_ADMIN',
       company_id: null,
       permissions: ['*'],
@@ -82,7 +83,7 @@ async function seed() {
     const companyAdmin = {
       id: uuidv4(),
       email: 'admin@maretrek.com',
-      password: 'Maretrek2025!',
+      password: await bcrypt.hash('Maretrek2025!', 10),
       role: 'COMPANY_ADMIN',
       company_id: maretrekId,
       permissions: ['manage_experiences', 'manage_bookings', 'manage_agencies', 'view_reports'],
