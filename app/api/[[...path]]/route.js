@@ -1852,18 +1852,25 @@ async function handleBookingsByResource(method, searchParams) {
       status: { $in: ['CONFIRMED', 'PENDING'] }
     }).toArray();
     
-    // Enriched con info esperienza e slot
-    const enriched = await Promise.all(bookings.map(async (booking) => {
-      const slot = slots.find(s => s.id === booking.slot_id);
-      const experience = slot ? await db.collection('experiences').findOne({ id: slot.experience_id }) : null;
-      
+    // Enriched con info esperienza e slot (batched per evitare N+1)
+    const expIds = [...new Set(slots.map(s => s.experience_id).filter(Boolean))];
+    const experiences = expIds.length > 0
+      ? await db.collection('experiences').find({ id: { $in: expIds } }).toArray()
+      : [];
+    const expMap = new Map(experiences.map(e => [e.id, e]));
+    const slotMap = new Map(slots.map(s => [s.id, s]));
+
+    const enriched = bookings.map((booking) => {
+      const slot = slotMap.get(booking.slot_id);
+      const experience = slot ? expMap.get(slot.experience_id) : null;
+
       return {
         ...booking,
         slot_time: slot ? slot.start_datetime : null,
         experience_name: experience ? experience.name : 'N/A',
         experience_type: experience ? experience.type : null
       };
-    }));
+    });
     
     return json({
       resource_id: resourceId,
