@@ -34,10 +34,13 @@ const SERVICES_LIST = [
  *  - open: bool
  *  - onClose: fn
  *  - currentUser: { role, company_id, ... }
- *  - onCreated: fn(savedQuote) (opzionale - per refresh esterni)
+ *  - onCreated: fn(savedQuote) (opzionale - per refresh esterni / chain conversion)
+ *  - mode: 'quote' (default) | 'transit' - se 'transit' marca is_transit=true, applica warning oltre maxTransitDays
+ *  - maxTransitDays: number (default 15) - massimo giorni consigliati per transito
  */
-export default function NewQuoteDialog({ open, onClose, currentUser, onCreated }) {
+export default function NewQuoteDialog({ open, onClose, currentUser, onCreated, mode = 'quote', maxTransitDays = 15 }) {
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const isTransitMode = mode === 'transit';
 
   // Step state
   const [step, setStep] = useState(1); // 1=marina+barca, 2=tariffa, 3=cliente+salva
@@ -206,6 +209,7 @@ export default function NewQuoteDialog({ open, onClose, currentUser, onCreated }
         grand_total: finalTotal,
         status: 'BOZZA',
         source: 'ADMIN',
+        is_transit: isTransitMode,
         created_by_user_id: currentUser?.id,
       };
 
@@ -218,7 +222,9 @@ export default function NewQuoteDialog({ open, onClose, currentUser, onCreated }
       if (data.error) throw new Error(data.error);
       setSavedNumber(data.quote_number);
       setSavedId(data.id);
-      toast.success(`Preventivo ${data.quote_number} salvato in archivio!`);
+      toast.success(isTransitMode
+        ? `✅ Transito ${data.quote_number} creato! Ora assegna il posto barca.`
+        : `Preventivo ${data.quote_number} salvato in archivio!`);
       if (typeof onCreated === 'function') onCreated(data);
     } catch (e) {
       toast.error(friendlyError(e) || 'Errore salvataggio');
@@ -233,15 +239,42 @@ export default function NewQuoteDialog({ open, onClose, currentUser, onCreated }
         translate="no"
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-blue-900">
-            <ClipboardList className="w-5 h-5 text-blue-600" />
-            Nuovo Preventivo Posto Barca
+          <DialogTitle className={`flex items-center gap-2 ${isTransitMode ? 'text-amber-900' : 'text-blue-900'}`}>
+            <ClipboardList className={`w-5 h-5 ${isTransitMode ? 'text-amber-600' : 'text-blue-600'}`} />
+            {isTransitMode ? '⚓ Nuovo Transito Posto Barca' : 'Nuovo Preventivo Posto Barca'}
           </DialogTitle>
           <DialogDescription>
-            Crea un preventivo dall'area amministrativa. Verrà salvato nel registro Preventivi e potrà essere
-            convertito in Prenotazione e in Contratto seguendo il flusso standard.
+            {isTransitMode ? (
+              <>Crea un transito ({maxTransitDays} giorni massimo consigliati). Verrà salvato come preventivo&nbsp;
+              <Badge className="bg-amber-100 text-amber-800 border-amber-200">TRANSITO</Badge>&nbsp;
+              e dopo il salvataggio potrai assegnare un posto barca e registrare il pagamento.</>
+            ) : (
+              <>Crea un preventivo dall'area amministrativa. Verrà salvato nel registro Preventivi e potrà essere
+              convertito in Prenotazione e in Contratto seguendo il flusso standard.</>
+            )}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Warning durata > maxTransitDays in modalità Transito */}
+        {isTransitMode && startDate && endDate && (() => {
+          try {
+            const d1 = new Date(startDate);
+            const d2 = new Date(endDate);
+            const days = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+            if (days > maxTransitDays) {
+              return (
+                <div className="bg-amber-50 border border-amber-300 rounded-md px-3 py-2 text-xs text-amber-800 flex items-start gap-2">
+                  <span className="text-base">⚠️</span>
+                  <div>
+                    <strong>Attenzione: transito lungo ({days} giorni).</strong> Il limite consigliato è di <strong>{maxTransitDays} giorni</strong>.
+                    Per soste più lunghe è consigliato creare un Contratto invece di un Transito. Puoi comunque proseguire.
+                  </div>
+                </div>
+              );
+            }
+          } catch (_e) { /* noop */ }
+          return null;
+        })()}
 
         {/* Stepper */}
         <div className="flex items-center justify-between text-xs font-medium mb-2">
@@ -504,11 +537,15 @@ export default function NewQuoteDialog({ open, onClose, currentUser, onCreated }
               <Card className="border-emerald-400 bg-emerald-50">
                 <CardContent className="p-5 text-center space-y-2">
                   <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-600" />
-                  <div className="text-lg font-bold text-emerald-900">Preventivo Salvato</div>
+                  <div className="text-lg font-bold text-emerald-900">{isTransitMode ? 'Transito Creato' : 'Preventivo Salvato'}</div>
                   <div className="font-mono text-2xl text-emerald-800">{savedNumber}</div>
                   <p className="text-xs text-emerald-700">
-                    Trovi questo preventivo nel tab <strong>Preventivi</strong> del Modulo Marina.
-                    Da lì puoi convertirlo in Prenotazione e poi in Contratto.
+                    {isTransitMode ? (
+                      <>Procedi ora con l'<strong>assegnazione posto barca</strong> e la <strong>registrazione del pagamento</strong>.</>
+                    ) : (
+                      <>Trovi questo preventivo nel tab <strong>Preventivi</strong> del Modulo Marina.
+                      Da lì puoi convertirlo in Prenotazione e poi in Contratto.</>
+                    )}
                   </p>
                 </CardContent>
               </Card>
@@ -614,10 +651,10 @@ export default function NewQuoteDialog({ open, onClose, currentUser, onCreated }
                 <Button
                   onClick={saveQuote}
                   disabled={saving || !clientData.name || !clientData.email}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className={isTransitMode ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}
                 >
                   {saving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                  Salva Preventivo
+                  {isTransitMode ? 'Crea Transito' : 'Salva Preventivo'}
                 </Button>
               )}
             </>

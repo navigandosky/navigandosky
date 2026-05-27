@@ -194,7 +194,8 @@ export async function generateReceiptPDF({ marina, occupation, berth_label, rece
   if (companyLogo) try { doc.addImage(companyLogo, 14, 10, 32, 25); } catch (e) {}
 
   doc.setFontSize(18); doc.setTextColor(20, 120, 60);
-  doc.text(`RICEVUTA DI PAGAMENTO`, 105, 18, { align: 'center' });
+  const isTransitReceipt = !!(occupation?.is_transit);
+  doc.text(isTransitReceipt ? `RICEVUTA TRANSITO` : `RICEVUTA DI PAGAMENTO`, 105, 18, { align: 'center' });
   if (receipt_number) {
     doc.setFontSize(11); doc.setTextColor(80);
     doc.text(`N° ${receipt_number}`, 105, 25, { align: 'center' });

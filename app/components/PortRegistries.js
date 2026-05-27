@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ClipboardList, Ship, FileSignature, Shield, Save, Eye, Edit, Trash2, Search, RefreshCw, Download, FileText, Lock, Unlock, ArrowRightCircle, Anchor, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateQuotePDF, generateReceiptPDF } from '@/app/lib/pdfGen';
+
+// Lazy: Nuovo Preventivo/Transito dialog
+const NewQuoteDialogLazy = dynamic(() => import('./NewQuoteDialog'), { ssr: false });
 
 const fmtPrice = (p) => (p ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—';
@@ -446,6 +450,12 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [forceOverride, setForceOverride] = useState(false);
+  // Nuovo: importo / percentuale pagati
+  const grandTotal = Math.round(Number(quote.grand_total || 0) * 100) / 100;
+  const [payMode, setPayMode] = useState('pct'); // 'pct' | 'amount'
+  const [payPct, setPayPct] = useState('100');
+  const [payAmount, setPayAmount] = useState(String(grandTotal.toFixed(2)));
+  const [payReference, setPayReference] = useState('');
 
   useEffect(() => {
     fetch(`/api/berths?marina_id=${quote.marina_id}`).then(r => r.json()).then(data => {
@@ -497,6 +507,7 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
         }
         setForceOverride(true);
       }
+      const paidAmount = Math.round(Number(payAmount || 0) * 100) / 100;
       const occupyRes = await fetch(`/api/berths/${selectedBerth}/occupy`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -504,7 +515,7 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
           boat: quote.boat,
           start_date: quote.start_date,
           end_date: quote.end_date,
-          notes: `Da preventivo ${quote.quote_number}`,
+          notes: `${quote.is_transit ? 'Transito' : 'Da preventivo'} ${quote.quote_number}`,
           total_amount: quote.grand_total,
           tariff_applied: {
             type: quote.tariff_choice,
@@ -516,6 +527,14 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
           },
           payment_status: paymentStatus,
           payment_method: paymentMethod,
+          paid_amount: paidAmount,
+          paid_pct: Number(payPct) || 0,
+          balance_amount: Math.max(0, Math.round((grandTotal - paidAmount) * 100) / 100),
+          payment_reference: payReference || null,
+          payment_date: paidAmount > 0 ? new Date().toISOString() : null,
+          is_transit: !!quote.is_transit,
+          quote_id: quote.id,
+          quote_number: quote.quote_number,
           force: forceOverride,
           created_by: 'admin_convert',
         }),
@@ -543,7 +562,7 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto" translate="no">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><ArrowRightCircle className="w-5 h-5 text-emerald-600" />Converti Preventivo {quote.quote_number} - Assegna Posto Barca</DialogTitle>
+          <DialogTitle className="flex items-center gap-2"><ArrowRightCircle className="w-5 h-5 text-emerald-600" />{quote.is_transit ? `Converti Transito ${quote.quote_number} - Assegna Posto Barca` : `Converti Preventivo ${quote.quote_number} - Assegna Posto Barca`}</DialogTitle>
           <DialogDescription>
             Cliente: <strong>{quote.customer?.name} {quote.customer?.surname}</strong> · Barca: <strong>{quote.boat?.name || '—'}</strong> ({boatLength}m) · Periodo: {fmtDate(quote.start_date)} → {fmtDate(quote.end_date)}
           </DialogDescription>
@@ -631,31 +650,115 @@ function ConvertQuoteDialog({ quote, onClose, onDone }) {
               </Card>
             )}
 
-            {/* Stato pagamento */}
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t">
-              <div>
-                <Label className="text-xs">Stato pagamento</Label>
-                <Select value={paymentStatus} onValueChange={setPaymentStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DA_PAGARE">Da pagare</SelectItem>
-                    <SelectItem value="PAGATO_PARZIALE">Pagato parziale</SelectItem>
-                    <SelectItem value="PAGATO">Pagato</SelectItem>
-                  </SelectContent>
-                </Select>
+            {/* Stato pagamento: importo / percentuale */}
+            <div className="space-y-3 pt-2 border-t">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  💳 Pagamento{quote.is_transit && <Badge className="bg-amber-100 text-amber-800 border-amber-200">TRANSITO</Badge>}
+                </Label>
+                <span className="text-xs text-muted-foreground">Totale: <strong className="text-foreground">{fmtPrice(grandTotal)}</strong></span>
+              </div>
+              {/* Pulsanti rapidi */}
+              <div className="flex flex-wrap gap-2">
+                {[0, 30, 50, 70, 100].map((p) => (
+                  <Button
+                    key={p}
+                    type="button"
+                    variant={Number(payPct) === p ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      const amt = Math.round(grandTotal * p / 100 * 100) / 100;
+                      setPayMode('pct');
+                      setPayPct(String(p));
+                      setPayAmount(amt.toFixed(2));
+                      // Auto sync stato pagamento
+                      if (p === 0) setPaymentStatus('DA_PAGARE');
+                      else if (p === 100) setPaymentStatus('PAGATO');
+                      else setPaymentStatus('PAGATO_PARZIALE');
+                    }}
+                  >
+                    {p === 0 ? 'Da pagare' : p === 100 ? `Saldo 100% (${fmtPrice(grandTotal)})` : `${p}%`}
+                  </Button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Percentuale (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={payPct}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(',', '.');
+                      const n = Number(v);
+                      const amt = (Number.isFinite(n) && grandTotal > 0) ? Math.round(grandTotal * n / 100 * 100) / 100 : 0;
+                      setPayMode('pct');
+                      setPayPct(v);
+                      setPayAmount(amt.toFixed(2));
+                      if (n === 0) setPaymentStatus('DA_PAGARE');
+                      else if (n >= 100) setPaymentStatus('PAGATO');
+                      else setPaymentStatus('PAGATO_PARZIALE');
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Importo (€)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={payAmount}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(',', '.');
+                      const n = Number(v);
+                      const pct = (Number.isFinite(n) && grandTotal > 0) ? Math.round((n / grandTotal) * 10000) / 100 : 0;
+                      setPayMode('amount');
+                      setPayAmount(v);
+                      setPayPct(String(pct));
+                      if (n === 0) setPaymentStatus('DA_PAGARE');
+                      else if (n >= grandTotal - 0.01) setPaymentStatus('PAGATO');
+                      else setPaymentStatus('PAGATO_PARZIALE');
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Stato pagamento</Label>
+                  <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DA_PAGARE">Da pagare</SelectItem>
+                      <SelectItem value="PAGATO_PARZIALE">Pagato parziale</SelectItem>
+                      <SelectItem value="PAGATO">Pagato</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Metodo pagamento</Label>
+                  <Select value={paymentMethod || 'NESSUNO'} onValueChange={v => setPaymentMethod(v === 'NESSUNO' ? '' : v)}>
+                    <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NESSUNO">Non specificato</SelectItem>
+                      <SelectItem value="SUMUP">💳 SumUp / Online</SelectItem>
+                      <SelectItem value="CONTANTI">💵 Contanti</SelectItem>
+                      <SelectItem value="BONIFICO">🏦 Bonifico</SelectItem>
+                      <SelectItem value="POS">🏪 POS / Carta</SelectItem>
+                      <SelectItem value="STRIPE">💳 Stripe online</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
-                <Label className="text-xs">Metodo pagamento</Label>
-                <Select value={paymentMethod || 'NESSUNO'} onValueChange={v => setPaymentMethod(v === 'NESSUNO' ? '' : v)}>
-                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NESSUNO">Non specificato</SelectItem>
-                    <SelectItem value="CONTANTI">Contanti</SelectItem>
-                    <SelectItem value="BONIFICO">Bonifico</SelectItem>
-                    <SelectItem value="POS">POS / Carta</SelectItem>
-                    <SelectItem value="STRIPE">Stripe online</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Riferimento pagamento (opzionale)</Label>
+                <Input
+                  placeholder="CRO bonifico, n. ricevuta, TRN..."
+                  value={payReference}
+                  onChange={(e) => setPayReference(e.target.value)}
+                />
               </div>
             </div>
           </div>
@@ -742,11 +845,12 @@ function QuoteDetailDialog({ quote, onClose }) {
 // =====================================================================
 // TRANSITI MANAGER (occupazioni current + history)
 // =====================================================================
-export function TransitsManager({ marinaFilterId } = {}) {
+export function TransitsManager({ marinaFilterId, currentUser } = {}) {
   const [transits, setTransits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('current'); // current|history|all
   const [search, setSearch] = useState('');
+  const [showNewTransit, setShowNewTransit] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -860,6 +964,9 @@ export function TransitsManager({ marinaFilterId } = {}) {
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
+        <Button onClick={() => setShowNewTransit(true)} className="bg-amber-500 hover:bg-amber-600 text-white" title="Crea un nuovo transito (max 15gg consigliati)">
+          ⚓ Nuovo Transito
+        </Button>
       </div>
 
       {loading ? <div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div> : (
@@ -932,6 +1039,18 @@ export function TransitsManager({ marinaFilterId } = {}) {
           </table>
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-6 text-sm">Nessun transito</p>}
         </div>
+      )}
+
+      {/* Dialog Nuovo Transito (lazy import) */}
+      {showNewTransit && (
+        <NewQuoteDialogLazy
+          open={showNewTransit}
+          onClose={() => setShowNewTransit(false)}
+          currentUser={currentUser}
+          mode="transit"
+          maxTransitDays={15}
+          onCreated={() => { setShowNewTransit(false); load(); }}
+        />
       )}
     </div>
   );

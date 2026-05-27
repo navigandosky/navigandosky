@@ -100,9 +100,17 @@ export async function handleBerths(method, id, body, action, sp, db) {
       tariff_applied: body.tariff_applied || null,
       // Pagamento
       payment_status: body.payment_status || 'DA_PAGARE', // DA_PAGARE | PAGATO_PARZIALE | PAGATO | GRATUITO | STORNATO
-      payment_method: body.payment_method || '', // CONTANTI | BONIFICO | POS | STRIPE
+      payment_method: body.payment_method || '', // CONTANTI | BONIFICO | POS | STRIPE | SUMUP
       payment_date: body.payment_date || null,
       payment_amount: Number(body.payment_amount) || 0,
+      // Nuovi campi: importo pagato vs totale, riferimento, transito
+      paid_amount: Number(body.paid_amount) || 0,
+      paid_pct: Number(body.paid_pct) || 0,
+      balance_amount: Number(body.balance_amount) || 0,
+      payment_reference: body.payment_reference || null,
+      is_transit: !!body.is_transit,
+      quote_id: body.quote_id || null,
+      quote_number: body.quote_number || null,
       // Tariffa servizio (cortesia / gratuita)
       is_complimentary: !!body.is_complimentary,
       complimentary_authorized_at: body.complimentary_authorized_at || null,

@@ -3377,6 +3377,7 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [globalMarinaFilter, setGlobalMarinaFilter] = useState('ALL');
   // Nuovo Preventivo (dialog admin) - apertura
   const [showNewQuoteDialog, setShowNewQuoteDialog] = useState(false);
+  const [showNewTransitDialog, setShowNewTransitDialog] = useState(false);
   // Nuova Prenotazione Esperienza (dialog admin) - apertura
   const [showNewBookingDialog, setShowNewBookingDialog] = useState(false);
   useEffect(() => {
@@ -4148,6 +4149,18 @@ function AdminDashboard({ currentUser, onLogout }) {
               <Plus className="w-4 h-4 mr-1.5" />
               <Anchor className="w-4 h-4 mr-1.5" />
               Nuovo Preventivo Posto Barca
+            </Button>
+            )}
+            {showMarina && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setShowNewTransitDialog(true)}
+              className="bg-amber-500 text-white hover:bg-amber-600 font-semibold shadow-md border border-amber-300 h-9"
+              title="Registra un transito breve (max 15 gg consigliati)"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              ⚓ Nuovo Transito
             </Button>
             )}
             {showExperiences && (
@@ -6345,7 +6358,7 @@ function AdminDashboard({ currentUser, onLogout }) {
         {hasMarinaOwnership && (
           <TabsContent value="transits" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
-              <TransitsManagerLazy marinaFilterId={globalMarinaFilter} />
+              <TransitsManagerLazy marinaFilterId={globalMarinaFilter} currentUser={currentUser} />
             </Suspense>
           </TabsContent>
         )}
@@ -6476,6 +6489,29 @@ function AdminDashboard({ currentUser, onLogout }) {
             onClose={() => setShowNewQuoteDialog(false)}
             currentUser={currentUser}
             onCreated={() => { /* il preventivo è già visibile nel tab Preventivi */ }}
+          />
+        </Suspense>
+      )}
+
+      {/* Nuovo Transito Posto Barca - Admin Dialog */}
+      {showNewTransitDialog && (
+        <Suspense fallback={null}>
+          <NewQuoteDialogLazy
+            open={showNewTransitDialog}
+            onClose={() => setShowNewTransitDialog(false)}
+            currentUser={currentUser}
+            mode="transit"
+            maxTransitDays={15}
+            onCreated={(saved) => {
+              // Salva l'id del transito appena creato per chain con ConvertQuoteDialog (se vuoi)
+              try {
+                if (saved?.id) {
+                  // Notifica visibile + suggerimento: l'utente può andare in Preventivi e cliccare Converti
+                  // (Future: aprire direttamente ConvertQuoteDialog)
+                  toast.success(`Transito ${saved.quote_number} pronto per assegnazione posto barca`);
+                }
+              } catch (_e) { /* noop */ }
+            }}
           />
         </Suspense>
       )}
