@@ -19,6 +19,7 @@ const BerthsManagerLazy = dynamic(() => import('./components/MarinasAdmin').then
 const QuotesManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.QuotesManager })), { ssr: false });
 const TransitsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.TransitsManager })), { ssr: false });
 const ContractsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.ContractsManager })), { ssr: false });
+const BerthCheckboardLazy = dynamic(() => import('./components/BerthCheckboard'), { ssr: false });
 const PortSettingsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.PortSettingsManager })), { ssr: false });
 // Cantiere (Boatyard) Admin
 const CantiereAdminLazy = dynamic(() => import('./components/CantiereAdmin'), { ssr: false });
@@ -64,7 +65,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2, Database, Home, Sparkles
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2, Database, Home, Sparkles, CalendarDays
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -4189,6 +4190,7 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="berths" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Posti Barca</TabsTrigger>
             <TabsTrigger value="quotes" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><ClipboardList className="w-4 h-4 mr-1.5" />Preventivi</TabsTrigger>
             <TabsTrigger value="transits" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Transiti</TabsTrigger>
+            <TabsTrigger value="checkboard" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20" title="Mappa multi-mese con stato di ogni posto"><CalendarDays className="w-4 h-4 mr-1.5" />Check Box</TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="port-settings" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>}
           </TabsList>
         )}
@@ -6359,6 +6361,15 @@ function AdminDashboard({ currentUser, onLogout }) {
           <TabsContent value="transits" className="space-y-4">
             <Suspense fallback={<div className="text-center py-8"><Ship className="w-8 h-8 mx-auto animate-pulse" /></div>}>
               <TransitsManagerLazy marinaFilterId={globalMarinaFilter} currentUser={currentUser} />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* Super Admin / Owner Marina: Check Box (mappa multi-mese stato berths) */}
+        {hasMarinaOwnership && (
+          <TabsContent value="checkboard" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><CalendarDays className="w-8 h-8 mx-auto animate-pulse text-blue-600" /></div>}>
+              <BerthCheckboardLazy marinaFilterId={globalMarinaFilter} />
             </Suspense>
           </TabsContent>
         )}
