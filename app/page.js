@@ -2665,6 +2665,26 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Modifica Prenotazione {editBk?.booking_ref}</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            {editBk?.created_at && (() => {
+              try {
+                const d = new Date(editBk.created_at);
+                if (isNaN(d.getTime())) return null;
+                const dd = String(d.getDate()).padStart(2,'0');
+                const mm = String(d.getMonth()+1).padStart(2,'0');
+                const yyyy = d.getFullYear();
+                const hh = String(d.getHours()).padStart(2,'0');
+                const mi = String(d.getMinutes()).padStart(2,'0');
+                return (
+                  <div className="flex items-center gap-2 text-xs bg-slate-100 border border-slate-200 rounded-md px-3 py-2">
+                    <span className="font-semibold text-slate-700">📅 Data Acquisto:</span>
+                    <span className="font-medium text-slate-900">{dd}/{mm}/{yyyy}</span>
+                    <span className="text-slate-400">·</span>
+                    <span className="font-semibold text-slate-700">🕒 Ora:</span>
+                    <span className="font-medium text-slate-900">{hh}:{mi}</span>
+                  </div>
+                );
+              } catch(_e) { return null; }
+            })()}
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Nome</Label><Input value={editForm.customer_name || ''} onChange={e => setEditForm({ ...editForm, customer_name: e.target.value })} /></div>
               <div><Label>Email</Label><Input value={editForm.customer_email || ''} onChange={e => setEditForm({ ...editForm, customer_email: e.target.value })} /></div>
@@ -4763,7 +4783,7 @@ function AdminDashboard({ currentUser, onLogout }) {
             )}
           </div>
           <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left bg-muted/50"><th className="p-3 font-medium">Rif.</th><th className="p-3 font-medium">Cliente</th><th className="p-3 font-medium">Email</th><th className="p-3 font-medium">Esperienza</th>{isSuperAdmin && <th className="p-3 font-medium">Company</th>}<th className="p-3 font-medium">Data</th><th className="p-3 font-medium">Risorsa</th><th className="p-3 font-medium">Posti</th><th className="p-3 font-medium">Totale</th><th className="p-3 font-medium">Stato</th><th className="p-3 font-medium">Azioni</th></tr></thead><tbody>
-            {filteredBookingsTab.map(b=>{const _agencyName = getAgencyName(b); return (<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3"><div>{b.customer_name}</div>{_agencyName && <Badge className="text-[10px] bg-indigo-100 text-indigo-800 border-indigo-200 mt-1" title={`Venduto da ${_agencyName}`}><Building2 className="w-2.5 h-2.5 mr-0.5" />AG: {_agencyName.length > 14 ? _agencyName.slice(0, 14) + '…' : _agencyName}</Badge>}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td>{isSuperAdmin && <td className="p-3"><CompanyBadge companyId={b.company_id}/></td>}<td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3 text-xs font-mono font-semibold">{getResourceName(b)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><div className="flex flex-col gap-1 items-start"><StatusBadge status={b.status}/>{b.payment_method && (() => { const pm = b.payment_method; const lbl = PAYMENT_METHOD_LABEL[pm] || pm; const cls = (pm === 'ONLINE' || pm === 'CARD') ? 'bg-violet-100 text-violet-800 border-violet-200' : pm === 'BANK_TRANSFER' ? 'bg-blue-100 text-blue-800 border-blue-200' : (pm === 'CASH' || pm === 'DIRECT') ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : pm === 'AGENCY' ? 'bg-amber-100 text-amber-800 border-amber-200' : pm === 'FREE' ? 'bg-pink-100 text-pink-800 border-pink-200' : 'bg-gray-100 text-gray-700 border-gray-200'; return <Badge className={`text-[10px] ${cls}`} title={`Metodo pagamento: ${lbl}`}>💳 {lbl}</Badge>; })()}</div></td>
+            {filteredBookingsTab.map(b=>{const _agencyName = getAgencyName(b); return (<tr key={b.id} className="border-b hover:bg-muted/30"><td className="p-3 font-mono text-xs">{b.booking_ref}</td><td className="p-3"><div>{b.customer_name}</div>{b.created_at && (() => { try { const d = new Date(b.created_at); if (isNaN(d.getTime())) return null; const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yyyy = d.getFullYear(); return <div className="text-[10px] text-muted-foreground mt-0.5" title={`Acquistato il ${dd}/${mm}/${yyyy}`}>📅 Acquisto: {dd}/{mm}/{yyyy}</div>; } catch(_e) { return null; } })()}{_agencyName && <Badge className="text-[10px] bg-indigo-100 text-indigo-800 border-indigo-200 mt-1" title={`Venduto da ${_agencyName}`}><Building2 className="w-2.5 h-2.5 mr-0.5" />AG: {_agencyName.length > 14 ? _agencyName.slice(0, 14) + '…' : _agencyName}</Badge>}</td><td className="p-3 text-xs">{b.customer_email}</td><td className="p-3">{b.experience_name||getExpName(b.experience_id)}</td>{isSuperAdmin && <td className="p-3"><CompanyBadge companyId={b.company_id}/></td>}<td className="p-3 text-xs capitalize">{fmtDate(b.slot_datetime||b.created_at)}</td><td className="p-3 text-xs font-mono font-semibold">{getResourceName(b)}</td><td className="p-3">{b.seats}</td><td className="p-3 font-medium">{fmtPrice(b.total_amount)}</td><td className="p-3"><div className="flex flex-col gap-1 items-start"><StatusBadge status={b.status}/>{b.payment_method && (() => { const pm = b.payment_method; const lbl = PAYMENT_METHOD_LABEL[pm] || pm; const cls = (pm === 'ONLINE' || pm === 'CARD') ? 'bg-violet-100 text-violet-800 border-violet-200' : pm === 'BANK_TRANSFER' ? 'bg-blue-100 text-blue-800 border-blue-200' : (pm === 'CASH' || pm === 'DIRECT') ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : pm === 'AGENCY' ? 'bg-amber-100 text-amber-800 border-amber-200' : pm === 'FREE' ? 'bg-pink-100 text-pink-800 border-pink-200' : 'bg-gray-100 text-gray-700 border-gray-200'; return <Badge className={`text-[10px] ${cls}`} title={`Metodo pagamento: ${lbl}`}>💳 {lbl}</Badge>; })()}</div></td>
               <td className="p-3"><div className="flex gap-1 flex-wrap">
                 <Button variant="secondary" size="sm" className="text-xs h-7" onClick={()=>setPreviewBk(b)}><Eye className="w-3 h-3 mr-1"/>Anteprima</Button>
                 {/* Azioni per Bonifico in attesa di verifica */}
@@ -7174,6 +7194,26 @@ function AdminDashboard({ currentUser, onLogout }) {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Modifica Prenotazione {editBk?.booking_ref}</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            {editBk?.created_at && (() => {
+              try {
+                const d = new Date(editBk.created_at);
+                if (isNaN(d.getTime())) return null;
+                const dd = String(d.getDate()).padStart(2,'0');
+                const mm = String(d.getMonth()+1).padStart(2,'0');
+                const yyyy = d.getFullYear();
+                const hh = String(d.getHours()).padStart(2,'0');
+                const mi = String(d.getMinutes()).padStart(2,'0');
+                return (
+                  <div className="flex items-center gap-2 text-xs bg-slate-100 border border-slate-200 rounded-md px-3 py-2">
+                    <span className="font-semibold text-slate-700">📅 Data Acquisto:</span>
+                    <span className="font-medium text-slate-900">{dd}/{mm}/{yyyy}</span>
+                    <span className="text-slate-400">·</span>
+                    <span className="font-semibold text-slate-700">🕒 Ora:</span>
+                    <span className="font-medium text-slate-900">{hh}:{mi}</span>
+                  </div>
+                );
+              } catch(_e) { return null; }
+            })()}
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Nome</Label><Input value={editForm.customer_name || ''} onChange={e => setEditForm({ ...editForm, customer_name: e.target.value })} /></div>
               <div><Label>Email</Label><Input value={editForm.customer_email || ''} onChange={e => setEditForm({ ...editForm, customer_email: e.target.value })} /></div>
@@ -7288,6 +7328,28 @@ function AdminDashboard({ currentUser, onLogout }) {
                   </div>
                 )}
               </div>
+
+              {/* Data Acquisto */}
+              {previewBk.created_at && (() => {
+                try {
+                  const d = new Date(previewBk.created_at);
+                  if (isNaN(d.getTime())) return null;
+                  const dd = String(d.getDate()).padStart(2,'0');
+                  const mm = String(d.getMonth()+1).padStart(2,'0');
+                  const yyyy = d.getFullYear();
+                  const hh = String(d.getHours()).padStart(2,'0');
+                  const mi = String(d.getMinutes()).padStart(2,'0');
+                  return (
+                    <div className="flex items-center gap-2 text-xs bg-slate-100 border border-slate-200 rounded-md px-3 py-2">
+                      <span className="font-semibold text-slate-700">📅 Data Acquisto:</span>
+                      <span className="font-medium text-slate-900">{dd}/{mm}/{yyyy}</span>
+                      <span className="text-slate-400">·</span>
+                      <span className="font-semibold text-slate-700">🕒 Ora:</span>
+                      <span className="font-medium text-slate-900">{hh}:{mi}</span>
+                    </div>
+                  );
+                } catch(_e) { return null; }
+              })()}
               
               {/* Esperienza e Risorsa */}
               <div className="grid grid-cols-2 gap-4">

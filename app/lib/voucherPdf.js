@@ -148,14 +148,15 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
   // Totale + stato
   doc.setFillColor(243, 244, 246);
   const hasAgency = !!(booking.agency_name || opts?.agencyName);
-  // Calcola altezza box in base ai contatti agenzia disponibili + riga destinazione
+  // Calcola altezza box in base ai contatti agenzia disponibili + riga destinazione + riga data acquisto
   const agencyEmail = booking.agency_email || opts?.agencyEmail || null;
   const agencyPhone = booking.agency_phone || opts?.agencyPhone || null;
   const agencyContactsCount = (agencyEmail ? 1 : 0) + (agencyPhone ? 1 : 0);
   const pmRawForBox = booking.payment_method || booking.paymentMethod;
   const willShowDest = !!(pmRawForBox && pmRawForBox !== 'NONE');
   const destExtraH = willShowDest ? 5 : 0;
-  const totalBoxH = hasAgency ? (22 + 6 + agencyContactsCount * 5 + destExtraH) : (22 + destExtraH);
+  // +5 per la nuova riga "Data Acquisto"
+  const totalBoxH = hasAgency ? (22 + 6 + agencyContactsCount * 5 + destExtraH + 5) : (22 + destExtraH + 5);
   doc.roundedRect(M, y, W - 2 * M, totalBoxH, 2, 2, 'F');
   doc.setFontSize(10).setFont('helvetica', 'normal');
   doc.setTextColor(75, 85, 99);
@@ -165,10 +166,31 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
   doc.text(fmtEur(booking.total_amount), W - M - 5, y + 12, { align: 'right' });
   doc.setFontSize(9).setFont('helvetica', 'normal');
   doc.setTextColor(75, 85, 99);
+  // Data Acquisto (created_at o purchased_at o booking_date)
+  const purchasedAtRaw = booking.created_at || booking.purchased_at || booking.booking_date || null;
+  let dataAcquistoLine = null;
+  if (purchasedAtRaw) {
+    try {
+      const d = new Date(purchasedAtRaw);
+      if (!isNaN(d.getTime())) {
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const yyyy = d.getFullYear();
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        dataAcquistoLine = `Data Acquisto: ${dd}/${mm}/${yyyy}  ·  Ora: ${hh}:${mi}`;
+      }
+    } catch (_e) {}
+  }
+  if (dataAcquistoLine) {
+    doc.text(dataAcquistoLine, M + 5, y + 17);
+  }
   // Mappa metodi di pagamento → label leggibile
   const PAYMENT_METHOD_LABELS = {
     SUMUP: 'SumUp',
     STRIPE: 'Stripe',
+    ONLINE: 'SumUp / Online',
+    CARD: 'SumUp / Online',
     POS: 'POS / Carta',
     CASH: 'Contanti',
     BANK_TRANSFER: 'Bonifico Bancario',
@@ -184,7 +206,8 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
   const statoLine = pmLabel
     ? `Stato: ${statoLabel}  ·  Metodo: ${pmLabel}`
     : `Stato: ${statoLabel}`;
-  doc.text(statoLine, M + 5, y + 17);
+  // Spostato di +5 per fare spazio a Data Acquisto
+  doc.text(statoLine, M + 5, y + (dataAcquistoLine ? 22 : 17));
   // Destinazione incasso (solo se PAGATO o metodo definito)
   let destShown = false;
   if (pmRaw && pmRaw !== 'NONE') {
@@ -194,7 +217,7 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
         doc.setFontSize(8).setFont('helvetica', 'italic');
         doc.setTextColor(107, 114, 128);
         const txt = `Destinazione: ${dest.detail}`;
-        doc.text(txt.length > 95 ? txt.slice(0, 95) + '…' : txt, M + 5, y + 22);
+        doc.text(txt.length > 95 ? txt.slice(0, 95) + '…' : txt, M + 5, y + (dataAcquistoLine ? 27 : 22));
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(75, 85, 99);
         destShown = true;
@@ -207,7 +230,9 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
   // Venduto da agenzia + contatti
   if (hasAgency) {
     const agencyName = booking.agency_name || opts?.agencyName;
-    let lineY = y + (destShown ? 29 : 24);
+    // Shift +5 per data acquisto se presente
+    const baseLine = dataAcquistoLine ? 5 : 0;
+    let lineY = y + (destShown ? 29 : 24) + baseLine;
     doc.setFontSize(9).setFont('helvetica', 'bold');
     doc.setTextColor(67, 56, 202);
     doc.text(`Venduto da: ${agencyName}`, M + 5, lineY);
