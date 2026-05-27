@@ -31,6 +31,9 @@ export default function MarinaMapPage() {
   const [showInfo, setShowInfo] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [zoom, setZoom] = useState(1);
+  // Filtro/ricerca
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');  // all | free | standby | releasing | occupied | contract | transit | no_contract
   
   // Auth check: SUPER_ADMIN o COMPANY_ADMIN proprietario della marina
   useEffect(() => {
@@ -198,6 +201,47 @@ export default function MarinaMapPage() {
     const releasing = berths.filter(b => b.status === 'releasing').length;
     return { free, standby, occupied, releasing, total: berths.length };
   }, [berths]);
+
+  // Filtraggio: calcola il set di id che soddisfano i filtri attivi
+  const isFilterActive = !!searchQuery.trim() || (filterStatus && filterStatus !== 'all');
+  const matchedIds = useMemo(() => {
+    if (!isFilterActive) return null;
+    const q = searchQuery.trim().toLowerCase();
+    const ids = new Set();
+    berths.forEach(b => {
+      // Filtro stato
+      if (filterStatus && filterStatus !== 'all') {
+        if (filterStatus === 'transit') {
+          if (!b.current_occupation?.is_transit) return;
+        } else if (filterStatus === 'contract') {
+          const occ = b.current_occupation;
+          if (!occ || occ.is_transit) return;
+          // Contratto = occupazione non-transito (per ora qualunque occupazione non-transit conta come contratto)
+        } else if (filterStatus === 'no_contract') {
+          // Standby pendente, no contratto
+          if (b.status !== 'standby') return;
+        } else if (b.status !== filterStatus) {
+          return;
+        }
+      }
+      // Filtro testo (cliente / barca / numero posto)
+      if (q) {
+        const occ = b.current_occupation;
+        const fields = [
+          b.label,
+          occ?.customer?.name,
+          occ?.customer?.surname,
+          occ?.customer?.email,
+          occ?.customer?.phone,
+          occ?.boat?.name,
+          occ?.boat?.registration,
+        ].filter(Boolean).map(s => String(s).toLowerCase());
+        if (!fields.some(f => f.includes(q))) return;
+      }
+      ids.add(b.id);
+    });
+    return ids;
+  }, [berths, searchQuery, filterStatus, isFilterActive]);
 
   const handleBerthClick = (berth) => {
     setSelectedBerth(berth);
@@ -413,6 +457,57 @@ export default function MarinaMapPage() {
           </CardContent></Card>
         </div>
 
+        {/* 🔍 Filtri Ricerca */}
+        <Card className="mb-3 shadow-sm border-blue-200">
+          <CardContent className="p-3 flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-[240px] relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">🔍</span>
+              <Input
+                className="pl-8 h-9"
+                placeholder="Cerca per cliente, barca, posto..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setSearchQuery('')}
+                  title="Cancella ricerca"
+                >✕</button>
+              )}
+            </div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[200px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti gli stati</SelectItem>
+                <SelectItem value="free">🟢 Liberi</SelectItem>
+                <SelectItem value="standby">🟡 Standby</SelectItem>
+                <SelectItem value="releasing">🟠 In Liberazione</SelectItem>
+                <SelectItem value="occupied">🔴 Occupati</SelectItem>
+                <SelectItem value="contract">📝 Contratto (occupazione)</SelectItem>
+                <SelectItem value="transit">⚓ Transiti</SelectItem>
+                <SelectItem value="no_contract">⏳ Senza Contratto (Standby)</SelectItem>
+              </SelectContent>
+            </Select>
+            {isFilterActive && (
+              <>
+                <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-xs">
+                  {matchedIds ? matchedIds.size : 0} risultati
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs"
+                  onClick={() => { setSearchQuery(''); setFilterStatus('all'); }}
+                >
+                  ✕ Pulisci Filtri
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Legenda + Zoom */}
         <Card className="mb-4 shadow-sm"><CardContent className="p-3 flex flex-wrap items-center justify-between gap-4 text-sm">
           <div className="flex flex-wrap items-center gap-4">
@@ -458,7 +553,7 @@ export default function MarinaMapPage() {
 
                   <div className="space-y-12 mt-8">
                     {[1, 2, 3].map(p => (
-                      <PontoonRealistic key={p} pontoonNum={p} data={pontoonsData[p]} onClick={handleBerthClick} />
+                      <PontoonRealistic key={p} pontoonNum={p} data={pontoonsData[p]} onClick={handleBerthClick} matchedIds={matchedIds} />
                     ))}
                   </div>
 
@@ -1082,7 +1177,7 @@ function Banchina() {
 }
 
 // ============ COMPONENTE: PONTILE REALISTICO ============
-function PontoonRealistic({ pontoonNum, data, onClick }) {
+function PontoonRealistic({ pontoonNum, data, onClick, matchedIds }) {
   if (!data) return null;
   const { left, right } = data;
 
@@ -1097,7 +1192,7 @@ function PontoonRealistic({ pontoonNum, data, onClick }) {
 
       {/* Lato sinistro (sopra il pontile) - barche puntano verso l'alto */}
       <div className="flex justify-center gap-1 mb-1">
-        {left.map(b => <BerthSlotRealistic key={b.id} berth={b} side="top" onClick={onClick} />)}
+        {left.map(b => <BerthSlotRealistic key={b.id} berth={b} side="top" onClick={onClick} matchedIds={matchedIds} />)}
       </div>
 
       {/* Pontile in stile legno */}
@@ -1121,14 +1216,14 @@ function PontoonRealistic({ pontoonNum, data, onClick }) {
 
       {/* Lato destro (sotto il pontile) - barche puntano verso il basso */}
       <div className="flex justify-center gap-1 mt-1">
-        {right.map(b => <BerthSlotRealistic key={b.id} berth={b} side="bottom" onClick={onClick} />)}
+        {right.map(b => <BerthSlotRealistic key={b.id} berth={b} side="bottom" onClick={onClick} matchedIds={matchedIds} />)}
       </div>
     </div>
   );
 }
 
 // ============ COMPONENTE: SINGOLO POSTO BARCA REALISTICO ============
-function BerthSlotRealistic({ berth, side, onClick }) {
+function BerthSlotRealistic({ berth, side, onClick, matchedIds }) {
   const isOccupied = berth.status !== 'free';
   const boat = berth.current_occupation?.boat;
   const customer = berth.current_occupation?.customer;
@@ -1153,12 +1248,27 @@ function BerthSlotRealistic({ berth, side, onClick }) {
     : berth.status === 'releasing' ? 'IN LIBERAZIONE' 
     : `OCCUPATO da ${customer?.name || ''} ${customer?.surname || ''} · barca: ${boat?.name || ''}`;
 
+  // Calcolo evidenziazione per filtro
+  const isFilteringActive = matchedIds instanceof Set;
+  const isMatched = isFilteringActive ? matchedIds.has(berth.id) : true;
+  const filterOpacity = isFilteringActive && !isMatched ? 0.18 : 1;
+  const filterRing = isFilteringActive && isMatched ? '0 0 0 3px rgba(59,130,246,0.85), 0 0 12px rgba(59,130,246,0.6)' : 'none';
+
   return (
     <button
       onClick={() => onClick(berth)}
       title={`${berth.label} · max ${berth.length_max}m · ${statusLabel}`}
       className="group relative cursor-pointer transition-all hover:scale-105 hover:z-10"
-      style={{ width: `${slotWidth}px`, height: `${slotHeight + (isOccupied && customerLabel ? 12 : 0)}px` }}
+      style={{
+        width: `${slotWidth}px`,
+        height: `${slotHeight + (isOccupied && customerLabel ? 12 : 0)}px`,
+        opacity: filterOpacity,
+        filter: isFilteringActive && !isMatched ? 'grayscale(0.8)' : 'none',
+        boxShadow: filterRing,
+        borderRadius: filterRing !== 'none' ? '6px' : undefined,
+        zIndex: isFilteringActive && isMatched ? 10 : undefined,
+        transition: 'opacity 0.2s, filter 0.2s, box-shadow 0.2s, transform 0.2s',
+      }}
     >
       {/* Etichetta CLIENTE (top, fuori slot) - solo per occupati nella vista admin */}
       {isOccupied && customerLabel && (
