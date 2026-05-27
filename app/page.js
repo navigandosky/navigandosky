@@ -2480,9 +2480,32 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={() => setWeekOff(w => w - 1)}><ChevronLeft className="w-4 h-4 mr-1" />Sett. Prec.</Button>
-        <div className="text-center"><h3 className="text-lg font-semibold capitalize">{format(weekDays[0], 'd MMM', { locale: it })} - {format(weekDays[6], 'd MMM yyyy', { locale: it })}</h3><button className="text-xs text-primary hover:underline" onClick={() => setWeekOff(0)}>Oggi</button></div>
+        <div className="text-center flex flex-col items-center gap-1">
+          <h3 className="text-lg font-semibold capitalize">{format(weekDays[0], 'd MMM', { locale: it })} - {format(weekDays[6], 'd MMM yyyy', { locale: it })}</h3>
+          <div className="flex items-center gap-2">
+            <button className="text-xs text-primary hover:underline font-medium" onClick={() => setWeekOff(0)}>📍 Oggi</button>
+            <span className="text-xs text-muted-foreground">·</span>
+            <label className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer">
+              📅 Vai a:
+              <input
+                type="date"
+                className="text-xs border rounded px-1.5 py-0.5 hover:border-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const target = new Date(e.target.value + 'T12:00:00');
+                  if (isNaN(target.getTime())) return;
+                  const today = new Date();
+                  const todayWeekStart = startOfWeek(today, { weekStartsOn: 1 });
+                  const targetWeekStart = startOfWeek(target, { weekStartsOn: 1 });
+                  const diffDays = Math.round((targetWeekStart.getTime() - todayWeekStart.getTime()) / (1000 * 60 * 60 * 24));
+                  setWeekOff(Math.round(diffDays / 7));
+                }}
+              />
+            </label>
+          </div>
+        </div>
         <Button variant="outline" size="sm" onClick={() => setWeekOff(w => w + 1)}>Sett. Succ.<ChevronRight className="w-4 h-4 ml-1" /></Button>
       </div>
 
