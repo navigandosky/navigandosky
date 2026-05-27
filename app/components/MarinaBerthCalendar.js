@@ -307,20 +307,62 @@ export default function MarinaBerthCalendar({ currentUser, marinaFilterId }) {
                           const status = dayMap[dateStr] || 'free';
                           let cellClass = 'bg-emerald-500';
                           let title = `${berth.label} · ${dateStr} · LIBERO`;
+                          let activeBooking = null;
                           if (status === 'standby') {
                             cellClass = 'bg-yellow-400';
-                            const occ = berth.current_occupation;
+                            activeBooking = findActiveBookingForBerthDay(berth, dateStr, bookings);
+                            const occ = activeBooking || berth.current_occupation;
                             title = `${berth.label} · ${dateStr} · ⏳ STANDBY · ${occ?.customer?.name || ''} ${occ?.customer?.surname || ''} (${occ?.booking_number || ''})`;
                           } else if (status === 'releasing') {
                             cellClass = 'bg-amber-500';
-                            const occ = berth.current_occupation;
+                            activeBooking = findActiveBookingForBerthDay(berth, dateStr, bookings);
+                            const occ = activeBooking || berth.current_occupation;
                             title = `${berth.label} · ${dateStr} · IN LIBERAZIONE · ${occ?.customer?.name || ''} ${occ?.customer?.surname || ''}`;
                           } else if (status === 'occupied') {
                             cellClass = 'bg-red-500';
-                            const info = findBookingForBerthAndDay(berth, dateStr, bookings);
-                            title = `${berth.label} · ${dateStr} · OCCUPATO · ${info?.customer?.name || berth.current_occupation?.customer?.name || ''} ${info?.customer?.surname || berth.current_occupation?.customer?.surname || ''}`;
+                            activeBooking = findActiveBookingForBerthDay(berth, dateStr, bookings);
+                            const occ = activeBooking || berth.current_occupation;
+                            title = `${berth.label} · ${dateStr} · OCCUPATO · ${occ?.customer?.name || ''} ${occ?.customer?.surname || ''}`;
                           }
-                          return <td key={i} className={`p-0 border ${cellClass} cursor-help hover:opacity-75 transition`} title={title} style={{ height: 28 }} />;
+                          // Mostra label cliente solo nel PRIMO giorno della prenotazione/occupazione (overflow su celle adiacenti)
+                          const isStartDay = activeBooking && (
+                            dateStr === (activeBooking.start_date || activeBooking.startDate || '') ||
+                            // Se la prenotazione comincia PRIMA del range visibile, mostra l'etichetta sul primo giorno visibile
+                            (activeBooking.start_date && activeBooking.start_date < days[0].toISOString().slice(0,10) && i === 0)
+                          );
+                          const customerLabel = activeBooking
+                            ? `${activeBooking.customer?.name || ''} ${activeBooking.customer?.surname || ''}`.trim()
+                            : '';
+                          const boatLabel = activeBooking?.boat?.name
+                            ? `${activeBooking.boat.name}${activeBooking.boat.length ? ` · ${activeBooking.boat.length}m` : ''}`
+                            : '';
+                          const periodLabel = activeBooking?.start_date && activeBooking?.end_date
+                            ? `${fmtShortDate(activeBooking.start_date)} → ${fmtShortDate(activeBooking.end_date)}`
+                            : '';
+                          return (
+                            <td
+                              key={i}
+                              className={`p-0 border ${cellClass} cursor-help hover:opacity-75 transition relative`}
+                              title={title}
+                              style={{ height: 28, overflow: 'visible' }}
+                            >
+                              {isStartDay && customerLabel && (
+                                <div
+                                  className="absolute top-1/2 -translate-y-1/2 left-1 text-[10px] font-bold text-white drop-shadow-sm pointer-events-none flex items-center gap-1.5"
+                                  style={{ whiteSpace: 'nowrap', textShadow: '0 1px 1px rgba(0,0,0,0.4)', zIndex: 5 }}
+                                >
+                                  {activeBooking?.status === 'CONTRACT' ? (
+                                    <span className="bg-emerald-700/90 px-1 py-0.5 rounded text-[9px] font-bold" title="Contratto firmato">📝 CONTRATTO</span>
+                                  ) : (
+                                    <span className="bg-slate-700/80 px-1 py-0.5 rounded text-[9px] font-bold" title="In attesa di contratto">⏳ SENZA CONTRATTO</span>
+                                  )}
+                                  <span>{customerLabel}</span>
+                                  {periodLabel && <span className="opacity-90 font-normal">· {periodLabel}</span>}
+                                  {boatLabel && <span className="opacity-90 font-normal">· ⛵ {boatLabel}</span>}
+                                </div>
+                              )}
+                            </td>
+                          );
                         })}
                       </tr>
                     );
@@ -398,4 +440,51 @@ function findBookingForBerthAndDay(berth, dateStr, bookings) {
     dateStr >= (b.start_date || '') &&
     dateStr <= (b.end_date || '')
   );
+}
+
+/**
+ * Trova la prenotazione ATTIVA per un berth in una specifica data.
+ * Priorità: CONTRACT > STANDBY (PENDING/CONFIRMED/DEPOSIT_PAID con standby_occupation_id).
+ * Se nessuna prenotazione, restituisce berth.current_occupation (legacy).
+ */
+function findActiveBookingForBerthDay(berth, dateStr, bookings) {
+  // 1) Contratto attivo
+  const contract = bookings.find(b =>
+    b.berth_id === berth.id &&
+    b.status === 'CONTRACT' &&
+    dateStr >= (b.start_date || '') &&
+    dateStr <= (b.end_date || '')
+  );
+  if (contract) return contract;
+  // 2) Standby
+  const standby = bookings.find(b =>
+    b.berth_id === berth.id &&
+    b.standby_occupation_id &&
+    ['PENDING', 'CONFIRMED', 'DEPOSIT_PAID'].includes(b.status) &&
+    dateStr >= (b.start_date || '') &&
+    dateStr <= (b.end_date || '')
+  );
+  if (standby) return standby;
+  // 3) Fallback: occupazione legacy del berth
+  const occ = berth.current_occupation;
+  if (occ && occ.start_date && occ.end_date && dateStr >= occ.start_date && dateStr <= occ.end_date) {
+    // Normalizza la shape per i campi che usa la UI
+    return {
+      ...occ,
+      start_date: occ.start_date,
+      end_date: occ.end_date,
+      customer: occ.customer || { name: occ.customer_name, surname: occ.customer_surname },
+      boat: occ.boat || (occ.boat_name ? { name: occ.boat_name, length: occ.boat_length } : null),
+    };
+  }
+  return null;
+}
+
+function fmtShortDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  } catch (_e) { return ''; }
 }
