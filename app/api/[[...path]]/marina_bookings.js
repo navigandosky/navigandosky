@@ -182,19 +182,55 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     return new Response(JSON.stringify(item), { status: 201, headers: { 'Content-Type': 'application/json' } });
   }
 
-  // === ACTION: pay-deposit (mock SumUp) ===
+  // === ACTION: pay-deposit (mock SumUp, supports custom amount/pct) ===
   if (method === 'POST' && id && action === 'pay-deposit') {
     const existing = await col.findOne({ id });
     if (!existing) return new Response(JSON.stringify({ error: 'Prenotazione non trovata' }), { status: 404 });
-    
+
+    const grandTotal = Math.round((Number(existing.grand_total || existing.total || 0)) * 100) / 100;
+    if (grandTotal <= 0) {
+      return new Response(JSON.stringify({ error: 'Totale prenotazione non valido' }), { status: 400 });
+    }
+
+    // Calcola importo pagato: priorità → body.paid_amount → body.paid_pct → fallback existing.deposit_amount
+    let paidAmount;
+    if (body.paid_amount !== undefined && body.paid_amount !== null && body.paid_amount !== '') {
+      paidAmount = Math.round(Number(body.paid_amount) * 100) / 100;
+    } else if (body.paid_pct !== undefined && body.paid_pct !== null && body.paid_pct !== '') {
+      paidAmount = Math.round(grandTotal * Number(body.paid_pct) / 100 * 100) / 100;
+    } else {
+      paidAmount = Math.round((Number(existing.deposit_amount || 0)) * 100) / 100;
+    }
+
+    if (!Number.isFinite(paidAmount) || paidAmount <= 0 || paidAmount > grandTotal + 0.01) {
+      return new Response(JSON.stringify({
+        error: `Importo non valido: ${paidAmount}€. Deve essere > 0 e <= ${grandTotal}€`,
+      }), { status: 400 });
+    }
+
+    const remainingAmount = Math.max(0, Math.round((grandTotal - paidAmount) * 100) / 100);
+    const paidPct = Math.round((paidAmount / grandTotal) * 10000) / 100; // 2 decimals
+    const isFullyPaid = remainingAmount <= 0.01;
+
     const update = {
       deposit_paid: true,
+      deposit_amount: paidAmount,
+      deposit_pct: paidPct,
+      balance_amount: remainingAmount,
+      balance_paid: isFullyPaid,
       deposit_payment_method: body.payment_method || 'SUMUP_MOCK',
-      deposit_payment_reference: body.payment_reference || `MOCK-${Date.now()}`,
+      deposit_payment_reference: body.payment_reference || `MAN-${Date.now()}`,
       deposit_payment_date: new Date().toISOString(),
-      status: 'DEPOSIT_PAID',
+      status: isFullyPaid ? 'CONFIRMED' : 'DEPOSIT_PAID',
+      payment_note: body.note || null,
       updated_at: new Date().toISOString(),
     };
+    if (isFullyPaid) {
+      update.balance_payment_method = body.payment_method || 'SUMUP_MOCK';
+      update.balance_payment_date = new Date().toISOString();
+      update.balance_payment_reference = body.payment_reference || update.deposit_payment_reference;
+      update.confirmed_at = new Date().toISOString();
+    }
     await col.updateOne({ id }, { $set: update });
     const updated = await col.findOne({ id });
     return new Response(JSON.stringify(updated), { headers: { 'Content-Type': 'application/json' } });

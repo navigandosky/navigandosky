@@ -44,6 +44,10 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
   const [selectedBerthId, setSelectedBerthId] = useState('');
   const [forceOverride, setForceOverride] = useState(false);
   const [submittingAssign, setSubmittingAssign] = useState(false);
+  // Payment dialog
+  const [payingBk, setPayingBk] = useState(null);
+  const [payForm, setPayForm] = useState({ mode: 'pct', pct: '', amount: '', payment_method: 'SUMUP', payment_reference: '', note: '' });
+  const [submittingPay, setSubmittingPay] = useState(false);
 
   // Sincronizza il filtro Marina con il filtro globale passato dal parent
   useEffect(() => {
@@ -123,9 +127,48 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
     } catch (e) { toast.error(e.message); return null; }
   };
 
-  const payDepositManual = async (b) => {
-    if (!confirm(`Confermare il pagamento manuale dell'acconto di ${fmtEur(b.deposit_amount)}?`)) return;
-    await doAction(b, 'pay-deposit', { payment_method: 'MANUAL' });
+  const openPayDialog = (b) => {
+    const grandTotal = Number(b.grand_total || b.total || 0);
+    const defaultPct = Number(b.deposit_pct || 30);
+    const defaultAmt = Number(b.deposit_amount || Math.round(grandTotal * defaultPct / 100 * 100) / 100);
+    setPayForm({
+      mode: 'pct',
+      pct: String(defaultPct),
+      amount: String(defaultAmt.toFixed(2)),
+      payment_method: 'SUMUP',
+      payment_reference: '',
+      note: '',
+    });
+    setPayingBk(b);
+  };
+
+  const submitPayDialog = async () => {
+    if (!payingBk) return;
+    const grandTotal = Math.round(Number(payingBk.grand_total || payingBk.total || 0) * 100) / 100;
+    if (grandTotal <= 0) { toast.error('Totale prenotazione non valido'); return; }
+    let paidAmount;
+    if (payForm.mode === 'pct') {
+      const pctNum = Number(payForm.pct);
+      if (!Number.isFinite(pctNum) || pctNum <= 0 || pctNum > 100) { toast.error('Percentuale non valida (1-100)'); return; }
+      paidAmount = Math.round(grandTotal * pctNum / 100 * 100) / 100;
+    } else {
+      const amtNum = Number(payForm.amount);
+      if (!Number.isFinite(amtNum) || amtNum <= 0) { toast.error('Importo non valido'); return; }
+      if (amtNum > grandTotal + 0.01) { toast.error(`Importo > totale (${fmtEur(grandTotal)})`); return; }
+      paidAmount = Math.round(amtNum * 100) / 100;
+    }
+    setSubmittingPay(true);
+    try {
+      const ok = await doAction(payingBk, 'pay-deposit', {
+        paid_amount: paidAmount,
+        payment_method: payForm.payment_method,
+        payment_reference: payForm.payment_reference || null,
+        note: payForm.note || null,
+      });
+      if (ok) setPayingBk(null);
+    } finally {
+      setSubmittingPay(false);
+    }
   };
 
   const confirmBooking = async (b) => {
@@ -374,8 +417,8 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
                               <Eye className="w-3 h-3 mr-1" />Dettaglio
                             </Button>
                             {!b.deposit_paid && b.status !== 'REJECTED' && (
-                              <Button variant="secondary" size="sm" className="h-7 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200" onClick={() => payDepositManual(b)}>
-                                <CreditCard className="w-3 h-3 mr-1" />Marca Pagato
+                              <Button variant="secondary" size="sm" className="h-7 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200" onClick={() => openPayDialog(b)} title="Registra pagamento (%, importo o saldo totale)">
+                                <CreditCard className="w-3 h-3 mr-1" />Registra Pagato
                               </Button>
                             )}
                             {b.status === 'DEPOSIT_PAID' && (
@@ -555,6 +598,158 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
           submitting={submittingAssign}
         />
       )}
+
+      {/* Dialog Registrazione Pagamento (% o importo) */}
+      {payingBk && (() => {
+        const grandTotal = Math.round(Number(payingBk.grand_total || payingBk.total || 0) * 100) / 100;
+        const pctNum = Number(payForm.pct);
+        const amtNum = Number(payForm.amount);
+        const previewAmount = payForm.mode === 'pct'
+          ? (Number.isFinite(pctNum) ? Math.round(grandTotal * pctNum / 100 * 100) / 100 : 0)
+          : (Number.isFinite(amtNum) ? amtNum : 0);
+        const previewPct = grandTotal > 0 ? Math.round((previewAmount / grandTotal) * 10000) / 100 : 0;
+        const remaining = Math.max(0, Math.round((grandTotal - previewAmount) * 100) / 100);
+        const isFull = previewAmount > 0 && remaining <= 0.01;
+
+        const setPctAndSync = (val) => {
+          const v = String(val).replace(',', '.');
+          const n = Number(v);
+          const amt = (Number.isFinite(n) && grandTotal > 0) ? (Math.round(grandTotal * n / 100 * 100) / 100).toFixed(2) : '';
+          setPayForm({ ...payForm, mode: 'pct', pct: v, amount: amt });
+        };
+        const setAmountAndSync = (val) => {
+          const v = String(val).replace(',', '.');
+          const n = Number(v);
+          const pct = (Number.isFinite(n) && grandTotal > 0) ? String(Math.round((n / grandTotal) * 10000) / 100) : '';
+          setPayForm({ ...payForm, mode: 'amount', amount: v, pct });
+        };
+
+        return (
+          <Dialog open={true} onOpenChange={(o) => !o && !submittingPay && setPayingBk(null)}>
+            <DialogContent className="max-w-lg" translate="no">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-emerald-600" />
+                  Registra Pagamento — {payingBk.booking_number || payingBk.id?.slice(0, 8)}
+                </DialogTitle>
+                <DialogDescription>
+                  Cliente: <span className="font-medium text-foreground">{payingBk.customer_name}</span> · Totale: <span className="font-semibold text-foreground">{fmtEur(grandTotal)}</span>
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {/* Quick % buttons */}
+                <div>
+                  <Label className="text-xs">Importo Rapido</Label>
+                  <div className="flex flex-wrap gap-2 mt-1.5">
+                    {[20, 30, 50, 70, 100].map((p) => (
+                      <Button
+                        key={p}
+                        type="button"
+                        variant={Math.round(previewPct) === p ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => setPctAndSync(p)}
+                      >
+                        {p === 100 ? `Saldo 100% (${fmtEur(grandTotal)})` : `${p}%`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Percentuale (%)</Label>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      max="100"
+                      step="0.01"
+                      value={payForm.pct}
+                      onChange={(e) => setPctAndSync(e.target.value)}
+                      placeholder="es. 30"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Importo (€)</Label>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={payForm.amount}
+                      onChange={(e) => setAmountAndSync(e.target.value)}
+                      placeholder="es. 412.00"
+                    />
+                  </div>
+                </div>
+
+                {/* Live preview */}
+                <div className="rounded-lg border bg-slate-50 p-3 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Pagato ora</span>
+                    <span className="font-semibold text-emerald-700">{fmtEur(previewAmount)} <span className="text-xs text-muted-foreground">({previewPct.toFixed(2)}%)</span></span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Rimanente</span>
+                    <span className={`font-semibold ${isFull ? 'text-emerald-700' : 'text-blue-700'}`}>{fmtEur(remaining)}</span>
+                  </div>
+                  <div className="flex justify-between pt-1 border-t">
+                    <span className="text-muted-foreground">Stato risultante</span>
+                    <span className={`text-xs font-bold ${isFull ? 'text-emerald-700' : 'text-blue-700'}`}>
+                      {isFull ? '✓ CONFERMATA (saldo completo)' : '• ACCONTO PAGATO'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Metodo Pagamento</Label>
+                    <Select value={payForm.payment_method} onValueChange={(v) => setPayForm({ ...payForm, payment_method: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SUMUP">💳 SumUp / Online</SelectItem>
+                        <SelectItem value="BANK_TRANSFER">🏦 Bonifico Bancario</SelectItem>
+                        <SelectItem value="CASH">💵 Contanti</SelectItem>
+                        <SelectItem value="POS">🏪 POS / Carta</SelectItem>
+                        <SelectItem value="MANUAL">✋ Manuale / Altro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Riferimento (opzionale)</Label>
+                    <Input
+                      value={payForm.payment_reference}
+                      onChange={(e) => setPayForm({ ...payForm, payment_reference: e.target.value })}
+                      placeholder="CRO, TRN, n. ricevuta..."
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs">Nota (opzionale)</Label>
+                  <Textarea
+                    value={payForm.note}
+                    onChange={(e) => setPayForm({ ...payForm, note: e.target.value })}
+                    rows={2}
+                    placeholder="Note interne sul pagamento..."
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPayingBk(null)} disabled={submittingPay}>Annulla</Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={submitPayDialog}
+                  disabled={submittingPay || previewAmount <= 0 || previewAmount > grandTotal + 0.01}
+                >
+                  {submittingPay ? 'Registrazione…' : `Registra ${fmtEur(previewAmount)}`}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </div>
   );
 }
