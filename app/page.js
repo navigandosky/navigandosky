@@ -3299,6 +3299,7 @@ function AdminDashboard({ currentUser, onLogout }) {
     status: '',
     date_from: '',
     date_to: '',
+    agency_id: '',
   });
   const [filteredBookings, setFilteredBookings] = useState([]);
   
@@ -3827,11 +3828,20 @@ function AdminDashboard({ currentUser, onLogout }) {
       });
     }
 
+    if (filters.agency_id) {
+      if (filters.agency_id === '__NONE__') {
+        // "Senza Agenzia": solo prenotazioni dirette (no agency_id)
+        result = result.filter(b => !b.agency_id);
+      } else {
+        result = result.filter(b => b.agency_id === filters.agency_id);
+      }
+    }
+
     setFilteredBookings(result);
   };
   
   const clearFilters = () => {
-    setFilters({ code: '', date: '', resource_id: '', experience_id: '', customer_name: '', payment_method: '', status: '', date_from: '', date_to: '' });
+    setFilters({ code: '', date: '', resource_id: '', experience_id: '', customer_name: '', payment_method: '', status: '', date_from: '', date_to: '', agency_id: '' });
     setFilteredBookings(bookings);
   };
   
@@ -3863,6 +3873,13 @@ function AdminDashboard({ currentUser, onLogout }) {
       if (filters.experience_id) {
         const exp = experiences.find(e => e.id === filters.experience_id);
         if (exp) activeFilters.push(`Esperienza: ${exp.name}`);
+      }
+      if (filters.agency_id) {
+        if (filters.agency_id === '__NONE__') activeFilters.push('Agenzia: Senza Agenzia');
+        else {
+          const ag = agencies.find(a => a.id === filters.agency_id);
+          if (ag) activeFilters.push(`Agenzia: ${ag.name}`);
+        }
       }
       if (activeFilters.length > 0) {
         doc.setFontSize(9);
@@ -4949,6 +4966,19 @@ function AdminDashboard({ currentUser, onLogout }) {
                     <SelectContent>
                       <SelectItem value="all">Tutte</SelectItem>
                       {experiences.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>🏢 Agenzia</Label>
+                  <Select value={filters.agency_id || 'all'} onValueChange={(v) => setFilters({...filters, agency_id: v === 'all' ? '' : v})}>
+                    <SelectTrigger><SelectValue placeholder="Tutte le agenzie" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutte le agenzie</SelectItem>
+                      <SelectItem value="__NONE__">— Senza Agenzia (Vendita Diretta) —</SelectItem>
+                      {(agencies || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(ag => (
+                        <SelectItem key={ag.id} value={ag.id}>{ag.name}{ag.company_id && isSuperAdmin ? ` · ${getCompanyName(ag.company_id) || ''}` : ''}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
