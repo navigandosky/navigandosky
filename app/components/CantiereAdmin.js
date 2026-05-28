@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,9 +12,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Plus, Edit, Trash2, Save, FileText, FileDown, Wrench, Package, Anchor, Search,
-  Eye, RefreshCw, X, Sparkles,
+  Eye, RefreshCw, X, Sparkles, Mail,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Lazy: dialog generico invio email documenti
+const SendDocumentEmailDialogLazy = dynamic(() => import('./SendDocumentEmailDialog'), { ssr: false });
 
 const fmtEur = (n) => (Number(n) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—';
@@ -54,6 +58,7 @@ export default function CantiereAdmin({ currentUser }) {
   const [company, setCompany] = useState(null); // company che emette i documenti
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
+  const [sendingEmail, setSendingEmail] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
@@ -279,6 +284,9 @@ export default function CantiereAdmin({ currentUser }) {
                             <Button variant="secondary" size="sm" className="h-7 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200" onClick={() => handleDownloadDOCX(q)}>
                               <FileText className="w-3 h-3 mr-1" />Word
                             </Button>
+                            <Button variant="secondary" size="sm" className="h-7 text-xs bg-cyan-100 text-cyan-700 hover:bg-cyan-200" onClick={() => setSendingEmail(q)} title="Invia preventivo via Email (PDF allegato)">
+                              <Mail className="w-3 h-3 mr-1" />Invia Email
+                            </Button>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(q)}>
                               <Trash2 className="w-3.5 h-3.5 text-red-500" />
                             </Button>
@@ -301,6 +309,26 @@ export default function CantiereAdmin({ currentUser }) {
           templates={templates}
           onClose={() => setEditing(null)}
           onSaved={async () => { await load(); setEditing(null); }}
+        />
+      )}
+
+      {/* Invia Preventivo Cantiere via Email */}
+      {sendingEmail && (
+        <SendDocumentEmailDialogLazy
+          open={true}
+          onClose={() => setSendingEmail(null)}
+          documentType="preventivo_cantiere"
+          documentNumber={sendingEmail.quote_number}
+          customerName={`${sendingEmail.customer?.name || ''} ${sendingEmail.customer?.surname || ''}`.trim() || sendingEmail.customer_name || ''}
+          defaultRecipient={sendingEmail.customer?.email || sendingEmail.customer_email || ''}
+          companyName={company?.name || ''}
+          companyId={sendingEmail.company_id || company?.id}
+          relatedCollection="cantiere_quotes"
+          relatedId={sendingEmail.id}
+          generatePdf={async () => {
+            const { downloadCantierePDF } = await import('../lib/cantiereDoc');
+            return await downloadCantierePDF(sendingEmail, company, { returnAs: 'base64' });
+          }}
         />
       )}
     </div>

@@ -234,3 +234,176 @@ export async function handleSendReceiptEmail(method, body) {
     }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
+
+/**
+ * Endpoint generico per inviare qualsiasi documento PDF via email
+ * Usato per: preventivi marina, contratti, preventivi cantiere, voucher transito, ecc.
+ * Body atteso:
+ *   - to_email (required)
+ *   - cc_email (optional)
+ *   - subject (optional - default basato su document_type/number)
+ *   - message (optional - testo libero da inserire nel corpo)
+ *   - pdf_base64 (required)
+ *   - pdf_filename (optional)
+ *   - document_type ('preventivo' | 'contratto' | 'preventivo_cantiere' | 'ricevuta_transito' | 'documento')
+ *   - document_number
+ *   - customer_name
+ *   - company_name (optional)
+ *   - marina_id (optional - per override SMTP per-marina)
+ *   - company_id (optional - per override Resend per-company)
+ *   - related_collection (optional - 'port_quotes' | 'cantiere_quotes' | 'marina_bookings' - per log invio)
+ *   - related_id (optional - id documento per log invio)
+ */
+export async function handleSendDocumentEmail(method, body) {
+  if (method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Use POST' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+  }
+  const {
+    to_email, cc_email, subject, message,
+    pdf_base64, pdf_filename, content_type,
+    document_type, document_number, customer_name, company_name,
+    marina_id, company_id, related_collection, related_id,
+  } = body || {};
+
+  if (!to_email) return new Response(JSON.stringify({ error: 'to_email obbligatorio' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  if (!pdf_base64) return new Response(JSON.stringify({ error: 'pdf_base64 obbligatorio' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+
+  try {
+    const db = await getDb();
+    let marina = null;
+    let company = null;
+    if (marina_id) marina = await db.collection('marinas').findOne({ id: marina_id });
+    if (company_id) company = await db.collection('companies').findOne({ id: company_id });
+
+    const marinaCfg = marina?.payment_config || {};
+    const resendFromEmail = process.env.RESEND_FROM_EMAIL || process.env.SMTP_USER;
+    const smtpFromEmail = marinaCfg.smtp_user || process.env.SMTP_USER || process.env.SMTP_FROM_EMAIL;
+    const fromName = marinaCfg.smtp_from_name || company_name || company?.name || marina?.name || process.env.SMTP_FROM_NAME || 'Marina';
+
+    // Pulisci data URL prefix
+    let cleanBase64 = pdf_base64;
+    if (cleanBase64.startsWith('data:')) {
+      cleanBase64 = cleanBase64.split(',')[1] || cleanBase64;
+    }
+
+    // Etichette per tipo documento
+    const docTypeLabels = {
+      preventivo: 'Preventivo Posto Barca',
+      contratto: 'Contratto Ormeggio',
+      preventivo_cantiere: 'Preventivo Rimessaggio',
+      ricevuta_transito: 'Ricevuta Transito',
+      ricevuta: 'Ricevuta',
+      documento: 'Documento',
+    };
+    const docLabel = docTypeLabels[document_type] || 'Documento';
+    const subj = subject || `${docLabel} ${document_number || ''} - ${fromName}`.trim();
+
+    const html = `
+      <!DOCTYPE html>
+      <html><head><meta charset="UTF-8"></head>
+      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; color: #333;">
+        <div style="background: linear-gradient(135deg, #1e40af 0%, #0e7490 100%); color: white; padding: 24px; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 22px;">${docLabel}</h1>
+          <p style="margin: 4px 0 0; font-size: 14px; opacity: 0.9;">${fromName}</p>
+        </div>
+        <div style="background: white; padding: 24px; border: 1px solid #e5e7eb; border-top: 0; border-radius: 0 0 8px 8px;">
+          <p>Gentile <strong>${customer_name || 'Cliente'}</strong>,</p>
+          <p>Le inviamo in allegato il documento <strong>${docLabel} ${document_number || ''}</strong>.</p>
+          ${message ? `<div style="background: #f9fafb; border-left: 4px solid #3b82f6; padding: 12px; margin: 16px 0; border-radius: 4px; white-space: pre-wrap;">${String(message).replace(/\n/g, '<br>')}</div>` : ''}
+          <p style="margin-top: 24px; font-size: 13px; color: #6b7280;">Per qualsiasi necessità o chiarimento, può rispondere direttamente a questa email.</p>
+          <p style="margin-top: 24px; font-size: 14px;">Cordiali saluti,<br><strong>${fromName}</strong></p>
+        </div>
+        <div style="text-align: center; padding: 12px; font-size: 11px; color: #9ca3af;">
+          Documento generato dal sistema gestionale ${fromName}.
+        </div>
+      </body></html>
+    `;
+
+    const attachments = [{
+      filename: pdf_filename || `${docLabel.replace(/\s+/g, '_')}_${document_number || 'doc'}.pdf`,
+      content: cleanBase64,
+      contentType: content_type || 'application/pdf',
+    }];
+
+    const toList = cc_email ? [to_email, cc_email] : to_email;
+
+    let result;
+    let providerUsed;
+    let primaryError = null;
+    let usedFromEmail;
+
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const resendFromAddress = `${fromName} <${resendFromEmail}>`;
+        result = await sendViaResend({
+          from: resendFromAddress,
+          to: toList, subject: subj, html, attachments,
+        });
+        providerUsed = 'resend';
+        usedFromEmail = resendFromEmail;
+      } catch (e) {
+        primaryError = e.message;
+        console.warn('[send-document-email] Resend fallito, fallback SMTP:', e.message);
+      }
+    }
+
+    if (!result) {
+      try {
+        const smtpFromAddress = `"${fromName}" <${smtpFromEmail}>`;
+        result = await sendViaSMTP({
+          from: smtpFromAddress,
+          to: toList, subject: subj, html, attachments,
+          marinaCfg,
+        });
+        providerUsed = 'smtp';
+        usedFromEmail = smtpFromEmail;
+      } catch (e) {
+        const composedError = primaryError ? `Resend: ${primaryError} · SMTP: ${e.message}` : `SMTP: ${e.message}`;
+        return new Response(JSON.stringify({ error: composedError, detail: e.code || e.responseCode || null }), {
+          status: 500, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Log invio nella collezione correlata (se specificata)
+    if (related_collection && related_id && result?.ok) {
+      try {
+        await db.collection(related_collection).updateOne(
+          { id: related_id },
+          {
+            $push: {
+              email_log: {
+                type: document_type || 'document',
+                document_number,
+                to: to_email,
+                cc: cc_email || null,
+                from: usedFromEmail,
+                provider: providerUsed,
+                sent_at: new Date().toISOString(),
+                message_id: result.message_id,
+              },
+            },
+            $set: { updated_at: new Date().toISOString(), last_sent_at: new Date().toISOString() },
+          }
+        );
+      } catch (logErr) {
+        console.warn('[send-document-email] Log invio fallito:', logErr.message);
+      }
+    }
+
+    return new Response(JSON.stringify({
+      ok: true,
+      message_id: result.message_id,
+      to: to_email,
+      from: usedFromEmail,
+      provider: providerUsed,
+    }), { headers: { 'Content-Type': 'application/json' } });
+  } catch (e) {
+    console.error('[send-document-email] Error:', e);
+    return new Response(JSON.stringify({
+      error: e.message || 'Errore invio email',
+      detail: e.code || e.responseCode || null,
+    }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+

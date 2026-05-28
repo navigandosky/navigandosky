@@ -20,7 +20,7 @@ const fmtPrice = (p) => (p ?? 0).toLocaleString('it-IT', { style: 'currency', cu
 // PDF PREVENTIVO (dalla card Preview o dal tab Preventivi admin)
 // company: { name, logo_url } - logo della company che emette il documento
 // =====================================================================
-export async function generateQuotePDF({ marina, customer, boat, period, tariff, extras, extras_total, grand_total, quote_number, notes, company }) {
+export async function generateQuotePDF({ marina, customer, boat, period, tariff, extras, extras_total, grand_total, quote_number, notes, company, returnAs }) {
   const { jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF();
@@ -176,6 +176,11 @@ export async function generateQuotePDF({ marina, customer, boat, period, tariff,
   doc.text('Documento generato automaticamente. Per accettare il preventivo contattare la Marina.', 105, pageH - 7, { align: 'center' });
 
   const fileName = `Preventivo_${quote_number || marina?.slug || ''}_${customer?.surname || customer?.name || 'cliente'}_${boat?.length || ''}m.pdf`.replace(/\s+/g, '_').replace(/\//g, '-');
+  if (returnAs === 'base64') {
+    // Restituisce solo il base64 senza salvare il file
+    const base64 = doc.output('datauristring').split(',')[1];
+    return { base64, filename: fileName };
+  }
   doc.save(fileName);
   return fileName;
 }
@@ -184,7 +189,7 @@ export async function generateQuotePDF({ marina, customer, boat, period, tariff,
 // PDF RICEVUTA / VOUCHER POST-PAGAMENTO
 // company: { name, logo_url } - logo della company che emette
 // =====================================================================
-export async function generateReceiptPDF({ marina, occupation, berth_label, receipt_number, company }) {
+export async function generateReceiptPDF({ marina, occupation, berth_label, receipt_number, company, returnAs }) {
   const { jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF();
@@ -291,6 +296,10 @@ export async function generateReceiptPDF({ marina, occupation, berth_label, rece
   doc.text('Ricevuta di pagamento — Documento generato automaticamente.', 105, pageH - 7, { align: 'center' });
 
   const fileName = `Ricevuta_${receipt_number || berth_label || 'pagamento'}_${(occupation.customer?.surname || occupation.customer?.name || 'cliente').replace(/\s+/g, '_')}.pdf`;
+  if (returnAs === 'base64') {
+    const base64 = doc.output('datauristring').split(',')[1];
+    return { base64, filename: fileName };
+  }
   doc.save(fileName);
   return fileName;
 }

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,9 @@ import { friendlyError } from '@/app/lib/safeFetch';
 
 const fmtEur = (n) => (Number(n) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—';
+
+// Lazy: dialog generico di invio email documenti
+const SendDocumentEmailDialogLazy = dynamic(() => import('./SendDocumentEmailDialog'), { ssr: false });
 
 const PAYMENT_METHODS = [
   { value: 'CONTANTI', label: 'Contanti' },
@@ -66,6 +70,7 @@ export default function ContractsRegistry({ currentUser, marinaFilterId }) {
   const [paying, setPaying] = useState(null);
   const [issuingReceipt, setIssuingReceipt] = useState(null);
   const [generatingContract, setGeneratingContract] = useState(null);
+  const [sendingEmailContract, setSendingEmailContract] = useState(null);
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
@@ -285,6 +290,9 @@ export default function ContractsRegistry({ currentUser, marinaFilterId }) {
                             <Button size="sm" variant="outline" className="h-7 px-2 text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300" title="Genera Contratto Word" onClick={() => setGeneratingContract(c)}>
                               <ScrollText className="w-3 h-3 mr-1" />Contratto
                             </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border-cyan-300" title="Invia Contratto via Email" onClick={() => setSendingEmailContract(c)}>
+                              <Mail className="w-3 h-3 mr-1" />Invia Email
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -302,6 +310,30 @@ export default function ContractsRegistry({ currentUser, marinaFilterId }) {
       {paying && <PaymentDialog contract={paying} onClose={() => setPaying(null)} onChange={load} />}
       {issuingReceipt && <ReceiptDialog contract={issuingReceipt} companies={companies} onClose={() => setIssuingReceipt(null)} />}
       {generatingContract && <ContractDocDialog contract={generatingContract} companies={companies} onClose={() => setGeneratingContract(null)} />}
+      {sendingEmailContract && (() => {
+        const c = sendingEmailContract;
+        const company = companies.find(co => co.id === c.company_id) || null;
+        return (
+          <SendDocumentEmailDialogLazy
+            open={true}
+            onClose={() => setSendingEmailContract(null)}
+            documentType="contratto"
+            documentNumber={c.booking_number}
+            customerName={`${c.customer?.name || ''} ${c.customer?.surname || ''}`.trim()}
+            defaultRecipient={c.customer?.email || ''}
+            companyName={company?.name || ''}
+            marinaId={c.marina_id}
+            companyId={c.company_id}
+            relatedCollection="marina_bookings"
+            relatedId={c.id}
+            generatePdf={async () => {
+              const { downloadContractDOCX } = await import('@/app/lib/contractDoc');
+              const result = await downloadContractDOCX(c, company, null, { returnAs: 'base64' });
+              return result;
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

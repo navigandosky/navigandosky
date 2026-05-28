@@ -35,7 +35,7 @@ const boatTypeLabel = (t) => {
   return t || 'motore';
 };
 
-export async function downloadContractDOCX(contract, company, marina = null) {
+export async function downloadContractDOCX(contract, company, marina = null, opts = {}) {
   const { saveAs } = await import('file-saver');
   const docx = await import('docx');
   const {
@@ -433,5 +433,15 @@ export async function downloadContractDOCX(contract, company, marina = null) {
 
   const doc = new Document({ sections: [{ properties: { page: { margin: { top: 720, bottom: 720, left: 1080, right: 1080 } } }, children }] });
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `Contratto_${contract.booking_number?.replace('/', '_') || 'ormeggio'}.docx`);
+  const filename = `Contratto_${contract.booking_number?.replace('/', '_') || 'ormeggio'}.docx`;
+  if (opts.returnAs === 'base64') {
+    // Converti blob in base64 senza salvare
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    const base64 = typeof window !== 'undefined' ? window.btoa(binary) : Buffer.from(binary, 'binary').toString('base64');
+    return { base64, filename, contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+  }
+  saveAs(blob, filename);
 }

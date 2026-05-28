@@ -404,7 +404,12 @@ export async function downloadCantiereDOCX(quote, company) {
   saveAs(blob, `Preventivo_${quote.quote_number || 'cantiere'}.docx`);
 }
 
-export async function downloadCantierePDF(quote, company) {
+export async function downloadCantierePDF(quote, company, opts = {}) {
   const doc = await generateCantierePDF(quote, company);
-  doc.save(`Preventivo_${quote.quote_number || 'cantiere'}.pdf`);
+  const filename = `Preventivo_${quote.quote_number || 'cantiere'}.pdf`;
+  if (opts.returnAs === 'base64') {
+    const base64 = doc.output('datauristring').split(',')[1];
+    return { base64, filename, contentType: 'application/pdf' };
+  }
+  doc.save(filename);
 }

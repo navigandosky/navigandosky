@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { ClipboardList, Ship, FileSignature, Shield, Save, Eye, Edit, Trash2, Search, RefreshCw, Download, FileText, Lock, Unlock, ArrowRightCircle, Anchor, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ClipboardList, Ship, FileSignature, Shield, Save, Eye, Edit, Trash2, Search, RefreshCw, Download, FileText, Lock, Unlock, ArrowRightCircle, Anchor, AlertCircle, CheckCircle2, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateQuotePDF, generateReceiptPDF } from '@/app/lib/pdfGen';
 
 // Lazy: Nuovo Preventivo/Transito dialog
 const NewQuoteDialogLazy = dynamic(() => import('./NewQuoteDialog'), { ssr: false });
+// Lazy: Send Document Email dialog
+const SendDocumentEmailDialogLazy = dynamic(() => import('./SendDocumentEmailDialog'), { ssr: false });
 
 const fmtPrice = (p) => (p ?? 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—';
@@ -141,6 +143,36 @@ export function QuotesManager({ marinaFilterId } = {}) {
   const [convertingQuote, setConvertingQuote] = useState(null);
   const [editingQuote, setEditingQuote] = useState(null);
   const [convertingToBooking, setConvertingToBooking] = useState(null); // id quote in conversione
+  const [sendingEmailQuote, setSendingEmailQuote] = useState(null); // quote for which the email dialog is open
+
+  // Generatore PDF (in base64) per email — riusa downloadPDF ma cattura il buffer
+  const generateQuotePdfBase64 = async (q) => {
+    const m = await fetch(`/api/marinas/${q.marina_id}`).then(r => r.json());
+    const company = companies.find(c => c.id === m?.company_id) || null;
+    const { generateQuotePDF: genQuotePDFInternal } = await import('@/app/lib/pdfGen');
+    // genQuotePDF salva direttamente: ne abbiamo bisogno in base64.
+    // Strategia: ricostruisco la generazione qui usando jsPDF + lo stesso layout.
+    // Soluzione semplice: monkey-patch via funzione utility che restituisce il base64.
+    // Per ora uso una via veloce: ricreare un jsPDF identico passando returnAs='base64'.
+    const result = await genQuotePDFInternal({
+      marina: m,
+      customer: q.customer,
+      boat: q.boat,
+      period: { start_date: q.start_date, end_date: q.end_date, days: q.days },
+      tariff: { label: q.tariff_label, total: q.mooring_amount, detail: [{ subtotal: q.mooring_amount }], description: q.tariff_description || '' },
+      extras: q.extras || [],
+      extras_total: q.extras_total || 0,
+      grand_total: q.grand_total,
+      quote_number: q.quote_number,
+      notes: q.notes,
+      company,
+      returnAs: 'base64',
+    });
+    return {
+      base64: result?.base64 || result,
+      filename: `Preventivo_${q.quote_number || 'documento'}.pdf`,
+    };
+  };
 
   // Converte un preventivo in una richiesta di Prenotazione (BK-XXXX)
   // POI nel tab "Richieste Prenotazione Marine" si potrà convertire in Contratto (con assegnazione posto)
@@ -268,6 +300,7 @@ export function QuotesManager({ marinaFilterId } = {}) {
                     <Button size="sm" variant="ghost" title="Modifica" onClick={() => setEditingQuote(q)}><Edit className="w-3 h-3 text-amber-600" /></Button>
                     <Button size="sm" variant="ghost" title="Scarica PDF" onClick={() => downloadPDF(q)}><Download className="w-3 h-3 text-blue-500" /></Button>
                     <Button size="sm" variant="ghost" title="Scarica Word editabile" onClick={() => downloadDOCX(q)}><FileText className="w-3 h-3 text-blue-700" /></Button>
+                    <Button size="sm" variant="ghost" title="Invia per Email (PDF allegato)" onClick={() => setSendingEmailQuote(q)}><Mail className="w-3 h-3 text-cyan-600" /></Button>
                     {q.status !== 'CONVERTITO' && (
                       <Button
                         size="sm"
@@ -294,6 +327,22 @@ export function QuotesManager({ marinaFilterId } = {}) {
       {selected && <QuoteDetailDialog quote={selected} onClose={() => setSelected(null)} />}
       {convertingQuote && <ConvertQuoteDialog quote={convertingQuote} onClose={() => setConvertingQuote(null)} onDone={() => { setConvertingQuote(null); load(); }} />}
       {editingQuote && <EditQuoteDialog quote={editingQuote} onClose={() => setEditingQuote(null)} onSaved={() => { setEditingQuote(null); load(); }} />}
+      {sendingEmailQuote && (
+        <SendDocumentEmailDialogLazy
+          open={true}
+          onClose={() => setSendingEmailQuote(null)}
+          documentType={sendingEmailQuote.is_transit ? 'ricevuta_transito' : 'preventivo'}
+          documentNumber={sendingEmailQuote.quote_number}
+          customerName={`${sendingEmailQuote.customer?.name || ''} ${sendingEmailQuote.customer?.surname || ''}`.trim()}
+          defaultRecipient={sendingEmailQuote.customer?.email || ''}
+          companyName={(companies.find(c => c.id === sendingEmailQuote.company_id)?.name) || ''}
+          marinaId={sendingEmailQuote.marina_id}
+          companyId={sendingEmailQuote.company_id}
+          relatedCollection="port_quotes"
+          relatedId={sendingEmailQuote.id}
+          generatePdf={() => generateQuotePdfBase64(sendingEmailQuote)}
+        />
+      )}
     </div>
   );
 }

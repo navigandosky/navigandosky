@@ -2530,6 +2530,10 @@ async function handleRoute(request, resolvedParams, method) {
         const { handleSendReceiptEmail } = await import('./send_email');
         return await handleSendReceiptEmail(method, body);
       }
+      case 'send-document-email': {
+        const { handleSendDocumentEmail } = await import('./send_email');
+        return await handleSendDocumentEmail(method, body);
+      }
       case 'send-booking-voucher': {
         const { handleSendBookingVoucher } = await import('./send_booking_voucher');
         return await handleSendBookingVoucher(method, body);
