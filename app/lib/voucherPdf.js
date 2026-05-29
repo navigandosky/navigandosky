@@ -317,5 +317,9 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
 export async function downloadVoucherPdf(booking, experience, company, opts = {}) {
   const doc = await generateVoucherPdf(booking, experience, company, opts);
   const filename = `Voucher_${booking.booking_ref || 'booking'}_${opts.type === 'FINAL' ? 'finale' : 'provvisorio'}.pdf`;
+  if (opts.returnAs === 'base64') {
+    const base64 = doc.output('datauristring').split(',')[1];
+    return { base64, filename, contentType: 'application/pdf' };
+  }
   doc.save(filename);
 }

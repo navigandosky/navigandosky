@@ -325,7 +325,16 @@ export async function handleSendDocumentEmail(method, body) {
       contentType: content_type || 'application/pdf',
     }];
 
-    const toList = cc_email ? [to_email, cc_email] : to_email;
+    const toList = (() => {
+      // Supporta CC come stringa "a@x,b@y; c@z" o array
+      let cc = [];
+      if (cc_email) {
+        if (Array.isArray(cc_email)) cc = cc_email;
+        else cc = String(cc_email).split(/[,;]/).map(s => s.trim()).filter(Boolean);
+      }
+      if (cc.length === 0) return to_email;
+      return [to_email, ...cc];
+    })();
 
     let result;
     let providerUsed;

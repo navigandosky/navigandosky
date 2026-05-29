@@ -20,6 +20,7 @@ const QuotesManagerLazy = dynamic(() => import('./components/PortRegistries').th
 const TransitsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.TransitsManager })), { ssr: false });
 const ContractsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.ContractsManager })), { ssr: false });
 const BerthCheckboardLazy = dynamic(() => import('./components/BerthCheckboard'), { ssr: false });
+const SendDocumentEmailDialogLazy = dynamic(() => import('./components/SendDocumentEmailDialog'), { ssr: false });
 const PortSettingsManagerLazy = dynamic(() => import('./components/PortRegistries').then(m => ({ default: m.PortSettingsManager })), { ssr: false });
 // Cantiere (Boatyard) Admin
 const CantiereAdminLazy = dynamic(() => import('./components/CantiereAdmin'), { ssr: false });
@@ -2351,6 +2352,7 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [slotBookings, setSlotBookings] = useState([]);
   const [editBk, setEditBk] = useState(null);
+  const [emailDialogBk, setEmailDialogBk] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [dragInfo, setDragInfo] = useState(null);
 
@@ -3174,6 +3176,7 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [editRes, setEditRes] = useState(null);
   const [editResForm, setEditResForm] = useState({});
   const [editBk, setEditBk] = useState(null);
+  const [emailDialogBk, setEmailDialogBk] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [previewBk, setPreviewBk] = useState(null); // Stato per dialog anteprima prenotazione
   const [seeding, setSeeding] = useState(false);
@@ -4879,6 +4882,10 @@ function AdminDashboard({ currentUser, onLogout }) {
                     📧 Voucher
                   </Button>
                 )}
+                {/* Invia email con dialog (destinatari multipli, oggetto/messaggio personalizzabili) */}
+                <Button variant="ghost" size="sm" className="text-xs h-7 text-cyan-700 hover:bg-cyan-50" onClick={()=>setEmailDialogBk(b)} title="Invia voucher via email (più destinatari, testo personalizzato)">
+                  <Mail className="w-3 h-3 mr-1" />Invia Email
+                </Button>
                 {(b.status==='CONFIRMED'&&!b.checked_in_at)&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
@@ -7288,6 +7295,87 @@ function AdminDashboard({ currentUser, onLogout }) {
           )}
         </DialogContent>
       </Dialog>
+
+
+      {/* Invia Voucher Email — Dialog generico con destinatari multipli */}
+      {emailDialogBk && (() => {
+        const b = emailDialogBk;
+        const isFinal = b.status === 'CONFIRMED';
+        const voucherType = isFinal ? 'FINAL' : 'PROVISIONAL';
+        const expName = experiences.find(e => e.id === b.experience_id)?.name || '';
+        const companyName = companies.find(co => co.id === b.company_id)?.name || '';
+        // Pre-compila CC con email agenzia se presente
+        const agency = (agencies || []).find(a => a.id === b.agency_id);
+        const agencyEmail = b.agency_email || agency?.email || '';
+        const defaultMessage = `Gentile ${b.customer_name || 'Cliente'},
+
+in allegato il Voucher ${isFinal ? 'di Conferma' : 'Provvisorio'} per ${expName}${b.slot_datetime ? ' del ' + new Date(b.slot_datetime).toLocaleDateString('it-IT') : ''}.
+
+Codice prenotazione: ${b.booking_ref || ''}
+Posti: ${b.seats || 1}
+Totale: ${(Number(b.total_amount)||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}
+
+${isFinal ? 'La preghiamo di presentare questo voucher al check-in.' : 'Le ricordiamo che il voucher diventerà definitivo dopo la conferma del pagamento.'}
+
+Cordiali saluti.`;
+        return (
+          <Suspense fallback={null}>
+            <SendDocumentEmailDialogLazy
+              open={true}
+              onClose={() => setEmailDialogBk(null)}
+              documentType={isFinal ? 'documento' : 'documento'}
+              documentNumber={b.booking_ref || ''}
+              customerName={b.customer_name || ''}
+              defaultRecipient={b.customer_email || ''}
+              defaultCc={agencyEmail || ''}
+              defaultMessage={defaultMessage}
+              companyName={companyName}
+              companyId={b.company_id}
+              relatedCollection="bookings"
+              relatedId={b.id}
+              generatePdf={async () => {
+                const { downloadVoucherPdf } = await import('@/app/lib/voucherPdf');
+                let exp = null, company = null, bankTransfer = null, agencyData = null;
+                try {
+                  const [eRes, cRes, aRes] = await Promise.all([
+                    b.experience_id ? fetch(`/api/experiences/${b.experience_id}`).then(r => r.json()) : Promise.resolve(null),
+                    b.company_id ? fetch(`/api/companies/${b.company_id}`).then(r => r.json()) : Promise.resolve(null),
+                    b.agency_id ? fetch(`/api/agencies/${b.agency_id}`).then(r => r.json()) : Promise.resolve(null),
+                  ]);
+                  exp = eRes && !eRes.error ? eRes : null;
+                  company = cRes && !cRes.error ? cRes : null;
+                  agencyData = aRes && !aRes.error ? aRes : null;
+                  if (voucherType === 'PROVISIONAL' && b.payment_method === 'BANK_TRANSFER') {
+                    const pc = company?.payment_config || {};
+                    if (pc.bank_transfer?.iban) {
+                      bankTransfer = {
+                        iban: pc.bank_transfer.iban,
+                        account_holder: pc.bank_transfer.account_holder || company?.name,
+                        bank_name: pc.bank_transfer.bank_name,
+                        bic_swift: pc.bank_transfer.bic_swift,
+                      };
+                    }
+                  }
+                } catch {}
+                return await downloadVoucherPdf(b, exp, company, {
+                  type: voucherType,
+                  bankTransfer,
+                  agencyName: agencyData?.name || b.agency_name,
+                  agencyEmail: agencyData?.email,
+                  agencyPhone: agencyData?.phone,
+                  returnAs: 'base64',
+                });
+              }}
+            />
+            {agencyEmail && (
+              <Suspense fallback={null}>
+                {/* Hint: l'agenzia è inserita automaticamente come CC default tramite props */}
+              </Suspense>
+            )}
+          </Suspense>
+        );
+      })()}
+
 
       {/* Edit Booking Dialog */}
       <Dialog open={!!editBk} onOpenChange={() => setEditBk(null)}>

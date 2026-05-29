@@ -40,6 +40,7 @@ export default function SendDocumentEmailDialog({
   documentNumber = '',
   customerName = '',
   defaultRecipient = '',
+  defaultCc = '',
   defaultMessage = '',
   companyName = '',
   marinaId,
@@ -50,7 +51,7 @@ export default function SendDocumentEmailDialog({
 }) {
   const docLabel = DOC_TYPE_LABELS[documentType] || 'Documento';
   const [toEmail, setToEmail] = useState(defaultRecipient || '');
-  const [ccEmail, setCcEmail] = useState('');
+  const [ccEmail, setCcEmail] = useState(defaultCc || '');
   const [subject, setSubject] = useState(`${docLabel} ${documentNumber}${companyName ? ` - ${companyName}` : ''}`.trim());
   const [message, setMessage] = useState(
     defaultMessage ||
@@ -62,7 +63,7 @@ export default function SendDocumentEmailDialog({
   useEffect(() => {
     if (open) {
       setToEmail(defaultRecipient || '');
-      setCcEmail('');
+      setCcEmail(defaultCc || '');
       setSubject(`${docLabel} ${documentNumber}${companyName ? ` - ${companyName}` : ''}`.trim());
       setMessage(
         defaultMessage ||
@@ -79,9 +80,12 @@ export default function SendDocumentEmailDialog({
       toast.error('Inserisci un indirizzo email destinatario valido');
       return;
     }
-    if (cleanCc && !/^\S+@\S+\.\S+$/.test(cleanCc)) {
-      toast.error('Email in CC non valida');
-      return;
+    // CC supporta più indirizzi separati da virgola/punto e virgola
+    let ccList = [];
+    if (cleanCc) {
+      ccList = cleanCc.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+      const bad = ccList.find(e => !/^\S+@\S+\.\S+$/.test(e));
+      if (bad) { toast.error(`Email in CC non valida: ${bad}`); return; }
     }
     if (typeof generatePdf !== 'function') {
       toast.error('Funzione di generazione PDF non disponibile');
@@ -118,7 +122,7 @@ export default function SendDocumentEmailDialog({
       if (!res.ok || data?.error) {
         throw new Error(data?.error || `HTTP ${res.status}`);
       }
-      toast.success(`✉️ Email inviata a ${cleanTo}${cleanCc ? ` (cc: ${cleanCc})` : ''}`);
+      toast.success(`✉️ Email inviata a ${cleanTo}${ccList.length ? ` (cc: ${ccList.join(', ')})` : ''}`);
       onClose?.();
     } catch (e) {
       toast.error(`Errore invio: ${e.message}`);
@@ -162,10 +166,10 @@ export default function SendDocumentEmailDialog({
             )}
           </div>
           <div>
-            <Label className="text-xs">Email in copia (CC) — opzionale</Label>
+            <Label className="text-xs">Email in copia (CC) — opzionale · più indirizzi separati da virgola</Label>
             <Input
-              type="email"
-              placeholder="es. ufficio@example.com"
+              type="text"
+              placeholder="es. agenzia@example.com, ufficio@example.com"
               value={ccEmail}
               onChange={(e) => setCcEmail(e.target.value)}
               disabled={sending}
