@@ -116,6 +116,206 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
     });
   }, [bookings, statusFilter, marinaFilter, search]);
 
+  // Totale dinamico in base ai filtri attivi (per banner + footer + export)
+  const filteredTotals = useMemo(() => {
+    let totalGrand = 0, totalDeposit = 0, totalBalance = 0, totalDepositPaid = 0, totalBalancePaid = 0;
+    for (const b of filtered) {
+      totalGrand += Number(b.grand_total || b.total || 0);
+      totalDeposit += Number(b.deposit_amount || 0);
+      totalBalance += Number(b.balance_amount || 0);
+      if (b.deposit_paid) totalDepositPaid += Number(b.deposit_amount || 0);
+      if (b.balance_paid) totalBalancePaid += Number(b.balance_amount || 0);
+    }
+    const totalPaid = totalDepositPaid + totalBalancePaid;
+    const totalOutstanding = Math.max(0, totalGrand - totalPaid);
+    return {
+      count: filtered.length,
+      totalGrand,
+      totalDeposit,
+      totalBalance,
+      totalDepositPaid,
+      totalBalancePaid,
+      totalPaid,
+      totalOutstanding,
+    };
+  }, [filtered]);
+
+  const statusLabel = useMemo(() => {
+    if (statusFilter === 'ALL') return 'Tutti gli stati';
+    return STATUSES.find(s => s.value === statusFilter)?.label || statusFilter;
+  }, [statusFilter]);
+
+  // === Export PDF Report Richieste filtrate ===
+  const exportFilteredPDF = async () => {
+    if (filtered.length === 0) { toast.error('Nessuna prenotazione da esportare'); return; }
+    try {
+      const [{ jsPDF }, atMod] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+      const autoTable = atMod.default || atMod;
+      const doc = new jsPDF('l');
+      doc.setFontSize(16).setFont('helvetica', 'bold').setTextColor(31, 41, 55);
+      doc.text('Report Richieste Prenotazione Marina', 14, 16);
+      doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(75, 85, 99);
+      const af = [`Stato: ${statusLabel}`, `Risultati: ${filteredTotals.count}`];
+      if (search) af.push(`Ricerca: "${search}"`);
+      if (marinaFilter && marinaFilter !== 'ALL') {
+        const mName = marinas.find(m => m.id === marinaFilter)?.name || marinaFilter;
+        af.push(`Marina: ${mName}`);
+      }
+      doc.text(`Generato: ${new Date().toLocaleString('it-IT')}`, 14, 22);
+      doc.text(`Filtri: ${af.join(' · ')}`, 14, 27);
+
+      autoTable(doc, {
+        startY: 33,
+        head: [[
+          'N° Prenotazione', 'Marina', 'Cliente', 'Barca', 'Periodo', 'Giorni',
+          'Totale (€)', 'Acconto (€)', 'Saldo (€)', 'Pagato (€)', 'Residuo (€)', 'Stato',
+        ]],
+        body: filtered.map(b => {
+          const grand = Number(b.grand_total || b.total || 0);
+          const deposit = Number(b.deposit_amount || 0);
+          const balance = Number(b.balance_amount || 0);
+          const paid = (b.deposit_paid ? deposit : 0) + (b.balance_paid ? balance : 0);
+          const outstanding = Math.max(0, grand - paid);
+          return [
+            b.booking_number || '—',
+            b.marina_name || '—',
+            `${b.customer?.name || ''} ${b.customer?.surname || ''}`.trim() || '—',
+            `${b.boat?.name || ''}${b.boat?.length ? ' · ' + b.boat.length + 'm' : ''}`,
+            `${fmtDate(b.start_date)} → ${fmtDate(b.end_date)}`,
+            String(b.days || 0),
+            fmtEur(grand),
+            fmtEur(deposit),
+            fmtEur(balance),
+            fmtEur(paid),
+            fmtEur(outstanding),
+            (STATUSES.find(s => s.value === b.status)?.label) || b.status || '—',
+          ];
+        }),
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [99, 102, 241], textColor: 255, fontStyle: 'bold' },
+        foot: [['', '', '', '', '', 'TOTALI',
+          fmtEur(filteredTotals.totalGrand),
+          fmtEur(filteredTotals.totalDeposit),
+          fmtEur(filteredTotals.totalBalance),
+          fmtEur(filteredTotals.totalPaid),
+          fmtEur(filteredTotals.totalOutstanding),
+          '',
+        ]],
+        footStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        columnStyles: {
+          6: { halign: 'right' }, 7: { halign: 'right' }, 8: { halign: 'right' },
+          9: { halign: 'right' }, 10: { halign: 'right' },
+        },
+      });
+
+      // Riepilogo aggregato
+      const y = (doc.lastAutoTable?.finalY || 100) + 8;
+      doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(31, 41, 55);
+      doc.text('Riepilogo Aggregato', 14, y);
+      autoTable(doc, {
+        startY: y + 2,
+        head: [['Indicatore', 'Valore']],
+        body: [
+          ['Prenotazioni nel filtro', String(filteredTotals.count)],
+          ['Totale Generale', fmtEur(filteredTotals.totalGrand)],
+          ['Totale Acconti Previsti', fmtEur(filteredTotals.totalDeposit)],
+          ['Totale Acconti Incassati', fmtEur(filteredTotals.totalDepositPaid)],
+          ['Totale Saldi Incassati', fmtEur(filteredTotals.totalBalancePaid)],
+          ['Totale Pagato', fmtEur(filteredTotals.totalPaid)],
+          ['Residuo da incassare', fmtEur(filteredTotals.totalOutstanding)],
+        ],
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [59, 130, 246] },
+        margin: { left: 14, right: 14 },
+        tableWidth: 110,
+      });
+
+      const today = new Date().toISOString().slice(0, 10);
+      const slug = (statusFilter === 'ALL' ? 'tutti' : statusFilter.toLowerCase());
+      doc.save(`Richieste_Prenotazione_Marina_${slug}_${today}.pdf`);
+      toast.success(`PDF esportato (${filteredTotals.count} prenotazioni)`);
+    } catch (e) { console.error(e); toast.error('Errore export PDF: ' + e.message); }
+  };
+
+  // === Export Excel Report Richieste filtrate ===
+  const exportFilteredXLSX = async () => {
+    if (filtered.length === 0) { toast.error('Nessuna prenotazione da esportare'); return; }
+    try {
+      const XLSX = await import('xlsx');
+      const rows = filtered.map(b => {
+        const grand = Number(b.grand_total || b.total || 0);
+        const deposit = Number(b.deposit_amount || 0);
+        const balance = Number(b.balance_amount || 0);
+        const paid = (b.deposit_paid ? deposit : 0) + (b.balance_paid ? balance : 0);
+        const outstanding = Math.max(0, grand - paid);
+        return {
+          'N° Prenotazione': b.booking_number || '',
+          'Marina': b.marina_name || '',
+          'Cliente Nome': b.customer?.name || '',
+          'Cliente Cognome': b.customer?.surname || '',
+          'Email': b.customer?.email || '',
+          'Telefono': b.customer?.phone || '',
+          'Barca': b.boat?.name || '',
+          'Lunghezza (m)': Number(b.boat?.length || 0),
+          'Inizio': b.start_date ? new Date(b.start_date).toLocaleDateString('it-IT') : '',
+          'Fine': b.end_date ? new Date(b.end_date).toLocaleDateString('it-IT') : '',
+          'Giorni': Number(b.days || 0),
+          'Totale': grand,
+          'Acconto Previsto': deposit,
+          'Acconto Pagato': b.deposit_paid ? deposit : 0,
+          'Saldo Previsto': balance,
+          'Saldo Pagato': b.balance_paid ? balance : 0,
+          'Pagato Totale': paid,
+          'Residuo': outstanding,
+          'Metodo Acconto': b.deposit_payment_method || '',
+          'Metodo Saldo': b.balance_payment_method || '',
+          'Stato': (STATUSES.find(s => s.value === b.status)?.label) || b.status || '',
+          'Creato il': b.created_at ? new Date(b.created_at).toLocaleString('it-IT') : '',
+        };
+      });
+      // Riga totale
+      rows.push({
+        'N° Prenotazione': `TOTALI · ${filteredTotals.count} prenotazioni`,
+        'Marina': '', 'Cliente Nome': '', 'Cliente Cognome': '', 'Email': '', 'Telefono': '',
+        'Barca': '', 'Lunghezza (m)': '', 'Inizio': '', 'Fine': '', 'Giorni': '',
+        'Totale': filteredTotals.totalGrand,
+        'Acconto Previsto': filteredTotals.totalDeposit,
+        'Acconto Pagato': filteredTotals.totalDepositPaid,
+        'Saldo Previsto': filteredTotals.totalBalance,
+        'Saldo Pagato': filteredTotals.totalBalancePaid,
+        'Pagato Totale': filteredTotals.totalPaid,
+        'Residuo': filteredTotals.totalOutstanding,
+        'Metodo Acconto': '', 'Metodo Saldo': '', 'Stato': '', 'Creato il': '',
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      // Auto column width
+      ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(12, k.length + 2) }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Richieste Marina');
+
+      // Foglio Riepilogo
+      const summary = [
+        ['Indicatore', 'Valore'],
+        ['Stato filtrato', statusLabel],
+        ['Prenotazioni nel filtro', filteredTotals.count],
+        ['Totale Generale (€)', filteredTotals.totalGrand],
+        ['Totale Acconti Previsti (€)', filteredTotals.totalDeposit],
+        ['Totale Acconti Incassati (€)', filteredTotals.totalDepositPaid],
+        ['Totale Saldi Incassati (€)', filteredTotals.totalBalancePaid],
+        ['Totale Pagato (€)', filteredTotals.totalPaid],
+        ['Residuo da incassare (€)', filteredTotals.totalOutstanding],
+      ];
+      const ws2 = XLSX.utils.aoa_to_sheet(summary);
+      ws2['!cols'] = [{ wch: 32 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, ws2, 'Riepilogo');
+
+      const today = new Date().toISOString().slice(0, 10);
+      const slug = (statusFilter === 'ALL' ? 'tutti' : statusFilter.toLowerCase());
+      XLSX.writeFile(wb, `Richieste_Prenotazione_Marina_${slug}_${today}.xlsx`);
+      toast.success(`Excel esportato (${filteredTotals.count} prenotazioni)`);
+    } catch (e) { console.error(e); toast.error('Errore export Excel: ' + e.message); }
+  };
+
   const doAction = async (booking, action, body = {}) => {
     try {
       const r = await fetch(`/api/marina-bookings/${booking.id}?action=${action}`, {
@@ -342,8 +542,60 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
               </Select>
             </div>
           )}
+          <div className="flex gap-2 items-end ml-auto">
+            <Button
+              variant="default"
+              className="bg-sky-600 hover:bg-sky-700 text-white"
+              onClick={exportFilteredPDF}
+              disabled={filtered.length === 0}
+              title={filtered.length === 0 ? 'Nessuna prenotazione' : `Esporta PDF (${filtered.length} prenotazioni)`}
+            >
+              <FileText className="w-4 h-4 mr-2" />Esporta PDF
+            </Button>
+            <Button
+              variant="default"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={exportFilteredXLSX}
+              disabled={filtered.length === 0}
+              title={filtered.length === 0 ? 'Nessuna prenotazione' : `Esporta Excel (${filtered.length} prenotazioni)`}
+            >
+              <FileText className="w-4 h-4 mr-2" />Esporta Excel
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Banner Totali dinamici dei filtrati */}
+      <div className="rounded-lg border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 via-blue-50 to-sky-50 p-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm">
+          <FileText className="w-5 h-5 text-indigo-600" />
+          <span className="font-semibold text-slate-700">Totale filtrato</span>
+          <span className="text-xs text-slate-500">·</span>
+          <span className="text-xs text-slate-600">Stato: <strong className="text-slate-800">{statusLabel}</strong></span>
+          {search && (
+            <>
+              <span className="text-xs text-slate-500">·</span>
+              <span className="text-xs text-slate-600">Ricerca: <strong className="text-slate-800">&quot;{search}&quot;</strong></span>
+            </>
+          )}
+          <span className="text-xs text-slate-500">·</span>
+          <span className="text-xs text-slate-600"><strong className="text-slate-800">{filteredTotals.count}</strong> prenotazioni</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs flex-wrap">
+          <div className="px-2 py-1 bg-white rounded border">
+            <span className="text-slate-500">Totale: </span>
+            <span className="font-semibold text-indigo-700">{fmtEur(filteredTotals.totalGrand)}</span>
+          </div>
+          <div className="px-2 py-1 bg-white rounded border">
+            <span className="text-slate-500">Pagato: </span>
+            <span className="font-semibold text-emerald-700">{fmtEur(filteredTotals.totalPaid)}</span>
+          </div>
+          <div className="px-2 py-1 bg-white rounded border">
+            <span className="text-slate-500">Residuo: </span>
+            <span className="font-semibold text-amber-700">{fmtEur(filteredTotals.totalOutstanding)}</span>
+          </div>
+        </div>
+      </div>
 
       {/* Lista */}
       <Card>
@@ -483,6 +735,23 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
                     );
                   })}
                 </tbody>
+                {filtered.length > 0 && (
+                  <tfoot className="bg-indigo-50 border-t-2 border-indigo-300">
+                    <tr>
+                      <td className="p-3 font-bold text-indigo-800" colSpan={4}>
+                        TOTALE {statusLabel.toUpperCase()} · {filteredTotals.count} prenotazioni
+                      </td>
+                      <td className="p-3 text-right font-bold text-base text-indigo-800">{fmtEur(filteredTotals.totalGrand)}</td>
+                      <td className="p-3 text-right">
+                        <div className="font-bold text-base text-indigo-800">{fmtEur(filteredTotals.totalDeposit)}</div>
+                        <div className="text-[10px] text-emerald-700 font-medium">Inc.: {fmtEur(filteredTotals.totalDepositPaid)}</div>
+                      </td>
+                      <td className="p-3 text-center text-xs text-slate-600" colSpan={2}>
+                        Pagato: <strong className="text-emerald-700">{fmtEur(filteredTotals.totalPaid)}</strong> · Residuo: <strong className="text-amber-700">{fmtEur(filteredTotals.totalOutstanding)}</strong>
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}
