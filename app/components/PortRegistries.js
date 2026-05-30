@@ -79,6 +79,26 @@ export function QuotesManager({ marinaFilterId } = {}) {
     };
   }, [quotes, marinaFilterId]);
 
+  // Totale somme dei preventivi attualmente filtrati (per visualizzazione dinamica + export PDF)
+  const filteredTotals = useMemo(() => {
+    const totalAmount = filtered.reduce((s, q) => s + (q.grand_total || 0), 0);
+    const mooringAmount = filtered.reduce((s, q) => s + (q.mooring_amount || 0), 0);
+    const extrasAmount = filtered.reduce((s, q) => s + (q.extras_total || 0), 0);
+    const count = filtered.length;
+    return { totalAmount, mooringAmount, extrasAmount, count };
+  }, [filtered]);
+
+  const statusLabel = useMemo(() => {
+    if (statusFilter === 'all') return 'Tutti gli stati';
+    return {
+      BOZZA: 'Bozza',
+      INVIATO: 'Inviato',
+      ACCETTATO: 'Accettato',
+      SCADUTO: 'Scaduto',
+      CONVERTITO: 'Convertito',
+    }[statusFilter] || statusFilter;
+  }, [statusFilter]);
+
   const updateStatus = async (q, newStatus) => {
     try {
       await fetch(`/api/port-quotes/${q.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
@@ -94,6 +114,87 @@ export function QuotesManager({ marinaFilterId } = {}) {
       toast.success('Eliminato');
       load();
     } catch (e) { toast.error(e.message); }
+  };
+
+  // Esporta PDF report dei preventivi filtrati (con totali)
+  const exportFilteredPDF = async () => {
+    if (filtered.length === 0) {
+      toast.error('Nessun preventivo da esportare');
+      return;
+    }
+    try {
+      const [{ jsPDF }, atMod] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+      const autoTable = atMod.default || atMod;
+      const doc = new jsPDF('l');
+      // Titolo
+      doc.setFontSize(16).setFont('helvetica', 'bold').setTextColor(31, 41, 55);
+      doc.text('Report Preventivi Marina', 14, 16);
+      // Sottotitolo con filtri
+      doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(75, 85, 99);
+      const af = [];
+      af.push(`Stato: ${statusLabel}`);
+      if (search) af.push(`Ricerca: "${search}"`);
+      if (marinaFilterId && marinaFilterId !== 'ALL') {
+        const marinaName = quotes.find(q => q.marina_id === marinaFilterId)?.marina_name || marinaFilterId;
+        af.push(`Marina: ${marinaName}`);
+      }
+      af.push(`Risultati: ${filteredTotals.count}`);
+      doc.text(`Generato: ${new Date().toLocaleString('it-IT')}`, 14, 22);
+      doc.text(`Filtri: ${af.join(' · ')}`, 14, 27);
+
+      autoTable(doc, {
+        startY: 33,
+        head: [['N° Preventivo', 'Data', 'Marina', 'Cliente', 'Barca', 'Periodo', 'Stato', 'Ormeggio', 'Extra', 'Totale (€)']],
+        body: filtered.map(q => [
+          q.quote_number || '—',
+          fmtDate(q.created_at),
+          q.marina_name || '—',
+          `${q.customer?.name || ''} ${q.customer?.surname || ''}`.trim() || '—',
+          `${q.boat?.name || ''}${q.boat?.length ? ' · ' + q.boat.length + 'm' : ''}`,
+          `${fmtDate(q.start_date)} → ${fmtDate(q.end_date)}${q.days ? ' (' + q.days + ' gg)' : ''}`,
+          q.status || '—',
+          fmtPrice(q.mooring_amount || 0),
+          fmtPrice(q.extras_total || 0),
+          fmtPrice(q.grand_total || 0),
+        ]),
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold' },
+        foot: [['', '', '', '', '', '', 'TOTALI', fmtPrice(filteredTotals.mooringAmount), fmtPrice(filteredTotals.extrasAmount), fmtPrice(filteredTotals.totalAmount)]],
+        footStyles: { fillColor: [16, 185, 129], textColor: 255, fontStyle: 'bold' },
+        columnStyles: {
+          7: { halign: 'right' },
+          8: { halign: 'right' },
+          9: { halign: 'right' },
+        },
+      });
+
+      // Box riepilogo
+      let y = (doc.lastAutoTable?.finalY || 100) + 8;
+      doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(31, 41, 55);
+      doc.text('Riepilogo Aggregato', 14, y);
+      autoTable(doc, {
+        startY: y + 2,
+        head: [['Indicatore', 'Valore']],
+        body: [
+          ['Numero preventivi nel filtro', String(filteredTotals.count)],
+          ['Totale Ormeggio', fmtPrice(filteredTotals.mooringAmount)],
+          ['Totale Extra', fmtPrice(filteredTotals.extrasAmount)],
+          ['Totale Generale (filtrato)', fmtPrice(filteredTotals.totalAmount)],
+        ],
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [59, 130, 246] },
+        margin: { left: 14, right: 14 },
+        tableWidth: 110,
+      });
+
+      const today = new Date().toISOString().slice(0, 10);
+      const fname = `Report_Preventivi_Marina_${statusFilter === 'all' ? 'tutti' : statusFilter.toLowerCase()}_${today}.pdf`;
+      doc.save(fname);
+      toast.success(`PDF esportato (${filteredTotals.count} preventivi)`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Errore export PDF: ' + e.message);
+    }
   };
 
   const downloadPDF = async (q) => {
@@ -252,6 +353,47 @@ export function QuotesManager({ marinaFilterId } = {}) {
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
+        <Button
+          variant="default"
+          className="bg-sky-600 hover:bg-sky-700 text-white"
+          onClick={exportFilteredPDF}
+          disabled={filtered.length === 0}
+          title={filtered.length === 0 ? 'Nessun preventivo nel filtro' : `Esporta PDF (${filtered.length} preventivi)`}
+        >
+          <FileText className="w-4 h-4 mr-2" />Esporta PDF
+        </Button>
+      </div>
+
+      {/* Banner Totale Filtrato (sempre visibile, riflette il filtro attivo) */}
+      <div className="rounded-lg border-2 border-sky-200 bg-gradient-to-r from-sky-50 via-cyan-50 to-blue-50 p-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm">
+          <FileText className="w-5 h-5 text-sky-600" />
+          <span className="font-semibold text-slate-700">Totale filtrato</span>
+          <span className="text-xs text-slate-500">·</span>
+          <span className="text-xs text-slate-600">Stato: <strong className="text-slate-800">{statusLabel}</strong></span>
+          {search && (
+            <>
+              <span className="text-xs text-slate-500">·</span>
+              <span className="text-xs text-slate-600">Ricerca: <strong className="text-slate-800">&quot;{search}&quot;</strong></span>
+            </>
+          )}
+          <span className="text-xs text-slate-500">·</span>
+          <span className="text-xs text-slate-600"><strong className="text-slate-800">{filteredTotals.count}</strong> preventivi</span>
+        </div>
+        <div className="flex items-center gap-4 text-xs">
+          <div>
+            <span className="text-slate-600">Ormeggio: </span>
+            <span className="font-semibold text-slate-800">{fmtPrice(filteredTotals.mooringAmount)}</span>
+          </div>
+          <div>
+            <span className="text-slate-600">Extra: </span>
+            <span className="font-semibold text-slate-800">{fmtPrice(filteredTotals.extrasAmount)}</span>
+          </div>
+          <div className="border-l pl-4">
+            <span className="text-slate-600">Totale: </span>
+            <span className="text-lg font-bold text-sky-700">{fmtPrice(filteredTotals.totalAmount)}</span>
+          </div>
+        </div>
       </div>
 
       {loading ? <div className="text-center py-8"><ClipboardList className="w-8 h-8 mx-auto animate-pulse" /></div> : (
@@ -319,6 +461,17 @@ export function QuotesManager({ marinaFilterId } = {}) {
                 </tr>
               ))}
             </tbody>
+            {filtered.length > 0 && (
+              <tfoot className="bg-sky-50 border-t-2 border-sky-300">
+                <tr>
+                  <td className="p-2 font-bold text-sky-800" colSpan={5}>
+                    TOTALE {statusLabel.toUpperCase()} · {filteredTotals.count} preventivi
+                  </td>
+                  <td className="p-2 text-right font-bold text-lg text-sky-800">{fmtPrice(filteredTotals.totalAmount)}</td>
+                  <td className="p-2" colSpan={2}></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-6 text-sm">Nessun preventivo trovato</p>}
         </div>
