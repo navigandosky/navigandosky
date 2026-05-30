@@ -120,6 +120,21 @@ export async function handleAiProductSearch(method, body) {
   const images = Array.isArray(body.images) ? body.images.filter(Boolean) : [];
   const description = (body.description || '').toString().trim();
   const category = (body.category || '').toString().trim();
+  // Lista fornitori abilitati dal frontend (default: tutti)
+  const ALL_SUPPLIERS = ['Osculati', 'Amazon', 'SVB', 'Magellano', 'AliExpress', 'Temu'];
+  const enabledSuppliersRaw = Array.isArray(body.enabled_suppliers) && body.enabled_suppliers.length > 0
+    ? body.enabled_suppliers
+    : ALL_SUPPLIERS;
+  // Mapping nomi short → nomi prodotti dall'AI
+  const SUPPLIER_MAP = {
+    'Osculati': 'Osculati',
+    'Amazon': 'Amazon Nautica',
+    'SVB': 'SVB Marine',
+    'Magellano': 'Magellano Store',
+    'AliExpress': 'AliExpress',
+    'Temu': 'Temu',
+  };
+  const enabledFullNames = enabledSuppliersRaw.map(s => SUPPLIER_MAP[s] || s);
 
   if (images.length === 0 && !description) {
     return json({ error: 'Fornire almeno una foto o una descrizione per la ricerca.' }, 400);
@@ -189,11 +204,13 @@ export async function handleAiProductSearch(method, body) {
     const query = parsed.search_query || parsed.product_name || description;
     const searchUrls = buildSearchUrls(query);
 
-    // Attach search URLs to each supplier
-    const enrichedSuppliers = (parsed.suppliers || []).map((s) => ({
-      ...s,
-      search_url: searchUrls[s.name] || null,
-    }));
+    // Attach search URLs to each supplier + filter by enabled
+    const enrichedSuppliers = (parsed.suppliers || [])
+      .filter((s) => enabledFullNames.includes(s.name))
+      .map((s) => ({
+        ...s,
+        search_url: searchUrls[s.name] || null,
+      }));
 
     return json({
       product_name: parsed.product_name || '',

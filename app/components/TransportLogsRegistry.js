@@ -13,7 +13,7 @@ import { FileText, Download, Calendar, Anchor, Users, Search, RefreshCw, FileSpr
  * Registro Trasportati - vista admin con filtri per data, esperienza, risorsa.
  * Mostra tutti i Transport Logs generati dagli skipper (giornalieri per risorsa).
  */
-export default function TransportLogsRegistry({ companyId, companies = [] }) {
+export default function TransportLogsRegistry({ companyId, companies = [], agencies = [] }) {
   const [logs, setLogs] = useState([]);
   const [resources, setResources] = useState([]);
   const [experiences, setExperiences] = useState([]);
@@ -24,6 +24,7 @@ export default function TransportLogsRegistry({ companyId, companies = [] }) {
   const [filterResource, setFilterResource] = useState('all');
   const [filterExperience, setFilterExperience] = useState('all');
   const [filterSkipper, setFilterSkipper] = useState('all');
+  const [filterAgency, setFilterAgency] = useState('all');
   const [searchText, setSearchText] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -88,6 +89,15 @@ export default function TransportLogsRegistry({ companyId, companies = [] }) {
         const has = (l.bookings_snapshot || []).some((b) => b.experience_id === filterExperience);
         if (!has) return false;
       }
+      if (filterAgency !== 'all') {
+        if (filterAgency === '__NONE__') {
+          const onlyDirect = (l.bookings_snapshot || []).every((b) => !b.agency_id);
+          if (!onlyDirect) return false;
+        } else {
+          const has = (l.bookings_snapshot || []).some((b) => b.agency_id === filterAgency);
+          if (!has) return false;
+        }
+      }
       if (fromDate && l.date < fromDate) return false;
       if (toDate && l.date > toDate) return false;
       if (searchText) {
@@ -119,7 +129,16 @@ export default function TransportLogsRegistry({ companyId, companies = [] }) {
     setFilterDate('all');
     setFilterResource('all');
     setFilterExperience('all');
+  const clearFilters = () => {
+    setFilterDate('all');
+    setFilterResource('all');
+    setFilterExperience('all');
     setFilterSkipper('all');
+    setFilterAgency('all');
+    setFromDate('');
+    setToDate('');
+    setSearchText('');
+  };
     setSearchText('');
     setFromDate('');
     setToDate('');
@@ -299,6 +318,21 @@ export default function TransportLogsRegistry({ companyId, companies = [] }) {
                   <SelectItem value="all">Tutti gli skipper</SelectItem>
                   {availableSkippers.map((s) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">🏢 Agenzia</Label>
+              <Select value={filterAgency} onValueChange={setFilterAgency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tutte le agenzie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le agenzie</SelectItem>
+                  <SelectItem value="__NONE__">— Senza Agenzia (Vendita Diretta) —</SelectItem>
+                  {(agencies || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).map((ag) => (
+                    <SelectItem key={ag.id} value={ag.id}>{ag.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

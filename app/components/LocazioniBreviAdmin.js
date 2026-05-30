@@ -14,7 +14,7 @@ import {
   Bike, Car, Home, Building2, Ship, Plus, Trash2, Edit, Calendar as CalIcon,
   RefreshCw, Euro, MapPin, Users, BedDouble, Bath, Clock, AlertCircle,
   CheckCircle2, XCircle, Search, Eye, Save, Link2, Mail, Copy, ExternalLink,
-  FileText, Upload, X, ImageIcon,
+  FileText, Upload, X, ImageIcon, Anchor, Wrench, Compass,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -24,6 +24,16 @@ const CATEGORIES = [
   { value: 'APARTMENT', label: 'Appartamento', icon: Building2, color: 'bg-amber-100 text-amber-800', defaultUnit: 'NIGHTS' },
   { value: 'VILLA', label: 'Villa', icon: Home, color: 'bg-purple-100 text-purple-800', defaultUnit: 'NIGHTS' },
   { value: 'BOAT', label: 'Barca', icon: Ship, color: 'bg-cyan-100 text-cyan-800', defaultUnit: 'DAYS' },
+  // Nuove categorie richieste
+  { value: 'NAUTICA', label: 'Nautica', icon: Anchor, color: 'bg-sky-100 text-sky-800', defaultUnit: 'DAYS' },
+  { value: 'MOBILITA', label: 'Mobilità', icon: Compass, color: 'bg-indigo-100 text-indigo-800', defaultUnit: 'DAYS' },
+  { value: 'STRUMENTI', label: 'Strumenti', icon: Wrench, color: 'bg-stone-100 text-stone-800', defaultUnit: 'DAYS' },
+];
+
+// Unità di durata: built-in + custom aggiunte dall'utente (persistite in localStorage)
+const BUILTIN_UNITS = [
+  { value: 'DAYS', label: 'Giorni' },
+  { value: 'NIGHTS', label: 'Notti' },
 ];
 
 const STATUSES = [
@@ -574,6 +584,11 @@ function UnitFormDialog({ unit, companyId, onClose, onSaved, isSuperAdmin, compa
   const [form, setForm] = useState({ ...unit, company_id: unit.company_id || companyId || null });
   const [saving, setSaving] = useState(false);
   const isEdit = !!unit.id;
+  // Carica unità di durata custom dal localStorage
+  const [customUnits, setCustomUnits] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    try { return JSON.parse(localStorage.getItem('lb_custom_duration_units') || '[]'); } catch (_e) { return []; }
+  });
   const cm = catMeta(form.category);  // Auto-set duration_unit when category changes (only on create)
   useEffect(() => {
     if (!isEdit) {
@@ -742,13 +757,57 @@ function UnitFormDialog({ unit, companyId, onClose, onSaved, isSuperAdmin, compa
 
             <div>
               <Label>Unità di Durata</Label>
-              <Select value={form.duration_unit} onValueChange={(v) => set('duration_unit', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DAYS">Giorni</SelectItem>
-                  <SelectItem value="NIGHTS">Notti</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={form.duration_unit}
+                  onValueChange={(v) => {
+                    if (v === '__add_new__') {
+                      const newUnit = window.prompt('Inserisci il nome della nuova unità di durata (es. "Ore", "Settimane", "Mesi"):');
+                      if (!newUnit || !newUnit.trim()) return;
+                      const cleanLabel = newUnit.trim();
+                      const cleanValue = cleanLabel.toUpperCase().replace(/\s+/g, '_').replace(/[^A-Z0-9_]/g, '');
+                      if (!cleanValue) return;
+                      // Persisti nella lista custom (localStorage)
+                      try {
+                        const stored = JSON.parse(localStorage.getItem('lb_custom_duration_units') || '[]');
+                        if (!stored.some(u => u.value === cleanValue)) {
+                          stored.push({ value: cleanValue, label: cleanLabel });
+                          localStorage.setItem('lb_custom_duration_units', JSON.stringify(stored));
+                        }
+                        setCustomUnits(stored);
+                      } catch (e) { /* ignore */ }
+                      set('duration_unit', cleanValue);
+                      toast.success(`Unità "${cleanLabel}" aggiunta`);
+                    } else {
+                      set('duration_unit', v);
+                    }
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DAYS">Giorni</SelectItem>
+                    <SelectItem value="NIGHTS">Notti</SelectItem>
+                    {customUnits.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                    <SelectItem value="__add_new__" className="text-blue-600 font-semibold">➕ Aggiungi nuova unità…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {customUnits.find(u => u.value === form.duration_unit) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:bg-red-50"
+                    title="Rimuovi questa unità custom"
+                    onClick={() => {
+                      const remaining = customUnits.filter(u => u.value !== form.duration_unit);
+                      localStorage.setItem('lb_custom_duration_units', JSON.stringify(remaining));
+                      setCustomUnits(remaining);
+                      set('duration_unit', 'DAYS');
+                      toast.info('Unità rimossa');
+                    }}
+                  ><Trash2 className="w-4 h-4" /></Button>
+                )}
+              </div>
             </div>
             <div>
               <Label>Durata Minima (opzionale)</Label>
@@ -986,7 +1045,23 @@ function CalendarTab({ units, bookings }) {
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={() => setStartOffset((s) => s - windowDays)}>◀</Button>
-            <Button variant="outline" size="sm" onClick={() => setStartOffset(0)}>Oggi</Button>
+            <Button variant="outline" size="sm" onClick={() => setStartOffset(0)}>📍 Oggi</Button>
+            <label className="flex items-center gap-1 text-xs text-muted-foreground" title="Vai a una data specifica">
+              📅 Vai a:
+              <Input
+                type="date"
+                className="h-8 w-36 text-xs"
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const target = new Date(e.target.value + 'T12:00:00');
+                  if (isNaN(target.getTime())) return;
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  setStartOffset(diffDays);
+                }}
+              />
+            </label>
             <Button variant="outline" size="sm" onClick={() => setStartOffset((s) => s + windowDays)}>▶</Button>
           </div>
         </CardTitle>

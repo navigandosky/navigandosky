@@ -488,6 +488,7 @@ function ArticleDialog({ open, onClose, article, onSave }) {
     unit_of_measure: article?.unit_of_measure || 'PZ',
     valore_a_nuovo: article?.valore_a_nuovo || 0,
     valore_attuale: article?.valore_attuale || 0,
+    prezzo_vendita: article?.prezzo_vendita || 0,
     quantity: article?.quantity || 0,
     category: article?.category || '',
     notes: article?.notes || '',
@@ -498,10 +499,31 @@ function ArticleDialog({ open, onClose, article, onSave }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
   const [showAiDialog, setShowAiDialog] = useState(false);
+  // Fornitori abilitati per la ricerca AI (persistito in localStorage)
+  const ALL_SUPPLIERS = ['Osculati', 'Amazon', 'SVB', 'Magellano', 'AliExpress', 'Temu'];
+  const [enabledSuppliers, setEnabledSuppliers] = useState(() => {
+    if (typeof window === 'undefined') return ALL_SUPPLIERS;
+    try {
+      const stored = localStorage.getItem('warehouse_ai_suppliers');
+      if (stored) return JSON.parse(stored);
+    } catch (_e) { /* ignore */ }
+    return ALL_SUPPLIERS;
+  });
+  const toggleSupplier = (s) => {
+    setEnabledSuppliers((cur) => {
+      const next = cur.includes(s) ? cur.filter(x => x !== s) : [...cur, s];
+      try { localStorage.setItem('warehouse_ai_suppliers', JSON.stringify(next)); } catch (_e) {}
+      return next;
+    });
+  };
 
   const runAiSearch = async () => {
     if (form.photos.length === 0 && !form.description.trim()) {
       toast.error('Aggiungi almeno una foto o una descrizione prima di avviare la ricerca AI.');
+      return;
+    }
+    if (enabledSuppliers.length === 0) {
+      toast.error('Seleziona almeno un fornitore da consultare.');
       return;
     }
     setAiLoading(true);
@@ -514,6 +536,7 @@ function ArticleDialog({ open, onClose, article, onSave }) {
           images: form.photos, // data URLs
           description: form.description,
           category: form.category,
+          enabled_suppliers: enabledSuppliers,
         }),
       });
       const data = await resp.json();
@@ -571,6 +594,41 @@ function ArticleDialog({ open, onClose, article, onSave }) {
 
   const removePhoto = (idx) => setForm(prev => ({ ...prev, photos: prev.photos.filter((_, i) => i !== idx) }));
 
+  // Handler per incollare screenshot/immagine da clipboard (Ctrl+V o evento paste)
+  const handlePasteImage = async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageItems = Array.from(items).filter(it => it.type && it.type.startsWith('image/'));
+    if (imageItems.length === 0) return;
+    e.preventDefault();
+    if (form.photos.length >= 5) {
+      toast.error('Massimo 5 foto per articolo');
+      return;
+    }
+    setUploading(true);
+    try {
+      for (const item of imageItems) {
+        if (form.photos.length >= 5) break;
+        const file = item.getAsFile();
+        if (!file) continue;
+        const resized = await resizeImageFile(file, 1024, 0.75);
+        setForm(prev => ({ ...prev, photos: [...prev.photos, resized].slice(0, 5) }));
+      }
+      toast.success('📋 Immagine incollata dagli appunti');
+    } catch (err) {
+      toast.error('Errore incolla immagine: ' + err.message);
+    }
+    setUploading(false);
+  };
+
+  // Aggancia un listener globale di paste quando il dialog è aperto
+  useEffect(() => {
+    const onPaste = (ev) => handlePasteImage(ev);
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.photos.length]);
+
   const submit = () => {
     if (!form.description.trim()) { toast.error('Descrizione obbligatoria'); return; }
     if (form.quantity < 0) { toast.error('Quantità non valida'); return; }
@@ -617,6 +675,10 @@ function ArticleDialog({ open, onClose, article, onSave }) {
               <Label>Valore Attuale (€)</Label>
               <Input type="number" min="0" step="0.01" value={form.valore_attuale} onChange={e => setForm({...form, valore_attuale: Number(e.target.value)||0})} />
             </div>
+            <div>
+              <Label className="text-emerald-700">💰 Prezzo di Vendita (€)</Label>
+              <Input type="number" min="0" step="0.01" value={form.prezzo_vendita} onChange={e => setForm({...form, prezzo_vendita: Number(e.target.value)||0})} placeholder="Prezzo di vendita attuale" />
+            </div>
           </div>
 
           {/* Photos */}
@@ -636,27 +698,54 @@ function ArticleDialog({ open, onClose, article, onSave }) {
                 </label>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Le foto vengono ridimensionate automaticamente (max 1024px).</p>
+            <p className="text-xs text-muted-foreground mt-1">📸 Foto ridimensionate automaticamente (max 1024px) · 📋 <strong>Puoi anche incollare uno screenshot</strong> dagli appunti con <kbd className="px-1 py-0.5 bg-slate-100 border rounded text-[10px]">Ctrl+V</kbd>.</p>
           </div>
 
           {/* AI Product Search Button */}
-          <div className="bg-gradient-to-r from-violet-50 via-purple-50 to-fuchsia-50 border border-violet-200 rounded-lg p-3">
+          <div className="bg-gradient-to-r from-violet-50 via-purple-50 to-fuchsia-50 border border-violet-200 rounded-lg p-3 space-y-2">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-violet-600"/>
                 <div>
                   <p className="text-sm font-semibold text-violet-900">Ricerca Articoli Simili (AI)</p>
-                  <p className="text-xs text-violet-700">Analizza la foto e cerca prodotti simili su Osculati, Amazon, SVB, Magellano, AliExpress, Temu.</p>
+                  <p className="text-xs text-violet-700">Seleziona i fornitori da consultare. Le scelte vengono ricordate per le ricerche successive.</p>
                 </div>
               </div>
               <Button
                 type="button"
                 onClick={runAiSearch}
-                disabled={aiLoading || (form.photos.length === 0 && !form.description.trim())}
+                disabled={aiLoading || enabledSuppliers.length === 0 || (form.photos.length === 0 && !form.description.trim())}
                 className="bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
               >
                 {aiLoading ? (<><RefreshCw className="w-4 h-4 mr-2 animate-spin"/>Ricerca in corso...</>) : (<><Search className="w-4 h-4 mr-2"/>Cerca Simili</>)}
               </Button>
+            </div>
+            {/* Toggle Fornitori */}
+            <div className="bg-white/60 rounded-md p-2 border border-violet-200">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] font-semibold text-violet-800 uppercase tracking-wide">Fornitori da consultare ({enabledSuppliers.length}/{ALL_SUPPLIERS.length})</p>
+                <div className="flex gap-1">
+                  <button type="button" className="text-[10px] text-violet-600 hover:underline" onClick={() => { setEnabledSuppliers([...ALL_SUPPLIERS]); try { localStorage.setItem('warehouse_ai_suppliers', JSON.stringify(ALL_SUPPLIERS)); } catch (_e) {} }}>Tutti</button>
+                  <span className="text-violet-300">|</span>
+                  <button type="button" className="text-[10px] text-violet-600 hover:underline" onClick={() => { setEnabledSuppliers([]); try { localStorage.setItem('warehouse_ai_suppliers', JSON.stringify([])); } catch (_e) {} }}>Nessuno</button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {ALL_SUPPLIERS.map(s => (
+                  <label key={s} className="flex items-center gap-1.5 text-xs cursor-pointer hover:bg-violet-100 px-1.5 py-0.5 rounded">
+                    <input
+                      type="checkbox"
+                      checked={enabledSuppliers.includes(s)}
+                      onChange={() => toggleSupplier(s)}
+                      className="w-3.5 h-3.5 accent-violet-600"
+                    />
+                    <span className={enabledSuppliers.includes(s) ? 'font-medium text-violet-900' : 'text-slate-400 line-through'}>{s}</span>
+                  </label>
+                ))}
+              </div>
+              {enabledSuppliers.length === 0 && (
+                <p className="text-[10px] text-red-600 mt-1">⚠️ Nessun fornitore selezionato. La ricerca è disabilitata.</p>
+              )}
             </div>
             {form.photos.length === 0 && !form.description.trim() && (
               <p className="text-[11px] text-violet-600 mt-2">💡 Carica almeno una foto o inserisci una descrizione per abilitare la ricerca.</p>

@@ -6398,6 +6398,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                 companyId={isSuperAdmin ? null : currentUser?.company_id}
                 companies={companies}
                 marinas={ownedMarinas || []}
+                agencies={agencies || []}
               />
             </Suspense>
           </TabsContent>
@@ -6410,6 +6411,7 @@ function AdminDashboard({ currentUser, onLogout }) {
               <TransportLogsRegistryLazy
                 companyId={isSuperAdmin ? null : currentUser?.company_id}
                 companies={companies}
+                agencies={agencies || []}
               />
             </Suspense>
           </TabsContent>

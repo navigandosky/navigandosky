@@ -61,7 +61,7 @@ async function api(path) {
  * Filtri: source, payment_method, status (paid/unpaid/partial), customer, date range
  * Export: Excel (xlsx) e PDF (jspdf + autotable) con totale dinamico riepilogo.
  */
-export default function AccountingRegistry({ companyId, companies = [], marinas = [] }) {
+export default function AccountingRegistry({ companyId, companies = [], marinas = [], agencies = [] }) {
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState([]);
   const [marinaBookings, setMarinaBookings] = useState([]);
@@ -75,6 +75,7 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
     date_from: monthAgo(),
     date_to: today(),
     marina_id: '',
+    agency_id: '',
   });
 
   const loadAll = async () => {
@@ -140,6 +141,7 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
         amount: total,
         paid_amount: isRefunded ? -refundedAmount : (paid ? total : 0),
         marina_id: null,
+        agency_id: b.agency_id || null,
         destination_label: paid || isRefunded ? dest.label : (b.payment_method ? dest.label : '—'),
         destination_detail: dest.detail,
         refund_iban: b.refund_iban || '',
@@ -217,6 +219,7 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
         amount: total,
         paid_amount: paidAmount,
         marina_id: mb.marina_id || q?.marina_id || null,
+        agency_id: mb.agency_id || q?.agency_id || null,
         destination_label: (() => {
           const mar = marinasById[mb.marina_id || q?.marina_id];
           const cmp = companiesById[mb.company_id];
@@ -262,6 +265,7 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
         amount: total,
         paid_amount: ps === 'PAID' ? total : paidAmount,
         marina_id: cq.marina_id || null,
+        agency_id: cq.agency_id || null,
         destination_label: getPaymentDestination(normalizePaymentMethod(cq.payment_method), companiesById[cq.company_id]).label,
         destination_detail: getPaymentDestination(normalizePaymentMethod(cq.payment_method), companiesById[cq.company_id]).detail,
         raw: cq,
@@ -279,6 +283,13 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
       if (filters.payment_status && t.payment_status !== filters.payment_status) return false;
       if (filters.customer && !(t.customer || '').toLowerCase().includes(filters.customer.toLowerCase())) return false;
       if (filters.marina_id && t.marina_id !== filters.marina_id) return false;
+      if (filters.agency_id) {
+        if (filters.agency_id === '__NONE__') {
+          if (t.agency_id) return false;
+        } else {
+          if (t.agency_id !== filters.agency_id) return false;
+        }
+      }
       if (filters.date_from && t.date && t.date.split('T')[0] < filters.date_from) return false;
       if (filters.date_to && t.date && t.date.split('T')[0] > filters.date_to) return false;
       return true;
@@ -531,6 +542,19 @@ export default function AccountingRegistry({ companyId, companies = [], marinas 
                 </Select>
               </div>
             )}
+            <div className="md:col-span-2">
+              <Label className="text-xs">🏢 Agenzia</Label>
+              <Select value={filters.agency_id || 'all'} onValueChange={(v) => setFilters({ ...filters, agency_id: v === 'all' ? '' : v })}>
+                <SelectTrigger><SelectValue placeholder="Tutte le agenzie" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le agenzie</SelectItem>
+                  <SelectItem value="__NONE__">— Senza Agenzia (Vendita Diretta) —</SelectItem>
+                  {(agencies || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(ag => (
+                    <SelectItem key={ag.id} value={ag.id}>{ag.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={clearFilters}>Reset</Button>
