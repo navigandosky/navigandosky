@@ -545,6 +545,18 @@ async function handleBookings(method, id, body, action, sp) {
       } catch (e) { console.error('[voucher email POST] import error:', e?.message); }
     }
 
+    // Se la prenotazione è creata già come PAID (es. cash + paymentMarked) invia notifica admin
+    if (bookingPaymentStatus === 'PAID') {
+      try {
+        const { notifyAdminPayment } = await import('./admin_notifications');
+        const company = booking.company_id ? await db.collection('companies').findOne({ id: booking.company_id }) : null;
+        notifyAdminPayment({ kind: 'experience', booking, company, extra: {
+          paid_amount: booking.total_amount,
+          payment_method: booking.payment_method,
+        } }).catch(() => {});
+      } catch (_e) {}
+    }
+
     return json(booking, 201);
   }
 
@@ -591,6 +603,16 @@ async function handleBookings(method, id, body, action, sp) {
           );
         } catch (e) { console.error('[voucher final email] import error:', e?.message); }
       }
+      // Notifica admin (mail interna)
+      try {
+        const { notifyAdminPayment } = await import('./admin_notifications');
+        const refreshed = await col.findOne({ id });
+        const company = refreshed?.company_id ? await db.collection('companies').findOne({ id: refreshed.company_id }) : null;
+        notifyAdminPayment({ kind: 'experience', booking: refreshed, company, extra: {
+          paid_amount: refreshed?.total_amount,
+          payment_method: refreshed?.payment_method || 'BANK_TRANSFER',
+        } }).catch(() => {});
+      } catch (_e) {}
       return json(await col.findOne({ id }));
     }
     // RIFIUTA pagamento bonifico (admin marca come non ricevuto, libera i posti)
@@ -2599,6 +2621,23 @@ async function handleRoute(request, resolvedParams, method) {
           return await handleLookupRentalBooking(method, searchParams);
         }
         return new Response(JSON.stringify({ error: 'rental-payment-link endpoint not found' }), { status: 404 });
+      }
+      case 'marina-payment-link': {
+        // Sub-route: /api/marina-payment-link/create | /api/marina-payment-link/lookup | /api/marina-payment-link/send-bank-transfer
+        const sub = pathSegments[1];
+        if (sub === 'create') {
+          const { handleCreateMarinaPaymentLink } = await import('./marina_payment_link');
+          return await handleCreateMarinaPaymentLink(method, body);
+        }
+        if (sub === 'lookup') {
+          const { handleLookupMarinaBooking } = await import('./marina_payment_link');
+          return await handleLookupMarinaBooking(method, searchParams);
+        }
+        if (sub === 'send-bank-transfer') {
+          const { handleSendMarinaBankTransfer } = await import('./marina_payment_link');
+          return await handleSendMarinaBankTransfer(method, body);
+        }
+        return new Response(JSON.stringify({ error: 'marina-payment-link endpoint not found' }), { status: 404 });
       }
       case 'admin': {
         // Sub-route: /api/admin/backups | /api/admin/backups/create | /api/admin/backups/{id}/...

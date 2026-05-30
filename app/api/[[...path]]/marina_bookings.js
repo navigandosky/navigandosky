@@ -233,6 +233,15 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     }
     await col.updateOne({ id }, { $set: update });
     const updated = await col.findOne({ id });
+    // Notifica admin (non blocca)
+    try {
+      const { notifyAdminPayment } = await import('./admin_notifications');
+      const company = await db.collection('companies').findOne({ id: updated.company_id });
+      notifyAdminPayment({ kind: 'marina', booking: updated, company, extra: {
+        paid_amount: paidAmount,
+        payment_method: update.deposit_payment_method,
+      } }).catch(() => {});
+    } catch (_e) {}
     return new Response(JSON.stringify(updated), { headers: { 'Content-Type': 'application/json' } });
   }
 
@@ -251,6 +260,15 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
       }
     });
     const updated = await col.findOne({ id });
+    // Notifica admin
+    try {
+      const { notifyAdminPayment } = await import('./admin_notifications');
+      const company = await db.collection('companies').findOne({ id: updated.company_id });
+      notifyAdminPayment({ kind: 'marina', booking: updated, company, extra: {
+        paid_amount: existing.balance_amount,
+        payment_method: body.payment_method || 'SUMUP',
+      } }).catch(() => {});
+    } catch (_e) {}
     return new Response(JSON.stringify(updated), { headers: { 'Content-Type': 'application/json' } });
   }
 

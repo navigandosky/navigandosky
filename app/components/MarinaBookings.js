@@ -10,9 +10,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
   Ship, RefreshCw, Search, FileText, CheckCircle2, XCircle, CreditCard, FileSignature,
-  Eye, Trash2, Anchor, Calendar, Euro, AlertCircle, Clock,
+  Eye, Trash2, Anchor, Calendar, Euro, AlertCircle, Clock, Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import MarinaPayNowDialog from './MarinaPayNowDialog';
 
 const fmtEur = (n) => (Number(n) || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('it-IT') : '—';
@@ -48,6 +49,9 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
   const [payingBk, setPayingBk] = useState(null);
   const [payForm, setPayForm] = useState({ mode: 'pct', pct: '', amount: '', payment_method: 'SUMUP', payment_reference: '', note: '' });
   const [submittingPay, setSubmittingPay] = useState(false);
+  // Nuovo "Paga Ora" dialog (5 modalità: CASH, ONLINE, BANK_TRANSFER, LATER, PAYMENT_LINK)
+  const [payNowBk, setPayNowBk] = useState(null);
+  const isAgencyUser = currentUser?.role === 'AGENCY' || !!currentUser?.agency_id;
 
   // Sincronizza il filtro Marina con il filtro globale passato dal parent
   useEffect(() => {
@@ -416,6 +420,17 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
                             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setViewing(b)}>
                               <Eye className="w-3 h-3 mr-1" />Dettaglio
                             </Button>
+                            {!b.balance_paid && b.status !== 'REJECTED' && b.status !== 'CANCELLED' && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-7 text-xs bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                                onClick={() => setPayNowBk(b)}
+                                title="Apri modalità di pagamento (Carta, Bonifico, Link, Contanti)"
+                              >
+                                <Zap className="w-3 h-3 mr-1" />Paga Ora
+                              </Button>
+                            )}
                             {!b.deposit_paid && b.status !== 'REJECTED' && (
                               <Button variant="secondary" size="sm" className="h-7 text-xs bg-emerald-100 text-emerald-700 hover:bg-emerald-200" onClick={() => openPayDialog(b)} title="Registra pagamento (%, importo o saldo totale)">
                                 <CreditCard className="w-3 h-3 mr-1" />Registra Pagato
@@ -750,6 +765,18 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
           </Dialog>
         );
       })()}
+
+      {/* Nuovo Dialog "Paga Ora" con 5 modalità (CASH, ONLINE, BANK_TRANSFER, LATER, PAYMENT_LINK) */}
+      {payNowBk && (
+        <MarinaPayNowDialog
+          open={true}
+          booking={payNowBk}
+          currentUser={currentUser}
+          isAgency={isAgencyUser}
+          onClose={() => setPayNowBk(null)}
+          onSuccess={() => { load(); }}
+        />
+      )}
     </div>
   );
 }

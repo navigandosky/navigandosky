@@ -152,6 +152,17 @@ export async function handleSumupWebhook(method, body) {
       }
     }
 
+    // 4) Se ancora non trovato, prova come marina_bookings integration_payments
+    let isMarina = false;
+    if (!booking) {
+      booking = await db.collection('marina_bookings').findOne({ 'integration_payments.id': checkoutId });
+      if (booking) {
+        isMarina = true;
+        isIntegration = true;
+        integrationEntry = (booking.integration_payments || []).find(p => p.id === checkoutId);
+      }
+    }
+
     if (!booking) {
       console.warn('[sumup webhook] booking non trovato per checkout', checkoutId);
       return new Response(null, { status: 204 });
@@ -173,8 +184,8 @@ export async function handleSumupWebhook(method, body) {
     const status = checkout.status; // PAID | PENDING | FAILED | EXPIRED
 
     if (isIntegration) {
-      const targetCol = isRental ? 'rental_bookings' : 'bookings';
-      const refLabel = isRental ? booking.booking_number : booking.booking_ref;
+      const targetCol = isRental ? 'rental_bookings' : (isMarina ? 'marina_bookings' : 'bookings');
+      const refLabel = isRental || isMarina ? booking.booking_number : booking.booking_ref;
       // Aggiorna SOLO la voce integration nell'array, non lo status principale del booking
       if (status === 'PAID' && integrationEntry?.status !== 'PAID') {
         const txId = checkout?.transactions?.[0]?.id || null;
@@ -199,8 +210,68 @@ export async function handleSumupWebhook(method, body) {
             { id: booking.id },
             { $set: { payment_status: newPaymentStatus, updated_at: new Date().toISOString() } }
           );
+          // Notifica admin
+          if (newPaymentStatus === 'PAID' || newPaymentStatus === 'PARTIAL') {
+            try {
+              const { notifyAdminPayment } = await import('./admin_notifications');
+              const refreshedBk = await db.collection('rental_bookings').findOne({ id: booking.id });
+              const company = await db.collection('companies').findOne({ id: booking.company_id });
+              notifyAdminPayment({ kind: 'rental', booking: refreshedBk, company, extra: {
+                paid_amount: integrationEntry?.amount,
+                payment_method: 'SUMUP',
+              } }).catch(() => {});
+            } catch (_e) {}
+          }
         }
-        console.log(`[sumup webhook] integrazione PAID (${isRental ? 'rental' : 'exp'}):`, refLabel, 'amount:', integrationEntry?.amount);
+        // Per marina: aggiorna anche stato del booking principale
+        if (isMarina) {
+          const grandTotal = Math.round((Number(booking.grand_total || 0)) * 100) / 100;
+          const paidAmount = Math.round(Number(integrationEntry?.amount || 0) * 100) / 100;
+
+          // Calcolo cumulativo di tutti i pagamenti riusciti (integration_payments PAID + deposit_amount se già pagato)
+          const previousIntegrationsPaid = (booking.integration_payments || [])
+            .filter(p => p.id !== checkoutId && p.status === 'PAID')
+            .reduce((s, p) => s + Number(p.amount || 0), 0);
+          const previousDeposit = booking.deposit_paid && !booking.balance_paid ? Number(booking.deposit_amount || 0) : 0;
+          const previousBalance = booking.balance_paid ? Number(booking.balance_amount || 0) : 0;
+          const totalPaidSoFar = Math.round((previousIntegrationsPaid + previousDeposit + previousBalance + paidAmount) * 100) / 100;
+          const remaining = Math.max(0, Math.round((grandTotal - totalPaidSoFar) * 100) / 100);
+          const isFullyPaid = remaining <= 0.01;
+
+          const update = {
+            updated_at: new Date().toISOString(),
+            status: isFullyPaid ? 'CONFIRMED' : 'DEPOSIT_PAID',
+            deposit_paid: true,
+            deposit_amount: previousDeposit > 0 ? Number(booking.deposit_amount) : paidAmount,
+            deposit_pct: Math.round((paidAmount / grandTotal) * 10000) / 100,
+            balance_amount: remaining,
+            balance_paid: isFullyPaid,
+            deposit_payment_method: booking.deposit_payment_method || 'SUMUP',
+            deposit_payment_reference: booking.deposit_payment_reference || checkoutId,
+            deposit_payment_date: booking.deposit_payment_date || new Date().toISOString(),
+          };
+          if (isFullyPaid) {
+            update.balance_payment_method = 'SUMUP';
+            update.balance_payment_reference = checkoutId;
+            update.balance_payment_date = new Date().toISOString();
+            update.confirmed_at = new Date().toISOString();
+          }
+          await db.collection('marina_bookings').updateOne(
+            { id: booking.id },
+            { $set: update }
+          );
+          // Notifica admin
+          try {
+            const { notifyAdminPayment } = await import('./admin_notifications');
+            const refreshedBk = await db.collection('marina_bookings').findOne({ id: booking.id });
+            const company = await db.collection('companies').findOne({ id: booking.company_id });
+            notifyAdminPayment({ kind: 'marina', booking: refreshedBk, company, extra: {
+              paid_amount: paidAmount,
+              payment_method: 'SUMUP',
+            } }).catch(() => {});
+          } catch (_e) {}
+        }
+        console.log(`[sumup webhook] integrazione PAID (${isRental ? 'rental' : (isMarina ? 'marina' : 'exp')}):`, refLabel, 'amount:', integrationEntry?.amount);
       } else if ((status === 'FAILED' || status === 'EXPIRED') && integrationEntry?.status !== 'FAILED') {
         await db.collection(targetCol).updateOne(
           { id: booking.id, 'integration_payments.id': checkoutId },
@@ -233,6 +304,16 @@ export async function handleSumupWebhook(method, body) {
           );
         } catch (e) { console.error('[sumup webhook] voucher import error:', e?.message); }
       }
+      // Notifica admin
+      try {
+        const { notifyAdminPayment } = await import('./admin_notifications');
+        const refreshedBk = await db.collection('bookings').findOne({ id: booking.id });
+        const company = await db.collection('companies').findOne({ id: booking.company_id });
+        notifyAdminPayment({ kind: 'experience', booking: refreshedBk, company, extra: {
+          paid_amount: refreshedBk?.total_amount,
+          payment_method: 'SUMUP',
+        } }).catch(() => {});
+      } catch (_e) {}
     } else if ((status === 'FAILED' || status === 'EXPIRED') && booking.payment_status !== 'FAILED') {
       await db.collection('bookings').updateOne(
         { id: booking.id },

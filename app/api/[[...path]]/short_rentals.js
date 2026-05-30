@@ -498,6 +498,18 @@ export async function handleRentalBookings(method, id, body, action, sp, db) {
       })();
     }
 
+    // Se creato già come PAID -> notifica admin
+    if (item.payment_status === 'PAID') {
+      try {
+        const { notifyAdminPayment } = await import('./admin_notifications');
+        const company = item.company_id ? await db.collection('companies').findOne({ id: item.company_id }) : null;
+        notifyAdminPayment({ kind: 'rental', booking: item, company, extra: {
+          paid_amount: item.total_amount,
+          payment_method: item.payment_method,
+        } }).catch(() => {});
+      } catch (_e) {}
+    }
+
     return json(item, 201);
   }
 
@@ -558,8 +570,20 @@ export async function handleRentalBookings(method, id, body, action, sp, db) {
     }
 
     rest.updated_at = new Date().toISOString();
+    const wasPaid = existing.payment_status === 'PAID';
     const r = await col.findOneAndUpdate({ id }, { $set: rest }, { returnDocument: 'after' });
     if (r) delete r._id;
+    // Notifica admin se è appena passato a PAID
+    if (r?.payment_status === 'PAID' && !wasPaid) {
+      try {
+        const { notifyAdminPayment } = await import('./admin_notifications');
+        const company = r.company_id ? await db.collection('companies').findOne({ id: r.company_id }) : null;
+        notifyAdminPayment({ kind: 'rental', booking: r, company, extra: {
+          paid_amount: r.total_amount,
+          payment_method: r.payment_method,
+        } }).catch(() => {});
+      } catch (_e) {}
+    }
     return json(r);
   }
 
