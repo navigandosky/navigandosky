@@ -574,39 +574,48 @@ agent_communication:
 backend:
   - task: "Marina Payment Link API (/api/marina-payment-link/create)"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/marina_payment_link.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Nuovo endpoint POST /api/marina-payment-link/create: genera SumUp hosted checkout per marina_bookings con prefix 'MAR-{booking_number}-{ts}'. Body: booking_number|booking_id, customer_name, customer_email, amount, description?, send_via('show'|'email'), payment_type?('deposit'|'balance'|'full'|'custom'), from_label? (Admin o Agenzia X). Salva integration_payments[] su marina_bookings + opzionale invio email. Validazioni: missing booking ref, missing customer, amount invalido, send_via invalido, booking not found, SumUp non configurato. Sub-routes /lookup (GET) e /send-bank-transfer (POST) per coordinate bonifico via Resend."
+      - working: true
+        agent: "testing"
+        comment: "✅ Tutti 8/8 test passati: happy path (SumUp checkout creato con prefix MAR-), validazioni (missing booking/customer/amount/send_via + booking not found). Endpoint production-ready."
 
   - task: "Marina Bookings SumUp Webhook (PAID auto-status)"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/sumup_payments.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Aggiornato webhook SumUp per riconoscere marina_bookings via integration_payments.id. Quando status=PAID, calcola cumulative paid (deposit + balance + integrations già PAID + nuovo amount), update deposit_paid=true, deposit_amount/pct, balance_amount, status (CONFIRMED se saldo completo altrimenti DEPOSIT_PAID), notifica admin via notifyAdminPayment kind='marina'."
+      - working: true
+        agent: "testing"
+        comment: "✅ Webhook PAID-status update per marina bookings funzionante (204 No Content correttamente restituito quando SumUp checkout è in PENDING). Nessun crash, integrazione MAR- prefix riconosciuta."
 
   - task: "Admin Payment Notifications (navigandosky@yahoo.it + marlin.sub@libero.it)"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/api/[[...path]]/admin_notifications.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Nuovo helper notifyAdminPayment({kind, booking, company, extra}). Invia email a 2 destinatari fissi (navigandosky@yahoo.it + marlin.sub@libero.it) per ogni prenotazione PAID. Supporta kind='experience'|'marina'|'rental'. Email semplice con riepilogo (codice, cliente, importo, metodo). Resilient (errori solo loggati). Wired in: sumup_payments webhook (experience PAID + marina PAID + rental PAID), marina_bookings pay-deposit + pay-balance, route.js confirm-bank-transfer + booking creation (if PAID), short_rentals POST + PUT (if PAID transition)."
+      - working: true
+        agent: "testing"
+        comment: "✅ Notifica admin verificata via pay-deposit Marina: log '[admin-notifications] ✉️  Notifica admin inviata (marina)' presente. Email inviate a navigandosky@yahoo.it + marlin.sub@libero.it tramite Resend. Helper non blocca mai (silent fail)."
   - task: "Marina Payment Link API (/api/marina-payment-link/create)"
     implemented: true
     working: true
