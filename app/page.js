@@ -4136,6 +4136,46 @@ function AdminDashboard({ currentUser, onLogout }) {
         </TabsList>
         )}
 
+        {/* Filtro Marina Globale - SPOSTATO IN CIMA, prima della banda Azioni Rapide */}
+        {hasMarinaOwnership && showMarina && ownedMarinas.length > 1 && (
+          <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-2 border-blue-200 rounded-lg p-3 flex flex-wrap items-center gap-2 shadow-sm">
+            <div className="flex items-center gap-2 px-2 text-blue-900 font-semibold text-xs uppercase tracking-wider border-r border-blue-300 pr-3">
+              <Anchor className="w-4 h-4" />Filtro Marina
+            </div>
+            <button
+              type="button"
+              onClick={() => setGlobalMarinaFilter('ALL')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                globalMarinaFilter === 'ALL'
+                  ? 'bg-blue-700 text-white shadow-md ring-2 ring-blue-300'
+                  : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-200'
+              }`}
+            >
+              🌊 Tutte le Marine ({ownedMarinas.length})
+            </button>
+            {ownedMarinas.map(m => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setGlobalMarinaFilter(m.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  globalMarinaFilter === m.id
+                    ? 'bg-blue-700 text-white shadow-md ring-2 ring-blue-300'
+                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-200'
+                }`}
+                title={m.location || m.name}
+              >
+                ⚓ {m.name}
+              </button>
+            ))}
+            {globalMarinaFilter !== 'ALL' && (
+              <Badge className="ml-auto bg-amber-500 text-white text-xs">
+                Filtro attivo: visualizzando solo {ownedMarinas.find(m => m.id === globalMarinaFilter)?.name || ''}
+              </Badge>
+            )}
+          </div>
+        )}
+
         {/* === BANDA AZIONI RAPIDE — Crea Preventivo / Prenotazione (visibile anche per agenzia) === */}
         {(currentUser?.company_id || isSuperAdmin) && (
           <TabsList className="flex-wrap h-auto gap-2 bg-gradient-to-r from-fuchsia-600 via-pink-500 to-rose-500 p-2 rounded-lg shadow-lg w-full">
@@ -4193,50 +4233,12 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="berths" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Posti Barca</TabsTrigger>
             <TabsTrigger value="quotes" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><ClipboardList className="w-4 h-4 mr-1.5" />Preventivi</TabsTrigger>
             <TabsTrigger value="transits" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Ship className="w-4 h-4 mr-1.5" />Transiti</TabsTrigger>
-            <TabsTrigger value="checkboard" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20" title="Mappa multi-mese con stato di ogni posto"><CalendarDays className="w-4 h-4 mr-1.5" />Check Box</TabsTrigger>
+            <TabsTrigger value="checkboard" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20" title="Mappa multi-mese con stato di ogni posto"><CalendarDays className="w-4 h-4 mr-1.5" />Check Posti</TabsTrigger>
             {isSuperAdmin && <TabsTrigger value="port-settings" className="text-white data-[state=active]:bg-white data-[state=active]:text-blue-900 hover:bg-white/20"><Shield className="w-4 h-4 mr-1.5" />Impostazioni Porto</TabsTrigger>}
           </TabsList>
         )}
 
-        {/* Filtro Marina Globale - sotto Step 2 (collegato visivamente alle funzioni Marina) */}
-        {hasMarinaOwnership && showMarina && ownedMarinas.length > 1 && (
-          <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-2 border-blue-200 rounded-lg p-3 flex flex-wrap items-center gap-2 shadow-sm">
-            <div className="flex items-center gap-2 px-2 text-blue-900 font-semibold text-xs uppercase tracking-wider border-r border-blue-300 pr-3">
-              <Anchor className="w-4 h-4" />Filtro Marina
-            </div>
-            <button
-              type="button"
-              onClick={() => setGlobalMarinaFilter('ALL')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                globalMarinaFilter === 'ALL'
-                  ? 'bg-blue-700 text-white shadow-md ring-2 ring-blue-300'
-                  : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-200'
-              }`}
-            >
-              🌊 Tutte le Marine ({ownedMarinas.length})
-            </button>
-            {ownedMarinas.map(m => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setGlobalMarinaFilter(m.id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                  globalMarinaFilter === m.id
-                    ? 'bg-blue-700 text-white shadow-md ring-2 ring-blue-300'
-                    : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-200'
-                }`}
-                title={m.location || m.name}
-              >
-                ⚓ {m.name}
-              </button>
-            ))}
-            {globalMarinaFilter !== 'ALL' && (
-              <Badge className="ml-auto bg-amber-500 text-white text-xs">
-                Filtro attivo: visualizzando solo {ownedMarinas.find(m => m.id === globalMarinaFilter)?.name || ''}
-              </Badge>
-            )}
-          </div>
-        )}
+        {/* Filtro Marina Globale — RIMOSSO da qui, spostato in alto sopra "Azioni Rapide" */}
 
         {/* Riga 2.5: Tab RICHIESTE PRENOTAZIONE (cyan band) - Super Admin o owner marina */}
         {hasMarinaOwnership && showMarina && (

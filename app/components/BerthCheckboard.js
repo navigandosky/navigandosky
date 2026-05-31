@@ -90,7 +90,7 @@ export default function BerthCheckboard({ marinaFilterId }) {
     return toISODate(new Date(today.getFullYear(), today.getMonth(), 1));
   });
   const [monthsCount, setMonthsCount] = useState(3); // mostra 3 mesi default
-  const [hover, setHover] = useState(null); // { berth, date, status, booking }
+  const [hover, setHover] = useState(null); // { berth, date, status, booking, x, y }
 
   // Carica marine
   useEffect(() => {
@@ -180,19 +180,34 @@ export default function BerthCheckboard({ marinaFilterId }) {
     return map;
   }, [sortedBerths, days, bookings]);
 
-  // Statistiche globali (cell-based)
+  // Statistiche per POSTI DISTINTI (non celle giorno×posto)
+  // Per ogni stato (contract, transit, standby, releasing) un posto è contato 1 volta se ha ALMENO un giorno con quello stato.
+  // Libero = posti che NON hanno mai un altro stato nel periodo.
+  // Occupazione % = (posti con almeno un giorno occupato) / posti totali.
   const stats = useMemo(() => {
     const counts = { free: 0, standby: 0, releasing: 0, contract: 0, transit: 0 };
-    statusMap.forEach((dayMap) => {
+    let occupiedBerths = 0;
+    sortedBerths.forEach((b) => {
+      const dayMap = statusMap.get(b.id);
+      if (!dayMap) { counts.free++; return; }
+      let hasContract = false, hasTransit = false, hasStandby = false, hasReleasing = false;
       dayMap.forEach((v) => {
-        counts[v.status] = (counts[v.status] || 0) + 1;
+        if (v.status === 'contract') hasContract = true;
+        else if (v.status === 'transit') hasTransit = true;
+        else if (v.status === 'standby') hasStandby = true;
+        else if (v.status === 'releasing') hasReleasing = true;
       });
+      if (hasContract) counts.contract++;
+      if (hasTransit) counts.transit++;
+      if (hasStandby) counts.standby++;
+      if (hasReleasing) counts.releasing++;
+      if (hasContract || hasTransit || hasStandby || hasReleasing) occupiedBerths++;
+      else counts.free++;
     });
-    const total = sortedBerths.length * days.length;
-    const occupied = counts.contract + counts.transit + counts.standby + counts.releasing;
-    const occupancyPct = total > 0 ? Math.round((occupied / total) * 100) : 0;
+    const total = sortedBerths.length;
+    const occupancyPct = total > 0 ? Math.round((occupiedBerths / total) * 100) : 0;
     return { ...counts, total, occupancyPct };
-  }, [statusMap, sortedBerths.length, days.length]);
+  }, [statusMap, sortedBerths]);
 
   const shiftStart = (months) => {
     const d = new Date(startDate + 'T00:00:00');
@@ -213,7 +228,7 @@ export default function BerthCheckboard({ marinaFilterId }) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <CalIcon className="w-5 h-5 text-blue-600" /> Check Box — Mappa Stato Multi-Mese
+            <CalIcon className="w-5 h-5 text-blue-600" /> Check Posti — Mappa Stato Multi-Mese
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -258,14 +273,20 @@ export default function BerthCheckboard({ marinaFilterId }) {
             </div>
           </div>
 
-          {/* Statistiche */}
+          {/* Statistiche per POSTI DISTINTI (non per giorno) */}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-center">
-            <div className="rounded border-2 border-emerald-300 p-2"><p className="text-xs uppercase">Libero</p><p className="text-lg font-bold text-emerald-600">{stats.free}</p></div>
-            <div className="rounded border-2 border-yellow-300 p-2"><p className="text-xs uppercase">Standby</p><p className="text-lg font-bold text-yellow-600">{stats.standby}</p></div>
-            <div className="rounded border-2 border-amber-400 p-2"><p className="text-xs uppercase">In Liberazione</p><p className="text-lg font-bold text-amber-600">{stats.releasing}</p></div>
-            <div className="rounded border-2 border-red-300 p-2"><p className="text-xs uppercase">Contratto</p><p className="text-lg font-bold text-red-600">{stats.contract}</p></div>
-            <div className="rounded border-2 border-violet-300 p-2"><p className="text-xs uppercase">Transito</p><p className="text-lg font-bold text-violet-600">{stats.transit}</p></div>
-            <div className="rounded border-2 border-blue-300 p-2"><p className="text-xs uppercase">Occupazione</p><p className="text-lg font-bold text-blue-600">{stats.occupancyPct}%</p></div>
+            <div className="rounded border-2 border-emerald-300 p-2" title="Posti completamente liberi nel periodo (nessun giorno occupato)">
+              <p className="text-xs uppercase">Libero</p>
+              <p className="text-lg font-bold text-emerald-600">{stats.free}<span className="text-xs text-emerald-500 font-normal"> / {stats.total}</span></p>
+            </div>
+            <div className="rounded border-2 border-yellow-300 p-2" title="Posti con almeno un giorno in Standby"><p className="text-xs uppercase">Standby</p><p className="text-lg font-bold text-yellow-600">{stats.standby}</p></div>
+            <div className="rounded border-2 border-amber-400 p-2" title="Posti con almeno un giorno In Liberazione"><p className="text-xs uppercase">In Liberazione</p><p className="text-lg font-bold text-amber-600">{stats.releasing}</p></div>
+            <div className="rounded border-2 border-red-300 p-2" title="Posti con almeno un giorno sotto Contratto"><p className="text-xs uppercase">Contratto</p><p className="text-lg font-bold text-red-600">{stats.contract}</p></div>
+            <div className="rounded border-2 border-violet-300 p-2" title="Posti con almeno un giorno in Transito"><p className="text-xs uppercase">Transito</p><p className="text-lg font-bold text-violet-600">{stats.transit}</p></div>
+            <div className="rounded border-2 border-blue-300 p-2" title="% di posti che hanno almeno un giorno occupato nel periodo">
+              <p className="text-xs uppercase">Occupazione</p>
+              <p className="text-lg font-bold text-blue-600">{stats.occupancyPct}%</p>
+            </div>
           </div>
 
           {/* Legenda */}
@@ -281,20 +302,39 @@ export default function BerthCheckboard({ marinaFilterId }) {
         </CardContent>
       </Card>
 
-      {/* Tooltip hover */}
+      {/* Tooltip hover (segue il cursore, mostra cliente/barca) */}
       {hover && (
-        <div className="fixed top-3 right-3 z-50 bg-white shadow-lg rounded-md border border-blue-200 p-3 text-xs max-w-sm">
-          <div className="font-bold text-blue-800">{hover.berth.label}{hover.berth.pontoon ? ` · Pontile ${hover.berth.pontoon}` : ''}</div>
-          <div className="text-muted-foreground">{hover.date}</div>
-          <div className="mt-1"><span className="font-semibold">Stato:</span> <span style={{ color: STATUS_COLORS[hover.status] }}>{STATUS_LABEL[hover.status]}</span></div>
+        <div
+          className="fixed z-50 bg-white shadow-xl rounded-md border-2 border-blue-300 p-2.5 text-xs max-w-xs pointer-events-none"
+          style={{
+            left: Math.min((hover.x || 0) + 14, (typeof window !== 'undefined' ? window.innerWidth - 280 : 800)),
+            top: Math.min((hover.y || 0) + 14, (typeof window !== 'undefined' ? window.innerHeight - 160 : 600)),
+          }}
+        >
+          <div className="font-bold text-blue-800">
+            {hover.berth.label}{hover.berth.pontoon ? ` · Pontile ${hover.berth.pontoon}` : ''}
+          </div>
+          <div className="text-muted-foreground text-[10px]">{hover.date}</div>
+          <div className="mt-0.5">
+            <span className="font-semibold">Stato:</span>{' '}
+            <span style={{ color: STATUS_COLORS[hover.status] }} className="font-semibold">{STATUS_LABEL[hover.status]}</span>
+          </div>
           {hover.booking && (
-            <div className="mt-1 space-y-0.5">
-              {hover.booking.customer?.name && <div>👤 {hover.booking.customer.name} {hover.booking.customer.surname || ''}</div>}
-              {hover.booking.boat?.name && <div>⛵ {hover.booking.boat.name}{hover.booking.boat.length ? ` (${hover.booking.boat.length}m)` : ''}</div>}
-              {hover.booking.start_date && hover.booking.end_date && (
-                <div>📅 {hover.booking.start_date} → {hover.booking.end_date}</div>
+            <div className="mt-1.5 space-y-0.5 border-t pt-1.5">
+              {(hover.booking.customer?.name || hover.booking.customer?.surname) && (
+                <div className="font-semibold text-slate-800">
+                  👤 {hover.booking.customer?.name} {hover.booking.customer?.surname || ''}
+                </div>
               )}
-              {hover.booking.booking_number && <div className="font-mono">N° {hover.booking.booking_number}</div>}
+              {hover.booking.boat?.name && (
+                <div className="text-slate-600">⛵ {hover.booking.boat.name}{hover.booking.boat.length ? ` (${hover.booking.boat.length}m)` : ''}</div>
+              )}
+              {hover.booking.start_date && hover.booking.end_date && (
+                <div className="text-slate-600">📅 {hover.booking.start_date} → {hover.booking.end_date}</div>
+              )}
+              {hover.booking.booking_number && (
+                <div className="font-mono text-[10px] text-blue-700">N° {hover.booking.booking_number}</div>
+              )}
             </div>
           )}
         </div>
@@ -349,24 +389,38 @@ export default function BerthCheckboard({ marinaFilterId }) {
                 <tbody>
                   {sortedBerths.map((berth) => {
                     const dayMap = statusMap.get(berth.id);
+                    // Zebra striping per pontile: alternanza chiara di sfondo per identificare P1/P2/P3
+                    const pontoonNum = Number(berth.pontoon) || 0;
+                    const pontoonBg = pontoonNum % 2 === 0
+                      ? 'bg-sky-50'  // P2, P4 (pari) → ciano chiaro
+                      : 'bg-amber-50'; // P1, P3 (dispari) → ambra chiaro
+                    const pontoonText = pontoonNum % 2 === 0 ? 'text-sky-700' : 'text-amber-700';
                     return (
                       <tr key={berth.id}>
-                        <td className="bg-slate-50 sticky left-0 z-10 border-b border-r border-slate-200 px-2 py-0.5 whitespace-nowrap font-mono text-[10px]" style={{ minWidth: 110 }}>
-                          <span className="font-semibold">{berth.label}</span>
-                          <span className="text-muted-foreground ml-1">P{berth.pontoon}</span>
+                        <td className={`sticky left-0 z-10 border-b border-r border-slate-200 px-2 py-0.5 whitespace-nowrap font-mono text-[10px] ${pontoonBg}`} style={{ minWidth: 110 }}>
+                          <span className="font-semibold text-slate-800">{berth.label}</span>
+                          <span className={`ml-1 font-bold ${pontoonText}`}>P{berth.pontoon}</span>
                         </td>
                         {days.map((d, i) => {
                           const ds = toISODate(d);
                           const v = dayMap?.get(ds) || { status: 'free', booking: null };
                           const bg = STATUS_COLORS[v.status] || '#e5e7eb';
+                          const customerLabel = v.booking?.customer
+                            ? `${v.booking.customer.name || ''} ${v.booking.customer.surname || ''}`.trim()
+                            : '';
+                          const tipParts = [`${berth.label} · ${ds} · ${STATUS_LABEL[v.status]}`];
+                          if (customerLabel) tipParts.push(`👤 ${customerLabel}`);
+                          if (v.booking?.boat?.name) tipParts.push(`⛵ ${v.booking.boat.name}`);
+                          if (v.booking?.booking_number) tipParts.push(`N° ${v.booking.booking_number}`);
                           return (
                             <td
                               key={i}
                               className="border-r border-b border-slate-200 p-0 cursor-pointer hover:ring-2 hover:ring-blue-500 hover:z-10 transition-all"
                               style={{ width: CELL_W, height: CELL_H, background: bg, minWidth: CELL_W }}
-                              onMouseEnter={() => setHover({ berth, date: ds, status: v.status, booking: v.booking })}
+                              onMouseEnter={(e) => setHover({ berth, date: ds, status: v.status, booking: v.booking, x: e.clientX, y: e.clientY })}
+                              onMouseMove={(e) => setHover((h) => h ? { ...h, x: e.clientX, y: e.clientY } : h)}
                               onMouseLeave={() => setHover(null)}
-                              title={`${berth.label} · ${ds} · ${STATUS_LABEL[v.status]}`}
+                              title={tipParts.join('\n')}
                             />
                           );
                         })}
