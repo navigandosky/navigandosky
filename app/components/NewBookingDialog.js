@@ -277,12 +277,15 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-5xl w-[95vw] max-h-[92vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="pb-2">
+      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] p-0 flex flex-col overflow-hidden">
+        <DialogHeader className="pb-2 px-4 sm:px-6 pt-4 sm:pt-6 shrink-0">
           <DialogTitle className="text-lg flex items-center gap-2">
             🎫 Crea Prenotazione Manuale · <span className="text-sm font-normal text-muted-foreground">Step {step}/4</span>
           </DialogTitle>
         </DialogHeader>
+
+        {/* Area scrollabile interna: footer rimane SEMPRE visibile in basso */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6">
 
         {/* Step indicator (nascosto se mostriamo il link generato) */}
         {!generatedLink && (
@@ -602,7 +605,10 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
 
         {/* SCHERMATA FINALE: Link Pagamento Generato - FINE */}
 
-        <DialogFooter className="flex justify-between gap-2 pt-4 border-t">
+        </div>
+        {/* === Fine area scrollabile === */}
+
+        <DialogFooter className="flex justify-between gap-2 px-4 sm:px-6 py-3 border-t bg-white shrink-0">
           <Button type="button" variant="outline" onClick={() => generatedLink ? onClose() : (step === 1 ? onClose() : setStep(step - 1))}>
             <ChevronLeft className="w-4 h-4 mr-1" />
             {generatedLink ? 'Chiudi' : (step === 1 ? 'Annulla' : 'Indietro')}

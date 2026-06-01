@@ -62,6 +62,78 @@ function AgencyB2BPortalInner() {
   const [receiptForm, setReceiptForm] = useState({ payment_method: 'BANK_TRANSFER', notes: '', file: null, filePreview: null });
   const [receiptSubmitting, setReceiptSubmitting] = useState(false);
 
+  // Anteprima / Modifica / Cancellazione prenotazione
+  const [previewBk, setPreviewBk] = useState(null);
+  const [editBk, setEditBk] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Helper: l'agenzia può cancellare/rimborsare solo se non è già stato incassato dalla company
+  // (CASH/CARD/ONLINE/BANK_TRANSFER su CONFIRMED = rimborso solo company/super)
+  const canCancelBooking = (b) => {
+    if (!b) return false;
+    const pm = b.payment_method;
+    const status = b.status;
+    if (pm === 'AGENCY' || pm === 'FREE' || !pm) return true;
+    if (status === 'PENDING_CONFIRMATION' || status === 'PENDING_VERIFICATION' || status === 'PENDING') return true;
+    if (status === 'CONFIRMED' && ['ONLINE','CARD','CASH','DIRECT','BANK_TRANSFER'].includes(pm)) return false;
+    return true;
+  };
+
+  // Modifica prenotazione (PUT /api/bookings/:id)
+  const saveEditBooking = async () => {
+    if (!editBk?.id) return;
+    setEditSubmitting(true);
+    try {
+      const payload = {
+        customer_name: editForm.customer_name,
+        customer_email: editForm.customer_email,
+        customer_phone: editForm.customer_phone,
+        special_requests: editForm.special_requests || '',
+        seats: Number(editForm.seats || editBk.seats),
+      };
+      const r = await fetch(`${API_BASE}/bookings/${editBk.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Errore aggiornamento');
+      toast.success('Prenotazione aggiornata');
+      setEditBk(null);
+      // Ricarica lista
+      const bk = await fetch(`${API_BASE}/bookings?agency_id=${agency.id}`);
+      const bkData = await bk.json();
+      setBookings(Array.isArray(bkData) ? bkData : []);
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  // Cancella prenotazione
+  const cancelBookingB2B = async (b) => {
+    if (!canCancelBooking(b)) {
+      toast.error('Incasso già nelle casse della company. Contattare amministrazione per il rimborso.');
+      return;
+    }
+    if (!window.confirm(`Cancellare prenotazione ${b.booking_ref} di ${b.customer_name}?`)) return;
+    try {
+      const r = await fetch(`${API_BASE}/bookings/${b.id}`, { method: 'DELETE' });
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        throw new Error(data.error || 'Errore cancellazione');
+      }
+      toast.success(`Prenotazione ${b.booking_ref} cancellata`);
+      const bk = await fetch(`${API_BASE}/bookings?agency_id=${agency.id}`);
+      const bkData = await bk.json();
+      setBookings(Array.isArray(bkData) ? bkData : []);
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
   // Carica dati società
   useEffect(() => {
     const fetchCompany = async () => {
@@ -1063,7 +1135,16 @@ function AgencyB2BPortalInner() {
                             </td>
                             <td className="p-3"><StatusBadge status={booking.status} /></td>
                             <td className="p-3">
-                              <div className="flex items-center gap-1 justify-center">
+                              <div className="flex items-center gap-1 justify-center flex-wrap">
+                                {/* Anteprima */}
+                                <Button
+                                  size="icon" variant="ghost"
+                                  title="Anteprima prenotazione"
+                                  onClick={() => setPreviewBk(booking)}
+                                  className="h-8 w-8 hover:bg-slate-100"
+                                >
+                                  <Eye className="w-4 h-4 text-slate-600" />
+                                </Button>
                                 {/* Voucher */}
                                 <Button
                                   size="icon" variant="ghost"
@@ -1085,6 +1166,47 @@ function AgencyB2BPortalInner() {
                                   >
                                     <Mail className="w-4 h-4 text-blue-600" />
                                   </Button>
+                                )}
+                                {/* Modifica (solo prima del check-in e se non cancellata) */}
+                                {!booking.checked_in_at && booking.status !== 'CANCELLED' && (
+                                  <Button
+                                    size="icon" variant="ghost"
+                                    title="Modifica prenotazione"
+                                    onClick={() => {
+                                      setEditBk(booking);
+                                      setEditForm({
+                                        customer_name: booking.customer_name || '',
+                                        customer_email: booking.customer_email || '',
+                                        customer_phone: booking.customer_phone || '',
+                                        special_requests: booking.special_requests || '',
+                                        seats: booking.seats || 1,
+                                      });
+                                    }}
+                                    className="h-8 w-8 hover:bg-amber-50"
+                                  >
+                                    <Filter className="w-4 h-4 text-amber-600" style={{ display: 'none' }} />
+                                    <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                  </Button>
+                                )}
+                                {/* Cancella - solo se permesso */}
+                                {booking.status !== 'CANCELLED' && !booking.checked_in_at && (
+                                  canCancelBooking(booking) ? (
+                                    <Button
+                                      size="icon" variant="ghost"
+                                      title="Cancella prenotazione"
+                                      onClick={() => cancelBookingB2B(booking)}
+                                      className="h-8 w-8 hover:bg-red-50"
+                                    >
+                                      <X className="w-4 h-4 text-red-600" />
+                                    </Button>
+                                  ) : (
+                                    <Badge
+                                      className="text-[9px] bg-slate-200 text-slate-600 cursor-not-allowed"
+                                      title="Incasso già nelle casse della company. Contattare amministrazione per il rimborso."
+                                    >
+                                      🔒
+                                    </Badge>
+                                  )
                                 )}
                                 {/* Carica/Visualizza Ricevuta Pagamento (sempre disponibile per stati non confermati) */}
                                 {!isPaid && (
@@ -1109,8 +1231,6 @@ function AgencyB2BPortalInner() {
                                     </Button>
                                   </>
                                 )}
-                                {/* Conferma diretta (solo se già PENDING_VERIFICATION e ricevuta caricata) - opzionale */}
-                                {/* Rimosso: solo la Company può confermare il pagamento */}
                                 {/* Apri link SumUp pendente */}
                                 {isOnlinePending && (
                                   <Button
@@ -1277,6 +1397,77 @@ function AgencyB2BPortalInner() {
           }}
         />
       )}
+
+      {/* Dialog Anteprima Prenotazione */}
+      <Dialog open={!!previewBk} onOpenChange={(o) => !o && setPreviewBk(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Anteprima Prenotazione {previewBk?.booking_ref}</DialogTitle>
+          </DialogHeader>
+          {previewBk && (
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-muted-foreground">Cliente:</span><br/><strong>{previewBk.customer_name}</strong></div>
+                <div><span className="text-muted-foreground">Email:</span><br/>{previewBk.customer_email || '—'}</div>
+                <div><span className="text-muted-foreground">Telefono:</span><br/>{previewBk.customer_phone || '—'}</div>
+                <div><span className="text-muted-foreground">Posti:</span><br/><strong>{previewBk.seats}</strong></div>
+                <div><span className="text-muted-foreground">Esperienza:</span><br/>{getExpName(previewBk.experience_id)}</div>
+                <div><span className="text-muted-foreground">Data:</span><br/>{fmtDate(previewBk.slot_datetime)}</div>
+                <div><span className="text-muted-foreground">Stato:</span><br/><StatusBadge status={previewBk.status} /></div>
+                <div><span className="text-muted-foreground">Metodo Pagamento:</span><br/>{previewBk.payment_method || '—'}</div>
+                <div><span className="text-muted-foreground">Totale:</span><br/><strong className="text-emerald-700">{fmtPrice(previewBk.total_amount)}</strong></div>
+                {previewBk.special_requests && (
+                  <div className="col-span-2"><span className="text-muted-foreground">Note:</span><br/>{previewBk.special_requests}</div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Modifica Prenotazione */}
+      <Dialog open={!!editBk} onOpenChange={(o) => !o && !editSubmitting && setEditBk(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Modifica Prenotazione {editBk?.booking_ref}</DialogTitle>
+            <DialogDescription>
+              Aggiorna i dati della prenotazione. La modifica sarà visibile anche alla company.
+            </DialogDescription>
+          </DialogHeader>
+          {editBk && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Nome Cliente</Label>
+                  <Input value={editForm.customer_name || ''} onChange={(e) => setEditForm({ ...editForm, customer_name: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">Email</Label>
+                  <Input type="email" value={editForm.customer_email || ''} onChange={(e) => setEditForm({ ...editForm, customer_email: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">Telefono</Label>
+                  <Input value={editForm.customer_phone || ''} onChange={(e) => setEditForm({ ...editForm, customer_phone: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">Posti</Label>
+                  <Input type="number" min="1" value={editForm.seats || 1} onChange={(e) => setEditForm({ ...editForm, seats: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Richieste Speciali</Label>
+                <Textarea rows={2} value={editForm.special_requests || ''} onChange={(e) => setEditForm({ ...editForm, special_requests: e.target.value })} />
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button variant="outline" onClick={() => setEditBk(null)} disabled={editSubmitting}>Annulla</Button>
+                <Button onClick={saveEditBooking} disabled={editSubmitting}>
+                  {editSubmitting ? 'Salvataggio…' : 'Salva Modifiche'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Popup Grafico a Torta Provvigioni */}
       {showCommissionChart && (
