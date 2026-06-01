@@ -9405,7 +9405,7 @@ Rispondi ESCLUSIVAMENTE con un array JSON con questa struttura:
 
 Sii dettagliato e preciso. Includi TUTTI gli oggetti visibili: mobili, quadri, lampade, tappeti, elettrodomestici, accessori, piante, ecc. Stima valori realistici in EUR."""
         
-        message = UserMessage(text=prompt, image_content=image_contents)
+        message = UserMessage(text=prompt, file_contents=image_contents)
         response = await chat.send_message(message)
         
         # Parse response
