@@ -2028,6 +2028,10 @@ async function handleCompaniesNew(method, id, body, action, sp) {
       max_resources: body.max_resources || 20,
       max_users: body.max_users || 5,
       is_active: body.is_active !== undefined ? body.is_active : true,
+      // Moduli abilitati per questa company (default: tutti). Le tab/funzioni dei moduli disattivati saranno nascoste.
+      enabled_modules: Array.isArray(body.enabled_modules) && body.enabled_modules.length > 0
+        ? body.enabled_modules
+        : ['experiences', 'marina', 'rentals', 'boatyard', 'warehouse'],
       // Configurazione pagamenti per le esperienze pubbliche
       // - online: ereditato dalle marine della company (SumUp/Stripe) - non duplicato qui
       // - bank_transfer: bonifico istantaneo

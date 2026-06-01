@@ -3,6 +3,6 @@
   "cron_expression": "30 23 * * *",
   "timezone": "Europe/Rome",
   "last_run": null,
-  "next_run": "2026-05-31T23:30:00.000Z",
-  "updated_at": "2026-05-31T05:19:35.366Z"
+  "next_run": "2026-06-01T23:30:00.000Z",
+  "updated_at": "2026-06-01T03:20:29.808Z"
 }

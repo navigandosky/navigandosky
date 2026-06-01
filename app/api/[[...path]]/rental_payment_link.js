@@ -104,7 +104,7 @@ export async function handleCreateRentalPaymentLink(method, body) {
     const checkoutRef = `RNT-${safeBkNum}-${Date.now()}`;
 
     const descLine = description?.trim() ||
-      `Locazione ${booking.booking_number} - ${booking.unit_name || ''} (${payment_type || 'pagamento'})`;
+      `Locazione ${booking.booking_number} - ${booking.unit_name || ''}${(customer_name || `${booking.customer?.name || ''} ${booking.customer?.surname || ''}`).trim() ? ' - ' + (customer_name || `${booking.customer?.name || ''} ${booking.customer?.surname || ''}`).trim() : ''} (${payment_type || 'pagamento'})`;
 
     const payload = {
       checkout_reference: checkoutRef,

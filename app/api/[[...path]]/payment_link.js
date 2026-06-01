@@ -105,8 +105,9 @@ export async function handleCreatePaymentLink(method, body) {
 
     // checkout_reference dedicato per integrazione: prefisso INTG- per identificarlo nel webhook
     const checkoutRef = `INTG-${booking.booking_ref}-${Date.now()}`;
+    const custNameForDesc = (customer_name || booking.customer_name || '').trim();
     const descLine = description?.trim() ||
-      `Integrazione Voucher ${booking.booking_ref} - ${booking.experience_name || 'Prenotazione'}`;
+      `Integrazione Voucher ${booking.booking_ref} - ${booking.experience_name || 'Prenotazione'}${custNameForDesc ? ' - ' + custNameForDesc : ''}`;
 
     // Crea hosted checkout
     const payload = {

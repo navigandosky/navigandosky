@@ -3157,6 +3157,25 @@ function AdminDashboard({ currentUser, onLogout }) {
   // Verifica ruolo
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const isCompanyAdmin = currentUser?.role === 'COMPANY_ADMIN';
+  const isAgency = currentUser?.role === 'AGENCY' || !!currentUser?.agency_id;
+
+  // Helper: l'agenzia può cancellare/rimborsare solo se non è già stato incassato dalla company.
+  // Pagato direttamente alla company (CASH/CARD/ONLINE/BANK_TRANSFER confermato) = rimborso solo da company/super
+  // Pagato come AGENCY (rimborso interno) o non ancora pagato = agenzia può procedere.
+  const canCancelBooking = (b) => {
+    if (!b) return false;
+    if (isSuperAdmin || isCompanyAdmin) return true;
+    if (!isAgency) return false;
+    // Agenzia: blocco se incasso già nelle casse della company
+    const pm = b.payment_method;
+    const status = b.status;
+    // Se è ancora PENDING o agenzia ha incasso suo → può cancellare
+    if (pm === 'AGENCY' || pm === 'FREE' || !pm) return true;
+    if (status === 'PENDING_CONFIRMATION' || status === 'PENDING_VERIFICATION' || status === 'PENDING') return true;
+    // Pagamento direttamente alla company già ricevuto → NO
+    if (status === 'CONFIRMED' && ['ONLINE','CARD','CASH','DIRECT','BANK_TRANSFER'].includes(pm)) return false;
+    return true;
+  };
   const [experiences, setExps] = useState([]);
   const [resources, setResources] = useState([]);
   const [slots, setSlots] = useState([]);
@@ -3286,11 +3305,23 @@ function AdminDashboard({ currentUser, onLogout }) {
     };
     setActiveTab(defaultTabPerMode[mode] || 'overview');
   };
-  const showExperiences = viewMode === 'all' || viewMode === 'experiences';
-  const showMarina = viewMode === 'all' || viewMode === 'marina';
-  const showCantiere = viewMode === 'all' || viewMode === 'cantiere';
-  const showMagazzino = viewMode === 'all' || viewMode === 'magazzino';
-  const showLocazioni = viewMode === 'all' || viewMode === 'locazioni';
+  // === Moduli abilitati per la company corrente ===
+  // Se la company ha enabled_modules valorizzato, rispettiamo quello (Super Admin vede tutto).
+  const currentCompanyForModules = useMemo(() => {
+    if (isSuperAdmin) return null; // Super Admin vede tutti i moduli
+    if (!currentUser?.company_id) return null;
+    return (companies || []).find(c => c.id === currentUser.company_id);
+  }, [companies, currentUser, isSuperAdmin]);
+  const companyEnabledModules = currentCompanyForModules?.enabled_modules;
+  const isModuleEnabled = (mod) => {
+    if (!Array.isArray(companyEnabledModules) || companyEnabledModules.length === 0) return true; // backward compat: tutti
+    return companyEnabledModules.includes(mod);
+  };
+  const showExperiences = (viewMode === 'all' || viewMode === 'experiences') && isModuleEnabled('experiences');
+  const showMarina = (viewMode === 'all' || viewMode === 'marina') && isModuleEnabled('marina');
+  const showCantiere = (viewMode === 'all' || viewMode === 'cantiere') && isModuleEnabled('boatyard');
+  const showMagazzino = (viewMode === 'all' || viewMode === 'magazzino') && isModuleEnabled('warehouse');
+  const showLocazioni = (viewMode === 'all' || viewMode === 'locazioni') && isModuleEnabled('rentals');
   
   // Filtri Report
   const [filters, setFilters] = useState({
@@ -4017,15 +4048,17 @@ function AdminDashboard({ currentUser, onLogout }) {
               >
                 🎯 Tutto
               </button>
-              <button
-                type="button"
-                onClick={() => changeViewMode('experiences')}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'experiences' ? 'bg-white shadow text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
-                title="Mostra solo modulo esperienze"
-              >
-                🚤 Esperienze
-              </button>
-              {(hasMarinaOwnership || isSuperAdmin) && (
+              {isModuleEnabled('experiences') && (
+                <button
+                  type="button"
+                  onClick={() => changeViewMode('experiences')}
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'experiences' ? 'bg-white shadow text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  title="Mostra solo modulo esperienze"
+                >
+                  🚤 Esperienze
+                </button>
+              )}
+              {(hasMarinaOwnership || isSuperAdmin) && isModuleEnabled('marina') && (
                 <button
                   type="button"
                   onClick={() => changeViewMode('marina')}
@@ -4035,15 +4068,17 @@ function AdminDashboard({ currentUser, onLogout }) {
                   ⚓ Marina
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => changeViewMode('locazioni')}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'locazioni' ? 'bg-white shadow text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
-                title="Mostra solo modulo Locazioni Brevi"
-              >
-                🏖️ Locazioni Brevi
-              </button>
-              {(isMarlinSub || isSuperAdmin) && (
+              {isModuleEnabled('rentals') && (
+                <button
+                  type="button"
+                  onClick={() => changeViewMode('locazioni')}
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'locazioni' ? 'bg-white shadow text-teal-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  title="Mostra solo modulo Locazioni Brevi"
+                >
+                  🏖️ Locazioni Brevi
+                </button>
+              )}
+              {(isMarlinSub || isSuperAdmin) && isModuleEnabled('boatyard') && (
                 <button
                   type="button"
                   onClick={() => changeViewMode('cantiere')}
@@ -4053,19 +4088,21 @@ function AdminDashboard({ currentUser, onLogout }) {
                   🔧 Cantiere
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => changeViewMode('magazzino')}
-                className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'magazzino' ? 'bg-white shadow text-rose-700' : 'text-slate-500 hover:text-slate-700'}`}
-                title="Mostra solo modulo magazzino"
-              >
-                📦 Magazzino
-              </button>
+              {isModuleEnabled('warehouse') && (
+                <button
+                  type="button"
+                  onClick={() => changeViewMode('magazzino')}
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'magazzino' ? 'bg-white shadow text-rose-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  title="Mostra solo modulo magazzino"
+                >
+                  📦 Magazzino
+                </button>
+              )}
             </div>
           )}
           <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
-          {/* Link Pagamento Online (SumUp) - solo Company Admin */}
-          {isCompanyAdmin && (
+          {/* Link Pagamento Online (SumUp) - Company Admin + Agenzia */}
+          {(isCompanyAdmin || isAgency) && (
             <Button
               onClick={() => setShowPaymentLinkDialog(true)}
               className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
@@ -4085,8 +4122,8 @@ function AdminDashboard({ currentUser, onLogout }) {
         </div>
       </div>
 
-      {/* Dialog Link Pagamento Online - solo Company Admin */}
-      {isCompanyAdmin && showPaymentLinkDialog && (
+      {/* Dialog Link Pagamento Online - Company Admin + Agenzia */}
+      {(isCompanyAdmin || isAgency) && showPaymentLinkDialog && (
         <PaymentLinkDialogLazy
           open={showPaymentLinkDialog}
           onOpenChange={setShowPaymentLinkDialog}
@@ -4875,7 +4912,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                         🔗 Link
                       </Button>
                     )}
-                    <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>
+                    {canCancelBooking(b) && <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
                   </>
                 )}
                 {/* Re-invio voucher email */}
@@ -4890,7 +4927,10 @@ function AdminDashboard({ currentUser, onLogout }) {
                 </Button>
                 {(b.status==='CONFIRMED'&&!b.checked_in_at)&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>}
                 {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>checkinBooking(b.id)}>Check-in</Button>}
-                {b.status==='CONFIRMED'&&!b.checked_in_at&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
+                {b.status==='CONFIRMED'&&!b.checked_in_at&&canCancelBooking(b)&&<Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)} title={isAgency?'Annulla la prenotazione (solo se non incassata dalla company)':'Annulla la prenotazione'}>Cancella</Button>}
+                {b.status==='CONFIRMED'&&!b.checked_in_at&&!canCancelBooking(b)&&isAgency&&(
+                  <Badge className="text-[10px] bg-slate-200 text-slate-600 cursor-not-allowed" title="Incasso già nelle casse della company. Contattare amministrazione per rimborso.">🔒 Rimborso da Admin</Badge>
+                )}
                 {b.checked_in_at&&<Badge className="bg-green-100 text-green-800 text-xs"><CheckCircle2 className="w-3 h-3 mr-1"/>OK</Badge>}
                 {/* Eliminazione DEFINITIVA solo per CANCELLED e solo admin (company/super) */}
                 {b.status==='CANCELLED'&&(isCompanyAdmin||isSuperAdmin)&&(
@@ -5544,6 +5584,60 @@ function AdminDashboard({ currentUser, onLogout }) {
                   </div>
                 )}
                 
+                {/* === MODULI ATTIVI === */}
+                <div className="bg-gradient-to-br from-violet-50 to-purple-50 border-2 border-violet-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-sm font-bold text-violet-900 flex items-center gap-2">
+                      <Package className="w-4 h-4" /> Moduli Abilitati per la Company
+                    </Label>
+                    <span className="text-[10px] text-violet-700">Attiva solo i moduli necessari</span>
+                  </div>
+                  <p className="text-xs text-violet-700 mb-3">
+                    Le tab e le funzionalità dei moduli disattivati saranno nascoste per gli utenti di questa company.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {[
+                      { key: 'experiences', label: 'Esperienze / Tour', icon: '🎫', desc: 'Booking esperienze e tour' },
+                      { key: 'marina', label: 'Marina / Posti Barca', icon: '⚓', desc: 'Gestione marina e contratti' },
+                      { key: 'rentals', label: 'Locazioni Brevi', icon: '🏖️', desc: 'Case vacanza e affitti' },
+                      { key: 'boatyard', label: 'Cantiere', icon: '🔧', desc: 'Servizi cantiere navale' },
+                      { key: 'warehouse', label: 'Magazzino', icon: '📦', desc: 'Gestione magazzino e articoli' },
+                    ].map(mod => {
+                      const enabled = (newCompanyForm.enabled_modules || ['experiences','marina','rentals','boatyard','warehouse']).includes(mod.key);
+                      return (
+                        <label
+                          key={mod.key}
+                          className={`flex items-start gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-all ${
+                            enabled
+                              ? 'bg-white border-violet-400 shadow-sm'
+                              : 'bg-slate-50 border-slate-200 opacity-60'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={enabled}
+                            onChange={(e) => {
+                              const current = newCompanyForm.enabled_modules || ['experiences','marina','rentals','boatyard','warehouse'];
+                              const next = e.target.checked
+                                ? [...new Set([...current, mod.key])]
+                                : current.filter(k => k !== mod.key);
+                              setNewCompanyForm({ ...newCompanyForm, enabled_modules: next });
+                            }}
+                            className="mt-0.5"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold flex items-center gap-1">
+                              <span>{mod.icon}</span>
+                              <span>{mod.label}</span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">{mod.desc}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Informazioni Base */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

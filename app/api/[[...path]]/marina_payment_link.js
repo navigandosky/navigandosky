@@ -108,8 +108,9 @@ export async function handleCreateMarinaPaymentLink(method, body) {
     const safeBkNum = String(booking.booking_number).replace(/\//g, '-');
     const checkoutRef = `MAR-${safeBkNum}-${Date.now()}`;
 
+    const custNameForDesc = (customer_name || `${booking.customer?.name || ''} ${booking.customer?.surname || ''}`).trim();
     const descLine = (description?.trim()) ||
-      `Marina ${booking.booking_number} - ${booking.marina_name || ''} (${payment_type || 'pagamento'})`;
+      `Marina ${booking.booking_number} - ${booking.marina_name || ''}${custNameForDesc ? ' - ' + custNameForDesc : ''} (${payment_type || 'pagamento'})`;
 
     const payload = {
       checkout_reference: checkoutRef,

@@ -68,7 +68,7 @@ export async function handleCreateSumupCheckout(method, body) {
       amount: Number(booking.total_amount),
       currency: booking.currency || 'EUR',
       merchant_code: merchantCode,
-      description: `Prenotazione ${booking.booking_ref} - ${booking.experience_name || 'Esperienza'}`,
+      description: `Prenotazione ${booking.booking_ref} - ${booking.experience_name || 'Esperienza'}${booking.customer_name ? ' - ' + booking.customer_name : ''}`,
       hosted_checkout: { enabled: true },
       redirect_url: redirectUrl,
       return_url: webhookUrl,
