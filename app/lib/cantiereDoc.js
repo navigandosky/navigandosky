@@ -62,12 +62,23 @@ export async function generateCantierePDF(quote, company) {
     b.registration ? `Targa: ${b.registration}` : '',
     b.length ? `Lunghezza: ${b.length} m` : '',
   ].filter(Boolean);
-  const maxLines = Math.max(issuerLines.length, clientLines.length);
+
+  // === Layout a due colonne con wrap automatico per evitare sovrapposizioni ===
+  // EMITTENTE: x=14, larghezza max 88mm
+  // CLIENTE:   x=110, larghezza max 88mm
+  const COL_WIDTH = 88;
+  const ISSUER_X = 14;
+  const CLIENT_X = 110;
+  const LINE_HEIGHT = 4.5;
+
+  const issuerWrapped = issuerLines.flatMap(line => doc.splitTextToSize(String(line), COL_WIDTH));
+  const clientWrapped = clientLines.flatMap(line => doc.splitTextToSize(String(line), COL_WIDTH));
+  const maxLines = Math.max(issuerWrapped.length, clientWrapped.length);
   for (let i = 0; i < maxLines; i++) {
-    if (issuerLines[i]) doc.text(String(issuerLines[i]).slice(0, 55), 14, y + i * 4.5);
-    if (clientLines[i]) doc.text(String(clientLines[i]).slice(0, 55), 110, y + i * 4.5);
+    if (issuerWrapped[i]) doc.text(issuerWrapped[i], ISSUER_X, y + i * LINE_HEIGHT);
+    if (clientWrapped[i]) doc.text(clientWrapped[i], CLIENT_X, y + i * LINE_HEIGHT);
   }
-  y += maxLines * 4.5 + 8;
+  y += maxLines * LINE_HEIGHT + 8;
 
   const items = quote.items || [];
   const rows = items.map((it, idx) => [
