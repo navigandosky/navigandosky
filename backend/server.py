@@ -9355,7 +9355,7 @@ async def delete_immagine_ambiente(ambiente_id: str, img_id: str, token: Optiona
 
 @api_router.post("/inventario/ambienti/{ambiente_id}/elabora")
 async def elabora_immagini_ambiente(ambiente_id: str, token: Optional[str] = Query(None)):
-    """Use AI vision to identify objects in room images"""
+    """Use AI vision to identify objects - returns proposals WITHOUT saving"""
     user = await get_user_from_token(token)
     user_id = user.get("id", DEFAULT_USER_ID)
     ambiente = await db.inventario_ambienti.find_one(
@@ -9378,11 +9378,9 @@ async def elabora_immagini_ambiente(ambiente_id: str, token: Optional[str] = Que
             system_message="Sei un esperto di inventari immobiliari. Analizza le immagini di un ambiente e identifica TUTTI gli oggetti, mobili, elettrodomestici e beni visibili. Per ogni oggetto fornisci una stima del valore. Rispondi SOLO con JSON valido."
         ).with_model("openai", "gpt-4o")
         
-        # Build image contents
         image_contents = []
-        for img in immagini[:10]:  # Max 10 images
+        for img in immagini[:10]:
             img_data = img.get("data", "")
-            # Strip data URL prefix if present
             if "base64," in img_data:
                 img_data = img_data.split("base64,")[1]
             image_contents.append(ImageContent(image_base64=img_data))
@@ -9408,65 +9406,115 @@ Sii dettagliato e preciso. Includi TUTTI gli oggetti visibili: mobili, quadri, l
         message = UserMessage(text=prompt, file_contents=image_contents)
         response = await chat.send_message(message)
         
-        # Parse response
         import json as json_module
         response_text = response.strip()
-        # Extract JSON from response
         if "```json" in response_text:
             response_text = response_text.split("```json")[1].split("```")[0].strip()
         elif "```" in response_text:
             response_text = response_text.split("```")[1].split("```")[0].strip()
         
         if response_text.startswith("["):
-            oggetti = json_module.loads(response_text)
+            ai_oggetti = json_module.loads(response_text)
         else:
-            # Try to find array in response
             start = response_text.find("[")
             end = response_text.rfind("]") + 1
             if start >= 0 and end > start:
-                oggetti = json_module.loads(response_text[start:end])
+                ai_oggetti = json_module.loads(response_text[start:end])
             else:
-                oggetti = []
+                ai_oggetti = []
         
-        # Create inventory records
-        created_objects = []
+        # Check for duplicates against existing objects in this room and globally
+        existing = await db.inventario_oggetti.find(
+            {"user_id": user_id}, {"_id": 0, "descrizione": 1, "ambiente_id": 1}
+        ).to_list(5000)
+        existing_descriptions = [e.get("descrizione", "").lower().strip() for e in existing]
+        existing_in_room = [e.get("descrizione", "").lower().strip() for e in existing if e.get("ambiente_id") == ambiente_id]
+        
+        # Build proposals with duplicate flags
         counter = await db.inventario_oggetti.count_documents({"user_id": user_id}) + 1
-        
-        for obj in oggetti:
-            record = {
-                "id": str(uuid.uuid4()),
-                "user_id": user_id,
-                "ambiente_id": ambiente_id,
+        proposals = []
+        for obj in ai_oggetti:
+            desc = str(obj.get("descrizione", ""))[:100]
+            desc_lower = desc.lower().strip()
+            
+            # Check similarity with existing
+            is_duplicate_room = any(_similar(desc_lower, ex) for ex in existing_in_room)
+            is_duplicate_other = any(_similar(desc_lower, ex) for ex in existing_descriptions) and not is_duplicate_room
+            
+            proposals.append({
+                "temp_id": str(uuid.uuid4()),
                 "codice": f"INV-{counter:04d}",
-                "descrizione": str(obj.get("descrizione", ""))[:100],
+                "descrizione": desc,
                 "quantita": int(obj.get("quantita", 1)),
                 "valore_nuovo": float(obj.get("valore_nuovo", 0)),
                 "valore_attuale": float(obj.get("valore_attuale", 0)),
-                "seriale": "",
-                "tag_id": "",
-                "poi_id": "",
                 "categoria": obj.get("categoria", ""),
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
-            created_objects.append(record)
+                "duplicate_in_room": is_duplicate_room,
+                "duplicate_in_other": is_duplicate_other,
+            })
             counter += 1
-        
-        if created_objects:
-            await db.inventario_oggetti.insert_many(created_objects)
-            # Remove _id from each
-            for o in created_objects:
-                o.pop("_id", None)
         
         return {
             "success": True,
-            "oggetti_trovati": len(created_objects),
-            "oggetti": created_objects
+            "proposals": proposals,
+            "total_found": len(proposals)
         }
     
     except Exception as e:
         logger.error(f"Error in AI image analysis: {e}")
         raise HTTPException(status_code=500, detail=f"Errore analisi AI: {str(e)}")
+
+def _similar(a: str, b: str) -> bool:
+    """Simple similarity check between two descriptions"""
+    if not a or not b:
+        return False
+    if a == b:
+        return True
+    # Check if one contains the other
+    if a in b or b in a:
+        return True
+    # Check word overlap
+    words_a = set(a.split())
+    words_b = set(b.split())
+    if len(words_a) == 0 or len(words_b) == 0:
+        return False
+    overlap = len(words_a & words_b) / max(len(words_a), len(words_b))
+    return overlap >= 0.6
+
+@api_router.post("/inventario/oggetti/batch")
+async def batch_create_oggetti(data: dict = Body(...), token: Optional[str] = Query(None)):
+    """Save confirmed objects from AI proposals"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    items = data.get("oggetti", [])
+    ambiente_id = data.get("ambiente_id", "")
+    
+    created = []
+    for item in items:
+        record = {
+            "id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "ambiente_id": ambiente_id,
+            "codice": item.get("codice", ""),
+            "descrizione": str(item.get("descrizione", ""))[:100],
+            "quantita": int(item.get("quantita", 1)),
+            "valore_nuovo": float(item.get("valore_nuovo", 0)),
+            "valore_attuale": float(item.get("valore_attuale", 0)),
+            "seriale": "",
+            "tag_id": "",
+            "poi_id": "",
+            "categoria": item.get("categoria", ""),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        created.append(record)
+    
+    if created:
+        await db.inventario_oggetti.insert_many(created)
+        for o in created:
+            o.pop("_id", None)
+    
+    return {"success": True, "created": len(created), "oggetti": created}
 
 @api_router.get("/inventario/oggetti")
 async def get_oggetti_inventario(

@@ -42,6 +42,12 @@ export default function Inventario({ authToken, matterportPois }) {
   const [elaborating, setElaborating] = useState(false);
   const [expandedAmbiente, setExpandedAmbiente] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  // AI Review state
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewProposals, setReviewProposals] = useState([]);
+  const [reviewAmbienteId, setReviewAmbienteId] = useState(null);
+  const [selectedProposals, setSelectedProposals] = useState({});
+  const [savingBatch, setSavingBatch] = useState(false);
   const fileInputRef = useRef(null);
 
   // Form state for ambiente
@@ -133,13 +139,59 @@ export default function Inventario({ authToken, matterportPois }) {
     setElaborating(true);
     try {
       const res = await axios.post(`${API}/inventario/ambienti/${ambienteId}/elabora`, null, { params, timeout: 120000 });
-      toast.success(`Trovati ${res.data.oggetti_trovati} oggetti!`);
-      loadOggetti(ambienteId);
-      loadOggetti();
+      const proposals = res.data.proposals || [];
+      if (proposals.length === 0) {
+        toast.info("Nessun oggetto identificato nelle immagini.");
+        return;
+      }
+      // Pre-select all non-duplicate items
+      const sel = {};
+      proposals.forEach(p => { sel[p.temp_id] = !p.duplicate_in_room; });
+      setSelectedProposals(sel);
+      setReviewProposals(proposals);
+      setReviewAmbienteId(ambienteId);
+      setReviewDialogOpen(true);
+      toast.success(`AI ha identificato ${proposals.length} oggetti. Rivedi la lista.`);
     } catch (e) {
       toast.error(e.response?.data?.detail || "Errore analisi AI");
     } finally {
       setElaborating(false);
+    }
+  };
+
+  const toggleProposal = (tempId) => {
+    setSelectedProposals(prev => ({ ...prev, [tempId]: !prev[tempId] }));
+  };
+
+  const selectAllProposals = (val) => {
+    const sel = {};
+    reviewProposals.forEach(p => { sel[p.temp_id] = val; });
+    setSelectedProposals(sel);
+  };
+
+  const confirmProposals = async () => {
+    const confirmed = reviewProposals.filter(p => selectedProposals[p.temp_id]);
+    if (confirmed.length === 0) {
+      toast.warning("Nessun oggetto selezionato.");
+      return;
+    }
+    setSavingBatch(true);
+    try {
+      await axios.post(`${API}/inventario/oggetti/batch`, {
+        ambiente_id: reviewAmbienteId,
+        oggetti: confirmed.map(p => ({
+          codice: p.codice, descrizione: p.descrizione, quantita: p.quantita,
+          valore_nuovo: p.valore_nuovo, valore_attuale: p.valore_attuale, categoria: p.categoria
+        }))
+      }, { params });
+      toast.success(`${confirmed.length} oggetti aggiunti all'inventario!`);
+      setReviewDialogOpen(false);
+      setReviewProposals([]);
+      loadOggetti();
+    } catch (e) {
+      toast.error("Errore salvataggio oggetti");
+    } finally {
+      setSavingBatch(false);
     }
   };
 
@@ -560,6 +612,90 @@ export default function Inventario({ authToken, matterportPois }) {
             <Button variant="outline" onClick={() => setOggettoDialogOpen(false)}>Annulla</Button>
             <Button onClick={saveOggetto} disabled={!oggettoForm.descrizione?.trim()}>
               <Save className="h-4 w-4 mr-2" />{editingOggetto ? "Aggiorna" : "Aggiungi"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Review Dialog */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              Revisione Oggetti Identificati ({reviewProposals.length})
+            </DialogTitle>
+            <p className="text-sm text-gray-500">
+              Seleziona gli oggetti da aggiungere all'inventario. Gli elementi duplicati sono segnalati.
+            </p>
+          </DialogHeader>
+
+          {/* Select All / Deselect All */}
+          <div className="flex items-center justify-between py-2 border-b">
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => selectAllProposals(true)}>
+                Seleziona Tutti
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => selectAllProposals(false)}>
+                Deseleziona Tutti
+              </Button>
+            </div>
+            <Badge variant="secondary">
+              {Object.values(selectedProposals).filter(Boolean).length} / {reviewProposals.length} selezionati
+            </Badge>
+          </div>
+
+          {/* Proposals List */}
+          <div className="flex-1 overflow-y-auto space-y-1.5 py-2 min-h-0">
+            {reviewProposals.map((p) => (
+              <div key={p.temp_id}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all cursor-pointer ${
+                  selectedProposals[p.temp_id]
+                    ? "bg-green-50 border-green-300"
+                    : "bg-gray-50 border-gray-200 opacity-60"
+                } ${p.duplicate_in_room ? "ring-2 ring-red-300" : ""} ${p.duplicate_in_other ? "ring-2 ring-amber-300" : ""}`}
+                onClick={() => toggleProposal(p.temp_id)}>
+
+                {/* Checkbox */}
+                <input type="checkbox" checked={!!selectedProposals[p.temp_id]}
+                  onChange={() => toggleProposal(p.temp_id)}
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 shrink-0" />
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-blue-500">{p.codice}</span>
+                    <span className="text-sm font-medium truncate">{p.descrizione}</span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                    <span>Qt: {p.quantita}</span>
+                    <span>Nuovo: {(p.valore_nuovo || 0).toLocaleString("it-IT")} &euro;</span>
+                    <span>Attuale: {(p.valore_attuale || 0).toLocaleString("it-IT")} &euro;</span>
+                    {p.categoria && <Badge variant="secondary" className="text-[10px] py-0">{p.categoria}</Badge>}
+                  </div>
+                </div>
+
+                {/* Duplicate warnings */}
+                {p.duplicate_in_room && (
+                  <Badge className="bg-red-100 text-red-700 text-[10px] shrink-0">
+                    Duplicato in questo ambiente
+                  </Badge>
+                )}
+                {p.duplicate_in_other && !p.duplicate_in_room && (
+                  <Badge className="bg-amber-100 text-amber-700 text-[10px] shrink-0">
+                    Presente in altro ambiente
+                  </Badge>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter className="border-t pt-3">
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Annulla</Button>
+            <Button onClick={confirmProposals} disabled={savingBatch || Object.values(selectedProposals).filter(Boolean).length === 0}
+              className="bg-green-600 hover:bg-green-700">
+              {savingBatch ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Conferma {Object.values(selectedProposals).filter(Boolean).length} Oggetti
             </Button>
           </DialogFooter>
         </DialogContent>
