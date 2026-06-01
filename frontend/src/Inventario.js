@@ -5,7 +5,7 @@ import { useLanguage } from "./i18n/LanguageContext";
 import {
   Plus, Trash2, Edit3, Camera, Sparkles, Package, Search,
   ChevronDown, ChevronRight, Image as ImageIcon, X, Loader2,
-  Link2, Hash, Save, FileText
+  Link2, Hash, Save, FileText, Navigation
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
@@ -30,7 +30,7 @@ import { Textarea } from "./components/ui/textarea";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
 
-export default function Inventario({ authToken, matterportPois }) {
+export default function Inventario({ authToken, matterportPois, onNavigateToPoi }) {
   const { t } = useLanguage();
   const [ambienti, setAmbienti] = useState([]);
   const [oggetti, setOggetti] = useState([]);
@@ -482,7 +482,14 @@ export default function Inventario({ authToken, matterportPois }) {
                                     {obj.poi_id ? (() => {
                                       const linkedPoi = (matterportPois || []).find(p => p.id === obj.poi_id);
                                       const linkedName = linkedPoi ? ((linkedPoi.translations && linkedPoi.translations[0]?.title) || linkedPoi.id.slice(0,8)) : obj.poi_id.slice(0,8);
-                                      return <span className="text-xs text-teal-600 font-medium" title={obj.poi_id}>{linkedName}</span>;
+                                      return (
+                                        <button onClick={() => onNavigateToPoi && onNavigateToPoi(obj.poi_id)}
+                                          className="inline-flex items-center gap-1 px-2 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-md text-xs font-medium transition-colors"
+                                          title={`Vai a ${linkedName} nella Vista 3D`}>
+                                          <Navigation className="h-3 w-3" />
+                                          {linkedName}
+                                        </button>
+                                      );
                                     })() :
                                       <span className="text-gray-300">-</span>}
                                   </td>

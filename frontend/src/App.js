@@ -2010,7 +2010,8 @@ function SmartDomoApp() {
 
         {/* Inventario Tab */}
         {activeTab === "inventario" && (
-          <Inventario authToken={authToken} matterportPois={matterportPois} />
+          <Inventario authToken={authToken} matterportPois={matterportPois}
+            onNavigateToPoi={(poiId) => { setActiveTab("matterport"); setNavigateToPoiId(poiId); }} />
         )}
 
         {/* Assistente AI Tab */}
