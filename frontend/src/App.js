@@ -61,14 +61,16 @@ import {
   Box,
   Video,
   RefreshCw,
-  Car
+  Car,
+  Package
 } from "lucide-react";
 import { LoginPage, UserManagement } from "./AuthPage";
 import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "./TicketCalendarQR";
 import { PlanimetriaEditor, SuggerimentiProattivi, NotificationBadge } from "./PlanimetriaSuggerimenti";
 import SmartBuildingDashboard from "./SmartBuildingDashboard";
-import MatterportManager from "./MatterportManager";
+import Inventario from "./Inventario";
 import VideoCameraManager from "./VideoCameraManager";
+import MatterportManager from "./MatterportManager";
 import ElettrodomesticoDialog from "./ElettrodomesticoForm";
 import RicercaCentriAssistenza from "./RicercaCentriAssistenza";
 import PropertyConfig from "./PropertyConfig";
@@ -1853,61 +1855,104 @@ function SmartDomoApp() {
         </div>
       </header>
 
-      {/* Navigation */}
-      <nav className="bg-white border-b">
-        <div className="w-full px-6">
-          <div className="flex gap-1 overflow-x-auto">
-            {[
-              { id: "matterport", label: t.nav.vista3d, icon: Eye },
-              { id: "videocam", label: t.nav.videocam, icon: Video },
-              { id: "smartdomo", label: t.nav.smartdomo, icon: Thermometer },
-              { id: "sensori", label: t.nav.reportSensori, icon: Activity },
-              { id: "elettrodomestici", label: t.nav.apparati, icon: Zap },
-              { id: "calendario", label: t.nav.calendario, icon: Calendar },
-              { id: "manutenzioni", label: t.nav.manutenzioni, icon: Wrench },
-              { id: "tickets", label: t.nav.ticket, icon: Ticket },
-              { id: "assistente", label: t.nav.assistente, icon: Bot },
-              { id: "veicoli", label: t.nav.veicoli, icon: Car },
-              { id: "proprieta", label: t.nav.setup, icon: Settings },
-              ...(currentUser?.role === "admin" ? [{ id: "utenti", label: t.nav.utenti, icon: Users }] : []),
-            ].map((tab) => {
-              // Colori specifici per ogni tab
-              const tabColors = {
-                videocam: { active: "text-red-600 border-red-600", icon: "text-red-500" },
-                veicoli: { active: "text-emerald-600 border-emerald-600", icon: "text-emerald-500" },
-                smartdomo: { active: "text-cyan-500 border-cyan-500", icon: "text-cyan-500" },
-                proprieta: { active: "text-emerald-600 border-emerald-600", icon: "text-emerald-500" },
-                sensori: { active: "text-rose-600 border-rose-600", icon: "text-rose-500" },
-                dashboard: { active: "text-blue-600 border-blue-600", icon: "text-blue-500" },
-                suggerimenti: { active: "text-yellow-500 border-yellow-500", icon: "text-yellow-500" },
-                assistente: { active: "text-purple-600 border-purple-600", icon: "text-purple-500" },
-                calendario: { active: "text-green-600 border-green-600", icon: "text-green-500" },
-                tickets: { active: "text-orange-600 border-orange-600", icon: "text-orange-500" },
-                planimetria: { active: "text-indigo-600 border-indigo-600", icon: "text-indigo-500" },
-                matterport: { active: "text-pink-600 border-pink-600", icon: "text-pink-500" },
-                elettrodomestici: { active: "text-amber-600 border-amber-600", icon: "text-amber-500" },
-                manutenzioni: { active: "text-red-600 border-red-600", icon: "text-red-500" },
-                centri: { active: "text-teal-600 border-teal-600", icon: "text-teal-500" },
-                utenti: { active: "text-violet-600 border-violet-600", icon: "text-violet-500" },
-              };
-              const colors = tabColors[tab.id] || { active: "text-blue-600 border-blue-600", icon: "text-gray-500" };
-              
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+      {/* Navigation - Grouped Tabs */}
+      <nav className="bg-white border-b shadow-sm">
+        <div className="w-full px-4">
+          <div className="flex gap-0.5 overflow-x-auto py-1">
+            {/* Group 1: Monitoraggio & Controllo - Blue */}
+            <div className="flex items-center bg-blue-50 rounded-lg px-1 mr-1.5">
+              {[
+                { id: "matterport", label: t.nav.vista3d, icon: Eye },
+                { id: "videocam", label: t.nav.videocam, icon: Video },
+                { id: "smartdomo", label: t.nav.smartdomo, icon: Thermometer },
+                { id: "sensori", label: t.nav.reportSensori, icon: Activity },
+              ].map((tab) => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
                     activeTab === tab.id
-                      ? colors.active
-                      : "border-transparent text-gray-500 hover:text-gray-700"
-                  }`}
-                  data-testid={`nav-${tab.id}`}
-                >
-                  <tab.icon className={`h-4 w-4 ${activeTab === tab.id ? '' : colors.icon}`} />
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-blue-700 hover:bg-blue-100"
+                  }`} data-testid={`nav-${tab.id}`}>
+                  <tab.icon className="h-4 w-4" />
                   {tab.label}
                 </button>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Group 2: Gestione - Amber */}
+            <div className="flex items-center bg-amber-50 rounded-lg px-1 mr-1.5">
+              {[
+                { id: "manutenzioni", label: t.nav.manutenzioni, icon: Wrench },
+                { id: "calendario", label: t.nav.calendario, icon: Calendar },
+                { id: "elettrodomestici", label: t.nav.apparati, icon: Zap },
+                { id: "tickets", label: t.nav.ticket, icon: Ticket },
+              ].map((tab) => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "bg-amber-600 text-white shadow-sm"
+                      : "text-amber-700 hover:bg-amber-100"
+                  }`} data-testid={`nav-${tab.id}`}>
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Group 3: Veicoli - Emerald */}
+            <div className="flex items-center bg-emerald-50 rounded-lg px-1 mr-1.5">
+              <button onClick={() => setActiveTab("veicoli")}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                  activeTab === "veicoli"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-emerald-700 hover:bg-emerald-100"
+                }`} data-testid="nav-veicoli">
+                <Car className="h-4 w-4" />
+                {t.nav.veicoli}
+              </button>
+            </div>
+
+            {/* Group 4: AI & Inventario - Purple */}
+            <div className="flex items-center bg-purple-50 rounded-lg px-1 mr-1.5">
+              {[
+                { id: "assistente", label: t.nav.assistente, icon: Bot },
+                { id: "inventario", label: "Inventario", icon: Package },
+              ].map((tab) => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "bg-purple-600 text-white shadow-sm"
+                      : "text-purple-700 hover:bg-purple-100"
+                  }`} data-testid={`nav-${tab.id}`}>
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Group 5: Setup - Slate */}
+            <div className="flex items-center bg-slate-100 rounded-lg px-1">
+              <button onClick={() => setActiveTab("proprieta")}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                  activeTab === "proprieta"
+                    ? "bg-slate-700 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-200"
+                }`} data-testid="nav-proprieta">
+                <Settings className="h-4 w-4" />
+                {t.nav.setup}
+              </button>
+              {currentUser?.role === "admin" && (
+                <button onClick={() => setActiveTab("utenti")}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                    activeTab === "utenti"
+                      ? "bg-slate-700 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-200"
+                  }`} data-testid="nav-utenti">
+                  <Users className="h-4 w-4" />
+                  {t.nav.utenti}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </nav>
@@ -1957,11 +2002,15 @@ function SmartDomoApp() {
         {activeTab === "suggerimenti" && (
           <SuggerimentiProattivi 
             onNavigateToElettrodomestico={(id) => {
-              // Trova l'elettrodomestico e vai alla sua scheda
               setActiveTab("elettrodomestici");
             }}
             authToken={authToken}
           />
+        )}
+
+        {/* Inventario Tab */}
+        {activeTab === "inventario" && (
+          <Inventario authToken={authToken} matterportPois={matterportPois} />
         )}
 
         {/* Assistente AI Tab */}

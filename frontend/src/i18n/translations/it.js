@@ -10,6 +10,7 @@ const it = {
     manutenzioni: "Manutenzioni",
     ticket: "Ticket",
     assistente: "Assistente",
+    inventario: "Inventario",
     veicoli: "Veicoli",
     setup: "Setup",
     utenti: "Utenti",

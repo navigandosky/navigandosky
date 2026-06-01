@@ -9,6 +9,7 @@ const fr = {
     manutenzioni: "Maintenance",
     ticket: "Tickets",
     assistente: "Assistant",
+    inventario: "Inventaire",
     veicoli: "Vehicules",
     setup: "Config",
     utenti: "Utilisateurs",

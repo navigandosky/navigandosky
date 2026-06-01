@@ -9262,6 +9262,279 @@ async def get_balin_device_trips(
         raise HTTPException(status_code=500, detail=f"Errore recupero viaggi: {str(e)}")
 
 
+# ==========================================
+# INVENTARIO - Room Inventory Management
+# ==========================================
+
+@api_router.get("/inventario/ambienti")
+async def get_ambienti(token: Optional[str] = Query(None)):
+    """Get all rooms/environments for the user"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    ambienti = await db.inventario_ambienti.find(
+        {"user_id": user_id}, {"_id": 0}
+    ).sort("nome", 1).to_list(200)
+    return ambienti
+
+@api_router.post("/inventario/ambienti")
+async def create_ambiente(data: dict = Body(...), token: Optional[str] = Query(None)):
+    """Create a new room/environment"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    ambiente = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "nome": data.get("nome", ""),
+        "descrizione": data.get("descrizione", ""),
+        "immagini": [],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.inventario_ambienti.insert_one(ambiente)
+    ambiente.pop("_id", None)
+    return ambiente
+
+@api_router.put("/inventario/ambienti/{ambiente_id}")
+async def update_ambiente(ambiente_id: str, data: dict = Body(...), token: Optional[str] = Query(None)):
+    """Update a room/environment"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    update = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if "nome" in data:
+        update["nome"] = data["nome"]
+    if "descrizione" in data:
+        update["descrizione"] = data["descrizione"]
+    result = await db.inventario_ambienti.update_one(
+        {"id": ambiente_id, "user_id": user_id}, {"$set": update}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ambiente non trovato")
+    updated = await db.inventario_ambienti.find_one({"id": ambiente_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/inventario/ambienti/{ambiente_id}")
+async def delete_ambiente(ambiente_id: str, token: Optional[str] = Query(None)):
+    """Delete a room and all its objects"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    await db.inventario_ambienti.delete_one({"id": ambiente_id, "user_id": user_id})
+    await db.inventario_oggetti.delete_many({"ambiente_id": ambiente_id, "user_id": user_id})
+    return {"success": True}
+
+@api_router.post("/inventario/ambienti/{ambiente_id}/immagini")
+async def add_immagine_ambiente(ambiente_id: str, data: dict = Body(...), token: Optional[str] = Query(None)):
+    """Add a base64 image to a room"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    img_data = data.get("immagine", "")
+    if not img_data:
+        raise HTTPException(status_code=400, detail="Immagine mancante")
+    img_record = {
+        "id": str(uuid.uuid4()),
+        "data": img_data,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    result = await db.inventario_ambienti.update_one(
+        {"id": ambiente_id, "user_id": user_id},
+        {"$push": {"immagini": img_record}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ambiente non trovato")
+    return {"success": True, "immagine_id": img_record["id"]}
+
+@api_router.delete("/inventario/ambienti/{ambiente_id}/immagini/{img_id}")
+async def delete_immagine_ambiente(ambiente_id: str, img_id: str, token: Optional[str] = Query(None)):
+    """Remove an image from a room"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    await db.inventario_ambienti.update_one(
+        {"id": ambiente_id, "user_id": user_id},
+        {"$pull": {"immagini": {"id": img_id}}}
+    )
+    return {"success": True}
+
+@api_router.post("/inventario/ambienti/{ambiente_id}/elabora")
+async def elabora_immagini_ambiente(ambiente_id: str, token: Optional[str] = Query(None)):
+    """Use AI vision to identify objects in room images"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    ambiente = await db.inventario_ambienti.find_one(
+        {"id": ambiente_id, "user_id": user_id}, {"_id": 0}
+    )
+    if not ambiente:
+        raise HTTPException(status_code=404, detail="Ambiente non trovato")
+    
+    immagini = ambiente.get("immagini", [])
+    if not immagini:
+        raise HTTPException(status_code=400, detail="Nessuna immagine caricata. Aggiungi foto prima di elaborare.")
+    
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+        
+        llm_key = os.environ.get("EMERGENT_LLM_KEY", "")
+        chat = LlmChat(
+            api_key=llm_key,
+            session_id=f"inventario-{ambiente_id}-{uuid.uuid4().hex[:8]}",
+            system_message="Sei un esperto di inventari immobiliari. Analizza le immagini di un ambiente e identifica TUTTI gli oggetti, mobili, elettrodomestici e beni visibili. Per ogni oggetto fornisci una stima del valore. Rispondi SOLO con JSON valido."
+        ).with_model("openai", "gpt-4o")
+        
+        # Build image contents
+        image_contents = []
+        for img in immagini[:10]:  # Max 10 images
+            img_data = img.get("data", "")
+            # Strip data URL prefix if present
+            if "base64," in img_data:
+                img_data = img_data.split("base64,")[1]
+            image_contents.append(ImageContent(image_base64=img_data))
+        
+        prompt = f"""Analizza queste {len(image_contents)} immagini dell'ambiente "{ambiente.get('nome', 'N/A')}".
+
+Identifica OGNI oggetto, mobile, elettrodomestico, elemento decorativo visibile.
+
+Rispondi ESCLUSIVAMENTE con un array JSON con questa struttura:
+[
+  {{
+    "descrizione": "Divano 3 posti grigio in tessuto",
+    "quantita": 1,
+    "valore_nuovo": 800,
+    "valore_attuale": 400,
+    "categoria": "Arredamento"
+  }},
+  ...
+]
+
+Sii dettagliato e preciso. Includi TUTTI gli oggetti visibili: mobili, quadri, lampade, tappeti, elettrodomestici, accessori, piante, ecc. Stima valori realistici in EUR."""
+        
+        message = UserMessage(text=prompt, image_content=image_contents)
+        response = await chat.send_message(message)
+        
+        # Parse response
+        import json as json_module
+        response_text = response.strip()
+        # Extract JSON from response
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0].strip()
+        
+        if response_text.startswith("["):
+            oggetti = json_module.loads(response_text)
+        else:
+            # Try to find array in response
+            start = response_text.find("[")
+            end = response_text.rfind("]") + 1
+            if start >= 0 and end > start:
+                oggetti = json_module.loads(response_text[start:end])
+            else:
+                oggetti = []
+        
+        # Create inventory records
+        created_objects = []
+        counter = await db.inventario_oggetti.count_documents({"user_id": user_id}) + 1
+        
+        for obj in oggetti:
+            record = {
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "ambiente_id": ambiente_id,
+                "codice": f"INV-{counter:04d}",
+                "descrizione": str(obj.get("descrizione", ""))[:100],
+                "quantita": int(obj.get("quantita", 1)),
+                "valore_nuovo": float(obj.get("valore_nuovo", 0)),
+                "valore_attuale": float(obj.get("valore_attuale", 0)),
+                "seriale": "",
+                "tag_id": "",
+                "poi_id": "",
+                "categoria": obj.get("categoria", ""),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            created_objects.append(record)
+            counter += 1
+        
+        if created_objects:
+            await db.inventario_oggetti.insert_many(created_objects)
+            # Remove _id from each
+            for o in created_objects:
+                o.pop("_id", None)
+        
+        return {
+            "success": True,
+            "oggetti_trovati": len(created_objects),
+            "oggetti": created_objects
+        }
+    
+    except Exception as e:
+        logger.error(f"Error in AI image analysis: {e}")
+        raise HTTPException(status_code=500, detail=f"Errore analisi AI: {str(e)}")
+
+@api_router.get("/inventario/oggetti")
+async def get_oggetti_inventario(
+    ambiente_id: Optional[str] = Query(None),
+    token: Optional[str] = Query(None)
+):
+    """Get inventory objects, optionally filtered by room"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    query = {"user_id": user_id}
+    if ambiente_id:
+        query["ambiente_id"] = ambiente_id
+    oggetti = await db.inventario_oggetti.find(query, {"_id": 0}).sort("codice", 1).to_list(2000)
+    return oggetti
+
+@api_router.post("/inventario/oggetti")
+async def create_oggetto(data: dict = Body(...), token: Optional[str] = Query(None)):
+    """Create a new inventory object"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    counter = await db.inventario_oggetti.count_documents({"user_id": user_id}) + 1
+    oggetto = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "ambiente_id": data.get("ambiente_id", ""),
+        "codice": data.get("codice", f"INV-{counter:04d}"),
+        "descrizione": str(data.get("descrizione", ""))[:100],
+        "quantita": int(data.get("quantita", 1)),
+        "valore_nuovo": float(data.get("valore_nuovo", 0)),
+        "valore_attuale": float(data.get("valore_attuale", 0)),
+        "seriale": data.get("seriale", ""),
+        "tag_id": data.get("tag_id", ""),
+        "poi_id": data.get("poi_id", ""),
+        "categoria": data.get("categoria", ""),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.inventario_oggetti.insert_one(oggetto)
+    oggetto.pop("_id", None)
+    return oggetto
+
+@api_router.put("/inventario/oggetti/{oggetto_id}")
+async def update_oggetto(oggetto_id: str, data: dict = Body(...), token: Optional[str] = Query(None)):
+    """Update an inventory object"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    update = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    for field in ["descrizione", "quantita", "valore_nuovo", "valore_attuale", "seriale", "tag_id", "poi_id", "codice", "categoria", "ambiente_id"]:
+        if field in data:
+            update[field] = data[field]
+    if "descrizione" in update:
+        update["descrizione"] = str(update["descrizione"])[:100]
+    result = await db.inventario_oggetti.update_one(
+        {"id": oggetto_id, "user_id": user_id}, {"$set": update}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Oggetto non trovato")
+    updated = await db.inventario_oggetti.find_one({"id": oggetto_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/inventario/oggetti/{oggetto_id}")
+async def delete_oggetto(oggetto_id: str, token: Optional[str] = Query(None)):
+    """Delete an inventory object"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    await db.inventario_oggetti.delete_one({"id": oggetto_id, "user_id": user_id})
+    return {"success": True}
+
 # Include the router in the main app (must be after all @api_router decorators)
 app.include_router(api_router)
 

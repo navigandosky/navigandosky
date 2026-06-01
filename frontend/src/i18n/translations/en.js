@@ -9,6 +9,7 @@ const en = {
     manutenzioni: "Maintenance",
     ticket: "Tickets",
     assistente: "Assistant",
+    inventario: "Inventory",
     veicoli: "Vehicles",
     setup: "Setup",
     utenti: "Users",
