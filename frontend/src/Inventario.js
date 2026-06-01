@@ -427,7 +427,11 @@ export default function Inventario({ authToken, matterportPois }) {
                                   <td className="px-3 py-2 text-right font-medium">{(obj.valore_attuale || 0).toLocaleString("it-IT")} &euro;</td>
                                   <td className="px-3 py-2 text-xs text-gray-500">{obj.seriale || "-"}</td>
                                   <td className="px-3 py-2 text-center">
-                                    {obj.poi_id ? <Link2 className="h-4 w-4 text-teal-500 mx-auto" /> :
+                                    {obj.poi_id ? (() => {
+                                      const linkedPoi = (matterportPois || []).find(p => p.id === obj.poi_id);
+                                      const linkedName = linkedPoi ? ((linkedPoi.translations && linkedPoi.translations[0]?.title) || linkedPoi.id.slice(0,8)) : obj.poi_id.slice(0,8);
+                                      return <span className="text-xs text-teal-600 font-medium" title={obj.poi_id}>{linkedName}</span>;
+                                    })() :
                                       <span className="text-gray-300">-</span>}
                                   </td>
                                   <td className="px-3 py-2 text-center">
@@ -542,9 +546,12 @@ export default function Inventario({ authToken, matterportPois }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nessun POI</SelectItem>
-                  {(matterportPois || []).map((poi) => (
-                    <SelectItem key={poi.id} value={poi.id}>{poi.nome || poi.label || poi.id}</SelectItem>
-                  ))}
+                  {(matterportPois || []).map((poi) => {
+                    const poiName = (poi.translations && poi.translations[0]?.title) || poi.nome || poi.label || poi.id;
+                    return (
+                      <SelectItem key={poi.id} value={poi.id}>{poiName}</SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
