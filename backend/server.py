@@ -856,7 +856,7 @@ class POIUpdate(BaseModel):
 
 
 class POI(POIBase):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="allow")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str = DEFAULT_USER_ID
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -6820,10 +6820,8 @@ async def get_all_pois(space_id: Optional[str] = None, token: Optional[str] = Qu
     user = await get_user_from_token(token)
     query = {"user_id": user["id"]}
     
-    # If user has a specific space assigned, filter by it
-    if user.get("matterport_space_id"):
-        query["space_id"] = user["matterport_space_id"]
-    elif space_id:
+    # Only filter by space_id if explicitly provided in query
+    if space_id:
         query["space_id"] = space_id
     
     pois = await db.pois.find(query, {"_id": 0}).to_list(500)
@@ -9515,6 +9513,78 @@ async def batch_create_oggetti(data: dict = Body(...), token: Optional[str] = Qu
             o.pop("_id", None)
     
     return {"success": True, "created": len(created), "oggetti": created}
+
+
+@api_router.post("/mpskin/import-pois")
+async def import_mpskin_pois(data: dict = Body(...), token: Optional[str] = Query(None)):
+    """Import POIs from an MPSKIN tour URL by scraping the tour page"""
+    user = await get_user_from_token(token)
+    user_id = user.get("id", DEFAULT_USER_ID)
+    mpskin_url = data.get("url", "")
+    
+    if not mpskin_url:
+        raise HTTPException(status_code=400, detail="URL MPSKIN mancante")
+    
+    try:
+        import re as re_mod
+        async with httpx.AsyncClient(timeout=30.0) as client_http:
+            resp = await client_http.get(mpskin_url)
+            html = resp.text
+        
+        # Extract POIs from MPSKIN HTML: <a class="run-action tag" data-aid="..." ...><span class="name">POI_NAME</span></a>
+        pattern = r'data-aid="([^"]+)"[^>]*>.*?<span class="name">([^<]+)</span>'
+        matches = re_mod.findall(pattern, html, re_mod.DOTALL)
+        
+        if not matches:
+            raise HTTPException(status_code=400, detail="Nessun POI trovato nel tour MPSKIN")
+        
+        # Check existing POIs to avoid duplicates
+        existing = await db.pois.find({"user_id": user_id, "source": "mpskin_import"}, {"_id": 0, "mpskin_aid": 1}).to_list(500)
+        existing_aids = {p.get("mpskin_aid") for p in existing}
+        
+        imported = []
+        skipped = 0
+        for aid, name in matches:
+            name = name.strip()
+            if aid in existing_aids:
+                skipped += 1
+                continue
+            
+            poi = {
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "space_id": "mpskin",
+                "matterport_tag_id": aid,
+                "position": {"x": 0, "y": 0, "z": 0},
+                "translations": [{"language": "it", "title": name, "description": "", "audio_url": None, "audio_generated_at": None}],
+                "tipo": "punto_interesse",
+                "categoria": "Punto di Interesse",
+                "elettrodomestico_id": None,
+                "ewelink": None,
+                "smartthings": None,
+                "source": "mpskin_import",
+                "mpskin_aid": aid,
+                "mpskin_url": mpskin_url,
+                "synced_to_cloud": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await db.pois.insert_one(poi)
+            poi.pop("_id", None)
+            imported.append({"id": poi["id"], "name": name, "aid": aid})
+        
+        return {
+            "success": True,
+            "imported": len(imported),
+            "skipped": skipped,
+            "pois": imported,
+            "total_found": len(matches)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing MPSKIN POIs: {e}")
+        raise HTTPException(status_code=500, detail=f"Errore importazione: {str(e)}")
 
 @api_router.get("/inventario/oggetti")
 async def get_oggetti_inventario(
