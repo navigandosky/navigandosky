@@ -9452,6 +9452,23 @@ Sii dettagliato e preciso. Includi TUTTI gli oggetti visibili: mobili, quadri, l
         existing_descriptions = [e.get("descrizione", "").lower().strip() for e in existing]
         existing_in_room = [e.get("descrizione", "").lower().strip() for e in existing if e.get("ambiente_id") == ambiente_id]
         
+        # Helpers to safely cast AI output (may be None, "", or strings)
+        def _safe_int(v, default=1):
+            try:
+                if v is None or v == "":
+                    return default
+                return int(float(v))
+            except (TypeError, ValueError):
+                return default
+
+        def _safe_float(v, default=0.0):
+            try:
+                if v is None or v == "":
+                    return default
+                return float(v)
+            except (TypeError, ValueError):
+                return default
+
         # Build proposals with duplicate flags
         counter = await db.inventario_oggetti.count_documents({"user_id": user_id}) + 1
         proposals = []
@@ -9467,10 +9484,10 @@ Sii dettagliato e preciso. Includi TUTTI gli oggetti visibili: mobili, quadri, l
                 "temp_id": str(uuid.uuid4()),
                 "codice": f"INV-{counter:04d}",
                 "descrizione": desc,
-                "quantita": int(obj.get("quantita", 1)),
-                "valore_nuovo": float(obj.get("valore_nuovo", 0)),
-                "valore_attuale": float(obj.get("valore_attuale", 0)),
-                "categoria": obj.get("categoria", ""),
+                "quantita": _safe_int(obj.get("quantita"), 1),
+                "valore_nuovo": _safe_float(obj.get("valore_nuovo"), 0.0),
+                "valore_attuale": _safe_float(obj.get("valore_attuale"), 0.0),
+                "categoria": obj.get("categoria") or "",
                 "duplicate_in_room": is_duplicate_room,
                 "duplicate_in_other": is_duplicate_other,
             })
@@ -9513,19 +9530,31 @@ async def batch_create_oggetti(data: dict = Body(...), token: Optional[str] = Qu
     
     created = []
     for item in items:
+        try:
+            qta = int(float(item.get("quantita") or 1))
+        except (TypeError, ValueError):
+            qta = 1
+        try:
+            v_nuovo = float(item.get("valore_nuovo") or 0)
+        except (TypeError, ValueError):
+            v_nuovo = 0.0
+        try:
+            v_attuale = float(item.get("valore_attuale") or 0)
+        except (TypeError, ValueError):
+            v_attuale = 0.0
         record = {
             "id": str(uuid.uuid4()),
             "user_id": user_id,
             "ambiente_id": ambiente_id,
             "codice": item.get("codice", ""),
             "descrizione": str(item.get("descrizione", ""))[:100],
-            "quantita": int(item.get("quantita", 1)),
-            "valore_nuovo": float(item.get("valore_nuovo", 0)),
-            "valore_attuale": float(item.get("valore_attuale", 0)),
+            "quantita": qta,
+            "valore_nuovo": v_nuovo,
+            "valore_attuale": v_attuale,
             "seriale": "",
             "tag_id": "",
             "poi_id": "",
-            "categoria": item.get("categoria", ""),
+            "categoria": item.get("categoria") or "",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
