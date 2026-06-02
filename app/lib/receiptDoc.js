@@ -44,10 +44,26 @@ export function splitVAT10(totalLordo) {
 
 /**
  * Calcola dati ricevuta da un payment singolo o dal totale incassato
+ *
+ * NOTA: marina_bookings NON ha un campo `paid_total` salvato — va calcolato
+ * dai payments[] (o dai flag legacy deposit_paid/balance_paid).
  */
 export function buildReceiptData(contract, payment = null) {
   const grandTotal = Number(contract.grand_total || 0);
-  const paidTotal = Number(contract.paid_total || 0);
+
+  // === Calcolo paid_total: stessa logica di computePaymentStatus ===
+  // 1) Somma dei pagamenti custom in payments[]
+  const payments = Array.isArray(contract.payments) ? contract.payments : [];
+  let paidTotal = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+  // 2) Fallback legacy: se non ci sono pagamenti custom ma deposit/balance pagati
+  if (paidTotal === 0) {
+    if (contract.deposit_paid) paidTotal += Number(contract.deposit_amount || 0);
+    if (contract.balance_paid) paidTotal += Number(contract.balance_amount || 0);
+  }
+  // 3) Override: se contract.paid_total è già pre-calcolato esternamente, usalo
+  if (Number(contract.paid_total) > 0) paidTotal = Number(contract.paid_total);
+  paidTotal = Math.round(paidTotal * 100) / 100;
+
   const balanceRemaining = Math.max(0, Math.round((grandTotal - paidTotal) * 100) / 100);
 
   // Importo della ricevuta: se è per un singolo pagamento, quel pagamento; altrimenti l'incassato totale
@@ -65,7 +81,7 @@ export function buildReceiptData(contract, payment = null) {
     marina_name: contract.marina_name,
     period: { start: contract.start_date, end: contract.end_date, days: contract.days },
     tariff_label: contract.tariff_label || '—',
-    method: payment?.method || 'MISTO',
+    method: payment?.method || (paidTotal > 0 ? (contract.deposit_payment_method || contract.balance_payment_method || 'MISTO') : 'MISTO'),
     reference: payment?.reference || '',
     notes: payment?.notes || '',
     grand_total_contract: grandTotal,
@@ -75,7 +91,7 @@ export function buildReceiptData(contract, payment = null) {
     imponibile: split.imponibile,
     iva: split.iva,
     vat_rate: split.vat_rate,
-    is_full_settlement: paidTotal >= grandTotal,
+    is_full_settlement: paidTotal >= grandTotal && grandTotal > 0,
   };
 }
 
