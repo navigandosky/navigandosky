@@ -28,7 +28,15 @@ import {
   Mail,
   Users,
   Search,
-  Globe
+  Globe,
+  LayoutGrid,
+  Wrench,
+  Calendar,
+  Ticket,
+  Car,
+  Bot,
+  Package,
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -650,6 +658,112 @@ const CentriAssistenzaManager = () => {
   );
 };
 
+
+// Module configuration component
+const ModulesConfig = ({ currentUser, authToken }) => {
+  const TOGGLEABLE_MODULES = [
+    { id: "manutenzioni", label: "Manutenzioni", icon: Wrench, description: "Gestione manutenzioni e interventi" },
+    { id: "calendario", label: "Calendario", icon: Calendar, description: "Calendario eventi e scadenze" },
+    { id: "elettrodomestici", label: "Apparati", icon: Zap, description: "Gestione apparati ed elettrodomestici" },
+    { id: "tickets", label: "Ticket", icon: Ticket, description: "Sistema di ticketing e segnalazioni" },
+    { id: "veicoli", label: "Veicoli", icon: Car, description: "Tracciamento GPS veicoli (Balin)" },
+    { id: "assistente", label: "Assistente AI", icon: Bot, description: "Assistente intelligente" },
+    { id: "inventario", label: "Inventario", icon: Package, description: "Inventario ambienti e oggetti con AI" },
+  ];
+
+  const ALWAYS_ACTIVE = [
+    { id: "matterport", label: "Vista 3D", icon: Eye, description: "Gemello digitale 3D" },
+    { id: "videocam", label: "Video Cam", icon: Camera, description: "Videosorveglianza" },
+    { id: "smartdomo", label: "SmartDomo", icon: Thermometer, description: "Dashboard dispositivi smart" },
+    { id: "sensori", label: "Report Sensori", icon: Activity, description: "Report e grafici sensori" },
+    { id: "proprieta", label: "Setup", icon: Settings, description: "Configurazione sistema" },
+  ];
+
+  const [modules, setModules] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const m = currentUser?.modules_enabled || {};
+    const defaults = {};
+    TOGGLEABLE_MODULES.forEach(mod => { defaults[mod.id] = m[mod.id] !== undefined ? m[mod.id] : true; });
+    setModules(defaults);
+  }, [currentUser]);
+
+  const handleToggle = async (moduleId, enabled) => {
+    const updated = { ...modules, [moduleId]: enabled };
+    setModules(updated);
+    setSaving(true);
+    try {
+      await axios.put(`${API}/users/${currentUser.id}/modules?token=${authToken}`, { modules_enabled: updated });
+      toast.success(`Modulo ${enabled ? "attivato" : "disattivato"}`);
+      // Update currentUser in memory
+      if (currentUser) currentUser.modules_enabled = updated;
+    } catch (e) {
+      toast.error("Errore salvataggio moduli");
+      setModules(prev => ({ ...prev, [moduleId]: !enabled }));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Always Active */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Moduli Sempre Attivi</CardTitle>
+          <CardDescription>Questi moduli sono sempre visibili e non possono essere disattivati</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {ALWAYS_ACTIVE.map(mod => (
+              <div key={mod.id} className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <mod.icon className="h-5 w-5 text-green-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-green-800">{mod.label}</p>
+                  <p className="text-xs text-green-600">{mod.description}</p>
+                </div>
+                <span className="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full font-medium">Attivo</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Toggleable Modules */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Moduli Configurabili</CardTitle>
+          <CardDescription>Attiva o disattiva i moduli in base alle tue esigenze</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {TOGGLEABLE_MODULES.map(mod => {
+              const enabled = modules[mod.id] !== false;
+              return (
+                <div key={mod.id} className={`flex items-center gap-3 p-3 border rounded-lg transition-all ${
+                  enabled ? "bg-white border-gray-200" : "bg-gray-50 border-gray-200 opacity-60"
+                }`}>
+                  <mod.icon className={`h-5 w-5 shrink-0 ${enabled ? "text-blue-600" : "text-gray-400"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium ${enabled ? "text-gray-900" : "text-gray-500"}`}>{mod.label}</p>
+                    <p className="text-xs text-gray-500">{mod.description}</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input type="checkbox" checked={enabled} onChange={(e) => handleToggle(mod.id, e.target.checked)}
+                      className="sr-only peer" disabled={saving} />
+                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 export default function PropertyConfig({ currentUser, authToken }) {
   const { t } = useLanguage();
   const [property, setProperty] = useState(null);
@@ -924,10 +1038,14 @@ export default function PropertyConfig({ currentUser, authToken }) {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Home className="h-4 w-4" />
             Generale
+          </TabsTrigger>
+          <TabsTrigger value="modules" className="flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Moduli
           </TabsTrigger>
           <TabsTrigger value="cadastral" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -946,6 +1064,12 @@ export default function PropertyConfig({ currentUser, authToken }) {
             Centri
           </TabsTrigger>
         </TabsList>
+
+
+        {/* Tab: Moduli */}
+        <TabsContent value="modules" className="space-y-4">
+          <ModulesConfig currentUser={currentUser} authToken={authToken} />
+        </TabsContent>
 
         {/* Tab: Generale */}
         <TabsContent value="general" className="space-y-4">

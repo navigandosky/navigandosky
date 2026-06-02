@@ -1288,6 +1288,23 @@ function SmartDomoApp() {
   const [authLoading, setAuthLoading] = useState(true);
   
   const [activeTab, setActiveTab] = useState("matterport");
+
+  // Helper: check if a toggleable module is enabled for the current user (default true)
+  const TOGGLEABLE_MODULE_IDS = ["manutenzioni", "calendario", "elettrodomestici", "tickets", "veicoli", "assistente", "inventario"];
+  const isModuleEnabled = (moduleId) => {
+    if (!TOGGLEABLE_MODULE_IDS.includes(moduleId)) return true;
+    const m = currentUser?.modules_enabled;
+    if (!m) return true;
+    return m[moduleId] !== false;
+  };
+
+  // Auto-redirect if activeTab is on a disabled module
+  useEffect(() => {
+    if (TOGGLEABLE_MODULE_IDS.includes(activeTab) && !isModuleEnabled(activeTab)) {
+      setActiveTab("matterport");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, activeTab]);
   const [config, setConfig] = useState(null);
   const [stats, setStats] = useState(null);
   const [consumiPerCategoria, setConsumiPerCategoria] = useState([]);
@@ -1859,7 +1876,7 @@ function SmartDomoApp() {
       <nav className="bg-white border-b shadow-sm">
         <div className="w-full px-4">
           <div className="flex gap-0.5 overflow-x-auto py-1">
-            {/* Group 1: Monitoraggio & Controllo - Blue */}
+            {/* Group 1: Monitoraggio & Controllo - Blue (always visible core modules) */}
             <div className="flex items-center bg-blue-50 rounded-lg px-1 mr-1.5">
               {[
                 { id: "matterport", label: t.nav.vista3d, icon: Eye },
@@ -1879,56 +1896,70 @@ function SmartDomoApp() {
               ))}
             </div>
 
-            {/* Group 2: Gestione - Amber */}
-            <div className="flex items-center bg-amber-50 rounded-lg px-1 mr-1.5">
-              {[
+            {/* Group 2: Gestione - Amber (toggleable) */}
+            {(() => {
+              const gestioneTabs = [
                 { id: "manutenzioni", label: t.nav.manutenzioni, icon: Wrench },
                 { id: "calendario", label: t.nav.calendario, icon: Calendar },
                 { id: "elettrodomestici", label: t.nav.apparati, icon: Zap },
                 { id: "tickets", label: t.nav.ticket, icon: Ticket },
-              ].map((tab) => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              ].filter(tab => isModuleEnabled(tab.id));
+              if (gestioneTabs.length === 0) return null;
+              return (
+                <div className="flex items-center bg-amber-50 rounded-lg px-1 mr-1.5">
+                  {gestioneTabs.map((tab) => (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                        activeTab === tab.id
+                          ? "bg-amber-600 text-white shadow-sm"
+                          : "text-amber-700 hover:bg-amber-100"
+                      }`} data-testid={`nav-${tab.id}`}>
+                      <tab.icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Group 3: Veicoli - Emerald (toggleable) */}
+            {isModuleEnabled("veicoli") && (
+              <div className="flex items-center bg-emerald-50 rounded-lg px-1 mr-1.5">
+                <button onClick={() => setActiveTab("veicoli")}
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? "bg-amber-600 text-white shadow-sm"
-                      : "text-amber-700 hover:bg-amber-100"
-                  }`} data-testid={`nav-${tab.id}`}>
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
+                    activeTab === "veicoli"
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-emerald-700 hover:bg-emerald-100"
+                  }`} data-testid="nav-veicoli">
+                  <Car className="h-4 w-4" />
+                  {t.nav.veicoli}
                 </button>
-              ))}
-            </div>
+              </div>
+            )}
 
-            {/* Group 3: Veicoli - Emerald */}
-            <div className="flex items-center bg-emerald-50 rounded-lg px-1 mr-1.5">
-              <button onClick={() => setActiveTab("veicoli")}
-                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
-                  activeTab === "veicoli"
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "text-emerald-700 hover:bg-emerald-100"
-                }`} data-testid="nav-veicoli">
-                <Car className="h-4 w-4" />
-                {t.nav.veicoli}
-              </button>
-            </div>
-
-            {/* Group 4: AI & Inventario - Purple */}
-            <div className="flex items-center bg-purple-50 rounded-lg px-1 mr-1.5">
-              {[
+            {/* Group 4: AI & Inventario - Purple (toggleable) */}
+            {(() => {
+              const aiTabs = [
                 { id: "assistente", label: t.nav.assistente, icon: Bot },
                 { id: "inventario", label: "Inventario", icon: Package },
-              ].map((tab) => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? "bg-purple-600 text-white shadow-sm"
-                      : "text-purple-700 hover:bg-purple-100"
-                  }`} data-testid={`nav-${tab.id}`}>
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+              ].filter(tab => isModuleEnabled(tab.id));
+              if (aiTabs.length === 0) return null;
+              return (
+                <div className="flex items-center bg-purple-50 rounded-lg px-1 mr-1.5">
+                  {aiTabs.map((tab) => (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                        activeTab === tab.id
+                          ? "bg-purple-600 text-white shadow-sm"
+                          : "text-purple-700 hover:bg-purple-100"
+                      }`} data-testid={`nav-${tab.id}`}>
+                      <tab.icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Group 5: Setup - Slate */}
             <div className="flex items-center bg-slate-100 rounded-lg px-1">

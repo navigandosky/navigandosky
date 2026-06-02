@@ -1,8 +1,25 @@
 # SmartDomo - PRD
 
-## Stato Attuale (01/06/2026)
+## Stato Attuale (02/06/2026)
 
-### Completato Oggi (01/06/2026) - Sessione 5
+### Completato Oggi (02/06/2026) - Sessione 6
+
+#### Configurazione Moduli per Utente - COMPLETATO
+- **Backend**:
+  - `PUT /api/users/{user_id}/modules` salva `modules_enabled` per utente
+  - `/auth/login` e `/auth/verify` ora restituiscono `modules_enabled`
+- **Frontend (PropertyConfig.js)**:
+  - Sezione admin "Configurazione Moduli" con toggle on/off per moduli secondari
+  - Moduli sempre attivi: Vista 3D, Video Cam, SmartDomo, Report Sensori, Setup
+  - Moduli configurabili: Manutenzioni, Calendario, Apparati, Ticket, Veicoli, Assistente AI, Inventario
+- **Frontend (App.js)**:
+  - Helper `isModuleEnabled(moduleId)` controlla `currentUser.modules_enabled`
+  - Tab dei moduli disabilitati nascosti dalla navigazione raggruppata
+  - Auto-redirect a "matterport" se l'`activeTab` corrente diventa disabilitato
+  - Default: tutti i moduli abilitati (`!== false`)
+- **Test E2E**: Disabilitati `manutenzioni` + `tickets` via API, verificato che spariscono dalla nav e che `calendario` + `veicoli` rimangono visibili. Ripristinati per Admin.
+
+## Stato Precedente (01/06/2026) - Sessione 5
 
 #### Nuova Funzione: Inventario Ambienti con AI Vision
 - **Backend**: 10 nuovi endpoint CRUD per ambienti e oggetti + endpoint AI per scansione immagini

@@ -1000,6 +1000,7 @@ class UserResponse(BaseModel):
     matterport_space_id: Optional[str] = None
     matterport_space_name: Optional[str] = None
     mpskin_url: Optional[str] = None
+    modules_enabled: Optional[dict] = None
 
 class LoginRequest(BaseModel):
     username: str
@@ -1120,7 +1121,8 @@ async def login(data: LoginRequest):
         created_at=user.get("created_at", datetime.now(timezone.utc)),
         matterport_space_id=user.get("matterport_space_id"),
         matterport_space_name=user.get("matterport_space_name"),
-        mpskin_url=user.get("mpskin_url")
+        mpskin_url=user.get("mpskin_url"),
+        modules_enabled=user.get("modules_enabled")
     )
     
     return LoginResponse(success=True, user=user_response, token=token, message="Login effettuato")
@@ -1166,7 +1168,8 @@ async def verify_session(token: str = Query(...)):
             "is_active": user.get("is_active", True),
             "matterport_space_id": user.get("matterport_space_id"),
             "matterport_space_name": user.get("matterport_space_name"),
-            "mpskin_url": user.get("mpskin_url")
+            "mpskin_url": user.get("mpskin_url"),
+            "modules_enabled": user.get("modules_enabled")
         }
     }
 
@@ -1294,6 +1297,27 @@ async def update_user(user_id: str, data: UserUpdate, token: str = Query(...)):
     
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
     return UserResponse(**user)
+
+
+@api_router.put("/users/{user_id}/modules")
+async def update_user_modules(user_id: str, data: dict = Body(...), token: str = Query(...)):
+    """Update enabled modules for a user"""
+    session = await db.sessions.find_one({"token": token}, {"_id": 0})
+    if not session:
+        raise HTTPException(status_code=401, detail="Non autenticato")
+    is_admin = session.get("role") == "admin"
+    is_self = session.get("user_id") == user_id
+    if not is_admin and not is_self:
+        raise HTTPException(status_code=403, detail="Accesso negato")
+    
+    modules = data.get("modules_enabled", {})
+    # Validate only allowed toggleable modules
+    allowed = {"manutenzioni", "calendario", "elettrodomestici", "tickets", "veicoli", "assistente", "inventario"}
+    clean = {k: bool(v) for k, v in modules.items() if k in allowed}
+    
+    await db.users.update_one({"id": user_id}, {"$set": {"modules_enabled": clean}})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    return {"success": True, "modules_enabled": user.get("modules_enabled", {})}
 
 
 @api_router.delete("/users/{user_id}")
