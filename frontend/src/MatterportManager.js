@@ -1537,6 +1537,23 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
     }
     
     if (!matterportRef.current) {
+      // For MPSKIN tours, navigate via iframe
+      if (currentUser?.mpskin_url && poi.mpskin_aid) {
+        try {
+          const iframe = document.getElementById('mpskin-tour-iframe') || document.querySelector('iframe[src*="fairsgate"]');
+          if (iframe) {
+            const mpskinUrl = currentUser.mpskin_url;
+            iframe.src = `${mpskinUrl}#action=${poi.mpskin_aid}`;
+            toast.success(`Navigazione a: ${poi.translations?.[0]?.title || "POI"}`);
+          } else {
+            toast.info(`Selezionato: ${poi.translations?.[0]?.title || "POI"}`);
+          }
+        } catch (e) {
+          console.error("MPSKIN navigation error:", e);
+        }
+        setSelectedPoi(poi);
+        return;
+      }
       toast.error("SDK Matterport non connesso");
       console.log("No matterportRef");
       return;
@@ -2292,6 +2309,7 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
           {!activeSpace && currentUser?.mpskin_url && (
             <div className="w-full h-full">
               <iframe
+                id="mpskin-tour-iframe"
                 src={currentUser.mpskin_url}
                 className="w-full h-full border-0"
                 allow="fullscreen; accelerometer; gyroscope; magnetometer; vr; xr"
