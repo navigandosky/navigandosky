@@ -231,9 +231,11 @@ export default function MatterportManager({ authToken, currentUser, navigateToPo
       // If user has mpskin_url but no matterport_space_id (and is not admin), 
       // don't load Matterport spaces - show MPSKIN iframe instead
       if (currentUser?.mpskin_url && !currentUser?.matterport_space_id && currentUser?.role !== "admin") {
-        console.log("User has MPSKIN URL, not loading Matterport spaces");
+        console.log("User has MPSKIN URL, loading POIs without Matterport spaces");
         setSpaces([]);
         setActiveSpace(null);
+        // Still load POIs for MPSKIN users (imported from MPSKIN tour)
+        loadPois("mpskin");
         return;
       }
       
