@@ -1,0 +1,66 @@
+{
+  "summary": "Verified the new Dipendenti (Employees) module end-to-end. Backend: 37/37 pytest tests pass covering Sedi CRUD, Tipi Contratto CRUD, Dipendenti CRUD with filters (q/sede/mansione/stato), documenti upload, Assunzioni CRUD with auto-update of dipendente.stato='assunto', Buste Paga + Pagamenti add/list/delete with correct totals, PDF generation (lista/scheda/busta - all return valid %PDF binary), Email send via Resend (test mode), Module toggle (PUT /api/users/{id}/modules then verify), Multi-tenancy isolation between Admin and Baunei. Frontend: nav-dipendenti (rose) visible after Admin login, 3 subtabs render (subtab-archivio/assunzioni/stipendi), all required action buttons present (btn-new-dipendente, btn-export-pdf, btn-email-lista, btn-new-assunzione, btn-new-busta), dialog opens with full Anagrafica/Contatti/Profilo/Documenti sections, client-side validation works ('Nome e cognome sono obbligatori'). Existing 'Rossi Mario' row from prior smoke test displays correctly with filter/email/PDF/edit/delete icons.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/dipendenti/buste-paga/{id}/pagamenti", "issue": "Returns only the new pagamento object instead of the full updated busta paga — UI must re-fetch list to update totals (Dovuto/Pagato/Residuo). Not a bug, but a UX optimisation could return the full busta."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "DipendenteDialog (Nuovo/Modifica Dipendente)", "issues": ["Form <input> elements lack data-testid attributes (only the dialog action buttons have them). Labels are not linked to inputs via htmlFor/id, so Playwright get_by_label() and accessibility tooling cannot match Nome/Cognome/CF/Email/Telefono/Mansione fields. Recommend adding data-testid like dip-nome, dip-cognome, dip-cf, dip-email, dip-mansione, dip-stato to streamline future automated testing and improve accessibility."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_dipendenti.py",
+    "/app/test_reports/pytest/pytest_dipendenti.xml"
+  ],
+  "action_items": [
+    "(Optional) Add data-testid attributes to form inputs in Dipendenti.js dialogs (DipendenteDialog, AssunzioneDialog, BustaPagaDialog, AccontoDialog) and link <label> with htmlFor/id to inputs for accessibility & testability.",
+    "(Optional) Return full updated busta paga from POST/DELETE pagamenti endpoints to avoid extra GET round-trip in UI."
+  ],
+  "critical_code_review_comments": [
+    "dipendenti_routes.py file is 696 lines and includes models + helpers + routes + PDF generation in one file. Recommend splitting into dipendenti/models.py, dipendenti/pdf.py, dipendenti/routes.py once team-size grows.",
+    "Resend API key is read from env at init_dipendenti_router() time — if the env var is updated, requires restart. Acceptable for now.",
+    "MongoDB _id correctly excluded via _serialize() helper.",
+    "All routes properly scope by user_id (multi-tenancy verified by tests).",
+    "Token-based auth via query param is consistent with rest of project."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_dipendenti.py"
+  ],
+  "success_rate": {
+    "backend": "100% (37/37 pytest passed)",
+    "frontend": "95% (all visible elements + nav + subtabs + dialog + validation verified; form-input automated fill skipped due to missing data-testid/label linkage — not a functional bug)"
+  },
+  "test_credentials": {
+    "Admin": {"username": "Admin", "password": "SmartMaster2026"},
+    "Baunei": {"username": "Baunei", "password": "Baunei2026$"}
+  },
+  "seed_data_creation": "All TEST_-prefixed data was cleaned up by the test suite via the dedicated TestCleanup class. The pre-existing 'Rossi Mario' record (Admin) was left intact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Dipendenti module is fully functional. Backend endpoints all live under /api/dipendenti/* with token query param auth. Note quirks: (1) POST pagamenti returns single pagamento (not full busta); (2) form inputs in DipendenteDialog lack data-testid and label htmlFor — to automate UI form fills, target inputs by their index inside [role='dialog'] or via screenshot+coordinates. Resend in TEST mode only allows info@porticciolodibosamarina.com as recipient; other addresses get 403 (expected). Module toggle works via PUT /api/users/{user_id}/modules?token=... with body {modules_enabled: {dipendenti: true|false}}.",
+  "features_verified": {
+    "tab_visibility_admin": "PASS — nav-dipendenti visible, rose-colored, in Group 5",
+    "three_subtabs": "PASS — subtab-archivio, subtab-assunzioni, subtab-stipendi all render",
+    "archivio_create_dipendente_api": "PASS — POST /api/dipendenti returns 200 with stato=libero",
+    "archivio_add_sede_inline_api": "PASS — POST /api/dipendenti/sedi creates and lists sede",
+    "archivio_edit_documento_api": "PASS — POST /api/dipendenti/{id}/documenti adds doc and persists",
+    "archivio_filters_api": "PASS — q, sede, mansione, stato query params all filter correctly",
+    "archivio_pdf_lista": "PASS — application/pdf, starts with %PDF, >1KB",
+    "archivio_pdf_scheda": "PASS — application/pdf, starts with %PDF",
+    "archivio_email_send": "PASS — endpoint accepts payload (Resend test-mode 403 treated as expected)",
+    "assunzioni_create_and_auto_stato": "PASS — dipendente.stato auto-updates to 'assunto'",
+    "assunzioni_edit": "PASS — update netto_mensile persists",
+    "assunzioni_delete": "PASS",
+    "stipendi_create_busta": "PASS — busta with anno=2026, mese=6, importo=1500",
+    "stipendi_registra_pagamento": "PASS — pagamento added, totals correct",
+    "stipendi_delete_pagamento": "PASS — pagamento removed, total=0",
+    "stipendi_pdf_busta": "PASS — application/pdf",
+    "module_toggle_disable_then_enable": "PASS — PUT /api/users/{id}/modules + GET /api/auth/verify confirms modules_enabled.dipendenti changes",
+    "multi_tenancy_isolation": "PASS — Baunei does not see Admin's dipendenti records"
+  }
+}

@@ -1312,7 +1312,7 @@ async def update_user_modules(user_id: str, data: dict = Body(...), token: str =
     
     modules = data.get("modules_enabled", {})
     # Validate only allowed toggleable modules
-    allowed = {"manutenzioni", "calendario", "elettrodomestici", "tickets", "veicoli", "assistente", "inventario"}
+    allowed = {"manutenzioni", "calendario", "elettrodomestici", "tickets", "veicoli", "assistente", "inventario", "dipendenti"}
     clean = {k: bool(v) for k, v in modules.items() if k in allowed}
     
     await db.users.update_one({"id": user_id}, {"$set": {"modules_enabled": clean}})
@@ -9707,6 +9707,11 @@ async def delete_oggetto(oggetto_id: str, token: Optional[str] = Query(None)):
     return {"success": True}
 
 # Include the router in the main app (must be after all @api_router decorators)
+# Init and include the Dipendenti router
+from dipendenti_routes import dipendenti_router, init_dipendenti_router
+init_dipendenti_router(db, get_user_from_token, DEFAULT_USER_ID)
+api_router.include_router(dipendenti_router)
+
 app.include_router(api_router)
 
 

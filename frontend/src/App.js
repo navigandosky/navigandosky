@@ -69,6 +69,7 @@ import { TicketList, CalendarioManutenzioni, QRCodeDialog, formatDateIT } from "
 import { PlanimetriaEditor, SuggerimentiProattivi, NotificationBadge } from "./PlanimetriaSuggerimenti";
 import SmartBuildingDashboard from "./SmartBuildingDashboard";
 import Inventario from "./Inventario";
+import Dipendenti from "./Dipendenti";
 import VideoCameraManager from "./VideoCameraManager";
 import MatterportManager from "./MatterportManager";
 import ElettrodomesticoDialog from "./ElettrodomesticoForm";
@@ -1290,7 +1291,7 @@ function SmartDomoApp() {
   const [activeTab, setActiveTab] = useState("matterport");
 
   // Helper: check if a toggleable module is enabled for the current user (default true)
-  const TOGGLEABLE_MODULE_IDS = ["manutenzioni", "calendario", "elettrodomestici", "tickets", "veicoli", "assistente", "inventario"];
+  const TOGGLEABLE_MODULE_IDS = ["manutenzioni", "calendario", "elettrodomestici", "tickets", "veicoli", "assistente", "inventario", "dipendenti"];
   const isModuleEnabled = (moduleId) => {
     if (!TOGGLEABLE_MODULE_IDS.includes(moduleId)) return true;
     const m = currentUser?.modules_enabled;
@@ -1961,6 +1962,21 @@ function SmartDomoApp() {
               );
             })()}
 
+            {/* Group 5: HR - Rose (toggleable) */}
+            {isModuleEnabled("dipendenti") && (
+              <div className="flex items-center bg-rose-50 rounded-lg px-1 mr-1.5">
+                <button onClick={() => setActiveTab("dipendenti")}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap ${
+                    activeTab === "dipendenti"
+                      ? "bg-rose-600 text-white shadow-sm"
+                      : "text-rose-700 hover:bg-rose-100"
+                  }`} data-testid="nav-dipendenti">
+                  <Users className="h-4 w-4" />
+                  Dipendenti
+                </button>
+              </div>
+            )}
+
             {/* Group 5: Setup - Slate */}
             <div className="flex items-center bg-slate-100 rounded-lg px-1">
               <button onClick={() => setActiveTab("proprieta")}
@@ -2043,6 +2059,11 @@ function SmartDomoApp() {
         {activeTab === "inventario" && (
           <Inventario authToken={authToken} matterportPois={matterportPois}
             onNavigateToPoi={(poiId) => { setActiveTab("matterport"); setNavigateToPoiId(poiId); }} />
+        )}
+
+        {/* Dipendenti Tab */}
+        {activeTab === "dipendenti" && (
+          <Dipendenti authToken={authToken} />
         )}
 
         {/* Assistente AI Tab */}

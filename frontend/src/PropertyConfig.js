@@ -669,6 +669,7 @@ const ModulesConfig = ({ currentUser, authToken }) => {
     { id: "veicoli", label: "Veicoli", icon: Car, description: "Tracciamento GPS veicoli (Balin)" },
     { id: "assistente", label: "Assistente AI", icon: Bot, description: "Assistente intelligente" },
     { id: "inventario", label: "Inventario", icon: Package, description: "Inventario ambienti e oggetti con AI" },
+    { id: "dipendenti", label: "Dipendenti", icon: Users, description: "Anagrafica, assunzioni, stipendi e pagamenti" },
   ];
 
   const ALWAYS_ACTIVE = [
