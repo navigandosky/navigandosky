@@ -230,8 +230,8 @@ function TypeBadge({ type }) {
   return <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${TYPE_COLORS[type] || 'bg-gray-100'}`}><Icon className="w-3 h-3" />{label}</span>;
 }
 function StatusBadge({ status }) {
-  const c = { OPEN: 'bg-green-100 text-green-800', FULL: 'bg-red-100 text-red-800', CANCELLED: 'bg-gray-100 text-gray-600', CONFIRMED: 'bg-green-100 text-green-800', PENDING: 'bg-yellow-100 text-yellow-800', REFUNDED: 'bg-gray-100 text-gray-600', WAITING: 'bg-blue-100 text-blue-800', NOTIFIED: 'bg-amber-100 text-amber-800', CONVERTED: 'bg-green-100 text-green-800', EXPIRED: 'bg-gray-100 text-gray-600', PENDING_VERIFICATION: 'bg-amber-100 text-amber-800 border border-amber-300', PENDING_CONFIRMATION: 'bg-orange-100 text-orange-800 border border-orange-300' };
-  const labels = { PENDING_VERIFICATION: '⏳ Verifica Bonifico', PENDING_CONFIRMATION: '⏳ Da Confermare' };
+  const c = { OPEN: 'bg-green-100 text-green-800', FULL: 'bg-red-100 text-red-800', CANCELLED: 'bg-gray-100 text-gray-600', CONFIRMED: 'bg-green-100 text-green-800', PENDING: 'bg-yellow-100 text-yellow-800', REFUNDED: 'bg-gray-100 text-gray-600', WAITING: 'bg-blue-100 text-blue-800', NOTIFIED: 'bg-amber-100 text-amber-800', CONVERTED: 'bg-green-100 text-green-800', EXPIRED: 'bg-gray-100 text-gray-600', PENDING_VERIFICATION: 'bg-amber-100 text-amber-800 border border-amber-300', PENDING_CONFIRMATION: 'bg-orange-100 text-orange-800 border border-orange-300', PENDING_PAYMENT: 'bg-violet-100 text-violet-800 border border-violet-300' };
+  const labels = { PENDING_VERIFICATION: '⏳ Verifica Bonifico', PENDING_CONFIRMATION: '⏳ Da Confermare', PENDING_PAYMENT: '💳 In Attesa Pagamento' };
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c[status] || 'bg-gray-100'}`}>{labels[status] || status}</span>;
 }
 function AvailabilityBar({ booked, max }) {
@@ -4915,8 +4915,51 @@ function AdminDashboard({ currentUser, onLogout }) {
                     {canCancelBooking(b) && <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
                   </>
                 )}
+                {/* Azioni per PENDING_PAYMENT (Carta SumUp / Link in attesa di conferma webhook) */}
+                {b.status==='PENDING_PAYMENT' && (
+                  <>
+                    <Button variant="default" size="sm" className="text-xs h-7 bg-violet-600 hover:bg-violet-700" onClick={()=>confirmBankTransfer(b)} title="Hai incassato manualmente? Forza conferma">
+                      <CheckCircle2 className="w-3 h-3 mr-1"/>Forza Pagato
+                    </Button>
+                    {/* Apri link esistente */}
+                    {b.sumup_hosted_url && (
+                      <Button variant="outline" size="sm" className="text-xs h-7 border-purple-300 text-purple-700 hover:bg-purple-50" onClick={()=>window.open(b.sumup_hosted_url, '_blank')} title="Apri il link di pagamento SumUp esistente">
+                        🌐 Apri Link
+                      </Button>
+                    )}
+                    {/* Rigenera link (nuovo checkout_id) */}
+                    <Button variant="outline" size="sm" className="text-xs h-7 border-violet-400 text-violet-700 hover:bg-violet-50"
+                      onClick={async () => {
+                        try {
+                          const r = await fetch('/api/sumup/create-checkout', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ booking_id: b.id }),
+                          });
+                          const data = await r.json();
+                          if (!r.ok || !data.hosted_url) throw new Error(data.error || 'Errore generazione link');
+                          // Aggiorna il booking nel DB con il nuovo link
+                          await fetch(`/api/bookings/${b.id}`, {
+                            method: 'PUT',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ sumup_checkout_id: data.checkout_id, sumup_hosted_url: data.hosted_url }),
+                          });
+                          // Copia e apre
+                          if (navigator.clipboard) navigator.clipboard.writeText(data.hosted_url);
+                          window.open(data.hosted_url, '_blank');
+                          toast.success(`🔄 Nuovo link generato e copiato!`);
+                          if (typeof load === 'function') load(); else window.location.reload();
+                        } catch (e) { toast.error('Errore: ' + e.message); }
+                      }}
+                      title="Genera un NUOVO link SumUp (annulla il precedente lato cliente)"
+                    >
+                      🔄 Rigenera Link
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>
+                    {canCancelBooking(b) && <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
+                  </>
+                )}
                 {/* Re-invio voucher email */}
-                {b.customer_email && (b.status==='CONFIRMED' || b.status==='PENDING_VERIFICATION' || b.status==='PENDING_CONFIRMATION') && (
+                {b.customer_email && (b.status==='CONFIRMED' || b.status==='PENDING_VERIFICATION' || b.status==='PENDING_CONFIRMATION' || b.status==='PENDING_PAYMENT') && (
                   <Button variant="ghost" size="sm" className="text-xs h-7 text-blue-600 hover:bg-blue-50" onClick={()=>resendVoucherEmail(b)} title="Re-invia voucher via email">
                     📧 Voucher
                   </Button>

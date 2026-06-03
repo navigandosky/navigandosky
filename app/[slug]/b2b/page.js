@@ -1111,7 +1111,7 @@ function AgencyB2BPortalInner() {
                       {filteredBookings.map(booking => {
                         const isPaid = booking.status === 'CONFIRMED' || booking.payment_status === 'PAID';
                         const isPendingBT = booking.status === 'PENDING_VERIFICATION';
-                        const isOnlinePending = booking.payment_method === 'ONLINE' && !isPaid && booking.sumup_hosted_url;
+                        const isOnlinePending = (booking.payment_method === 'ONLINE' || booking.payment_method === 'PAYMENT_LINK') && !isPaid && (booking.status === 'PENDING_PAYMENT' || booking.sumup_hosted_url);
                         const pm = booking.payment_method || 'NONE';
                         const lFor = (k) => actionLoading[`${booking.id}_${k}`];
                         const prices = getBookingPrices(booking);
@@ -1233,14 +1233,45 @@ function AgencyB2BPortalInner() {
                                 )}
                                 {/* Apri link SumUp pendente */}
                                 {isOnlinePending && (
-                                  <Button
-                                    size="icon" variant="ghost"
-                                    title="Apri link pagamento SumUp"
-                                    onClick={() => window.open(booking.sumup_hosted_url, '_blank')}
-                                    className="h-8 w-8 hover:bg-violet-50"
-                                  >
-                                    <ExternalLink className="w-4 h-4 text-violet-600" />
-                                  </Button>
+                                  <>
+                                    <Button
+                                      size="icon" variant="ghost"
+                                      title="Apri link pagamento SumUp"
+                                      onClick={() => window.open(booking.sumup_hosted_url, '_blank')}
+                                      className="h-8 w-8 hover:bg-violet-50"
+                                    >
+                                      <ExternalLink className="w-4 h-4 text-violet-600" />
+                                    </Button>
+                                    {/* Rigenera Link SumUp */}
+                                    <Button
+                                      size="icon" variant="ghost"
+                                      title="Rigenera link di pagamento SumUp (nuovo checkout)"
+                                      onClick={async () => {
+                                        try {
+                                          const r = await fetch(`${API_BASE}/sumup/create-checkout`, {
+                                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                                            body: JSON.stringify({ booking_id: booking.id }),
+                                          });
+                                          const data = await r.json();
+                                          if (!r.ok || !data.hosted_url) throw new Error(data.error || 'Errore generazione link');
+                                          await fetch(`${API_BASE}/bookings/${booking.id}`, {
+                                            method: 'PUT',
+                                            headers: {'Content-Type': 'application/json'},
+                                            body: JSON.stringify({ sumup_checkout_id: data.checkout_id, sumup_hosted_url: data.hosted_url }),
+                                          });
+                                          if (navigator.clipboard) navigator.clipboard.writeText(data.hosted_url);
+                                          window.open(data.hosted_url, '_blank');
+                                          toast.success('🔄 Nuovo link generato e copiato!');
+                                          const bk = await fetch(`${API_BASE}/bookings?agency_id=${agency.id}`);
+                                          const bkData = await bk.json();
+                                          setBookings(Array.isArray(bkData) ? bkData : []);
+                                        } catch (e) { toast.error(e.message); }
+                                      }}
+                                      className="h-8 w-8 hover:bg-violet-100"
+                                    >
+                                      <span className="text-violet-700 text-sm">🔄</span>
+                                    </Button>
+                                  </>
                                 )}
                               </div>
                             </td>
