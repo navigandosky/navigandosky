@@ -1,8 +1,31 @@
 # SmartDomo - PRD
 
-## Stato Attuale (02/06/2026)
+## Stato Attuale (03/06/2026)
 
-### Completato Oggi (02/06/2026) - Sessione 6
+### Completato Oggi (03/06/2026) - Sessione 7
+
+#### Nuovo Modulo: DIPENDENTI (HR) - COMPLETATO ✅
+- **Backend** (`/app/backend/dipendenti_routes.py`, nuovo router): 
+  - CRUD Sedi, Tipi Contratto, Dipendenti (con filtri sede/mansione/stato/q)
+  - Upload documenti per dipendente (base64 in MongoDB)
+  - CRUD Assunzioni (con bonus extra, contratto allegato, auto-update `dipendente.stato='assunto'`)
+  - CRUD Buste Paga + Pagamenti (acconti) con calcolo Dovuto/Pagato/Residuo
+  - PDF: elenco dipendenti, scheda dipendente, busta paga (reportlab)
+  - Email PDF via **Resend** (`POST /api/dipendenti/email/send`) con destinatari multipli
+- **Frontend** (`/app/frontend/src/Dipendenti.js`, nuovo): 3 subtab (Archivio, Assunzioni, Stipendi)
+  - Dialog completo per dipendente (anagrafica, contatti, professionale, documenti)
+  - Dialog assunzione (contratto, ore, tariffe, bonus, allegato)
+  - Dialog busta paga + dialog acconto pagamento
+  - Dialog invio email con destinatari multipli (+ aggiungi)
+  - Filtri attivi, esportazione PDF + invio mail
+- **Module Config**: `dipendenti` aggiunto ai moduli toggleable (default ON), card rose nella nav
+- **Integrazione**: aggiunti `RESEND_API_KEY` e `SENDER_EMAIL=onboarding@resend.dev` in `/app/backend/.env`; installati `resend==2.30.1` e `reportlab==4.5.1`
+- **Testing**: 37/37 pytest backend pass, frontend smoke OK. Test files: `/app/backend/tests/test_dipendenti.py`
+
+#### Fix Bug Inventario AI
+- Errore "float() argument must be ... not 'NoneType'" risolto con helper `_safe_int`/`_safe_float` quando l'AI ritorna valori `null`
+
+## Stato Precedente (02/06/2026) - Sessione 6
 
 #### Configurazione Moduli per Utente - COMPLETATO
 - **Backend**:
