@@ -465,15 +465,58 @@ async function handleBookings(method, id, body, action, sp) {
     const bookingRef = `MK-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
 
     // Determina stato/payment_status in base al metodo di pagamento scelto
+    // ⚠️ IMPORTANTE: solo i pagamenti già CERTI vanno marcati PAID/CONFIRMED.
+    // ONLINE/PAYMENT_LINK/LATER restano in attesa di conferma webhook SumUp o di registrazione manuale.
     const paymentMethod = body.payment_method || 'ONLINE';
-    let bookingStatus = 'CONFIRMED';
-    let bookingPaymentStatus = 'PAID';
-    if (paymentMethod === 'BANK_TRANSFER') {
-      bookingStatus = 'PENDING_VERIFICATION';
-      bookingPaymentStatus = 'PENDING';
-    } else if (paymentMethod === 'DIRECT') {
-      bookingStatus = 'PENDING_CONFIRMATION';
-      bookingPaymentStatus = 'PENDING';
+    let bookingStatus, bookingPaymentStatus;
+    switch (paymentMethod) {
+      case 'BANK_TRANSFER':
+        // Bonifico: in attesa di verifica del bonifico da parte della company
+        bookingStatus = 'PENDING_VERIFICATION';
+        bookingPaymentStatus = 'PENDING';
+        break;
+      case 'DIRECT':
+        // Cassa/in loco: l'admin segna manualmente quando incassato
+        bookingStatus = 'PENDING_CONFIRMATION';
+        bookingPaymentStatus = 'PENDING';
+        break;
+      case 'ONLINE':
+      case 'CARD':
+        // Carta SumUp / POS Web: il booking è in attesa di pagamento.
+        // Sarà il webhook SumUp a portarlo a CONFIRMED+PAID quando paid_at viene ricevuto.
+        bookingStatus = 'PENDING_PAYMENT';
+        bookingPaymentStatus = 'PENDING';
+        break;
+      case 'PAYMENT_LINK':
+        // Link di pagamento esterno SumUp: stessa logica di ONLINE
+        bookingStatus = 'PENDING_PAYMENT';
+        bookingPaymentStatus = 'PENDING';
+        break;
+      case 'LATER':
+        // Da pagare successivamente: PENDING
+        bookingStatus = 'PENDING_CONFIRMATION';
+        bookingPaymentStatus = 'PENDING';
+        break;
+      case 'CASH':
+        // Contanti: PENDING finché l'admin non chiama confirm-bank-transfer (vedi NewBookingDialog paymentMarked)
+        bookingStatus = 'PENDING_CONFIRMATION';
+        bookingPaymentStatus = 'PENDING';
+        break;
+      case 'FREE':
+      case 'COMP':
+        // Omaggio/compliments
+        bookingStatus = 'CONFIRMED';
+        bookingPaymentStatus = 'PAID';
+        break;
+      case 'AGENCY':
+        // Pagamento differito tramite agenzia (B2B)
+        bookingStatus = 'CONFIRMED';
+        bookingPaymentStatus = 'PENDING';
+        break;
+      default:
+        // Override esplicito dal client (es. import manuale o flussi specifici)
+        bookingStatus = body.status || 'PENDING_CONFIRMATION';
+        bookingPaymentStatus = body.payment_status || 'PENDING';
     }
 
     const booking = {
