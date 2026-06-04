@@ -2686,6 +2686,24 @@ async function handleRoute(request, resolvedParams, method) {
         }
         return new Response(JSON.stringify({ error: 'marina-payment-link endpoint not found' }), { status: 404 });
       }
+
+      // === MODULO DIPENDENTI ===
+      case 'employees': {
+        const { handleEmployees } = await import('./employees');
+        return await handleEmployees(method, id, body, action, searchParams);
+      }
+      case 'employee-locations': {
+        const { handleEmployeeLocations } = await import('./employees');
+        return await handleEmployeeLocations(method, id, body, action, searchParams);
+      }
+      case 'employee-roles': {
+        const { handleEmployeeRoles } = await import('./employees');
+        return await handleEmployeeRoles(method, id, body, action, searchParams);
+      }
+      case 'contract-types': {
+        const { handleContractTypes } = await import('./employees');
+        return await handleContractTypes(method, id, body, action, searchParams);
+      }
       case 'admin': {
         // Sub-route: /api/admin/backups | /api/admin/backups/create | /api/admin/backups/{id}/...
         const sub = pathSegments[1];

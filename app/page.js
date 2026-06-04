@@ -47,6 +47,7 @@ const SuperAdminBookingDeleteLazy = dynamic(() => import('./components/SuperAdmi
 // Procedura Rimborsi (Company Admin + Super Admin)
 const RefundsManagementLazy = dynamic(() => import('./components/RefundsManagement'), { ssr: false });
 const WarehouseAdminLazy = dynamic(() => import('./components/WarehouseAdmin'), { ssr: false });
+const EmployeesAdminLazy = dynamic(() => import('./components/EmployeesAdmin'), { ssr: false });
 // Link Pagamento Online (Company Admin)
 const PaymentLinkDialogLazy = dynamic(() => import('./components/PaymentLinkDialog'), { ssr: false });
 // Backup Manager (Super Admin only)
@@ -3285,7 +3286,7 @@ function AdminDashboard({ currentUser, onLogout }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem('admin_view_mode');
-      if (saved && ['all', 'experiences', 'marina', 'cantiere', 'magazzino', 'locazioni'].includes(saved)) {
+      if (saved && ['all', 'experiences', 'marina', 'cantiere', 'magazzino', 'locazioni', 'dipendenti'].includes(saved)) {
         setViewMode(saved);
       }
     } catch {}
@@ -3322,6 +3323,7 @@ function AdminDashboard({ currentUser, onLogout }) {
   const showCantiere = (viewMode === 'all' || viewMode === 'cantiere') && isModuleEnabled('boatyard');
   const showMagazzino = (viewMode === 'all' || viewMode === 'magazzino') && isModuleEnabled('warehouse');
   const showLocazioni = (viewMode === 'all' || viewMode === 'locazioni') && isModuleEnabled('rentals');
+  const showDipendenti = (viewMode === 'all' || viewMode === 'dipendenti') && isModuleEnabled('employees');
   
   // Filtri Report
   const [filters, setFilters] = useState({
@@ -4098,6 +4100,16 @@ function AdminDashboard({ currentUser, onLogout }) {
                   📦 Magazzino
                 </button>
               )}
+              {isModuleEnabled('employees') && (
+                <button
+                  type="button"
+                  onClick={() => changeViewMode('dipendenti')}
+                  className={`px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 ${viewMode === 'dipendenti' ? 'bg-white shadow text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
+                  title="Mostra solo modulo dipendenti"
+                >
+                  👥 Dipendenti
+                </button>
+              )}
             </div>
           )}
           <Button variant="outline" onClick={load}><RefreshCw className="w-4 h-4 mr-2" />Aggiorna</Button>
@@ -4315,6 +4327,18 @@ function AdminDashboard({ currentUser, onLogout }) {
             </div>
             <TabsTrigger value="magazzino" className="text-white data-[state=active]:bg-white data-[state=active]:text-rose-800 hover:bg-white/20 font-semibold">
               <Package className="w-4 h-4 mr-1.5" />Articoli, Bolle e Inventario
+            </TabsTrigger>
+          </TabsList>
+        )}
+
+        {/* Modulo DIPENDENTI */}
+        {showDipendenti && (currentUser?.company_id || isSuperAdmin) && (
+          <TabsList className="flex-wrap h-auto gap-1 bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-700 p-2 rounded-lg shadow-md w-full">
+            <div className="flex items-center gap-2 px-3 mr-2 text-white font-semibold text-xs uppercase tracking-wider border-r border-white/30 pr-3">
+              <Users className="w-4 h-4" />Modulo Dipendenti
+            </div>
+            <TabsTrigger value="dipendenti" className="text-white data-[state=active]:bg-white data-[state=active]:text-indigo-800 hover:bg-white/20 font-semibold">
+              <Users className="w-4 h-4 mr-1.5" />Anagrafica · Assunzioni · Stipendi
             </TabsTrigger>
           </TabsList>
         )}
@@ -5645,8 +5669,9 @@ function AdminDashboard({ currentUser, onLogout }) {
                       { key: 'rentals', label: 'Locazioni Brevi', icon: '🏖️', desc: 'Case vacanza e affitti' },
                       { key: 'boatyard', label: 'Cantiere', icon: '🔧', desc: 'Servizi cantiere navale' },
                       { key: 'warehouse', label: 'Magazzino', icon: '📦', desc: 'Gestione magazzino e articoli' },
+                      { key: 'employees', label: 'Dipendenti', icon: '👥', desc: 'Anagrafica, assunzioni e stipendi' },
                     ].map(mod => {
-                      const enabled = (newCompanyForm.enabled_modules || ['experiences','marina','rentals','boatyard','warehouse']).includes(mod.key);
+                      const enabled = (newCompanyForm.enabled_modules || ['experiences','marina','rentals','boatyard','warehouse','employees']).includes(mod.key);
                       return (
                         <label
                           key={mod.key}
@@ -6597,6 +6622,15 @@ function AdminDashboard({ currentUser, onLogout }) {
                 resources={resources || []}
                 currentUser={currentUser}
               />
+            </Suspense>
+          </TabsContent>
+        )}
+
+        {/* DIPENDENTI - tutti gli utenti company + Super Admin */}
+        {(currentUser?.company_id || isSuperAdmin) && (
+          <TabsContent value="dipendenti" className="space-y-4">
+            <Suspense fallback={<div className="text-center py-8"><Users className="w-8 h-8 mx-auto animate-pulse text-indigo-600" /></div>}>
+              <EmployeesAdminLazy currentUser={currentUser} isSuperAdmin={isSuperAdmin} companies={companies} />
             </Suspense>
           </TabsContent>
         )}
