@@ -661,6 +661,42 @@ backend:
         agent: "testing"
         comment: "✅ ADMIN NOTIFICATIONS HELPER TESTED - Indirect test via pay-deposit successful (1/1 test passed). Triggered POST /api/marina-bookings/{id}?action=pay-deposit with paid_amount=100, payment_method=CASH, payment_reference=TEST-ADMIN-NOTIF-001. Booking updated successfully (deposit_paid=true, status=DEPOSIT_PAID). Verified admin notification email sent to navigandosky@yahoo.it + marlin.sub@libero.it via Resend provider (confirmed in nextjs logs: '[admin-notifications] ✉️  Notifica admin inviata (marina)'). Email includes booking details (N° Prenotazione, Marina, Cliente, Email, Telefono, Barca, Periodo, Importo pagato, Totale prenotazione, Metodo pagamento, Stato risultante, Company). Helper is resilient (errors only logged, never propagated). Production-ready."
 
+
+  - task: "Modulo Dipendenti — Anagrafica (Phase 1)"
+    implemented: true
+    working: true
+    file: "app/components/EmployeesAdmin.js, app/api/[[...path]]/employees.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Phase 1 verified working: API /api/employees, /api/employee-locations, /api/employee-roles CRUD ok. UI renders correctly (verified via screenshot). Anna Chiai employee already in DB. Tabs: Anagrafica, Contatti, Istruzione & Ruolo, Documenti, Note. PDF export + email send via /api/send-document-email. Sedi/Ruoli ListManager dialogs."
+
+  - task: "Modulo Dipendenti — Assunzioni (Phase 2)"
+    implemented: true
+    working: true
+    file: "app/components/employees/ContractsManager.js, app/api/[[...path]]/employees.js (handleEmployeeContracts), app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Phase 2 implemented: new collection `employee_contracts` with fields: contract_type, role, location, start_date/end_date (null=indeterminato), weekly_hours, daily_hours, hourly_rate, monthly_gross, net_estimated, attachments[], status (DRAFT/ACTIVE/CLOSED). Auto-syncs employee.status to ASSUNTO when contract goes ACTIVE, back to LIBERO when all contracts CLOSED. Sub-actions: add-attachment, remove-attachment (PDF allegati contratto firmato fino a 10MB). UI integrato come tab '📝 Assunzioni' nel dialog dipendente. Verified via screenshot: tab visible, '+ Nuova Assunzione' button found, counter '0 contratti' shown. Backend tested via curl: POST/GET/DELETE /api/employee-contracts work."
+
+  - task: "Modulo Dipendenti — Stipendi (Phase 3)"
+    implemented: true
+    working: true
+    file: "app/components/employees/PayslipsManager.js, app/api/[[...path]]/employees.js (handleEmployeePayslips), app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Phase 3 implemented: new collection `employee_payslips` with fields: period_year/period_month, hours_worked, hourly_rate, gross_amount, deductions, bonuses, net_amount, due_amount, paid_amount, status (PENDING/PARTIAL/PAID auto-computed), payments[] array (acconti/rate con data, importo, metodo, note), attachments[]. Auto-recalcola gross/net/due da Ore × Paga Oraria nella UI. Sub-actions: add-payment, remove-payment, add-attachment, remove-attachment. Tab '💰 Stipendi' nel dialog dipendente con filtri anno/stato, totals card (Dovuto/Pagato/Residuo). Per ogni busta: bottoni Pagamento (registra acconto), PDF (export busta paga con tabella voci + storico pagamenti via jspdf), Email (invia PDF via /api/send-document-email). Verified via screenshot: tab clickabile, 'Nuova Busta Paga' dialog renderizza correttamente con tutti i campi. Backend testato via curl: POST/GET/PUT/DELETE /api/employee-payslips, add-payment subaction (PARTIAL/PAID transitions) work."
 agent_communication:
   - agent: "testing"
     message: "✅ MARINA PAYMENT LINK & ADMIN NOTIFICATIONS BACKEND TESTING COMPLETED - All 21/21 tests passed (100% success rate). Tested 3 new features: (1) POST /api/marina-payment-link/create: Happy path + 7 validation tests all passed. Creates SumUp hosted checkout with MAR- prefix, saves to integration_payments[], optionally sends email. (2) POST /api/marina-payment-link/send-bank-transfer: Happy path + 4 validation tests all passed. Sends bank transfer coordinates via Resend. (3) SumUp webhook for marina bookings: Simulation successful, returns 204, handles MAR- prefix correctly. (4) Admin notifications helper: Triggered via pay-deposit, email sent to 2 fixed recipients (navigandosky@yahoo.it, marlin.sub@libero.it), confirmed in logs. (5) Regression tests: GET /api/marina-bookings working, all payment link endpoints coexist (rental-payment-link, payment-link, marina-payment-link). All critical business logic verified. NO ISSUES FOUND. All features are production-ready."

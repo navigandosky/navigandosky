@@ -2704,6 +2704,14 @@ async function handleRoute(request, resolvedParams, method) {
         const { handleContractTypes } = await import('./employees');
         return await handleContractTypes(method, id, body, action, searchParams);
       }
+      case 'employee-contracts': {
+        const { handleEmployeeContracts } = await import('./employees');
+        return await handleEmployeeContracts(method, id, body, action, searchParams);
+      }
+      case 'employee-payslips': {
+        const { handleEmployeePayslips } = await import('./employees');
+        return await handleEmployeePayslips(method, id, body, action, searchParams);
+      }
       case 'admin': {
         // Sub-route: /api/admin/backups | /api/admin/backups/create | /api/admin/backups/{id}/...
         const sub = pathSegments[1];

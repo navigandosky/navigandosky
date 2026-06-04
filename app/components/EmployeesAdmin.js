@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Users, Plus, Search, Edit, Trash2, FileText, Mail, Download, Upload, MapPin, Briefcase, RefreshCw, X, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import ContractsManager from './employees/ContractsManager';
+import PayslipsManager from './employees/PayslipsManager';
 
 const STATUS_OPTIONS = [
   { value: 'LIBERO', label: '🟢 Libero / Disponibile', color: 'bg-emerald-100 text-emerald-700' },
@@ -508,12 +510,14 @@ function EmployeeDialog({ open, employee, setEmployee, locations, roles, onClose
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           <Tabs defaultValue="anagrafica">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="anagrafica">👤 Anagrafica</TabsTrigger>
               <TabsTrigger value="contatti">📞 Contatti</TabsTrigger>
               <TabsTrigger value="istruzione">🎓 Istruzione & Ruolo</TabsTrigger>
               <TabsTrigger value="documenti">📎 Documenti {employee.documents?.length > 0 ? `(${employee.documents.length})` : ''}</TabsTrigger>
-              <TabsTrigger value="note">📝 Note</TabsTrigger>
+              <TabsTrigger value="assunzioni" disabled={isNew}>📝 Assunzioni</TabsTrigger>
+              <TabsTrigger value="stipendi" disabled={isNew}>💰 Stipendi</TabsTrigger>
+              <TabsTrigger value="note">🗒️ Note</TabsTrigger>
             </TabsList>
 
             <TabsContent value="anagrafica" className="space-y-3 mt-3">
@@ -619,6 +623,14 @@ function EmployeeDialog({ open, employee, setEmployee, locations, roles, onClose
               ) : (
                 <div className="text-center text-muted-foreground text-sm py-4">Nessun documento caricato</div>
               )}
+            </TabsContent>
+
+            <TabsContent value="assunzioni" className="space-y-3 mt-3">
+              {!isNew && <ContractsManager employee={employee} />}
+            </TabsContent>
+
+            <TabsContent value="stipendi" className="space-y-3 mt-3">
+              {!isNew && <PayslipsManager employee={employee} />}
             </TabsContent>
 
             <TabsContent value="note" className="space-y-3 mt-3">
