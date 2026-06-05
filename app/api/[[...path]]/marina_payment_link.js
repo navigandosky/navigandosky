@@ -4,6 +4,7 @@
 // Il webhook SumUp riconosce il booking via integration_payments.id (vedi sumup_payments.js)
 
 import { MongoClient } from 'mongodb';
+import { buildSumupDescription, buildSumupCustomer } from './sumup_helpers';
 
 let _client;
 async function getDb() {
@@ -109,8 +110,14 @@ export async function handleCreateMarinaPaymentLink(method, body) {
     const checkoutRef = `MAR-${safeBkNum}-${Date.now()}`;
 
     const custNameForDesc = (customer_name || `${booking.customer?.name || ''} ${booking.customer?.surname || ''}`).trim();
-    const descLine = (description?.trim()) ||
-      `Marina ${booking.booking_number} - ${booking.marina_name || ''}${custNameForDesc ? ' - ' + custNameForDesc : ''} (${payment_type || 'pagamento'})`;
+    const descLine = (description?.trim()) || buildSumupDescription({
+      customerName: custNameForDesc,
+      prefix: 'Marina',
+      ref: booking.booking_number,
+      context: booking.marina_name || '',
+      paymentType: payment_type || 'pagamento',
+    });
+    const customerObj = buildSumupCustomer(custNameForDesc, customer_email, booking.customer?.phone);
 
     const payload = {
       checkout_reference: checkoutRef,
@@ -121,6 +128,7 @@ export async function handleCreateMarinaPaymentLink(method, body) {
       hosted_checkout: { enabled: true },
       redirect_url: redirectUrl,
       return_url: webhookUrl,
+      ...(customerObj ? { customer: customerObj } : {}),
     };
 
     const res = await fetch(`${SUMUP_API}/checkouts`, {

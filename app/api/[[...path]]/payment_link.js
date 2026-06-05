@@ -6,6 +6,7 @@
 // - Quando il pagamento è completato, il webhook SumUp esistente (sumup_payments.js)
 //   marcherà la voce integration come PAID grazie a checkout_reference dedicato.
 import { MongoClient } from 'mongodb';
+import { buildSumupDescription, buildSumupCustomer } from './sumup_helpers';
 
 let _client;
 async function getDb() {
@@ -106,8 +107,13 @@ export async function handleCreatePaymentLink(method, body) {
     // checkout_reference dedicato per integrazione: prefisso INTG- per identificarlo nel webhook
     const checkoutRef = `INTG-${booking.booking_ref}-${Date.now()}`;
     const custNameForDesc = (customer_name || booking.customer_name || '').trim();
-    const descLine = description?.trim() ||
-      `Integrazione Voucher ${booking.booking_ref} - ${booking.experience_name || 'Prenotazione'}${custNameForDesc ? ' - ' + custNameForDesc : ''}`;
+    const descLine = description?.trim() || buildSumupDescription({
+      customerName: custNameForDesc,
+      prefix: 'Integrazione Voucher',
+      ref: booking.booking_ref,
+      context: booking.experience_name || 'Prenotazione',
+    });
+    const customerObj = buildSumupCustomer(custNameForDesc, customer_email, booking.customer_phone);
 
     // Crea hosted checkout
     const payload = {
@@ -119,6 +125,7 @@ export async function handleCreatePaymentLink(method, body) {
       hosted_checkout: { enabled: true },
       redirect_url: redirectUrl,
       return_url: webhookUrl,
+      ...(customerObj ? { customer: customerObj } : {}),
     };
 
     const res = await fetch(`${SUMUP_API}/checkouts`, {

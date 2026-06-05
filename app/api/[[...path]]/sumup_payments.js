@@ -3,6 +3,7 @@
 // - Riceve webhook di conferma pagamento
 // - Aggiorna booking e invia voucher finale
 import { MongoClient } from 'mongodb';
+import { buildSumupDescription, buildSumupCustomer, extractCustomerName, extractCustomerEmail } from './sumup_helpers';
 
 let _client;
 async function getDb() {
@@ -63,15 +64,25 @@ export async function handleCreateSumupCheckout(method, body) {
     const redirectUrl = return_url || `${appUrl}/booking-success?ref=${booking.booking_ref}`;
 
     // Crea hosted checkout
+    const custName = extractCustomerName(booking);
+    const custEmail = extractCustomerEmail(booking);
+    const descLine = buildSumupDescription({
+      customerName: custName,
+      prefix: 'Prenotazione',
+      ref: booking.booking_ref,
+      context: booking.experience_name || 'Esperienza',
+    });
+    const customerObj = buildSumupCustomer(custName, custEmail, booking.customer_phone);
     const payload = {
       checkout_reference: `${booking.booking_ref}-${Date.now()}`, // unique per ogni tentativo
       amount: Number(booking.total_amount),
       currency: booking.currency || 'EUR',
       merchant_code: merchantCode,
-      description: `Prenotazione ${booking.booking_ref} - ${booking.experience_name || 'Esperienza'}${booking.customer_name ? ' - ' + booking.customer_name : ''}`,
+      description: descLine,
       hosted_checkout: { enabled: true },
       redirect_url: redirectUrl,
       return_url: webhookUrl,
+      ...(customerObj ? { customer: customerObj } : {}),
     };
 
     const res = await fetch(`${SUMUP_API}/checkouts`, {

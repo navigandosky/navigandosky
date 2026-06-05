@@ -103,14 +103,16 @@ export default function AgencyCalendar({ companyId, agencyId, experiences = [] }
   const getExpName = (id) => experiences.find(e => e.id === id)?.name || 'Esperienza';
   const getExpType = (id) => experiences.find(e => e.id === id)?.type || '';
 
-  // Conta posti occupati per uno slot da tutte le prenotazioni della company
-  const seatsBookedForSlot = (slotId) => {
-    return allBookings
-      .filter(b => b.slot_id === slotId && ['CONFIRMED', 'HELD', 'PENDING_VERIFICATION'].includes(b.status))
-      .reduce((s, b) => s + (Number(b.seats) || 0), 0);
-  };
+// Conta posti occupati per uno slot: usa SEMPRE slot.booked_seats (source of truth lato server,
+// allineato a quello che vede l'admin: include CONFIRMED, HELD, PENDING_PAYMENT, PENDING_VERIFICATION,
+// PENDING_CONFIRMATION). Questo evita disallineamenti rispetto alla vista admin.
+const seatsBookedForSlot = (slot) => Number(slot?.booked_seats) || 0;
 
-  const myBookingsForSlot = (slotId) => myBookings.filter(b => b.slot_id === slotId);
+// Restituisce TUTTE le prenotazioni della company per quello slot (per dialog dettaglio)
+const allBookingsForSlot = (slotId) =>
+  allBookings.filter(b => b.slot_id === slotId && b.status !== 'CANCELLED' && b.status !== 'REFUNDED');
+
+const myBookingsForSlot = (slotId) => myBookings.filter(b => b.slot_id === slotId);
 
   return (
     <Card>
@@ -189,8 +191,9 @@ export default function AgencyCalendar({ companyId, agencyId, experiences = [] }
                             {slotsToday.map(s => {
                               const type = getExpType(s.experience_id);
                               const gc = GANTT_COLORS[type] || 'bg-gray-50 border-gray-300 text-gray-900';
-                              const totalSeats = res.capacity || 1;
-                              const booked = seatsBookedForSlot(s.id);
+                              // Source of truth: usa i contatori salvati sullo slot (come fa l'admin)
+                              const totalSeats = Number(s.max_seats) || Number(res.capacity) || 1;
+                              const booked = seatsBookedForSlot(s);
                               const remaining = totalSeats - booked;
                               const myBks = myBookingsForSlot(s.id);
                               const isMine = myBks.length > 0;
@@ -263,8 +266,10 @@ export default function AgencyCalendar({ companyId, agencyId, experiences = [] }
           </DialogHeader>
           {selectedSlot && (() => {
             const myBks = myBookingsForSlot(selectedSlot.id);
-            const booked = seatsBookedForSlot(selectedSlot.id);
-            const totalSeats = (resources.find(r => (selectedSlot.resource_ids || []).includes(r.id)) || {}).capacity || 1;
+            const allBks = allBookingsForSlot(selectedSlot.id);
+            const booked = seatsBookedForSlot(selectedSlot);
+            const totalSeats = Number(selectedSlot.max_seats) || (resources.find(r => (selectedSlot.resource_ids || []).includes(r.id)) || {}).capacity || 1;
+            const myIds = new Set(myBks.map(b => b.id));
             return (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -277,27 +282,36 @@ export default function AgencyCalendar({ companyId, agencyId, experiences = [] }
                     <div className={`font-bold text-lg ${totalSeats - booked <= 0 ? 'text-red-600' : 'text-emerald-600'}`}>{Math.max(0, totalSeats - booked)}</div>
                   </div>
                 </div>
-                {myBks.length > 0 && (
+
+                {/* TUTTE le prenotazioni dello slot (come vede l'admin) */}
+                {allBks.length > 0 && (
                   <div className="space-y-2">
-                    <div className="text-sm font-semibold flex items-center gap-2"><Users className="w-4 h-4" /> Le tue prenotazioni</div>
-                    {myBks.map(b => (
-                      <div key={b.id} className="border-2 border-emerald-300 bg-emerald-50 rounded p-2 text-sm">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-mono text-xs">{b.booking_ref}</span> · <strong>{b.customer_name}</strong>
+                    <div className="text-sm font-semibold flex items-center gap-2"><Users className="w-4 h-4" /> Prenotazioni dello slot ({allBks.length})</div>
+                    {allBks.map(b => {
+                      const mine = myIds.has(b.id);
+                      return (
+                        <div key={b.id} className={`border rounded p-2 text-sm ${mine ? 'border-2 border-emerald-300 bg-emerald-50' : 'bg-slate-50 border-slate-200'}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="min-w-0">
+                              <span className="font-mono text-xs">{b.booking_ref}</span> · <strong className="break-all">{b.customer_name || '—'}</strong>
+                              {mine && <Badge className="ml-2 bg-emerald-600 text-white text-[10px]">TUA</Badge>}
+                            </div>
+                            <Badge variant="secondary" className={`text-[10px] ${mine ? 'bg-emerald-600 text-white border-0' : 'bg-slate-200 text-slate-700'}`}>{b.seats}p</Badge>
                           </div>
-                          <Badge className="bg-emerald-600 text-white text-[10px]">{b.seats} posti</Badge>
+                          {mine && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Status: <strong>{b.status}</strong>
+                              {(b.total_amount || b.price_b2b) ? <> · Totale: <strong>{fmtPrice(b.total_amount || b.price_b2b)}</strong></> : null}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Status: <strong>{b.status}</strong> · Totale: <strong>{fmtPrice(b.total_amount || b.price_b2b)}</strong>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
-                {myBks.length === 0 && (
+                {allBks.length === 0 && (
                   <div className="text-sm text-muted-foreground text-center py-3">
-                    Non hai prenotazioni su questo slot.
+                    Nessuna prenotazione su questo slot.
                   </div>
                 )}
               </div>
