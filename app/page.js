@@ -2548,8 +2548,24 @@ const GanttCalendar = memo(function GanttCalendar({ resources, allSlots, allBook
                         const sb = getSlotBookings(slot.id);
                         const expType = getExpType(slot.experience_id);
                         const gc = GANTT_COLORS[expType] || 'bg-gray-50 border-gray-300';
+                        const isClosed = slot.status === 'CLOSED';
+                        const isCancelled = slot.status === 'CANCELLED';
+                        // Override visivo per slot CHIUSI o CANCELLATI: stile rosso/grigio chiaramente distinguibile
+                        const wrapperCls = isClosed
+                          ? 'bg-red-50 border-red-400 text-red-900 opacity-80 saturate-50'
+                          : isCancelled
+                          ? 'bg-gray-100 border-gray-400 text-gray-700 opacity-60 line-through'
+                          : gc;
                         return (
-                          <div key={slot.id} className={`p-2 rounded-lg border-2 text-xs cursor-pointer ${gc} hover:shadow-lg transition-all relative group`} onClick={() => openSlotDetail(slot)}>
+                          <div key={slot.id} className={`p-2 rounded-lg border-2 text-xs cursor-pointer ${wrapperCls} hover:shadow-lg transition-all relative group`} onClick={() => openSlotDetail(slot)}>
+                            {/* Badge CHIUSO / ANNULLATO ben visibile */}
+                            {(isClosed || isCancelled) && (
+                              <div className="absolute -top-2 -left-2 z-20">
+                                <Badge className={`text-[10px] font-bold px-1.5 py-0.5 shadow-md border ${isClosed ? 'bg-red-600 text-white border-red-700' : 'bg-gray-500 text-white border-gray-600'}`}>
+                                  {isClosed ? '🚫 CHIUSO' : '✖ ANNULLATO'}
+                                </Badge>
+                              </div>
+                            )}
                             {/* Bottone stampa lista check-in (visibile su hover) */}
                             {sb.some(b => b.checked_in_at) && (
                               <button
