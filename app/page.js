@@ -1172,8 +1172,9 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
     setLoading(true);
     // IMPORTANTE: Non filtrare per data futura, altrimenti non vediamo tutte le risorse assegnate
     Promise.all([api(`slots?experience_id=${experience.id}`), api('resources')]).then(([s, r]) => {
-      // Filtra solo slot non cancellati (ma include anche slot passati per mostrare tutte le risorse)
-      const validSlots = Array.isArray(s) ? s.filter(sl => sl.status !== 'CANCELLED') : [];
+      // Filtra slot non cancellati e non chiusi (CANCELLED/CLOSED non sono prenotabili dal pubblico).
+      // Includiamo invece OPEN/FULL (FULL può comunque entrare nella lista d'attesa).
+      const validSlots = Array.isArray(s) ? s.filter(sl => sl.status !== 'CANCELLED' && sl.status !== 'CLOSED') : [];
       // Per la visualizzazione, mostra solo slot futuri
       const futureSlots = validSlots.filter(sl => new Date(sl.start_datetime) > new Date());
       setAllSlots(validSlots); // Salva TUTTI per calcolare risorse
@@ -1240,11 +1241,12 @@ function ExperienceDetail({ experience: experienceProp, setView }) {
   // Funzione per gestire il click su una data - controlla se ci sono più slot per la stessa data
   const handleDateClick = (dateSlots) => {
     const nowMs = new Date().getTime();
-    // Conta quanti slot hanno posti disponibili E non sono già iniziati
+    // Conta quanti slot hanno posti disponibili E non sono già iniziati E non sono CLOSED/CANCELLED
     const availableSlots = dateSlots.filter(s => {
       const avail = s.max_seats - s.booked_seats - (s.blocked_seats || 0);
       const notStarted = new Date(s.start_datetime).getTime() > nowMs;
-      return avail > 0 && notStarted;
+      const bookable = s.status !== 'CLOSED' && s.status !== 'CANCELLED';
+      return avail > 0 && notStarted && bookable;
     });
 
     if (availableSlots.length === 0) {

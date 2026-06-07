@@ -244,6 +244,8 @@ async function handleSlots(method, id, body, action, sp) {
   if (method === 'POST' && id && action === 'block') {
     const slot = await col.findOne({ id });
     if (!slot) return json({ error: 'Slot non trovato' }, 404);
+    if (slot.status === 'CLOSED') return json({ error: 'Slot chiuso: non disponibile' }, 400);
+    if (slot.status === 'CANCELLED') return json({ error: 'Slot cancellato' }, 400);
     const blocked = await db.collection('seat_blocks')
       .find({ slot_id: id, expires_at: { $gt: new Date().toISOString() } })
       .toArray();
@@ -421,6 +423,7 @@ async function handleBookings(method, id, body, action, sp) {
     const slot = await db.collection('slots').findOne({ id: body.slot_id });
     if (!slot) return json({ error: 'Slot non trovato' }, 404);
     if (slot.status === 'CANCELLED') return json({ error: 'Slot cancellato' }, 400);
+    if (slot.status === 'CLOSED') return json({ error: 'Slot chiuso: non disponibile per prenotazioni' }, 400);
 
     // Clean expired blocks
     await db.collection('seat_blocks').deleteMany({ expires_at: { $lt: new Date().toISOString() } });
