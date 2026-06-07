@@ -102,6 +102,8 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
         const r = await fetch(`/api/slots?experience_id=${selectedExp.id}`);
         const data = await r.json();
         const future = (Array.isArray(data) ? data : [])
+          // Escludi slot CHIUSI o CANCELLATI: non prenotabili neppure dall'admin/agenzia
+          .filter(s => s.status !== 'CLOSED' && s.status !== 'CANCELLED')
           .filter(s => new Date(s.start_datetime) >= new Date(Date.now() - 3600 * 1000))
           .filter(s => (s.max_seats - s.booked_seats - (s.blocked_seats || 0)) > 0)
           .sort((a, b) => new Date(a.start_datetime) - new Date(b.start_datetime));
