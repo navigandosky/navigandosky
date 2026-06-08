@@ -127,10 +127,144 @@ export async function handleSkipperBookings(method, body, sp, db) {
 // GET /api/transport-logs?company_id=X&from=Y&to=Z -> filtraggio range
 // GET /api/transport-logs/{id} -> dettaglio
 // POST /api/transport-logs -> crea/aggiorna log (upsert per resource_id+date)
+// POST /api/transport-logs?action=build-from-bookings -> crea lista da bookings esistenti
+// POST /api/transport-logs/{id}?action=checkin -> registra check-in passeggeri per una booking
 // PUT /api/transport-logs/{id} -> aggiorna stato (CLOSED)
 // DELETE /api/transport-logs/{id} -> elimina
 export async function handleTransportLogs(method, id, body, action, sp, db) {
   const col = db.collection('transport_logs');
+
+  // === BUILD-FROM-BOOKINGS: genera lista pronta per check-in =========
+  if (method === 'POST' && action === 'build-from-bookings') {
+    const { company_id, resource_id, date, experience_id, skipper_id } = body || {};
+    if (!company_id || !resource_id || !date) {
+      return json({ error: 'company_id, resource_id e date obbligatori' }, 400);
+    }
+    // Carica risorsa
+    const resource = await db.collection('resources').findOne({ id: resource_id });
+    if (!resource) return json({ error: 'Risorsa non trovata' }, 404);
+
+    // Determina skipper: preferisce skipper_id esplicito, altrimenti cerca utente SKIPPER assegnato alla risorsa
+    let skipperDoc = null;
+    if (skipper_id) {
+      skipperDoc = await db.collection('users').findOne({ id: skipper_id });
+    } else {
+      skipperDoc = await db.collection('users').findOne({
+        role: 'SKIPPER',
+        company_id,
+        assigned_resource_ids: resource_id,
+      });
+    }
+
+    // Carica slot della risorsa per la data (resource_ids include il resource_id)
+    const dayStart = `${date}T00:00:00.000Z`;
+    const dayEnd = `${date}T23:59:59.999Z`;
+    const slotsQ = {
+      company_id,
+      start_datetime: { $gte: dayStart, $lte: dayEnd },
+      resource_ids: resource_id,
+      status: { $nin: ['CANCELLED'] },
+    };
+    if (experience_id) slotsQ.experience_id = experience_id;
+    const slots = await db.collection('slots').find(slotsQ).toArray();
+    const slotIds = slots.map(s => s.id);
+
+    // Carica bookings non cancellate per quegli slot
+    const bookings = slotIds.length === 0 ? [] : await db.collection('bookings').find({
+      slot_id: { $in: slotIds },
+      status: { $nin: ['CANCELLED', 'REFUNDED'] },
+    }).sort({ slot_datetime: 1, created_at: 1 }).toArray();
+
+    // Costruisci snapshot in formato compatibile con voucher PDF / check-in
+    const snapshot = bookings.map(b => {
+      const slot = slots.find(s => s.id === b.slot_id);
+      return {
+        booking_id: b.id,
+        booking_ref: b.booking_ref,
+        customer_name: b.customer_name || '',
+        customer_email: b.customer_email || '',
+        customer_phone: b.customer_phone || '',
+        experience_id: b.experience_id || slot?.experience_id,
+        experience_name: b.experience_name || '',
+        seats: Number(b.seats || 0),
+        slot_datetime: b.slot_datetime || slot?.start_datetime,
+        agency_id: b.agency_id || null,
+        agency_name: b.agency_name || '',
+        status: b.status,
+        // passeggeri da spuntare al check-in (default vuoto)
+        passengers_checkin: Array.isArray(b.passengers_checkin) ? b.passengers_checkin : [],
+        checked_in: !!b.checked_in_at,
+        checked_in_at: b.checked_in_at || null,
+      };
+    });
+
+    const totalPassengers = snapshot.reduce((s, x) => s + (Number(x.seats) || 0), 0);
+
+    const existing = await col.findOne({ resource_id, date });
+    const baseData = {
+      resource_id,
+      resource_name: resource.name || '',
+      resource_imei: resource.imei || resource.gps_imei || '',
+      skipper_id: skipperDoc?.id || null,
+      skipper_name: skipperDoc?.full_name || skipperDoc?.username || '',
+      skipper_phone: skipperDoc?.phone || '',
+      company_id,
+      date,
+      experience_id_filter: experience_id || null,
+      bookings_snapshot: snapshot,
+      total_passengers: totalPassengers,
+      total_bookings: snapshot.length,
+      status: 'OPEN',
+      generated_at: new Date().toISOString(),
+    };
+
+    if (existing) {
+      // Preserva check-in già fatti (per booking_id)
+      const prevCheckins = {};
+      for (const b of (existing.bookings_snapshot || [])) {
+        if (b.checked_in || (b.passengers_checkin || []).length > 0) {
+          prevCheckins[b.booking_id] = { checked_in: !!b.checked_in, checked_in_at: b.checked_in_at, passengers_checkin: b.passengers_checkin || [] };
+        }
+      }
+      baseData.bookings_snapshot = baseData.bookings_snapshot.map(b => prevCheckins[b.booking_id] ? { ...b, ...prevCheckins[b.booking_id] } : b);
+      await col.updateOne({ id: existing.id }, { $set: baseData });
+      const updated = await col.findOne({ id: existing.id });
+      return json({ ...updated, _created: false });
+    } else {
+      const newLog = { id: uuidv4(), ...baseData, created_at: new Date().toISOString(), notes: '' };
+      await col.insertOne(newLog);
+      return json({ ...newLog, _created: true }, 201);
+    }
+  }
+
+  // === CHECK-IN: marca una booking come imbarcata =====================
+  if (method === 'POST' && id && action === 'checkin') {
+    const log = await col.findOne({ id });
+    if (!log) return json({ error: 'Log non trovato' }, 404);
+    const { booking_id, checked_in, passengers_checkin } = body || {};
+    if (!booking_id) return json({ error: 'booking_id obbligatorio' }, 400);
+    const snap = (log.bookings_snapshot || []).map(b => {
+      if (b.booking_id !== booking_id) return b;
+      const isCheckedIn = checked_in !== undefined ? !!checked_in : !b.checked_in;
+      return {
+        ...b,
+        checked_in: isCheckedIn,
+        checked_in_at: isCheckedIn ? new Date().toISOString() : null,
+        passengers_checkin: Array.isArray(passengers_checkin) ? passengers_checkin : (b.passengers_checkin || []),
+      };
+    });
+    await col.updateOne({ id }, { $set: { bookings_snapshot: snap, updated_at: new Date().toISOString() } });
+
+    // Sincronizza anche la booking con checked_in_at (solo se passa a true)
+    const target = snap.find(x => x.booking_id === booking_id);
+    if (target?.checked_in) {
+      await db.collection('bookings').updateOne({ id: booking_id }, { $set: { checked_in_at: target.checked_in_at } });
+    } else if (target && !target.checked_in) {
+      await db.collection('bookings').updateOne({ id: booking_id }, { $unset: { checked_in_at: '' } });
+    }
+    const updated = await col.findOne({ id });
+    return json(updated);
+  }
 
   // GET singolo per id
   if (method === 'GET' && id) {

@@ -7,7 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { FileText, Download, Calendar, Anchor, Users, Search, RefreshCw, FileSpreadsheet, X, Filter } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { FileText, Download, Calendar, Anchor, Users, Search, RefreshCw, FileSpreadsheet, X, Filter, Plus, CheckCircle2, ClipboardList } from 'lucide-react';
+import { toast } from 'sonner';
 
 /**
  * Registro Trasportati - vista admin con filtri per data, esperienza, risorsa.
@@ -28,6 +30,15 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
   const [searchText, setSearchText] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+
+  // === Dialog: Crea Lista ===
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({ resource_id: '', date: new Date().toISOString().slice(0,10), experience_id: '' });
+  const [creating, setCreating] = useState(false);
+
+  // === Dialog: Check-in ===
+  const [checkinLog, setCheckinLog] = useState(null);
+  const [checkinSaving, setCheckinSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -52,6 +63,84 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
   };
 
   useEffect(() => { load(); }, [companyId]);
+
+  // === CREA LISTA da prenotazioni esistenti ===
+  const createList = async () => {
+    if (!createForm.resource_id || !createForm.date) {
+      toast.error('Seleziona risorsa e data');
+      return;
+    }
+    setCreating(true);
+    try {
+      const r = await fetch('/api/transport-logs?action=build-from-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_id: companyId,
+          resource_id: createForm.resource_id,
+          date: createForm.date,
+          experience_id: createForm.experience_id || undefined,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Errore');
+      if ((data.bookings_snapshot || []).length === 0) {
+        toast.warning(`Nessuna prenotazione trovata per ${createForm.date}`);
+      } else {
+        toast.success(`📋 Lista ${data._created ? 'creata' : 'aggiornata'}: ${data.total_bookings} prenotazioni, ${data.total_passengers} pax`);
+      }
+      setCreateOpen(false);
+      setCreateForm({ resource_id: '', date: new Date().toISOString().slice(0,10), experience_id: '' });
+      await load();
+      // Apri direttamente il check-in dialog sulla nuova lista
+      setCheckinLog(data);
+    } catch (e) {
+      toast.error('Errore: ' + e.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // === TOGGLE CHECK-IN su singola booking ===
+  const toggleCheckin = async (logId, booking_id, newState) => {
+    try {
+      const r = await fetch(`/api/transport-logs/${logId}?action=checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id, checked_in: newState }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Errore');
+      setCheckinLog(data);
+      // refresh top-level logs in background
+      load();
+    } catch (e) {
+      toast.error('Errore check-in: ' + e.message);
+    }
+  };
+
+  // === CHIUDI il log dopo check-in ===
+  const closeLog = async () => {
+    if (!checkinLog) return;
+    if (!window.confirm('Chiudere il registro? Non potrà più essere modificato il check-in.')) return;
+    setCheckinSaving(true);
+    try {
+      const r = await fetch(`/api/transport-logs/${checkinLog.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CLOSED', closed_at: new Date().toISOString() }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Errore');
+      toast.success('✅ Registro chiuso');
+      setCheckinLog(null);
+      load();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setCheckinSaving(false);
+    }
+  };
 
   // Lista date uniche disponibili (per dropdown)
   const availableDates = useMemo(() => {
@@ -224,6 +313,9 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
               <p className="text-sm text-muted-foreground mt-1">Registri giornalieri chiusi dagli skipper con check-in passeggeri</p>
             </div>
             <div className="flex gap-2 flex-wrap">
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setCreateOpen(true)}>
+                <Plus className="w-4 h-4 mr-1" />Crea Lista
+              </Button>
               <Button variant="outline" size="sm" onClick={load} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
                 Aggiorna
@@ -421,9 +513,16 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
                         </div>
                       )}
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => downloadPdf(log)}>
-                      <Download className="w-4 h-4 mr-1" />PDF
-                    </Button>
+                    <div className="flex gap-2 flex-wrap shrink-0">
+                      {log.status !== 'CLOSED' && (
+                        <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => setCheckinLog(log)}>
+                          <CheckCircle2 className="w-4 h-4 mr-1" />Check-in Now
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => downloadPdf(log)}>
+                        <Download className="w-4 h-4 mr-1" />PDF
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
@@ -431,6 +530,143 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
           </div>
         </CardContent>
       </Card>
+
+      {/* ====== DIALOG: Crea Lista ====== */}
+      <Dialog open={createOpen} onOpenChange={(o) => !creating && setCreateOpen(o)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><ClipboardList className="w-5 h-5 text-emerald-600" />Crea Lista Trasportati</DialogTitle>
+            <DialogDescription>
+              Genera una lista pronta per check-in selezionando Risorsa, Data e (opzionale) Esperienza. Pesca automaticamente tutte le prenotazioni della giornata.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Data *</Label>
+              <Input type="date" value={createForm.date} onChange={(e) => setCreateForm({ ...createForm, date: e.target.value })} />
+            </div>
+            <div>
+              <Label className="text-xs">Risorsa *</Label>
+              <Select value={createForm.resource_id} onValueChange={(v) => setCreateForm({ ...createForm, resource_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Seleziona risorsa" /></SelectTrigger>
+                <SelectContent>
+                  {resources.slice().sort((a,b) => (a.name||'').localeCompare(b.name||'')).map((r) => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Esperienza (opzionale - filtra solo questa)</Label>
+              <Select value={createForm.experience_id || '__all__'} onValueChange={(v) => setCreateForm({ ...createForm, experience_id: v === '__all__' ? '' : v })}>
+                <SelectTrigger><SelectValue placeholder="Tutte le esperienze" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Tutte le esperienze</SelectItem>
+                  {experiences.slice().sort((a,b) => (a.name||'').localeCompare(b.name||'')).map((e) => (
+                    <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground bg-slate-50 border rounded p-2">
+              💡 Lo skipper assegnato alla risorsa verrà rilevato automaticamente. Se la lista esiste già per questa risorsa+data, verrà aggiornata mantenendo i check-in già fatti.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={creating}>Annulla</Button>
+            <Button onClick={createList} disabled={creating || !createForm.resource_id || !createForm.date} className="bg-emerald-600 hover:bg-emerald-700">
+              {creating ? 'Generazione…' : 'Crea Lista'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ====== DIALOG: Check-in ====== */}
+      <Dialog open={!!checkinLog} onOpenChange={(o) => !o && setCheckinLog(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-blue-600" />Check-in Passeggeri</DialogTitle>
+            <DialogDescription>
+              {checkinLog && (<>
+                <strong>{checkinLog.resource_name}</strong> · {fmtDate(checkinLog.date)}
+                {checkinLog.skipper_name && <> · Skipper: <strong>{checkinLog.skipper_name}</strong></>}
+                {checkinLog.skipper_phone && <> ({checkinLog.skipper_phone})</>}
+              </>)}
+            </DialogDescription>
+          </DialogHeader>
+          {checkinLog && (
+            <div className="space-y-3">
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-blue-50 border border-blue-200 rounded p-2">
+                  <div className="text-[10px] text-blue-700 uppercase">Prenotazioni</div>
+                  <div className="font-bold text-xl text-blue-800">{(checkinLog.bookings_snapshot || []).length}</div>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-200 rounded p-2">
+                  <div className="text-[10px] text-emerald-700 uppercase">Check-in ✓</div>
+                  <div className="font-bold text-xl text-emerald-800">{(checkinLog.bookings_snapshot || []).filter(b => b.checked_in).length}</div>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 rounded p-2">
+                  <div className="text-[10px] text-amber-700 uppercase">Da fare</div>
+                  <div className="font-bold text-xl text-amber-800">{(checkinLog.bookings_snapshot || []).filter(b => !b.checked_in).length}</div>
+                </div>
+              </div>
+
+              {/* Lista prenotazioni */}
+              {(checkinLog.bookings_snapshot || []).length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
+                  Nessuna prenotazione in questa lista
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(checkinLog.bookings_snapshot || []).map((b) => (
+                    <div key={b.booking_id} className={`border rounded-lg p-3 transition ${b.checked_in ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}`}>
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <Badge variant="secondary" className="font-mono text-[10px]">{b.booking_ref}</Badge>
+                            {b.checked_in && <Badge className="bg-emerald-600 text-white text-[10px]">✓ Imbarcato</Badge>}
+                            {b.agency_name && <Badge variant="outline" className="text-[10px]">🏢 {b.agency_name}</Badge>}
+                          </div>
+                          <div className="font-semibold text-sm">{b.customer_name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-2">
+                            <span>📦 {b.experience_name}</span>
+                            <span><Users className="w-3 h-3 inline" /> {b.seats} pax</span>
+                            {b.customer_phone && <span>📞 {b.customer_phone}</span>}
+                            {b.customer_email && <span className="truncate">✉ {b.customer_email}</span>}
+                          </div>
+                          {b.checked_in_at && (
+                            <div className="text-[10px] text-emerald-700 mt-1">
+                              Imbarco: {new Date(b.checked_in_at).toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={b.checked_in ? 'outline' : 'default'}
+                          className={b.checked_in ? '' : 'bg-emerald-600 hover:bg-emerald-700'}
+                          disabled={checkinLog.status === 'CLOSED'}
+                          onClick={() => toggleCheckin(checkinLog.id, b.booking_id, !b.checked_in)}
+                        >
+                          {b.checked_in ? '↶ Annulla' : '✓ Check-in'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCheckinLog(null)}>Chiudi finestra</Button>
+            {checkinLog?.status !== 'CLOSED' && (
+              <Button onClick={closeLog} disabled={checkinSaving} className="bg-green-600 hover:bg-green-700">
+                {checkinSaving ? 'Salvataggio…' : '🔒 Chiudi Registro'}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

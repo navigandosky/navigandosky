@@ -28,6 +28,50 @@ const loadImageAsDataUrl = (url) => new Promise((resolve) => {
 
 export async function generateVoucherPdf(booking, experience, company, opts = {}) {
   const isFinal = opts.type === 'FINAL' || booking?.status === 'CONFIRMED';
+
+  // === Auto-fetch RESOURCE & SKIPPER se non passati esplicitamente ===
+  // Permette di mostrare nel voucher il mezzo assegnato e i contatti dello skipper
+  // senza richiedere modifiche a tutti i call site.
+  if (!opts.resource || !opts.skipper) {
+    try {
+      // 1) Trova il slot per estrarre resource_ids[]
+      let slot = null;
+      if (booking?.slot_id) {
+        try { slot = await fetch(`/api/slots/${booking.slot_id}`).then(r => r.ok ? r.json() : null); } catch (_e1) { /* ignore */ }
+      }
+      const resourceIds = Array.isArray(slot?.resource_ids) ? slot.resource_ids : (booking?.resource_id ? [booking.resource_id] : []);
+      // 2) Carica le risorse dello slot (solitamente 1)
+      if (!opts.resource && resourceIds.length > 0) {
+        try {
+          const rRes = await fetch(`/api/resources/${resourceIds[0]}`);
+          if (rRes.ok) opts.resource = await rRes.json();
+        } catch (_e2) { /* ignore */ }
+      }
+      // 3) Skipper: prima usa assigned_skipper_id sulla booking, poi cerca utente SKIPPER assegnato alla risorsa
+      const skipperIdToFetch = booking?.assigned_skipper_id || slot?.assigned_skipper_id || null;
+      if (!opts.skipper && skipperIdToFetch) {
+        try {
+          const skRes = await fetch(`/api/users/${skipperIdToFetch}`);
+          if (skRes.ok) opts.skipper = await skRes.json();
+        } catch (_e3) { /* ignore */ }
+      }
+      // 4) Fallback: cerca skipper assegnato alla risorsa
+      if (!opts.skipper && opts.resource?.id && company?.id) {
+        try {
+          const usRes = await fetch(`/api/users?company_id=${company.id}&role=SKIPPER`);
+          if (usRes.ok) {
+            const users = await usRes.json();
+            const list = Array.isArray(users) ? users : [];
+            const found = list.find(u => Array.isArray(u.assigned_resource_ids) && u.assigned_resource_ids.includes(opts.resource.id));
+            if (found) opts.skipper = found;
+          }
+        } catch (_e4) { /* ignore */ }
+      }
+    } catch (_e) {
+      // Non bloccare la generazione del voucher se il fetch fallisce
+    }
+  }
+
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210, H = 297;
   const M = 15; // margin
@@ -251,6 +295,49 @@ export async function generateVoucherPdf(booking, experience, company, opts = {}
     }
   }
   y += totalBoxH + 8;
+
+  // === RISORSA & SKIPPER (se forniti via opts) ===========================
+  const resObj = opts.resource || null;
+  const skObj = opts.skipper || null;
+  if (resObj || skObj) {
+    // Calcola altezza box dinamicamente
+    const lines = [];
+    if (resObj) {
+      const resTitle = resObj.name || resObj.label || 'Risorsa';
+      const resInfo = [];
+      if (resObj.type || resObj.kind) resInfo.push(resObj.type || resObj.kind);
+      if (resObj.capacity) resInfo.push(`${resObj.capacity} posti`);
+      if (resObj.model) resInfo.push(resObj.model);
+      if (resObj.registration || resObj.matricola) resInfo.push(`Matr. ${resObj.registration || resObj.matricola}`);
+      lines.push({ label: '⚓ Mezzo:', value: resTitle + (resInfo.length ? ' (' + resInfo.join(' · ') + ')' : '') });
+    }
+    if (skObj) {
+      const skName = skObj.full_name || skObj.username || skObj.name || '';
+      if (skName) lines.push({ label: '👤 Skipper:', value: skName });
+      if (skObj.phone) lines.push({ label: '📞 Telefono:', value: skObj.phone });
+      if (skObj.email) lines.push({ label: '✉ Email:', value: skObj.email });
+    }
+    if (lines.length > 0) {
+      const boxH = 12 + lines.length * 5;
+      doc.setDrawColor(8, 145, 178);          // ciano scuro
+      doc.setFillColor(236, 254, 255);        // cyan-50
+      doc.roundedRect(M, y, W - 2 * M, boxH, 2, 2, 'FD');
+      doc.setTextColor(14, 116, 144);         // cyan-700
+      doc.setFontSize(10).setFont('helvetica', 'bold');
+      doc.text('RISORSA ASSEGNATA & SKIPPER', M + 4, y + 7);
+      doc.setFontSize(9).setFont('helvetica', 'normal');
+      doc.setTextColor(31, 41, 55);
+      let lineY = y + 13;
+      for (const ln of lines) {
+        doc.setFont('helvetica', 'bold'); doc.text(ln.label, M + 4, lineY);
+        doc.setFont('helvetica', 'normal');
+        const v = doc.splitTextToSize(String(ln.value || ''), W - 2 * M - 36);
+        doc.text(v[0] || '', M + 30, lineY);
+        lineY += 5;
+      }
+      y += boxH + 6;
+    }
+  }
 
   // Bonifico (se provvisorio + bonifico)
   if (!isFinal && booking.payment_method === 'BANK_TRANSFER' && opts.bankTransfer) {
