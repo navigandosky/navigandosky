@@ -11,9 +11,28 @@ const fmtDate = (iso) => {
     });
   } catch { return '-'; }
 };
+// Mostra l'orario "così com'è" nello slot (gli slot sono salvati in DB con l'orario locale italiano marcato come UTC).
+// Usare toLocaleTimeString convertirebbe in fuso orario applicando il DST e mostrerebbe 11:00 al posto di 09:00.
 const fmtTime = (iso) => {
   if (!iso) return '-';
-  try { return new Date(iso).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); } catch { return '-'; }
+  try {
+    const d = new Date(iso);
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  } catch { return '-'; }
+};
+
+// Calcola orario check-in (slot_start - 15 minuti). Es. 09:00 -> 08:45
+const fmtCheckinTime = (iso) => {
+  if (!iso) return '-';
+  try {
+    const d = new Date(iso);
+    d.setUTCMinutes(d.getUTCMinutes() - 15);
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  } catch { return '-'; }
 };
 
 const loadImageAsDataUrl = (url) => new Promise((resolve) => {
@@ -146,7 +165,9 @@ export async function generateTransportLogPdf({ resource = {}, skipper = {}, dat
     doc.setFontSize(10);
     doc.text(`${idx + 1}. ${b.booking_ref || '-'} - ${b.experience_name || 'Tratta'}`, M + 2, y + 2);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Ore: ${fmtTime(b.slot_datetime)}`, W - M - 35, y + 2);
+    doc.setFontSize(9);
+    // Orario partenza slot + check-in (15 min prima): es. "Check-in dalle 08:45 | Partenza 09:00"
+    doc.text(`Check-in dalle ${fmtCheckinTime(b.slot_datetime)} | Partenza ${fmtTime(b.slot_datetime)}`, W - M - 75, y + 2);
     y += 10;
 
     // Intestatario
