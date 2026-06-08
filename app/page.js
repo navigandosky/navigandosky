@@ -3786,6 +3786,112 @@ function AdminDashboard({ currentUser, onLogout }) {
     
     return filtered;
   }, [bookings, bookingExpFilter, bookingDateFilter, bookingCustomerFilter, bookingCodeFilter, bookingAgencyFilter, slots]);
+
+  // ===== EXPORT PRENOTAZIONI (tab "Prenotazioni") =====
+  // Usa i filtri attivi della card (Esperienza, Data Servizio, Cliente, Agenzia, Codice)
+  const exportBookingsTabPdf = async () => {
+    if (filteredBookingsTab.length === 0) {
+      toast.error('Nessuna prenotazione da esportare con i filtri attivi');
+      return;
+    }
+    try {
+      const [{ jsPDF }, atMod] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
+      const autoTable = atMod.default || atMod;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      // Header
+      doc.setFontSize(16).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+      doc.text(`Report Prenotazioni — ${currentCompanyForModules?.name || 'Maretrek'}`, 14, 15);
+      doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(71, 85, 105);
+      doc.text(`Generato: ${new Date().toLocaleString('it-IT')} · Risultati: ${filteredBookingsTab.length}`, 14, 21);
+
+      // Filtri attivi
+      const af = [];
+      if (bookingExpFilter && bookingExpFilter !== 'ALL') {
+        const e = experiences.find(x => x.id === bookingExpFilter);
+        if (e) af.push(`Esperienza: ${e.name}`);
+      }
+      if (bookingDateFilter) af.push(`Data Servizio: ${bookingDateFilter}`);
+      if (bookingCustomerFilter) af.push(`Cliente: ${bookingCustomerFilter}`);
+      if (bookingCodeFilter) af.push(`Codice: ${bookingCodeFilter}`);
+      if (bookingAgencyFilter && bookingAgencyFilter !== 'ALL') {
+        if (bookingAgencyFilter === 'B2C') af.push('Agenzia: Diretto B2C');
+        else {
+          const a = agencies.find(x => x.id === bookingAgencyFilter);
+          if (a) af.push(`Agenzia: ${a.name}`);
+        }
+      }
+      if (af.length > 0) {
+        doc.setFontSize(8).setTextColor(120, 120, 120);
+        doc.text(`Filtri: ${af.join(' · ')}`, 14, 27, { maxWidth: 270 });
+      }
+
+      const head = [['Rif.', 'Cliente', 'Email', 'Agenzia', 'Esperienza', 'Data', 'Risorsa', 'Posti', 'Totale', 'Stato', 'Pagamento']];
+      const body = filteredBookingsTab.map(b => {
+        const slot = slots.find(s => s.id === b.slot_id);
+        const exp = experiences.find(e => e.id === b.experience_id || e.id === slot?.experience_id);
+        const resourceIds = slot?.resource_ids || [];
+        const resNames = resourceIds.map(rid => (resources.find(r => r.id === rid)?.name || '')).filter(Boolean).join(', ');
+        const slotIso = b.slot_datetime || slot?.start_datetime || '';
+        const slotD = slotIso ? new Date(slotIso) : null;
+        const dataStr = slotD ? `${String(slotD.getUTCDate()).padStart(2,'0')}/${String(slotD.getUTCMonth()+1).padStart(2,'0')}/${slotD.getUTCFullYear()} ${String(slotD.getUTCHours()).padStart(2,'0')}:${String(slotD.getUTCMinutes()).padStart(2,'0')}` : '-';
+        const agency = b.agency_id ? (agencies.find(a => a.id === b.agency_id)?.name || '-') : 'Diretto B2C';
+        return [
+          b.booking_ref || '-',
+          b.customer_name || '-',
+          b.customer_email || '-',
+          agency,
+          (exp?.name || b.experience_name || '-').slice(0, 38),
+          dataStr,
+          resNames || '-',
+          b.seats || 0,
+          `€ ${Number(b.total_amount || 0).toFixed(2)}`,
+          b.status || '-',
+          b.payment_method || '-',
+        ];
+      });
+      const totalSeats = filteredBookingsTab.reduce((s, b) => s + (Number(b.seats) || 0), 0);
+      const totalAmount = filteredBookingsTab.reduce((s, b) => s + (Number(b.total_amount) || 0), 0);
+
+      autoTable(doc, {
+        startY: af.length > 0 ? 32 : 26,
+        head,
+        body,
+        foot: [['', '', '', '', '', '', 'TOT.', String(totalSeats), `€ ${totalAmount.toFixed(2)}`, '', '']],
+        styles: { fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
+        headStyles: { fillColor: [15, 118, 110], textColor: 255, fontSize: 9 },
+        footStyles: { fillColor: [241, 245, 249], textColor: 15, fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 18 },
+          1: { cellWidth: 32 },
+          2: { cellWidth: 42 },
+          3: { cellWidth: 26 },
+          4: { cellWidth: 48 },
+          5: { cellWidth: 22 },
+          6: { cellWidth: 22 },
+          7: { cellWidth: 10, halign: 'center' },
+          8: { cellWidth: 20, halign: 'right' },
+          9: { cellWidth: 20 },
+          10: { cellWidth: 22 },
+        },
+        margin: { left: 8, right: 8 },
+      });
+
+      // Footer pagina con data
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7).setTextColor(140, 140, 140);
+        doc.text(`Pagina ${i} / ${pageCount}`, doc.internal.pageSize.getWidth() - 8, doc.internal.pageSize.getHeight() - 5, { align: 'right' });
+      }
+
+      const fname = `Prenotazioni_${new Date().toISOString().slice(0,10)}.pdf`;
+      doc.save(fname);
+      toast.success(`📄 Esportate ${filteredBookingsTab.length} prenotazioni`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Errore export PDF: ' + e.message);
+    }
+  };
   
   // Filtro slot per esperienza
   const filteredSlots = useMemo(() => {
@@ -4793,6 +4899,15 @@ function AdminDashboard({ currentUser, onLogout }) {
                     onDeleted={() => load()}
                   />
                 )}
+                <Button
+                  onClick={exportBookingsTabPdf}
+                  variant="outline"
+                  disabled={filteredBookingsTab.length === 0}
+                  className="border-sky-600 text-sky-700 hover:bg-sky-50"
+                  title="Esporta in PDF rispettando i filtri attivi"
+                >
+                  <FileText className="w-4 h-4 mr-2" />Export PDF
+                </Button>
                 <Button
                   onClick={() => setShowNewBookingDialog(true)}
                   className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md"
