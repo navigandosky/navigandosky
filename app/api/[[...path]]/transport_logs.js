@@ -227,6 +227,13 @@ export async function handleTransportLogs(method, id, body, action, sp, db) {
         }
       }
       baseData.bookings_snapshot = baseData.bookings_snapshot.map(b => prevCheckins[b.booking_id] ? { ...b, ...prevCheckins[b.booking_id] } : b);
+
+      // Preserva nomi liberi (free_entry) aggiunti manualmente
+      const freeEntries = (existing.bookings_snapshot || []).filter(b => b.is_free_entry);
+      baseData.bookings_snapshot = [...baseData.bookings_snapshot, ...freeEntries];
+      baseData.total_passengers = baseData.bookings_snapshot.reduce((s, x) => s + (Number(x.seats) || 0), 0);
+      baseData.total_bookings = baseData.bookings_snapshot.length;
+
       await col.updateOne({ id: existing.id }, { $set: baseData });
       const updated = await col.findOne({ id: existing.id });
       return json({ ...updated, _created: false });
@@ -255,16 +262,72 @@ export async function handleTransportLogs(method, id, body, action, sp, db) {
     });
     await col.updateOne({ id }, { $set: { bookings_snapshot: snap, updated_at: new Date().toISOString() } });
 
-    // Sincronizza anche la booking con checked_in_at (solo se passa a true)
+    // Sincronizza anche la booking con checked_in_at (solo se la voce è una booking reale, non un nome libero)
     const target = snap.find(x => x.booking_id === booking_id);
-    if (target?.checked_in) {
-      await db.collection('bookings').updateOne({ id: booking_id }, { $set: { checked_in_at: target.checked_in_at } });
-    } else if (target && !target.checked_in) {
-      await db.collection('bookings').updateOne({ id: booking_id }, { $unset: { checked_in_at: '' } });
+    if (target && !target.is_free_entry) {
+      if (target.checked_in) {
+        await db.collection('bookings').updateOne({ id: booking_id }, { $set: { checked_in_at: target.checked_in_at } });
+      } else {
+        await db.collection('bookings').updateOne({ id: booking_id }, { $unset: { checked_in_at: '' } });
+      }
     }
     const updated = await col.findOne({ id });
     return json(updated);
   }
+
+  // === ADD FREE ENTRY: aggiunge un nome libero (passeggero non legato a prenotazione) ===
+  if (method === 'POST' && id && action === 'add-free-entry') {
+    const log = await col.findOne({ id });
+    if (!log) return json({ error: 'Log non trovato' }, 404);
+    const { customer_name, customer_phone, customer_email, seats, notes, experience_name } = body || {};
+    if (!customer_name || !String(customer_name).trim()) return json({ error: 'customer_name obbligatorio' }, 400);
+    const entryId = `FREE-${uuidv4()}`;
+    const entry = {
+      booking_id: entryId,
+      booking_ref: 'LIBERO',
+      is_free_entry: true,
+      customer_name: String(customer_name).trim(),
+      customer_phone: customer_phone || '',
+      customer_email: customer_email || '',
+      experience_id: log.experience_id_filter || null,
+      experience_name: experience_name || 'Aggiunto manualmente',
+      seats: Math.max(1, Number(seats) || 1),
+      slot_datetime: log.bookings_snapshot?.[0]?.slot_datetime || `${log.date}T00:00:00Z`,
+      agency_id: null,
+      agency_name: '',
+      status: 'CONFIRMED',
+      passengers_checkin: [],
+      checked_in: false,
+      checked_in_at: null,
+      notes: notes || '',
+      added_at: new Date().toISOString(),
+    };
+    const newSnap = [...(log.bookings_snapshot || []), entry];
+    const totals = {
+      total_passengers: newSnap.reduce((s, x) => s + (Number(x.seats) || 0), 0),
+      total_bookings: newSnap.length,
+    };
+    await col.updateOne({ id }, { $set: { bookings_snapshot: newSnap, ...totals, updated_at: new Date().toISOString() } });
+    const updated = await col.findOne({ id });
+    return json(updated);
+  }
+
+  // === REMOVE FREE ENTRY: rimuove un nome libero ===
+  if (method === 'POST' && id && action === 'remove-free-entry') {
+    const log = await col.findOne({ id });
+    if (!log) return json({ error: 'Log non trovato' }, 404);
+    const { booking_id } = body || {};
+    if (!booking_id) return json({ error: 'booking_id obbligatorio' }, 400);
+    const newSnap = (log.bookings_snapshot || []).filter(b => !(b.booking_id === booking_id && b.is_free_entry));
+    const totals = {
+      total_passengers: newSnap.reduce((s, x) => s + (Number(x.seats) || 0), 0),
+      total_bookings: newSnap.length,
+    };
+    await col.updateOne({ id }, { $set: { bookings_snapshot: newSnap, ...totals, updated_at: new Date().toISOString() } });
+    const updated = await col.findOne({ id });
+    return json(updated);
+  }
+
 
   // GET singolo per id
   if (method === 'GET' && id) {

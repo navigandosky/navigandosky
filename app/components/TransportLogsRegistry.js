@@ -40,6 +40,9 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
   const [checkinLog, setCheckinLog] = useState(null);
   const [checkinSaving, setCheckinSaving] = useState(false);
 
+  // === Dialog: Aggiungi Nome Libero ===
+  const [freeEntryDialog, setFreeEntryDialog] = useState(null); // { customer_name, customer_phone, seats, notes }
+
   const load = async () => {
     setLoading(true);
     try {
@@ -119,9 +122,56 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
     }
   };
 
+  // === AGGIUNGI NOME LIBERO ===
+  const submitFreeEntry = async () => {
+    if (!freeEntryDialog?.customer_name?.trim()) {
+      toast.error('Inserisci il nome');
+      return;
+    }
+    try {
+      const r = await fetch(`/api/transport-logs/${checkinLog.id}?action=add-free-entry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_name: freeEntryDialog.customer_name.trim(),
+          customer_phone: freeEntryDialog.customer_phone || '',
+          customer_email: freeEntryDialog.customer_email || '',
+          seats: Number(freeEntryDialog.seats) || 1,
+          notes: freeEntryDialog.notes || '',
+          experience_name: freeEntryDialog.experience_name || 'Aggiunto manualmente',
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Errore');
+      toast.success(`👤 "${freeEntryDialog.customer_name}" aggiunto al registro`);
+      setCheckinLog(data);
+      setFreeEntryDialog(null);
+      load();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
+  const removeFreeEntry = async (booking_id, name) => {
+    if (!window.confirm(`Rimuovere "${name}" dal registro?`)) return;
+    try {
+      const r = await fetch(`/api/transport-logs/${checkinLog.id}?action=remove-free-entry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Errore');
+      toast.success('Rimosso');
+      setCheckinLog(data);
+      load();
+    } catch (e) {
+      toast.error(e.message);
+    }
+  };
+
   // === CHIUDI il log dopo check-in ===
   const closeLog = async () => {
-    if (!checkinLog) return;
     if (!window.confirm('Chiudere il registro? Non potrà più essere modificato il check-in.')) return;
     setCheckinSaving(true);
     try {
@@ -612,6 +662,20 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
                 </div>
               </div>
 
+              {/* Pulsante Aggiungi Nome Libero */}
+              {checkinLog.status !== 'CLOSED' && (
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-dashed border-violet-400 text-violet-700 hover:bg-violet-50"
+                    onClick={() => setFreeEntryDialog({ customer_name: '', customer_phone: '', customer_email: '', seats: 1, notes: '', experience_name: '' })}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />Aggiungi Nome al Registro
+                  </Button>
+                </div>
+              )}
+
               {/* Lista prenotazioni */}
               {(checkinLog.bookings_snapshot || []).length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
@@ -620,36 +684,50 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
               ) : (
                 <div className="space-y-2">
                   {(checkinLog.bookings_snapshot || []).map((b) => (
-                    <div key={b.booking_id} className={`border rounded-lg p-3 transition ${b.checked_in ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200'}`}>
+                    <div key={b.booking_id} className={`border rounded-lg p-3 transition ${b.checked_in ? 'bg-emerald-50 border-emerald-300' : b.is_free_entry ? 'bg-violet-50 border-violet-200' : 'bg-white border-slate-200'}`}>
                       <div className="flex items-start justify-between gap-3 flex-wrap">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <Badge variant="secondary" className="font-mono text-[10px]">{b.booking_ref}</Badge>
+                            <Badge variant="secondary" className={`font-mono text-[10px] ${b.is_free_entry ? 'bg-violet-600 text-white' : ''}`}>{b.is_free_entry ? '👤 LIBERO' : b.booking_ref}</Badge>
                             {b.checked_in && <Badge className="bg-emerald-600 text-white text-[10px]">✓ Imbarcato</Badge>}
                             {b.agency_name && <Badge variant="outline" className="text-[10px]">🏢 {b.agency_name}</Badge>}
                           </div>
                           <div className="font-semibold text-sm">{b.customer_name}</div>
                           <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-2">
-                            <span>📦 {b.experience_name}</span>
+                            {b.experience_name && <span>📦 {b.experience_name}</span>}
                             <span><Users className="w-3 h-3 inline" /> {b.seats} pax</span>
                             {b.customer_phone && <span>📞 {b.customer_phone}</span>}
                             {b.customer_email && <span className="truncate">✉ {b.customer_email}</span>}
                           </div>
+                          {b.notes && <div className="text-xs mt-1 text-amber-700">📝 {b.notes}</div>}
                           {b.checked_in_at && (
                             <div className="text-[10px] text-emerald-700 mt-1">
                               Imbarco: {new Date(b.checked_in_at).toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </div>
                           )}
                         </div>
-                        <Button
-                          size="sm"
-                          variant={b.checked_in ? 'outline' : 'default'}
-                          className={b.checked_in ? '' : 'bg-emerald-600 hover:bg-emerald-700'}
-                          disabled={checkinLog.status === 'CLOSED'}
-                          onClick={() => toggleCheckin(checkinLog.id, b.booking_id, !b.checked_in)}
-                        >
-                          {b.checked_in ? '↶ Annulla' : '✓ Check-in'}
-                        </Button>
+                        <div className="flex gap-1 shrink-0">
+                          <Button
+                            size="sm"
+                            variant={b.checked_in ? 'outline' : 'default'}
+                            className={b.checked_in ? '' : 'bg-emerald-600 hover:bg-emerald-700'}
+                            disabled={checkinLog.status === 'CLOSED'}
+                            onClick={() => toggleCheckin(checkinLog.id, b.booking_id, !b.checked_in)}
+                          >
+                            {b.checked_in ? '↶ Annulla' : '✓ Check-in'}
+                          </Button>
+                          {b.is_free_entry && checkinLog.status !== 'CLOSED' && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-9 w-9"
+                              onClick={() => removeFreeEntry(b.booking_id, b.customer_name)}
+                              title="Rimuovi nome dal registro"
+                            >
+                              <X className="w-4 h-4 text-red-600" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -664,6 +742,51 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
                 {checkinSaving ? 'Salvataggio…' : '🔒 Chiudi Registro'}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ====== DIALOG: Aggiungi Nome Libero ====== */}
+      <Dialog open={!!freeEntryDialog} onOpenChange={(o) => !o && setFreeEntryDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Plus className="w-5 h-5 text-violet-600" />Aggiungi Nome al Registro</DialogTitle>
+            <DialogDescription>
+              Aggiungi manualmente un passeggero non legato a una prenotazione (walk-in, ospite gratuito, ecc.).
+            </DialogDescription>
+          </DialogHeader>
+          {freeEntryDialog && (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Nome e Cognome *</Label>
+                <Input autoFocus value={freeEntryDialog.customer_name} onChange={(e) => setFreeEntryDialog({ ...freeEntryDialog, customer_name: e.target.value })} placeholder="Es. Mario Rossi" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">Telefono</Label>
+                  <Input value={freeEntryDialog.customer_phone} onChange={(e) => setFreeEntryDialog({ ...freeEntryDialog, customer_phone: e.target.value })} placeholder="+39…" />
+                </div>
+                <div>
+                  <Label className="text-xs">Numero passeggeri</Label>
+                  <Input type="number" min="1" value={freeEntryDialog.seats} onChange={(e) => setFreeEntryDialog({ ...freeEntryDialog, seats: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Email</Label>
+                <Input type="email" value={freeEntryDialog.customer_email} onChange={(e) => setFreeEntryDialog({ ...freeEntryDialog, customer_email: e.target.value })} placeholder="mario@example.com" />
+              </div>
+              <div>
+                <Label className="text-xs">Esperienza / Tratta (opz.)</Label>
+                <Input value={freeEntryDialog.experience_name} onChange={(e) => setFreeEntryDialog({ ...freeEntryDialog, experience_name: e.target.value })} placeholder="Tour Golfo di Orosei" />
+              </div>
+              <div>
+                <Label className="text-xs">Note</Label>
+                <Input value={freeEntryDialog.notes} onChange={(e) => setFreeEntryDialog({ ...freeEntryDialog, notes: e.target.value })} placeholder="Es. walk-in pagato cash" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFreeEntryDialog(null)}>Annulla</Button>
+            <Button onClick={submitFreeEntry} className="bg-violet-600 hover:bg-violet-700">Aggiungi al Registro</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
