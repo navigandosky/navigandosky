@@ -467,6 +467,16 @@ export async function handleEndTripEmail(method, id, body) {
       ${recipientName ? `<p style="margin:0 0 14px 0;">Gentile <strong>${escapeHtml(recipientName)}</strong>,</p>` : ''}
       <p style="margin:0 0 16px 0;font-size:15px;">Vi ringraziamo per averci scelto e ci auguriamo di vedervi presto come nostri ospiti.</p>
       <p style="margin:0 0 16px 0;font-size:15px;"><strong>Buona Vacanza!</strong></p>
+      <div style="margin:24px 0;padding:18px;background:#fef9c3;border-left:4px solid #f59e0b;border-radius:6px;">
+        <p style="margin:0 0 10px 0;font-size:14px;color:#92400e;">⭐ <strong>La tua opinione conta!</strong></p>
+        <p style="margin:0 0 12px 0;font-size:14px;color:#78350f;">Ti chiediamo la gentilezza di inserire una recensione al seguente link:</p>
+        <p style="margin:0;text-align:center;">
+          <a href="https://g.page/r/CRo_Eb6Ii37kEBM/review" target="_blank" style="display:inline-block;background:#f59e0b;color:#ffffff;text-decoration:none;padding:10px 22px;border-radius:6px;font-weight:bold;font-size:14px;">⭐ Lascia una recensione su Google</a>
+        </p>
+        <p style="margin:10px 0 0 0;font-size:11px;color:#92400e;text-align:center;word-break:break-all;">
+          <a href="https://g.page/r/CRo_Eb6Ii37kEBM/review" target="_blank" style="color:#92400e;">https://g.page/r/CRo_Eb6Ii37kEBM/review</a>
+        </p>
+      </div>
       ${body?.extra_message ? `<p style="margin:0 0 16px 0;font-size:14px;color:#475569;">${escapeHtml(body.extra_message).replace(/\n/g, '<br>')}</p>` : ''}
       <p style="margin:24px 0 0 0;font-size:14px;color:#475569;">La direzione di <strong>${escapeHtml(companyName)}</strong></p>
     </div>
