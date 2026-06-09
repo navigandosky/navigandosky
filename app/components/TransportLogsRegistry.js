@@ -43,6 +43,10 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
   // === Dialog: Aggiungi Nome Libero ===
   const [freeEntryDialog, setFreeEntryDialog] = useState(null); // { customer_name, customer_phone, seats, notes }
 
+  // === Dialog: Contratto Noleggio ===
+  const [contractDialog, setContractDialog] = useState(null); // { contract_number, contract_date, itinerary, miglia, durata, totale_turisti, prezzo, unita_diporto_numero, adulti, bambini, notes, passengers: [{name, phone, notes}], company:{...} }
+  const [companyData, setCompanyData] = useState(null);
+
   const load = async () => {
     setLoading(true);
     try {
@@ -167,6 +171,79 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
       load();
     } catch (e) {
       toast.error(e.message);
+    }
+  };
+
+  // === APRI DIALOG CONTRATTO da log ===
+  const openContractFromLog = async (log) => {
+    // Carica dati company se non già in cache
+    let comp = companyData;
+    if (!comp) {
+      try {
+        const r = await fetch(`/api/companies/${companyId}`);
+        if (r.ok) { comp = await r.json(); setCompanyData(comp); }
+      } catch (_e) { /* ignore */ }
+    }
+    // Costruisci passeggeri: per ogni booking, espandi in "seats" voci (es. 3 posti = 3 nomi)
+    const passengers = [];
+    let totalAdults = 0;
+    for (const b of (log.bookings_snapshot || [])) {
+      const seats = Number(b.seats || 1);
+      totalAdults += seats;
+      passengers.push({
+        name: b.customer_name || '-',
+        phone: b.customer_phone || '',
+        notes: b.is_free_entry ? '(LIBERO)' : (b.agency_name ? `Ag. ${b.agency_name}` : ''),
+      });
+      // Aggiungi righe vuote per passeggeri >1 della stessa booking
+      for (let i = 1; i < seats; i++) {
+        passengers.push({ name: `Passeggero ${i + 1} di ${b.customer_name || '-'}`, phone: '', notes: '' });
+      }
+    }
+    // Pre-compila campi (alcuni dall'esperienza, se unica)
+    const expNames = Array.from(new Set((log.bookings_snapshot || []).map(b => b.experience_name).filter(Boolean)));
+    const itinerary = expNames.length === 1 ? expNames[0] : (expNames[0] || '');
+    // Genera numero contratto (es. NL-YYYYMMDD-####)
+    const today = new Date();
+    const dateIt = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+    const contractNumber = `NL-${log.date.replaceAll('-', '')}-${log.id.slice(0, 4).toUpperCase()}`;
+
+    setContractDialog({
+      _logId: log.id,
+      contract_number: contractNumber,
+      contract_date: dateIt,
+      company: {
+        name: comp?.name || '',
+        vat_number: comp?.vat_number || '',
+        activity_code: comp?.activity_code || '',
+        address: comp?.address || '',
+      },
+      itinerary,
+      miglia: '',
+      durata: '8 ore',
+      totale_turisti: String(log.total_passengers || totalAdults || passengers.length),
+      prezzo: '',
+      unita_diporto_numero: log.resource_name || '',
+      adulti: String(log.total_passengers || totalAdults),
+      bambini: '0',
+      notes: '',
+      passengers,
+    });
+  };
+
+  // === GENERA PDF CONTRATTO ===
+  const generateContract = async () => {
+    if (!contractDialog) return;
+    try {
+      const { generateRentalContractPdf } = await import('@/app/lib/rentalContractPdf');
+      generateRentalContractPdf({
+        ...contractDialog,
+        passengers: contractDialog.passengers || [],
+      });
+      toast.success('📜 Contratto generato');
+      setContractDialog(null);
+    } catch (e) {
+      toast.error('Errore generazione: ' + e.message);
     }
   };
 
@@ -569,6 +646,9 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
                           <CheckCircle2 className="w-4 h-4 mr-1" />Check-in Now
                         </Button>
                       )}
+                      <Button size="sm" variant="outline" className="border-violet-500 text-violet-700 hover:bg-violet-50" onClick={() => openContractFromLog(log)} title="Genera Contratto Noleggio con Conducente">
+                        <FileText className="w-4 h-4 mr-1" />Contratto
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => downloadPdf(log)}>
                         <Download className="w-4 h-4 mr-1" />PDF
                       </Button>
@@ -745,6 +825,136 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* ====== DIALOG: Contratto Noleggio (modifica + genera PDF) ====== */}
+      <Dialog open={!!contractDialog} onOpenChange={(o) => !o && setContractDialog(null)}>
+        <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><FileText className="w-5 h-5 text-violet-600" />Contratto Noleggio con Conducente</DialogTitle>
+            <DialogDescription>
+              Modifica i dati prima di generare il PDF. Premi &quot;Genera PDF&quot; per scaricare il contratto.
+            </DialogDescription>
+          </DialogHeader>
+          {contractDialog && (
+            <div className="space-y-4">
+              {/* Dati Ditta */}
+              <fieldset className="border rounded-lg p-3">
+                <legend className="text-xs font-semibold px-2 text-violet-700">🏢 Dati Ditta (intestazione)</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="col-span-2">
+                    <Label className="text-xs">Ragione Sociale</Label>
+                    <Input value={contractDialog.company.name} onChange={(e) => setContractDialog({ ...contractDialog, company: { ...contractDialog.company, name: e.target.value } })} placeholder="ICHNOS DI BACHISIO CONGIO" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">P.IVA</Label>
+                    <Input value={contractDialog.company.vat_number} onChange={(e) => setContractDialog({ ...contractDialog, company: { ...contractDialog.company, vat_number: e.target.value } })} placeholder="01568460917" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Codice Attività</Label>
+                    <Input value={contractDialog.company.activity_code} onChange={(e) => setContractDialog({ ...contractDialog, company: { ...contractDialog.company, activity_code: e.target.value } })} placeholder="E1120 - TRASPORTI COSTIERI..." />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Sede Legale</Label>
+                    <Input value={contractDialog.company.address} onChange={(e) => setContractDialog({ ...contractDialog, company: { ...contractDialog.company, address: e.target.value } })} placeholder="VIA A. GRAMSCI, 4 - 08020 ONIFAI" />
+                  </div>
+                </div>
+              </fieldset>
+
+              {/* Dati Contratto */}
+              <fieldset className="border rounded-lg p-3">
+                <legend className="text-xs font-semibold px-2 text-violet-700">📝 Dati Contratto</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">N° Contratto</Label>
+                    <Input value={contractDialog.contract_number} onChange={(e) => setContractDialog({ ...contractDialog, contract_number: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Data</Label>
+                    <Input value={contractDialog.contract_date} onChange={(e) => setContractDialog({ ...contractDialog, contract_date: e.target.value })} placeholder="dd/mm/yyyy" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Itinerario concordato</Label>
+                    <Input value={contractDialog.itinerary} onChange={(e) => setContractDialog({ ...contractDialog, itinerary: e.target.value })} placeholder="Es. Tour Golfo di Orosei - Cala Luna, Cala Sisine" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Miglia</Label>
+                    <Input value={contractDialog.miglia} onChange={(e) => setContractDialog({ ...contractDialog, miglia: e.target.value })} placeholder="25" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Durata</Label>
+                    <Input value={contractDialog.durata} onChange={(e) => setContractDialog({ ...contractDialog, durata: e.target.value })} placeholder="8 ore" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Totale turisti imbarcati</Label>
+                    <Input value={contractDialog.totale_turisti} onChange={(e) => setContractDialog({ ...contractDialog, totale_turisti: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Prezzo (€) pattuito</Label>
+                    <Input value={contractDialog.prezzo} onChange={(e) => setContractDialog({ ...contractDialog, prezzo: e.target.value })} placeholder="850,00" />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Unità da diporto n°</Label>
+                    <Input value={contractDialog.unita_diporto_numero} onChange={(e) => setContractDialog({ ...contractDialog, unita_diporto_numero: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Adulti</Label>
+                    <Input value={contractDialog.adulti} onChange={(e) => setContractDialog({ ...contractDialog, adulti: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Bambini</Label>
+                    <Input value={contractDialog.bambini} onChange={(e) => setContractDialog({ ...contractDialog, bambini: e.target.value })} />
+                  </div>
+                </div>
+              </fieldset>
+
+              {/* Lista Passeggeri (editabile) */}
+              <fieldset className="border rounded-lg p-3">
+                <legend className="text-xs font-semibold px-2 text-violet-700">👥 I Noleggianti ({contractDialog.passengers.length})</legend>
+                <div className="max-h-72 overflow-y-auto space-y-2">
+                  {contractDialog.passengers.map((p, i) => (
+                    <div key={i} className="grid grid-cols-12 gap-2 items-end bg-slate-50 rounded p-2">
+                      <div className="col-span-5">
+                        <Label className="text-[10px]">Nome e Cognome #{i+1}</Label>
+                        <Input value={p.name} className="h-8 text-xs"
+                          onChange={(e) => setContractDialog({ ...contractDialog, passengers: contractDialog.passengers.map((x, j) => j === i ? { ...x, name: e.target.value } : x) })} />
+                      </div>
+                      <div className="col-span-3">
+                        <Label className="text-[10px]">Telefono</Label>
+                        <Input value={p.phone} className="h-8 text-xs"
+                          onChange={(e) => setContractDialog({ ...contractDialog, passengers: contractDialog.passengers.map((x, j) => j === i ? { ...x, phone: e.target.value } : x) })} />
+                      </div>
+                      <div className="col-span-3">
+                        <Label className="text-[10px]">Note</Label>
+                        <Input value={p.notes || ''} className="h-8 text-xs"
+                          onChange={(e) => setContractDialog({ ...contractDialog, passengers: contractDialog.passengers.map((x, j) => j === i ? { ...x, notes: e.target.value } : x) })} />
+                      </div>
+                      <Button size="icon" variant="ghost" className="h-8 w-8 col-span-1"
+                        onClick={() => setContractDialog({ ...contractDialog, passengers: contractDialog.passengers.filter((_, j) => j !== i) })}>
+                        <X className="w-4 h-4 text-red-600" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <Button size="sm" variant="outline" className="mt-2 border-dashed"
+                  onClick={() => setContractDialog({ ...contractDialog, passengers: [...contractDialog.passengers, { name: '', phone: '', notes: '' }] })}>
+                  <Plus className="w-3 h-3 mr-1" />Aggiungi passeggero
+                </Button>
+              </fieldset>
+
+              <div>
+                <Label className="text-xs">Note libere</Label>
+                <Input value={contractDialog.notes} onChange={(e) => setContractDialog({ ...contractDialog, notes: e.target.value })} placeholder="Eventuali note aggiuntive" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContractDialog(null)}>Annulla</Button>
+            <Button onClick={generateContract} className="bg-violet-600 hover:bg-violet-700">
+              <Download className="w-4 h-4 mr-1" />Genera PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ====== DIALOG: Aggiungi Nome Libero ====== */}
       <Dialog open={!!freeEntryDialog} onOpenChange={(o) => !o && setFreeEntryDialog(null)}>
         <DialogContent className="max-w-md">
