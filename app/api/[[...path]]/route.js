@@ -2616,6 +2616,11 @@ async function handleRoute(request, resolvedParams, method) {
         return await handleSkipperBookings(method, body, searchParams, db);
       }
       case 'transport-logs': {
+        // Special action: end-trip-email -> handler dedicato per invio email ringraziamento
+        if (action === 'end-trip-email') {
+          const { handleEndTripEmail } = await import('./send_email');
+          return await handleEndTripEmail(method, id, body);
+        }
         const { handleTransportLogs } = await import('./transport_logs');
         const db = await getDb();
         return await handleTransportLogs(method, id, body, action, searchParams, db);

@@ -269,6 +269,43 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
     }
   };
 
+  // === FINE ESPERIENZA: invia email di ringraziamento a tutti i passeggeri ===
+  const endTripWithEmail = async () => {
+    if (!checkinLog) return;
+    const validEmails = (checkinLog.bookings_snapshot || []).reduce((s, b) => {
+      const em = (b.customer_email || '').trim();
+      if (em && em.includes('@')) s.add(em.toLowerCase());
+      return s;
+    }, new Set());
+    if (validEmails.size === 0) {
+      toast.error('Nessuna email valida tra i passeggeri di questo registro');
+      return;
+    }
+    if (!window.confirm(`🏁 Terminare l'esperienza e inviare email di ringraziamento a ${validEmails.size} destinatari unici?\n\nIl registro verrà marcato come COMPLETATO.`)) return;
+    setCheckinSaving(true);
+    try {
+      const r = await fetch(`/api/transport-logs/${checkinLog.id}?action=end-trip-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Errore');
+      if (data.sent > 0) {
+        toast.success(`📧 Esperienza terminata · ${data.sent}/${data.total_recipients} email inviate${data.failed > 0 ? ` (${data.failed} fallite)` : ''}`);
+      } else {
+        toast.error(`Nessuna email inviata (${data.failed} fallimenti)`);
+      }
+      setCheckinLog(null);
+      load();
+    } catch (e) {
+      toast.error('Errore: ' + e.message);
+    } finally {
+      setCheckinSaving(false);
+    }
+  };
+
+
   // Lista date uniche disponibili (per dropdown)
   const availableDates = useMemo(() => {
     const set = new Set(logs.map((l) => l.date).filter(Boolean));
@@ -612,6 +649,7 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
                           <Calendar className="w-3 h-3 mr-1" />{fmtDate(log.date)}
                         </Badge>
                         {log.status === 'CLOSED' && <Badge className="bg-green-600">Chiuso</Badge>}
+                        {log.status === 'COMPLETED' && <Badge className="bg-rose-600 text-white">🏁 Terminato</Badge>}
                         {log.status === 'OPEN' && <Badge className="bg-amber-500">Aperto</Badge>}
                         {compName && <Badge variant="outline" className="text-xs">{compName}</Badge>}
                       </div>
@@ -641,9 +679,14 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
                       )}
                     </div>
                     <div className="flex gap-2 flex-wrap shrink-0">
-                      {log.status !== 'CLOSED' && (
+                      {log.status !== 'CLOSED' && log.status !== 'COMPLETED' && (
                         <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => setCheckinLog(log)}>
                           <CheckCircle2 className="w-4 h-4 mr-1" />Check-in Now
+                        </Button>
+                      )}
+                      {log.status === 'COMPLETED' && (
+                        <Button size="sm" variant="outline" className="border-rose-500 text-rose-700" onClick={() => setCheckinLog(log)}>
+                          <CheckCircle2 className="w-4 h-4 mr-1" />Vedi Dettagli
                         </Button>
                       )}
                       <Button size="sm" variant="outline" className="border-violet-500 text-violet-700 hover:bg-violet-50" onClick={() => openContractFromLog(log)} title="Genera Contratto Noleggio con Conducente">
@@ -817,10 +860,18 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCheckinLog(null)}>Chiudi finestra</Button>
-            {checkinLog?.status !== 'CLOSED' && (
-              <Button onClick={closeLog} disabled={checkinSaving} className="bg-green-600 hover:bg-green-700">
-                {checkinSaving ? 'Salvataggio…' : '🔒 Chiudi Registro'}
-              </Button>
+            {checkinLog?.status !== 'CLOSED' && checkinLog?.status !== 'COMPLETED' && (
+              <>
+                <Button onClick={closeLog} disabled={checkinSaving} variant="outline" className="border-green-600 text-green-700 hover:bg-green-50">
+                  {checkinSaving ? 'Salvataggio…' : '🔒 Chiudi Registro'}
+                </Button>
+                <Button onClick={endTripWithEmail} disabled={checkinSaving} className="bg-rose-600 hover:bg-rose-700 text-white">
+                  {checkinSaving ? 'Invio…' : '🏁 Fine + Email Grazie'}
+                </Button>
+              </>
+            )}
+            {checkinLog?.status === 'COMPLETED' && (
+              <Badge className="bg-rose-100 text-rose-700">🏁 Esperienza Terminata · Email Inviate</Badge>
             )}
           </DialogFooter>
         </DialogContent>

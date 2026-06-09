@@ -416,3 +416,117 @@ export async function handleSendDocumentEmail(method, body) {
   }
 }
 
+
+
+// === END-TRIP EMAIL: invio ringraziamento a tutti i passeggeri di un transport_log ===
+// POST /api/transport-logs/{id}?action=end-trip-email
+// Body: {} (opzionale: { extra_message })
+// Logica:
+//  - carica il transport_log
+//  - estrae email uniche da bookings_snapshot
+//  - invia mail di ringraziamento (template fisso)
+//  - aggiorna log con status='COMPLETED' e timestamp ended_at, e annota i destinatari
+export async function handleEndTripEmail(method, id, body) {
+  if (method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Use POST' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+  }
+  if (!id) return new Response(JSON.stringify({ error: 'log id obbligatorio' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+
+  const db = await getDb();
+  const log = await db.collection('transport_logs').findOne({ id });
+  if (!log) return new Response(JSON.stringify({ error: 'Log non trovato' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+
+  // Carica company per nome/email mittente
+  const company = log.company_id ? await db.collection('companies').findOne({ id: log.company_id }) : null;
+  const companyName = company?.name || 'Maretrek';
+
+  // Estrai email uniche (esclude nomi liberi senza email, normalizza)
+  const seen = new Set();
+  const recipients = [];
+  for (const b of (log.bookings_snapshot || [])) {
+    const email = (b.customer_email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) continue;
+    if (seen.has(email)) continue;
+    seen.add(email);
+    recipients.push({ email, name: b.customer_name || '', booking_ref: b.booking_ref || '' });
+  }
+
+  if (recipients.length === 0) {
+    return new Response(JSON.stringify({ error: 'Nessuna email valida tra i passeggeri', recipients: 0 }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // Template HTML
+  const buildHtml = (recipientName) => `
+<!DOCTYPE html>
+<html><body style="font-family:Helvetica,Arial,sans-serif;color:#1f2937;line-height:1.6;background:#f8fafc;padding:24px 0;margin:0;">
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;box-shadow:0 2px 10px rgba(0,0,0,0.06);">
+    <div style="text-align:center;padding-bottom:18px;border-bottom:2px solid #0891b2;">
+      <h1 style="margin:0;color:#0e7490;font-size:22px;">⛵ Grazie per averci scelto!</h1>
+    </div>
+    <div style="padding:24px 4px;">
+      ${recipientName ? `<p style="margin:0 0 14px 0;">Gentile <strong>${escapeHtml(recipientName)}</strong>,</p>` : ''}
+      <p style="margin:0 0 16px 0;font-size:15px;">Vi ringraziamo per averci scelto e ci auguriamo di vedervi presto come nostri ospiti.</p>
+      <p style="margin:0 0 16px 0;font-size:15px;"><strong>Buona Vacanza!</strong></p>
+      ${body?.extra_message ? `<p style="margin:0 0 16px 0;font-size:14px;color:#475569;">${escapeHtml(body.extra_message).replace(/\n/g, '<br>')}</p>` : ''}
+      <p style="margin:24px 0 0 0;font-size:14px;color:#475569;">La direzione di <strong>${escapeHtml(companyName)}</strong></p>
+    </div>
+    <div style="padding-top:18px;border-top:1px solid #e5e7eb;font-size:11px;color:#94a3b8;text-align:center;">
+      Email inviata automaticamente al termine dell'esperienza · ${new Date().toLocaleString('it-IT')}
+    </div>
+  </div>
+</body></html>`.trim();
+
+  const sent = [];
+  const failed = [];
+  const fromAddress = process.env.RESEND_FROM_EMAIL
+    ? `${companyName} <${process.env.RESEND_FROM_EMAIL}>`
+    : `${companyName} <noreply@${(process.env.RESEND_FROM_DOMAIN || 'maretrek.com').replace(/^@/, '')}>`;
+  const subject = `Grazie per averci scelto - ${companyName}`;
+
+  for (const r of recipients) {
+    try {
+      let result;
+      if (process.env.RESEND_API_KEY) {
+        try {
+          result = await sendViaResend({ from: fromAddress, to: r.email, subject, html: buildHtml(r.name) });
+        } catch (resendErr) {
+          // fallback SMTP
+          result = await sendViaSMTP({ from: fromAddress, to: r.email, subject, html: buildHtml(r.name) });
+        }
+      } else {
+        result = await sendViaSMTP({ from: fromAddress, to: r.email, subject, html: buildHtml(r.name) });
+      }
+      sent.push({ email: r.email, name: r.name, message_id: result.message_id, provider: result.provider });
+    } catch (e) {
+      failed.push({ email: r.email, name: r.name, error: e.message });
+    }
+  }
+
+  // Aggiorna log: status = COMPLETED, ended_at
+  await db.collection('transport_logs').updateOne(
+    { id },
+    {
+      $set: {
+        status: 'COMPLETED',
+        ended_at: new Date().toISOString(),
+        end_trip_email_sent_at: new Date().toISOString(),
+        end_trip_email_recipients: sent.map(s => s.email),
+        end_trip_email_failures: failed,
+        updated_at: new Date().toISOString(),
+      },
+    }
+  );
+
+  return new Response(JSON.stringify({
+    ok: true,
+    total_recipients: recipients.length,
+    sent: sent.length,
+    failed: failed.length,
+    sent_details: sent,
+    failed_details: failed,
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
