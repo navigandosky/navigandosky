@@ -158,17 +158,34 @@ export async function generateTransportLogPdf({ resource = {}, skipper = {}, dat
       y = 14;
     }
 
-    // Intestazione prenotazione
+    // Intestazione prenotazione (2 righe per evitare sovrapposizioni)
     doc.setFillColor(240, 245, 252);
-    doc.rect(M, y - 4, W - 2 * M, 10, 'F');
+    doc.rect(M, y - 4, W - 2 * M, 16, 'F'); // box più alto per 2 righe
+
+    // Riga 1: numero, codice, esperienza (tronca se troppo lungo per stare in una riga)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text(`${idx + 1}. ${b.booking_ref || '-'} - ${b.experience_name || 'Tratta'}`, M + 2, y + 2);
+    const titleText = `${idx + 1}. ${b.booking_ref || '-'} - ${b.experience_name || 'Tratta'}`;
+    const maxTitleWidth = W - 2 * M - 6;
+    // splitTextToSize ritorna l'array dei pezzi di testo che entrano nella larghezza
+    const titleLines = doc.splitTextToSize(titleText, maxTitleWidth);
+    const titleToShow = titleLines.length > 1
+      ? String(titleLines[0]).replace(/\s+\S*$/, '') + '…' // tronca primo segmento con ellissi
+      : titleLines[0] || '';
+    doc.text(titleToShow, M + 2, y + 2);
+
+    // Riga 2: Check-in dalle / Partenza (sotto, allineata a destra)
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    // Orario partenza slot + check-in (15 min prima): es. "Check-in dalle 08:45 | Partenza 09:00"
-    doc.text(`Check-in dalle ${fmtCheckinTime(b.slot_datetime)} | Partenza ${fmtTime(b.slot_datetime)}`, W - M - 75, y + 2);
-    y += 10;
+    doc.setTextColor(55, 65, 81);
+    doc.text(
+      `Check-in dalle ${fmtCheckinTime(b.slot_datetime)} | Partenza ${fmtTime(b.slot_datetime)}`,
+      W - M - 2,
+      y + 8,
+      { align: 'right' }
+    );
+    doc.setTextColor(0, 0, 0); // reset
+    y += 16;
 
     // Intestatario
     doc.setFont('helvetica', 'bold');
