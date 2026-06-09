@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Play, Pause, SkipBack, SkipForward, Flame, AlertTriangle, Gauge, Clock } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Flame, AlertTriangle, Gauge, Clock, Maximize2, Minimize2 } from 'lucide-react';
 
 const PLAYBACK_SPEEDS = [1, 2, 4, 8, 16, 32];
 
@@ -32,6 +32,7 @@ export default function TripReplayDialog({ open, onOpenChange, route = [], speed
   const [speed, setSpeed] = useState(8); // multiplo
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showAlerts, setShowAlerts] = useState(true);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const validRoute = useMemo(() => (route || []).filter(p => p?.lat != null && p?.lng != null), [route]);
   const positions = useMemo(() => validRoute.map(p => [p.lat, p.lng]), [validRoute]);
@@ -87,15 +88,38 @@ export default function TripReplayDialog({ open, onOpenChange, route = [], speed
       boatMarkerRef.current = LRef.marker(positions[0], { icon: boatIcon, zIndexOffset: 1000 }).addTo(map);
     }
 
+    // FIX: invalidateSize() dopo che il Dialog ha terminato l'animazione di apertura
+    // (i tile non si caricano se il container ha dimensioni 0 al momento dell'init)
+    const tA = setTimeout(() => {
+      try {
+        map.invalidateSize();
+        if (polylineRef.current) map.fitBounds(polylineRef.current.getBounds(), { padding: [40, 40] });
+      } catch { /* ignore */ }
+    }, 200);
+    const tB = setTimeout(() => { try { map.invalidateSize(); } catch { /* ignore */ } }, 600);
+
     return () => {
-      // teardown when dialog closes
+      clearTimeout(tA); clearTimeout(tB);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [LRef, open]);
 
+  // Forza invalidateSize quando il modal cambia layout (fullscreen toggle)
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const t = setTimeout(() => {
+      try {
+        mapRef.current.invalidateSize();
+        if (polylineRef.current) mapRef.current.fitBounds(polylineRef.current.getBounds(), { padding: [40, 40] });
+      } catch { /* ignore */ }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [fullscreen]);
+
   // === Cleanup quando la dialog si chiude ===
   useEffect(() => {
     if (open) return;
+    setFullscreen(false); // reset fullscreen quando si chiude
     if (animRef.current) cancelAnimationFrame(animRef.current);
     if (mapRef.current) {
       mapRef.current.remove();
@@ -212,28 +236,44 @@ export default function TripReplayDialog({ open, onOpenChange, route = [], speed
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+      <DialogContent className={fullscreen
+        ? "max-w-[100vw] w-[100vw] h-[100vh] !max-h-[100vh] !rounded-none p-4 overflow-y-auto"
+        : "max-w-[95vw] w-[95vw] max-h-[95vh] overflow-y-auto"}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Play className="w-5 h-5 text-cyan-600" />
-            Replay Viaggio — {device?.resource?.name || 'Dispositivo'}
-          </DialogTitle>
-          <DialogDescription>
-            {date ? (typeof date === 'string' && date.includes('→') ? <span>Range: <strong>{date}</strong></span> : new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) : '—'}
-            {' · '}
-            <span>{totalPoints} punti GPS</span>
-            {dayMarkers && dayMarkers.length > 1 && (
-              <Badge variant="outline" className="ml-2 bg-blue-50">
-                {dayMarkers.filter(d => d.points > 0).length} giorni con dati
-              </Badge>
-            )}
-            {speedAlerts?.length > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                <AlertTriangle className="w-3 h-3 mr-1" />
-                {speedAlerts.length} alert
-              </Badge>
-            )}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="flex items-center gap-2">
+                <Play className="w-5 h-5 text-cyan-600" />
+                Replay Viaggio — {device?.resource?.name || 'Dispositivo'}
+              </DialogTitle>
+              <DialogDescription>
+                {date ? (typeof date === 'string' && date.includes('→') ? <span>Range: <strong>{date}</strong></span> : new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) : '—'}
+                {' · '}
+                <span>{totalPoints} punti GPS</span>
+                {dayMarkers && dayMarkers.length > 1 && (
+                  <Badge variant="outline" className="ml-2 bg-blue-50">
+                    {dayMarkers.filter(d => d.points > 0).length} giorni con dati
+                  </Badge>
+                )}
+                {speedAlerts?.length > 0 && (
+                  <Badge variant="destructive" className="ml-2">
+                    <AlertTriangle className="w-3 h-3 mr-1" />
+                    {speedAlerts.length} alert
+                  </Badge>
+                )}
+              </DialogDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 mr-8"
+              onClick={() => setFullscreen(v => !v)}
+              title={fullscreen ? 'Esci da schermo intero' : 'Schermo intero'}
+            >
+              {fullscreen ? <Minimize2 className="w-4 h-4 mr-1" /> : <Maximize2 className="w-4 h-4 mr-1" />}
+              {fullscreen ? 'Riduci' : 'Schermo intero'}
+            </Button>
+          </div>
         </DialogHeader>
 
         {totalPoints < 2 ? (
@@ -243,7 +283,7 @@ export default function TripReplayDialog({ open, onOpenChange, route = [], speed
         ) : (
           <div className="space-y-4">
             {/* Mappa */}
-            <div ref={containerRef} className="w-full h-[480px] rounded-lg border bg-gray-50" />
+            <div ref={containerRef} className={fullscreen ? "w-full rounded-lg border bg-gray-50" : "w-full rounded-lg border bg-gray-50"} style={{ height: fullscreen ? 'calc(100vh - 380px)' : '600px', minHeight: '400px' }} />
 
             {/* KPI live */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
