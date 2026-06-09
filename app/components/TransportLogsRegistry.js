@@ -272,7 +272,16 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
   // === FINE ESPERIENZA: invia email di ringraziamento a tutti i passeggeri ===
   const endTripWithEmail = async () => {
     if (!checkinLog) return;
-    const validEmails = (checkinLog.bookings_snapshot || []).reduce((s, b) => {
+    await endTripCommon(checkinLog, () => setCheckinLog(null));
+  };
+
+  // Versione invocabile direttamente dal pulsante in card (senza dialog)
+  const endTripFromRow = async (log) => {
+    await endTripCommon(log, () => {});
+  };
+
+  const endTripCommon = async (log, onSuccessExtra) => {
+    const validEmails = (log.bookings_snapshot || []).reduce((s, b) => {
       const em = (b.customer_email || '').trim();
       if (em && em.includes('@')) s.add(em.toLowerCase());
       return s;
@@ -281,10 +290,10 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
       toast.error('Nessuna email valida tra i passeggeri di questo registro');
       return;
     }
-    if (!window.confirm(`🏁 Terminare l'esperienza e inviare email di ringraziamento a ${validEmails.size} destinatari unici?\n\nIl registro verrà marcato come COMPLETATO.`)) return;
+    if (!window.confirm(`🏁 Terminare l'esperienza del ${log.date} (${log.resource_name}) e inviare email di ringraziamento a ${validEmails.size} destinatari unici?\n\nIl registro verrà marcato come COMPLETATO.`)) return;
     setCheckinSaving(true);
     try {
-      const r = await fetch(`/api/transport-logs/${checkinLog.id}?action=end-trip-email`, {
+      const r = await fetch(`/api/transport-logs/${log.id}?action=end-trip-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -296,7 +305,7 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
       } else {
         toast.error(`Nessuna email inviata (${data.failed} fallimenti)`);
       }
-      setCheckinLog(null);
+      onSuccessExtra?.();
       load();
     } catch (e) {
       toast.error('Errore: ' + e.message);
@@ -687,6 +696,16 @@ export default function TransportLogsRegistry({ companyId, companies = [], agenc
                       {log.status === 'COMPLETED' && (
                         <Button size="sm" variant="outline" className="border-rose-500 text-rose-700" onClick={() => setCheckinLog(log)}>
                           <CheckCircle2 className="w-4 h-4 mr-1" />Vedi Dettagli
+                        </Button>
+                      )}
+                      {log.status !== 'COMPLETED' && (
+                        <Button
+                          size="sm"
+                          className="bg-rose-600 hover:bg-rose-700 text-white"
+                          onClick={() => endTripFromRow(log)}
+                          title="Termina esperienza e invia email di ringraziamento a tutti i passeggeri"
+                        >
+                          🏁 Fine + Email
                         </Button>
                       )}
                       <Button size="sm" variant="outline" className="border-violet-500 text-violet-700 hover:bg-violet-50" onClick={() => openContractFromLog(log)} title="Genera Contratto Noleggio con Conducente">
