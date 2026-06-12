@@ -39,7 +39,7 @@ export async function handleEmployees(method, id, body, action, searchParams) {
     return json(rest);
   }
 
-  if (method === 'POST') {
+  if (method === 'POST' && !id) {
     if (!body.company_id) return json({ error: 'company_id obbligatorio' }, 400);
     if (!body.first_name || !body.last_name) return json({ error: 'Nome e Cognome obbligatori' }, 400);
 
