@@ -195,10 +195,14 @@ export default function MarinaMapPage() {
     const end = occ.end_date ? String(occ.end_date).slice(0, 10) : null;
     if (start && dateStr < start) return false;
     if (end && dateStr > end) return false;
-    // Se non c'è end_date ma c'è released_at, considera released_at come limite
-    if (!end && occ.released_at) {
+    // Se l'occupazione è stata RILASCIATA (released_at impostato), il posto NON è
+    // più occupato dalla data di rilascio in poi (incluso il giorno stesso del rilascio).
+    // Questo è il caso quando si preme "Libera Posto": l'entry finisce in occupation_history[]
+    // con released_at = now e da quel momento il posto deve apparire libero anche se
+    // end_date originale è in futuro.
+    if (occ.released_at) {
       const releasedDay = String(occ.released_at).slice(0, 10);
-      if (dateStr > releasedDay) return false;
+      if (dateStr >= releasedDay) return false;
     }
     return true;
   };
