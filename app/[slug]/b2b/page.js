@@ -1245,7 +1245,7 @@ function AgencyB2BPortalInner() {
                                     {/* Rigenera Link SumUp */}
                                     <Button
                                       size="icon" variant="ghost"
-                                      title="Rigenera link di pagamento SumUp (nuovo checkout)"
+                                      title="Rigenera link di pagamento SumUp Hosted (nuovo checkout)"
                                       onClick={async () => {
                                         try {
                                           const r = await fetch(`${API_BASE}/sumup/create-checkout`, {
@@ -1270,6 +1270,36 @@ function AgencyB2BPortalInner() {
                                       className="h-8 w-8 hover:bg-violet-100"
                                     >
                                       <span className="text-violet-700 text-sm">🔄</span>
+                                    </Button>
+                                    {/* Link Carta Interna (Embedded - commissioni ridotte) */}
+                                    <Button
+                                      size="icon" variant="ghost"
+                                      title="Genera link Carta Interna (commissioni ridotte)"
+                                      onClick={async () => {
+                                        try {
+                                          const r = await fetch(`${API_BASE}/payment-link/create`, {
+                                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                                            body: JSON.stringify({
+                                              booking_id: booking.id,
+                                              booking_ref: booking.booking_ref,
+                                              customer_name: booking.customer_name,
+                                              customer_email: booking.customer_email || 'no-reply@maretrek.it',
+                                              amount: booking.total_amount,
+                                              description: `Pagamento Voucher ${booking.booking_ref} - ${booking.experience_name || 'Esperienza'}`,
+                                              send_via: 'show',
+                                              mode: 'embedded',
+                                            }),
+                                          });
+                                          const data = await r.json();
+                                          if (!r.ok || !data.pay_url) throw new Error(data.error || 'Errore generazione link');
+                                          if (navigator.clipboard) navigator.clipboard.writeText(data.pay_url);
+                                          window.open(data.pay_url, '_blank');
+                                          toast.success('💳 Link Carta Interna generato e copiato! (commissioni ridotte)');
+                                        } catch (e) { toast.error(e.message); }
+                                      }}
+                                      className="h-8 w-8 hover:bg-emerald-50"
+                                    >
+                                      <span className="text-emerald-700 text-sm">💳</span>
                                     </Button>
                                   </>
                                 )}

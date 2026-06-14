@@ -3523,6 +3523,31 @@ function AdminDashboard({ currentUser, onLogout }) {
       await load();
     } catch (e) { toast.error('Errore conferma'); }
   };
+  // Genera link Carta Interna (Embedded SumUp Card Widget) per prenotazione in PENDING
+  const generateEmbeddedLink = async (b) => {
+    try {
+      const r = await fetch('/api/payment-link/create', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          booking_id: b.id,
+          booking_ref: b.booking_ref,
+          customer_name: b.customer_name,
+          customer_email: b.customer_email || 'no-reply@maretrek.it',
+          amount: b.total_amount,
+          description: `Pagamento Voucher ${b.booking_ref} - ${b.experience_name || 'Esperienza'}`,
+          send_via: 'show',
+          mode: 'embedded',
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok || !data.pay_url) throw new Error(data.error || 'Errore generazione link');
+      if (navigator.clipboard) navigator.clipboard.writeText(data.pay_url);
+      window.open(data.pay_url, '_blank');
+      toast.success('💳 Link Carta Interna generato e copiato! (commissioni ridotte)');
+      if (typeof load === 'function') load();
+    } catch (e) { toast.error('Errore: ' + e.message); }
+  };
+
   // Rifiuta bonifico: cancella prenotazione, libera posti
   const rejectBankTransfer = async (b) => {
     const reason = window.prompt(`Motivo del rifiuto bonifico per ${b.booking_ref}:`, 'Bonifico non ricevuto');
@@ -5069,6 +5094,13 @@ function AdminDashboard({ currentUser, onLogout }) {
                         🔗 Link
                       </Button>
                     )}
+                    {/* Link Carta Interna (Embedded, commissioni ridotte) */}
+                    <Button variant="outline" size="sm" className="text-xs h-7 border-emerald-400 text-emerald-700 hover:bg-emerald-50"
+                      onClick={() => generateEmbeddedLink(b)}
+                      title="Genera link Widget Carta Interna (commissioni ridotte)"
+                    >
+                      💳 Carta Interna
+                    </Button>
                     {canCancelBooking(b) && <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
                   </>
                 )}
@@ -5084,7 +5116,7 @@ function AdminDashboard({ currentUser, onLogout }) {
                         🌐 Apri Link
                       </Button>
                     )}
-                    {/* Rigenera link (nuovo checkout_id) */}
+                    {/* Rigenera link Hosted (nuovo checkout_id) */}
                     <Button variant="outline" size="sm" className="text-xs h-7 border-violet-400 text-violet-700 hover:bg-violet-50"
                       onClick={async () => {
                         try {
@@ -5107,9 +5139,16 @@ function AdminDashboard({ currentUser, onLogout }) {
                           if (typeof load === 'function') load(); else window.location.reload();
                         } catch (e) { toast.error('Errore: ' + e.message); }
                       }}
-                      title="Genera un NUOVO link SumUp (annulla il precedente lato cliente)"
+                      title="Genera un NUOVO link SumUp Hosted (annulla il precedente lato cliente)"
                     >
                       🔄 Rigenera Link
+                    </Button>
+                    {/* Link Carta Interna (Embedded, commissioni ridotte) */}
+                    <Button variant="outline" size="sm" className="text-xs h-7 border-emerald-400 text-emerald-700 hover:bg-emerald-50"
+                      onClick={() => generateEmbeddedLink(b)}
+                      title="Genera link Widget Carta Interna (commissioni ridotte)"
+                    >
+                      💳 Carta Interna
                     </Button>
                     <Button variant="outline" size="sm" className="text-xs h-7" onClick={()=>{setEditBk(b);setEditForm({customer_name:b.customer_name,customer_email:b.customer_email,customer_phone:b.customer_phone,special_requests:b.special_requests||'',seats:b.seats,seat_assignments:b.seat_assignments||[]});}}><Edit className="w-3 h-3 mr-1"/>Modifica</Button>
                     {canCancelBooking(b) && <Button variant="ghost" size="sm" className="text-xs h-7 text-red-500" onClick={()=>cancelBooking(b.id, b.booking_ref)}>Cancella</Button>}
