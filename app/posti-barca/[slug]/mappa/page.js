@@ -34,6 +34,8 @@ export default function MarinaMapPage() {
   // Filtro/ricerca
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');  // all | free | standby | releasing | occupied | contract | transit | no_contract
+  // Filtro DATA: mostra solo i posti occupati alla data selezionata (default = oggi)
+  const [viewDate, setViewDate] = useState(() => new Date().toISOString().split('T')[0]);
   
   // Auth check: SUPER_ADMIN o COMPANY_ADMIN proprietario della marina
   useEffect(() => {
@@ -181,9 +183,49 @@ export default function MarinaMapPage() {
     return mooring + (quote.extras_total || 0);
   }, [quote, form.tariff_choice, form.custom_amount]);
 
+  // ──────────────────────────────────────────────────────────────
+  // DATE FILTER: per ogni berth calcola lo stato e l'occupazione "effettiva"
+  // alla data selezionata (viewDate). Una occupazione/transito è attiva se
+  // start_date <= viewDate <= end_date. Si controlla prima current_occupation
+  // poi occupation_history[]. Se nessuna corrispondenza → status='free'.
+  // ──────────────────────────────────────────────────────────────
+  const isOccActiveOn = (occ, dateStr) => {
+    if (!occ) return false;
+    const start = occ.start_date ? String(occ.start_date).slice(0, 10) : null;
+    const end = occ.end_date ? String(occ.end_date).slice(0, 10) : null;
+    if (start && dateStr < start) return false;
+    if (end && dateStr > end) return false;
+    // Se non c'è end_date ma c'è released_at, considera released_at come limite
+    if (!end && occ.released_at) {
+      const releasedDay = String(occ.released_at).slice(0, 10);
+      if (dateStr > releasedDay) return false;
+    }
+    return true;
+  };
+
+  const displayBerths = useMemo(() => {
+    if (!viewDate) return berths;
+    return berths.map(b => {
+      // 1) current_occupation attiva nella data?
+      if (b.current_occupation && isOccActiveOn(b.current_occupation, viewDate)) {
+        return b; // tutto invariato (status, current_occupation, ecc.)
+      }
+      // 2) cerca in occupation_history[] una voce che includa la data
+      const histMatch = (b.occupation_history || []).find(h => isOccActiveOn(h, viewDate));
+      if (histMatch) {
+        // Determina lo stato in base al tipo di occupazione storica
+        const isTransit = !!histMatch.is_transit;
+        const synthStatus = isTransit ? 'occupied' : 'occupied'; // contratto storico attivo nella data = occupied
+        return { ...b, status: synthStatus, current_occupation: histMatch, _historical: true };
+      }
+      // 3) nessuna occupazione attiva quel giorno → posto LIBERO (anche se ha standby pendente per altre date)
+      return { ...b, status: 'free', current_occupation: null, _historical: false };
+    });
+  }, [berths, viewDate]);
+
   const pontoonsData = useMemo(() => {
     const grouped = {};
-    berths.forEach(b => {
+    displayBerths.forEach(b => {
       if (!grouped[b.pontoon]) grouped[b.pontoon] = { left: [], right: [] };
       grouped[b.pontoon][b.side].push(b);
     });
@@ -192,15 +234,15 @@ export default function MarinaMapPage() {
       p.right.sort((a, b) => a.position - b.position);
     });
     return grouped;
-  }, [berths]);
+  }, [displayBerths]);
 
   const stats = useMemo(() => {
-    const free = berths.filter(b => b.status === 'free').length;
-    const standby = berths.filter(b => b.status === 'standby').length;
-    const occupied = berths.filter(b => b.status === 'occupied').length;
-    const releasing = berths.filter(b => b.status === 'releasing').length;
-    return { free, standby, occupied, releasing, total: berths.length };
-  }, [berths]);
+    const free = displayBerths.filter(b => b.status === 'free').length;
+    const standby = displayBerths.filter(b => b.status === 'standby').length;
+    const occupied = displayBerths.filter(b => b.status === 'occupied').length;
+    const releasing = displayBerths.filter(b => b.status === 'releasing').length;
+    return { free, standby, occupied, releasing, total: displayBerths.length };
+  }, [displayBerths]);
 
   // Filtraggio: calcola il set di id che soddisfano i filtri attivi
   const isFilterActive = !!searchQuery.trim() || (filterStatus && filterStatus !== 'all');
@@ -208,8 +250,7 @@ export default function MarinaMapPage() {
     if (!isFilterActive) return null;
     const q = searchQuery.trim().toLowerCase();
     const ids = new Set();
-    berths.forEach(b => {
-      // Filtro stato
+    displayBerths.forEach(b => {
       if (filterStatus && filterStatus !== 'all') {
         if (filterStatus === 'transit') {
           if (!b.current_occupation?.is_transit) return;
@@ -241,7 +282,7 @@ export default function MarinaMapPage() {
       ids.add(b.id);
     });
     return ids;
-  }, [berths, searchQuery, filterStatus, isFilterActive]);
+  }, [displayBerths, searchQuery, filterStatus, isFilterActive]);
 
   const handleBerthClick = (berth) => {
     setSelectedBerth(berth);
@@ -460,6 +501,28 @@ export default function MarinaMapPage() {
         {/* 🔍 Filtri Ricerca */}
         <Card className="mb-3 shadow-sm border-blue-200">
           <CardContent className="p-3 flex flex-wrap items-center gap-3">
+            {/* 📅 Data: mostra solo i posti occupati alla data selezionata */}
+            <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 border-2 border-blue-300 rounded-md">
+              <CalIcon className="w-4 h-4 text-blue-700" />
+              <Label className="text-xs font-semibold text-blue-900 whitespace-nowrap">Data:</Label>
+              <Input
+                type="date"
+                value={viewDate}
+                onChange={(e) => setViewDate(e.target.value || new Date().toISOString().split('T')[0])}
+                className="h-8 w-[150px] text-xs font-mono"
+                title="Mostra posti occupati alla data selezionata"
+              />
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs px-2"
+                onClick={() => setViewDate(new Date().toISOString().split('T')[0])}
+                title="Torna ad oggi"
+              >Oggi</Button>
+              <div className="text-[10px] text-blue-700 font-medium">
+                Solo contratti/transiti attivi in data
+              </div>
+            </div>
             <div className="flex-1 min-w-[240px] relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">🔍</span>
               <Input
