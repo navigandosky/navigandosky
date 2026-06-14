@@ -48,6 +48,7 @@ export async function handleCreatePaymentLink(method, body) {
       amount,
       description,
       send_via,
+      mode, // 'hosted' (default) | 'embedded'
     } = body || {};
 
     // Validazioni base
@@ -64,6 +65,7 @@ export async function handleCreatePaymentLink(method, body) {
     if (!['show', 'email'].includes(send_via)) {
       return json({ error: 'send_via deve essere "show" o "email"' }, 400);
     }
+    const checkoutMode = mode === 'embedded' ? 'embedded' : 'hosted';
 
     const db = await getDb();
 
@@ -115,18 +117,20 @@ export async function handleCreatePaymentLink(method, body) {
     });
     const customerObj = buildSumupCustomer(custNameForDesc, customer_email, booking.customer_phone);
 
-    // Crea hosted checkout
+    // Crea checkout: hosted o embedded (senza hosted_checkout)
     const payload = {
       checkout_reference: checkoutRef,
       amount: Number(amt.toFixed(2)),
       currency: booking.currency || 'EUR',
       merchant_code: merchantCode,
       description: descLine,
-      hosted_checkout: { enabled: true },
-      redirect_url: redirectUrl,
       return_url: webhookUrl,
       ...(customerObj ? { customer: customerObj } : {}),
     };
+    if (checkoutMode === 'hosted') {
+      payload.hosted_checkout = { enabled: true };
+      payload.redirect_url = redirectUrl;
+    }
 
     const res = await fetch(`${SUMUP_API}/checkouts`, {
       method: 'POST',
@@ -144,14 +148,25 @@ export async function handleCreatePaymentLink(method, body) {
     }
 
     const checkout = await res.json();
-    const hostedUrl = checkout.hosted_checkout_url;
+    const hostedUrl = checkout.hosted_checkout_url; // null in embedded mode
     const checkoutId = checkout.id;
+
+    // Per embedded: genera pay_token e costruisci pay_url interno
+    let payToken = null;
+    let payUrl = hostedUrl;
+    if (checkoutMode === 'embedded') {
+      const crypto = await import('crypto');
+      payToken = crypto.randomBytes(16).toString('hex');
+      payUrl = `${appUrl}/pay-integration/${checkoutId}?t=${payToken}`;
+    }
 
     // Salva la integrazione nel booking
     const integrationEntry = {
       id: checkoutId,
       checkout_reference: checkoutRef,
-      hosted_url: hostedUrl,
+      hosted_url: payUrl, // pay_url interno per embedded, hosted url per hosted
+      mode: checkoutMode,
+      pay_token: payToken,
       amount: Number(amt.toFixed(2)),
       currency: booking.currency || 'EUR',
       description: descLine,
@@ -179,29 +194,34 @@ export async function handleCreatePaymentLink(method, body) {
           customer_name,
           amount: amt,
           currency: booking.currency || 'EUR',
-          hosted_url: hostedUrl,
+          hosted_url: payUrl,
           booking_ref: booking.booking_ref,
           description: descLine,
           company,
+          mode: checkoutMode,
         });
       } catch (e) {
         console.error('[payment-link] email error:', e?.message);
         return json({
           ok: true,
           warning: `Link generato ma invio email fallito: ${e.message}`,
-          hosted_url: hostedUrl,
+          hosted_url: payUrl,
           checkout_id: checkoutId,
           checkout_reference: checkoutRef,
           amount: amt,
+          mode: checkoutMode,
         });
       }
     }
 
     return json({
       ok: true,
-      hosted_url: hostedUrl,
+      hosted_url: payUrl,
+      pay_url: payUrl,
       checkout_id: checkoutId,
       checkout_reference: checkoutRef,
+      mode: checkoutMode,
+      pay_token: payToken,
       amount: amt,
       currency: booking.currency || 'EUR',
       booking_ref: booking.booking_ref,

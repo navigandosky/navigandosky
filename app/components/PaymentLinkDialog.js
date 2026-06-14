@@ -30,6 +30,7 @@ export default function PaymentLinkDialog({ open, onOpenChange, companyId, allBo
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [sendVia, setSendVia] = useState('show'); // 'show' | 'email'
+  const [mode, setMode] = useState('embedded'); // 'embedded' (default, costi ridotti) | 'hosted'
 
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -46,6 +47,7 @@ export default function PaymentLinkDialog({ open, onOpenChange, companyId, allBo
       setAmount('');
       setDescription('');
       setSendVia('show');
+      setMode('embedded');
       setResult(null);
       setError(null);
       setShowSuggest(false);
@@ -145,6 +147,7 @@ export default function PaymentLinkDialog({ open, onOpenChange, companyId, allBo
           amount: amt,
           description: description.trim(),
           send_via: sendVia,
+          mode,
         }),
       });
       const data = await res.json();
@@ -305,6 +308,46 @@ export default function PaymentLinkDialog({ open, onOpenChange, companyId, allBo
               />
             </div>
 
+            {/* Step 4.5: Modalità Pagamento (Embedded vs Hosted) */}
+            <div>
+              <Label>Modalità Pagamento <span className="text-red-500">*</span></Label>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setMode('embedded')}
+                  className={`flex items-start gap-2 p-3 rounded-lg border-2 transition text-left ${
+                    mode === 'embedded' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="text-2xl">💳</div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm flex items-center gap-1">
+                      Carta Interna
+                      <Badge className="bg-emerald-600 hover:bg-emerald-600 text-[10px] px-1.5 py-0">CONSIGLIATA</Badge>
+                    </div>
+                    <div className="text-[11px] text-slate-500 leading-tight mt-0.5">
+                      Cliente paga sul nostro sito. Commissioni ridotte (~1.95%).
+                    </div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('hosted')}
+                  className={`flex items-start gap-2 p-3 rounded-lg border-2 transition text-left ${
+                    mode === 'hosted' ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="text-2xl">🔗</div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">Link SumUp Hosted</div>
+                    <div className="text-[11px] text-slate-500 leading-tight mt-0.5">
+                      Reindirizza al checkout SumUp. Commissioni più alte.
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             {/* Step 5: Modalità invio */}
             <div>
               <Label>Modalità Consegna Link <span className="text-red-500">*</span></Label>
@@ -358,6 +401,14 @@ export default function PaymentLinkDialog({ open, onOpenChange, companyId, allBo
               <div className="text-sm text-slate-700 space-y-1">
                 <div><strong>Voucher:</strong> <span className="font-mono">{result.booking_ref}</span></div>
                 <div><strong>Importo:</strong> €{Number(result.amount).toFixed(2)} {result.currency}</div>
+                <div>
+                  <strong>Modalità:</strong>{' '}
+                  {result.mode === 'embedded' ? (
+                    <Badge className="bg-emerald-600 hover:bg-emerald-600">💳 Carta Interna (commissioni ridotte)</Badge>
+                  ) : (
+                    <Badge variant="outline">🔗 Link Hosted SumUp</Badge>
+                  )}
+                </div>
                 {result.email_sent && (
                   <div className="text-emerald-700">
                     📧 Email inviata via <strong>{result.email_provider}</strong>

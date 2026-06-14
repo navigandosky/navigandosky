@@ -2639,11 +2639,32 @@ async function handleRoute(request, resolvedParams, method) {
         return new Response(JSON.stringify({ error: 'Refunds endpoint not found' }), { status: 404 });
       }
       case 'sumup': {
-        // Sub-route: /api/sumup/create-checkout o /api/sumup/webhook
+        // Sub-route: /api/sumup/create-checkout, /api/sumup/create-embedded-checkout,
+        //          /api/sumup/pay-info, /api/sumup/webhook
         const sub = pathSegments[1];
         if (sub === 'create-checkout') {
           const { handleCreateSumupCheckout } = await import('./sumup_payments');
           return await handleCreateSumupCheckout(method, body);
+        }
+        if (sub === 'create-embedded-checkout') {
+          const { handleCreateSumupEmbeddedCheckout } = await import('./sumup_payments');
+          return await handleCreateSumupEmbeddedCheckout(method, body);
+        }
+        if (sub === 'pay-info') {
+          const { handleSumupPayInfo } = await import('./sumup_payments');
+          return await handleSumupPayInfo(method, searchParams);
+        }
+        if (sub === 'pay-integration-info') {
+          const { handleSumupPayIntegrationInfo } = await import('./sumup_payments');
+          return await handleSumupPayIntegrationInfo(method, searchParams);
+        }
+        if (sub === 'confirm-payment') {
+          const { handleSumupConfirmPayment } = await import('./sumup_payments');
+          return await handleSumupConfirmPayment(method, body);
+        }
+        if (sub === 'confirm-integration-payment') {
+          const { handleSumupConfirmIntegrationPayment } = await import('./sumup_payments');
+          return await handleSumupConfirmIntegrationPayment(method, body);
         }
         if (sub === 'webhook') {
           const { handleSumupWebhook } = await import('./sumup_payments');
