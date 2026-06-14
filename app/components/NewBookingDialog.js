@@ -149,6 +149,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
       }
       else if (paymentMethod === 'CASH') pmForBackend = 'DIRECT';
       else if (paymentMethod === 'PAYMENT_LINK') pmForBackend = 'ONLINE'; // resta PENDING_VERIFICATION until SumUp webhook confirms
+      else if (paymentMethod === 'PAYMENT_LINK_EMBEDDED') pmForBackend = 'ONLINE'; // idem, ma con widget interno
 
       const res = await fetch('/api/bookings', {
         method: 'POST',
@@ -245,7 +246,7 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
           });
           const lk = await lkRes.json();
           if (lk.hosted_url) {
-            setGeneratedLink({ url: lk.hosted_url, booking: created });
+            setGeneratedLink({ url: lk.hosted_url, booking: created, mode: 'hosted' });
             toast.success(`✅ Prenotazione ${created.booking_ref} creata - Link generato!`);
             if (onCreated) onCreated(created);
             setLoading(false);
@@ -254,6 +255,36 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
             toast.error('Prenotazione creata ma errore generazione link: ' + (lk.error || 'unknown'));
           }
         } catch (e) { toast.error('Errore generazione link SumUp: ' + e.message); }
+      }
+
+      // Se PAYMENT_LINK_EMBEDDED: genera il link verso il widget interno (commissioni ridotte)
+      if (paymentMethod === 'PAYMENT_LINK_EMBEDDED') {
+        try {
+          const lkRes = await fetch('/api/payment-link/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              booking_id: created.id,
+              booking_ref: created.booking_ref,
+              customer_name: created.customer_name,
+              customer_email: created.customer_email,
+              amount: created.total_amount,
+              description: `Pagamento Voucher ${created.booking_ref} - ${created.experience_name || 'Esperienza'}`,
+              send_via: 'show',
+              mode: 'embedded',
+            }),
+          });
+          const lk = await lkRes.json();
+          if (lk.ok && lk.pay_url) {
+            setGeneratedLink({ url: lk.pay_url, booking: created, mode: 'embedded' });
+            toast.success(`✅ Prenotazione ${created.booking_ref} creata - Link Carta Interna generato!`);
+            if (onCreated) onCreated(created);
+            setLoading(false);
+            return;
+          } else {
+            toast.error('Prenotazione creata ma errore generazione link embedded: ' + (lk.error || 'unknown'));
+          }
+        } catch (e) { toast.error('Errore generazione link embedded: ' + e.message); }
       }
 
       toast.success(`Prenotazione ${created.booking_ref} creata!`);
@@ -515,6 +546,18 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
                 </div>
               </label>
 
+              {/* Link Pagamento Embedded - SumUp Carta Interna (commissioni ridotte) */}
+              <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer ${paymentMethod === 'PAYMENT_LINK_EMBEDDED' ? 'border-emerald-600 bg-emerald-50' : 'border-emerald-300 hover:border-emerald-400'} bg-gradient-to-r from-emerald-50/40 to-teal-50/40`}>
+                <input type="radio" checked={paymentMethod === 'PAYMENT_LINK_EMBEDDED'} onChange={() => setPaymentMethod('PAYMENT_LINK_EMBEDDED')} className="mt-1" />
+                <div className="flex-1">
+                  <div className="font-semibold text-sm flex items-center gap-2 flex-wrap">
+                    💳 Link Carta Interna (commissioni ridotte)
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-600 text-white font-bold">CONSIGLIATO</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">Genera un <strong>link al nostro modulo carta sicuro</strong> (Widget SumUp). Il cliente paga senza uscire dal nostro sito → <strong>commissioni ridotte</strong> rispetto al link esterno. La prenotazione passa a PAGATA in automatico.</div>
+                </div>
+              </label>
+
               {/* Link Pagamento Esterno - SumUp */}
               <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer ${paymentMethod === 'PAYMENT_LINK' ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-slate-300'} bg-gradient-to-r from-purple-50/30 to-pink-50/30`}>
                 <input type="radio" checked={paymentMethod === 'PAYMENT_LINK'} onChange={() => setPaymentMethod('PAYMENT_LINK')} className="mt-1" />
@@ -562,11 +605,20 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
           <div className="space-y-4">
             <div className="text-center py-4 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border-2 border-emerald-200">
               <div className="text-5xl mb-2">🎉</div>
-              <h3 className="text-lg font-bold text-emerald-900">Link di Pagamento Pronto!</h3>
+              <h3 className="text-lg font-bold text-emerald-900">
+                {generatedLink.mode === 'embedded' ? 'Link Carta Interna Pronto!' : 'Link di Pagamento Pronto!'}
+              </h3>
               <p className="text-sm text-emerald-700 mt-1">Prenotazione <strong>{generatedLink.booking?.booking_ref}</strong></p>
+              {generatedLink.mode === 'embedded' && (
+                <p className="text-xs text-emerald-800 mt-2 inline-flex items-center gap-1 bg-emerald-100 px-2 py-1 rounded-full">
+                  💳 Modalità Carta Interna · Commissioni ridotte
+                </p>
+              )}
             </div>
             <div className="p-3 bg-slate-50 rounded-lg space-y-2">
-              <Label className="text-xs">Link SumUp</Label>
+              <Label className="text-xs">
+                {generatedLink.mode === 'embedded' ? 'Link Pagamento Sicuro (Carta Interna)' : 'Link SumUp'}
+              </Label>
               <div className="flex gap-2">
                 <Input value={generatedLink.url} readOnly className="font-mono text-xs" />
                 <Button
@@ -579,15 +631,19 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
                   }}
                 >📋 Copia</Button>
               </div>
-              <p className="text-xs text-muted-foreground">Invia questo link al cliente via Email, WhatsApp o SMS. La prenotazione passerà a <strong>PAGATA</strong> automaticamente non appena il cliente completerà il pagamento.</p>
+              <p className="text-xs text-muted-foreground">
+                {generatedLink.mode === 'embedded'
+                  ? <>Invia questo link al cliente. Si aprirà la <strong>nostra pagina sicura</strong> con il modulo carta. La prenotazione passerà a <strong>PAGATA</strong> automaticamente al completamento.</>
+                  : <>Invia questo link al cliente via Email, WhatsApp o SMS. La prenotazione passerà a <strong>PAGATA</strong> automaticamente non appena il cliente completerà il pagamento.</>}
+              </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <Button
                 variant="outline"
                 onClick={() => window.open(generatedLink.url, '_blank')}
-                className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                className={generatedLink.mode === 'embedded' ? 'border-emerald-300 text-emerald-700 hover:bg-emerald-50' : 'border-purple-300 text-purple-700 hover:bg-purple-50'}
               >
-                🌐 Apri pagina pagamento
+                {generatedLink.mode === 'embedded' ? '💳 Apri Carta Interna' : '🌐 Apri pagina pagamento'}
               </Button>
               <Button
                 variant="outline"
@@ -627,7 +683,11 @@ export default function NewBookingDialog({ open, onClose, currentUser, companyId
               title={!termsAccepted ? 'Spunta la conferma di accettazione delle condizioni' : ''}
               className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Creazione...' : (paymentMethod === 'PAYMENT_LINK' ? '🔗 Crea + Genera Link' : '✅ Crea Prenotazione')}
+              {loading ? 'Creazione...' : (
+                paymentMethod === 'PAYMENT_LINK_EMBEDDED' ? '💳 Crea + Link Carta Interna' :
+                paymentMethod === 'PAYMENT_LINK' ? '🔗 Crea + Genera Link' :
+                '✅ Crea Prenotazione'
+              )}
             </Button>
           ))}
         </DialogFooter>
