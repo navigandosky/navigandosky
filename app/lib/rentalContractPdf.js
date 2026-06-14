@@ -152,6 +152,97 @@ export function generateRentalContractPdf(data = {}, returnDoc = false) {
     { align: 'center' }
   );
 
+  // ============================================================================
+  // PAGINA 2 — TABELLA FIRME PASSEGGERI (foglio cartaceo)
+  // ============================================================================
+  const passengersForSign = Array.isArray(data.passengers) ? data.passengers : [];
+  // Forza minimo 12 righe (utile per inserimento manuale)
+  const minRows = Math.max(12, passengersForSign.length);
+  const signRows = [];
+  for (let i = 0; i < minRows; i++) {
+    const p = passengersForSign[i];
+    signRows.push([
+      String(i + 1),
+      p?.name || '',
+      p?.phone || '',
+      '', // Documento (vuoto da compilare)
+      '', // Firma (vuoto da firmare)
+    ]);
+  }
+
+  doc.addPage();
+  let y2 = 16;
+
+  // Header di pagina 2
+  doc.setFont('helvetica', 'bold').setFontSize(13).setTextColor(15, 23, 42);
+  doc.text(`MODULO FIRME PASSEGGERI`, W / 2, y2, { align: 'center' });
+  y2 += 6;
+  doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(71, 85, 105);
+  doc.text(`Contratto N° ${data.contract_number || '_______'} del ${data.contract_date || '_________'}`, W / 2, y2, { align: 'center' });
+  y2 += 6;
+  doc.setFontSize(9);
+  doc.text(`Unità: ${data.unita_diporto_numero || '-'} · Itinerario: ${data.itinerary || '-'}`, W / 2, y2, { align: 'center', maxWidth: W - 2 * PAD_X });
+  y2 += 8;
+
+  // Riquadro istruzioni (2 righe distinte)
+  doc.setDrawColor(180, 180, 180).setFillColor(254, 252, 232);
+  doc.roundedRect(PAD_X, y2, W - 2 * PAD_X, 18, 2, 2, 'FD');
+  doc.setFontSize(8.5).setFont('helvetica', 'italic').setTextColor(120, 80, 20);
+  const istr1 = doc.splitTextToSize(
+    "Il sottoscritto, in qualità di passeggero, dichiara di essere stato informato sulle condizioni di noleggio e di accettarle integralmente.",
+    W - 2 * PAD_X - 6
+  );
+  doc.text(istr1, PAD_X + 3, y2 + 4);
+  const istr2 = doc.splitTextToSize(
+    "Ogni passeggero deve apporre Nome e Cognome leggibili + Firma. Il modulo va riconsegnato al comandante prima della partenza.",
+    W - 2 * PAD_X - 6
+  );
+  doc.text(istr2, PAD_X + 3, y2 + 4 + istr1.length * 4);
+  y2 += 22;
+
+  // Tabella firme
+  autoTable(doc, {
+    startY: y2,
+    head: [['#', 'Cognome e Nome', 'Telefono', 'Doc. Identità', 'Firma']],
+    body: signRows,
+    styles: { fontSize: 10, cellPadding: { top: 4, right: 2, bottom: 4, left: 2 }, lineWidth: 0.3, lineColor: [80, 80, 80] },
+    headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold', fontSize: 10, halign: 'center' },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center', fillColor: [248, 250, 252] },
+      1: { cellWidth: 60 },
+      2: { cellWidth: 32 },
+      3: { cellWidth: 35 },
+      4: { cellWidth: 'auto' }, // firma più larga
+    },
+    margin: { left: PAD_X, right: PAD_X },
+    didParseCell: (data) => {
+      // Aggiungi altezza maggiore alle righe del corpo per lasciare spazio per scrivere
+      if (data.section === 'body') {
+        data.cell.styles.minCellHeight = 11;
+      }
+    },
+  });
+
+  // Box firma comandante in basso
+  const finalY2 = doc.lastAutoTable.finalY + 14;
+  if (finalY2 < doc.internal.pageSize.getHeight() - 30) {
+    doc.setDrawColor(50, 50, 50).setLineWidth(0.4);
+    doc.line(PAD_X, finalY2, PAD_X + 80, finalY2);
+    doc.line(W - PAD_X - 80, finalY2, W - PAD_X, finalY2);
+    doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(50, 50, 50);
+    doc.text("Firma del Comandante / Skipper", PAD_X, finalY2 + 5);
+    doc.text("Data e Luogo", W - PAD_X - 80, finalY2 + 5);
+  }
+
+  // Footer pagina 2
+  doc.setFontSize(7).setTextColor(140, 140, 140);
+  doc.text(
+    `Modulo firme passeggeri · ${cName} · ${new Date().toLocaleString('it-IT')}`,
+    W / 2,
+    doc.internal.pageSize.getHeight() - 6,
+    { align: 'center' }
+  );
+
   const filename = `Contratto_Noleggio_${(data.contract_number || 'X').replace(/[^a-zA-Z0-9-]/g, '_')}_${(data.contract_date || '').replace(/\//g, '-') || new Date().toISOString().slice(0, 10)}.pdf`;
   if (returnDoc) return { doc, filename };
   doc.save(filename);
