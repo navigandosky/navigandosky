@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Anchor, Plus, Edit, Trash2, Save, X, AlertCircle, Ship, Lock, Unlock, RefreshCw, Eye, MapPin, FileText, Map as MapIcon, Upload, Image as ImageIcon, Ticket } from 'lucide-react';
+import { Anchor, Plus, Edit, Trash2, Save, X, AlertCircle, Ship, Lock, Unlock, RefreshCw, Eye, MapPin, FileText, Map as MapIcon, Upload, Image as ImageIcon, Ticket, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 
@@ -91,6 +91,35 @@ export function MarinasManager() {
                     title="Genera Pass di Transito alla sbarra"
                   >
                     <Ticket className="w-3 h-3 mr-1" />🎫 Pass
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-400 text-slate-700 hover:bg-slate-100"
+                    onClick={async () => {
+                      const cmp = companies.find(c => c.id === m.company_id);
+                      const cBt = cmp?.bank_transfer || {};
+                      const mBt = m?.bank_transfer || {};
+                      const iban = cmp?.iban || cBt.iban || mBt.iban;
+                      if (!iban) return toast.error(`Nessun IBAN configurato. Configura in Marina → Impostazioni → 🏦 Bonifico Istantaneo.`);
+                      const enriched = {
+                        ...(cmp || {}),
+                        iban,
+                        bic_swift: cmp?.bic_swift || cBt.bic_swift || mBt.bic_swift || '',
+                        bank_name: cmp?.bank_name || cBt.bank_name || mBt.bank_name || '',
+                        bank_branch: cmp?.bank_branch || cBt.bank_branch || mBt.bank_branch || '',
+                        name: cBt.account_holder || mBt.account_holder || cmp?.name || 'Maretrek',
+                      };
+                      try {
+                        const { openCompanyIbanPdf } = await import('@/app/lib/companyIbanPdf');
+                        await openCompanyIbanPdf({ company: enriched, marina: m });
+                      } catch (e) {
+                        toast.error('Errore: ' + e.message);
+                      }
+                    }}
+                    title="Stampa coordinate bancarie IBAN della company"
+                  >
+                    <Banknote className="w-3 h-3 mr-1" />🏦 IBAN
                   </Button>
                 </div>
               </CardContent>

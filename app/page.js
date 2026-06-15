@@ -61,7 +61,7 @@ const RentalsCatalogPageLazy = dynamic(() => import('./components/RentalsPublic'
 const RentalDetailPageLazy = dynamic(() => import('./components/RentalsPublic').then(m => ({ default: m.RentalDetailPage })), { ssr: false });
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
@@ -3438,6 +3438,38 @@ function AdminDashboard({ currentUser, onLogout }) {
   // Pass di Transito Marina (sbarra) - dialog
   const [showTransitPassDialog, setShowTransitPassDialog] = useState(false);
   const [transitPassMarina, setTransitPassMarina] = useState(null);
+  const [showTransitMarinaPicker, setShowTransitMarinaPicker] = useState(false);
+  const [showIbanMarinaPicker, setShowIbanMarinaPicker] = useState(false);
+  const [pickerMarinaId, setPickerMarinaId] = useState(null);
+
+  // Helper: genera e apre il PDF con coordinate bancarie della company associata alla marina
+  // IBAN può essere salvato su company (company.bank_transfer.iban o company.iban) OPPURE su marina.bank_transfer.iban
+  const printCompanyIban = async (cmp, mar) => {
+    if (!cmp && !mar) return toast.error('Company/Marina non trovata');
+    // Unifica i dati IBAN da company → marina (fallback)
+    const cBt = cmp?.bank_transfer || {};
+    const mBt = mar?.bank_transfer || {};
+    const iban = cmp?.iban || cBt.iban || mBt.iban;
+    if (!iban) {
+      return toast.error(`Nessun IBAN configurato per "${cmp?.name || mar?.name}". Configuralo in Marina → Impostazioni → 🏦 Bonifico Istantaneo.`);
+    }
+    const enriched = {
+      ...cmp,
+      iban,
+      bic_swift: cmp?.bic_swift || cBt.bic_swift || mBt.bic_swift || '',
+      bank_name: cmp?.bank_name || cBt.bank_name || mBt.bank_name || '',
+      bank_branch: cmp?.bank_branch || cBt.bank_branch || mBt.bank_branch || '',
+      // se l'intestatario è specificato in bank_transfer.account_holder lo usiamo come nome del beneficiario
+      name: cBt.account_holder || mBt.account_holder || cmp?.name || 'Maretrek',
+    };
+    try {
+      const { openCompanyIbanPdf } = await import('@/app/lib/companyIbanPdf');
+      await openCompanyIbanPdf({ company: enriched, marina: mar });
+    } catch (e) {
+      console.error('printCompanyIban error:', e);
+      toast.error('Errore generazione PDF: ' + e.message);
+    }
+  };
   // Nuova Prenotazione Esperienza (dialog admin) - apertura
   const [showNewBookingDialog, setShowNewBookingDialog] = useState(false);
   useEffect(() => {
@@ -4415,21 +4447,15 @@ function AdminDashboard({ currentUser, onLogout }) {
               type="button"
               size="sm"
               onClick={() => {
-                // Se filtro attivo o solo 1 marina, usa quella; altrimenti picker
+                // Se filtro attivo o solo 1 marina, usa quella; altrimenti picker dropdown
                 const m = (globalMarinaFilter && globalMarinaFilter !== 'ALL')
                   ? ownedMarinas.find(x => x.id === globalMarinaFilter)
                   : (ownedMarinas?.length === 1 ? ownedMarinas[0] : null);
                 if (!m) {
-                  // Più marine: chiedi quale
                   if (ownedMarinas?.length > 1) {
-                    const choice = window.prompt(
-                      `Per quale Marina vuoi generare il Pass di Transito?\n\n${ownedMarinas.map((mm, i) => `${i + 1}) ${mm.name}`).join('\n')}\n\nInserisci il numero:`
-                    );
-                    const idx = parseInt(choice, 10) - 1;
-                    if (idx >= 0 && idx < ownedMarinas.length) {
-                      setTransitPassMarina(ownedMarinas[idx]);
-                      setShowTransitPassDialog(true);
-                    }
+                    // Apri picker con menu a tendina
+                    setPickerMarinaId(ownedMarinas[0]?.id || null);
+                    setShowTransitMarinaPicker(true);
                   } else {
                     toast.error('Nessuna marina disponibile');
                   }
@@ -4443,6 +4469,34 @@ function AdminDashboard({ currentUser, onLogout }) {
             >
               <Ticket className="w-4 h-4 mr-1.5" />
               🎫 Pass Transito
+            </Button>
+            )}
+            {showMarina && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                // Stampa IBAN della company associata alla marina filtrata o, se 1 sola, quella
+                const m = (globalMarinaFilter && globalMarinaFilter !== 'ALL')
+                  ? ownedMarinas.find(x => x.id === globalMarinaFilter)
+                  : (ownedMarinas?.length === 1 ? ownedMarinas[0] : null);
+                if (!m) {
+                  if (ownedMarinas?.length > 1) {
+                    setPickerMarinaId(ownedMarinas[0]?.id || null);
+                    setShowIbanMarinaPicker(true);
+                  } else {
+                    toast.error('Nessuna marina disponibile');
+                  }
+                  return;
+                }
+                const cmp = companies?.find(c => c.id === m.company_id);
+                printCompanyIban(cmp, m);
+              }}
+              className="bg-slate-700 text-white hover:bg-slate-800 font-semibold shadow-md border border-slate-500 h-9"
+              title="Stampa IBAN della company per pagamenti bonifico"
+            >
+              <Banknote className="w-4 h-4 mr-1.5" />
+              🏦 Stampa IBAN
             </Button>
             )}
             {showExperiences && (
@@ -6921,6 +6975,95 @@ function AdminDashboard({ currentUser, onLogout }) {
         </Suspense>
       )}
 
+      {/* Pass di Transito Marina - Picker Dialog (selezione marina via dropdown) */}
+      {showTransitMarinaPicker && (
+        <Dialog open={showTransitMarinaPicker} onOpenChange={setShowTransitMarinaPicker}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Ticket className="w-5 h-5 text-cyan-700" />
+                Seleziona Marina
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <Label className="text-sm">Per quale marina vuoi generare il Pass di Transito?</Label>
+              <Select value={pickerMarinaId || undefined} onValueChange={setPickerMarinaId}>
+                <SelectTrigger><SelectValue placeholder="-- Scegli marina --" /></SelectTrigger>
+                <SelectContent>
+                  {ownedMarinas?.map(m => (
+                    <SelectItem key={m.id} value={m.id}>
+                      ⚓ {m.name} {m.location ? `(${m.location})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowTransitMarinaPicker(false)}>Annulla</Button>
+              <Button
+                disabled={!pickerMarinaId}
+                onClick={() => {
+                  const m = ownedMarinas.find(x => x.id === pickerMarinaId);
+                  if (!m) return;
+                  setTransitPassMarina(m);
+                  setShowTransitMarinaPicker(false);
+                  setShowTransitPassDialog(true);
+                }}
+                className="bg-cyan-600 hover:bg-cyan-700"
+              >
+                <Ticket className="w-4 h-4 mr-1" /> Continua
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Stampa IBAN - Picker Dialog */}
+      {showIbanMarinaPicker && (
+        <Dialog open={showIbanMarinaPicker} onOpenChange={setShowIbanMarinaPicker}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Banknote className="w-5 h-5 text-slate-700" />
+                Seleziona Marina per Stampa IBAN
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <Label className="text-sm">L&apos;IBAN stampato sarà quello della company associata alla marina selezionata.</Label>
+              <Select value={pickerMarinaId || undefined} onValueChange={setPickerMarinaId}>
+                <SelectTrigger><SelectValue placeholder="-- Scegli marina --" /></SelectTrigger>
+                <SelectContent>
+                  {ownedMarinas?.map(m => {
+                    const cmp = companies?.find(c => c.id === m.company_id);
+                    return (
+                      <SelectItem key={m.id} value={m.id}>
+                        ⚓ {m.name} → 🏢 {cmp?.name || '(no company)'}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowIbanMarinaPicker(false)}>Annulla</Button>
+              <Button
+                disabled={!pickerMarinaId}
+                onClick={() => {
+                  const m = ownedMarinas.find(x => x.id === pickerMarinaId);
+                  if (!m) return;
+                  const cmp = companies?.find(c => c.id === m.company_id);
+                  setShowIbanMarinaPicker(false);
+                  printCompanyIban(cmp, m);
+                }}
+                className="bg-slate-700 hover:bg-slate-800"
+              >
+                <Banknote className="w-4 h-4 mr-1" /> Stampa IBAN
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Pass di Transito Marina (sbarra) - Dialog */}
       {showTransitPassDialog && transitPassMarina && (
         <Suspense fallback={null}>
@@ -6931,7 +7074,7 @@ function AdminDashboard({ currentUser, onLogout }) {
               if (!v) setTransitPassMarina(null);
             }}
             marina={transitPassMarina}
-            company={companyBrand || companies?.find(c => c.id === transitPassMarina.company_id) || {
+            company={companies?.find(c => c.id === transitPassMarina.company_id) || {
               id: transitPassMarina.company_id,
               name: 'Maretrek',
             }}
