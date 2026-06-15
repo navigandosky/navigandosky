@@ -2556,6 +2556,10 @@ async function handleRoute(request, resolvedParams, method) {
         const db = await getDb();
         return await handleMarinaTransitPasses(method, id, body, action, searchParams, db);
       }
+      case 'test-admin-notify': {
+        const { handleTestAdminNotify } = await import('./test_admin_notify');
+        return await handleTestAdminNotify(method, searchParams);
+      }
       case 'port-settings': {
         const { handlePortSettings } = await import('./port_archive');
         const db = await getDb();
