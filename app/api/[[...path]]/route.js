@@ -2551,6 +2551,11 @@ async function handleRoute(request, resolvedParams, method) {
         const db = await getDb();
         return await handlePortQuotes(method, id, body, action, searchParams, db);
       }
+      case 'marina-transit-passes': {
+        const { handleMarinaTransitPasses } = await import('./marina_transit_passes');
+        const db = await getDb();
+        return await handleMarinaTransitPasses(method, id, body, action, searchParams, db);
+      }
       case 'port-settings': {
         const { handlePortSettings } = await import('./port_archive');
         const db = await getDb();

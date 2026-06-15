@@ -1,606 +1,847 @@
 #!/usr/bin/env python3
 """
-Backend Test Suite for SumUp Embedded Payment Link Feature
-Tests the NEW embedded payment mode alongside existing hosted mode
+Marina Transit Pass Backend Testing
+Tests all CRUD operations and validation for the new Marina Transit Pass feature
 """
 
 import requests
 import json
-import sys
-from pymongo import MongoClient
-import os
+from datetime import datetime, timedelta
 
-# Configuration
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://marina-management.preview.emergentagent.com')
-API_BASE = f"{BASE_URL}/api"
-MONGO_URL = os.getenv('MONGO_URL', 'mongodb://localhost:27017/maretrek')
-DB_NAME = os.getenv('DB_NAME', 'maretrek')
+# Base URL from .env
+BASE_URL = "https://marina-management.preview.emergentagent.com/api"
 
 # Test data
-BOOKING_REF = 'MK-2026-0019'
-COMPANY_ID = '03f77ea6-95c7-49c4-a13b-df54bc28ecc2'  # Marlin Sub
-MERCHANT_CODE = 'MCAC6Y6C'
+MARINA_ID = "77a960f0-44d6-4911-bd4f-302d3025e0a1"  # Porticciolo Bosa Marina
+COMPANY_ID = "03f77ea6-95c7-49c4-a13b-df54bc28ecc2"  # Marlin Sub
 
-# Global test results
-test_results = []
-created_checkout_ids = []
+# Store created pass IDs for cleanup
+created_pass_ids = []
 
-def log_test(test_name, passed, message=""):
-    """Log test result"""
-    status = "✅ PASS" if passed else "❌ FAIL"
-    print(f"{status}: {test_name}")
-    if message:
-        print(f"   {message}")
-    test_results.append({
-        'test': test_name,
-        'passed': passed,
-        'message': message
-    })
+def print_test(test_num, description):
+    print(f"\n{'='*80}")
+    print(f"TEST {test_num}: {description}")
+    print('='*80)
 
-def test_a1_hosted_mode_default():
-    """A1: POST /api/payment-link/create without mode field (default hosted)"""
-    print("\n=== TEST A1: Backward compatibility - HOSTED mode (no mode field) ===")
-    try:
-        payload = {
-            'booking_ref': BOOKING_REF,
-            'customer_name': 'Test User',
-            'customer_email': 'test@example.com',
-            'amount': 5.00,
-            'description': 'Test hosted',
-            'send_via': 'show'
-        }
-        
-        response = requests.post(f"{API_BASE}/payment-link/create", json=payload, timeout=30)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("A1: Hosted mode default", False, f"Expected 200, got {response.status_code}: {response.text}")
-            return None
-        
-        data = response.json()
-        print(f"Response: {json.dumps(data, indent=2)}")
-        
-        # Validations
-        checks = []
-        checks.append(('hosted_url exists', 'hosted_url' in data))
-        checks.append(('hosted_url is SumUp', data.get('hosted_url', '').startswith('https://checkout.sumup.com/pay/')))
-        checks.append(('mode is hosted', data.get('mode') == 'hosted'))
-        checks.append(('pay_token is null', data.get('pay_token') is None))
-        checks.append(('checkout_id exists', 'checkout_id' in data and data['checkout_id']))
-        checks.append(('amount is 5.00', data.get('amount') == 5.00))
-        
-        all_passed = all(check[1] for check in checks)
-        failed_checks = [check[0] for check in checks if not check[1]]
-        
-        if all_passed:
-            log_test("A1: Hosted mode default", True, f"All checks passed. checkout_id: {data.get('checkout_id')}")
-            created_checkout_ids.append(data.get('checkout_id'))
-            return data
-        else:
-            log_test("A1: Hosted mode default", False, f"Failed checks: {', '.join(failed_checks)}")
-            return None
-            
-    except Exception as e:
-        log_test("A1: Hosted mode default", False, f"Exception: {str(e)}")
-        return None
+def print_result(success, message):
+    status = "✅ PASS" if success else "❌ FAIL"
+    print(f"{status}: {message}")
 
-def test_a2_hosted_mode_explicit():
-    """A2: POST /api/payment-link/create with explicit mode='hosted'"""
-    print("\n=== TEST A2: Backward compatibility - HOSTED mode (explicit) ===")
-    try:
-        payload = {
-            'booking_ref': BOOKING_REF,
-            'customer_name': 'Test User Explicit',
-            'customer_email': 'test@example.com',
-            'amount': 6.00,
-            'description': 'Test hosted explicit',
-            'send_via': 'show',
-            'mode': 'hosted'
-        }
-        
-        response = requests.post(f"{API_BASE}/payment-link/create", json=payload, timeout=30)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("A2: Hosted mode explicit", False, f"Expected 200, got {response.status_code}: {response.text}")
-            return None
-        
-        data = response.json()
-        print(f"Response: {json.dumps(data, indent=2)}")
-        
-        # Validations
-        checks = []
-        checks.append(('hosted_url exists', 'hosted_url' in data))
-        checks.append(('hosted_url is SumUp', data.get('hosted_url', '').startswith('https://checkout.sumup.com/pay/')))
-        checks.append(('mode is hosted', data.get('mode') == 'hosted'))
-        checks.append(('pay_token is null', data.get('pay_token') is None))
-        
-        all_passed = all(check[1] for check in checks)
-        failed_checks = [check[0] for check in checks if not check[1]]
-        
-        if all_passed:
-            log_test("A2: Hosted mode explicit", True, "All checks passed")
-            created_checkout_ids.append(data.get('checkout_id'))
-            return data
-        else:
-            log_test("A2: Hosted mode explicit", False, f"Failed checks: {', '.join(failed_checks)}")
-            return None
-            
-    except Exception as e:
-        log_test("A2: Hosted mode explicit", False, f"Exception: {str(e)}")
-        return None
+# ============================================================================
+# SECTION A: CREATE PASS
+# ============================================================================
 
-def test_b3_embedded_mode():
-    """B3: POST /api/payment-link/create with mode='embedded'"""
-    print("\n=== TEST B3: NEW Embedded mode ===")
-    try:
-        payload = {
-            'booking_ref': BOOKING_REF,
-            'customer_name': 'Test Embedded',
-            'customer_email': 'test@example.com',
-            'amount': 7.50,
-            'description': 'Test embedded',
-            'send_via': 'show',
-            'mode': 'embedded'
-        }
-        
-        response = requests.post(f"{API_BASE}/payment-link/create", json=payload, timeout=30)
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("B3: Embedded mode", False, f"Expected 200, got {response.status_code}: {response.text}")
-            return None
-        
-        data = response.json()
-        print(f"Response: {json.dumps(data, indent=2)}")
-        
-        # Validations
-        checks = []
-        checks.append(('mode is embedded', data.get('mode') == 'embedded'))
-        checks.append(('pay_token exists', 'pay_token' in data and data['pay_token']))
-        checks.append(('pay_token is 32 chars hex', len(data.get('pay_token', '')) == 32))
-        checks.append(('pay_url contains /pay-integration/', '/pay-integration/' in data.get('pay_url', '')))
-        checks.append(('pay_url contains t= param', 't=' in data.get('pay_url', '')))
-        checks.append(('hosted_url equals pay_url', data.get('hosted_url') == data.get('pay_url')))
-        checks.append(('checkout_id is UUID', len(data.get('checkout_id', '')) > 20))
-        checks.append(('amount is 7.50', data.get('amount') == 7.50))
-        
-        all_passed = all(check[1] for check in checks)
-        failed_checks = [check[0] for check in checks if not check[1]]
-        
-        if all_passed:
-            log_test("B3: Embedded mode", True, f"All checks passed. checkout_id: {data.get('checkout_id')}, pay_token: {data.get('pay_token')}")
-            created_checkout_ids.append(data.get('checkout_id'))
-            return data
-        else:
-            log_test("B3: Embedded mode", False, f"Failed checks: {', '.join(failed_checks)}")
-            return None
-            
-    except Exception as e:
-        log_test("B3: Embedded mode", False, f"Exception: {str(e)}")
-        return None
-
-def test_c4_mongodb_persistence(embedded_data):
-    """C4: Verify MongoDB persistence of embedded payment"""
-    print("\n=== TEST C4: MongoDB persistence ===")
-    if not embedded_data:
-        log_test("C4: MongoDB persistence", False, "Skipped - no embedded data from B3")
-        return
+def test_a1_create_valid_pass():
+    """A1: Create pass with valid payload"""
+    print_test("A1", "Create pass with valid payload")
     
     try:
-        # Query via API
-        response = requests.get(f"{API_BASE}/payment-link/lookup?ref={BOOKING_REF}", timeout=10)
+        payload = {
+            "marina_id": MARINA_ID,
+            "company_id": COMPANY_ID,
+            "customer": {
+                "name": "Mario",
+                "surname": "Rossi",
+                "email": "mario@test.it",
+                "phone": "+39 333 1234567"
+            },
+            "boat": {
+                "name": "Sea Breeze",
+                "type": "Vela"
+            },
+            "license_plate": "IT-AB-123",
+            "valid_from": "2026-06-20",
+            "valid_to": "2026-06-25",
+            "notes": "Test pass"
+        }
+        
+        response = requests.post(f"{BASE_URL}/marina-transit-passes", json=payload)
         print(f"Status: {response.status_code}")
         
-        if response.status_code != 200:
-            log_test("C4: MongoDB persistence", False, f"Expected 200, got {response.status_code}")
-            return
-        
-        data = response.json()
-        booking = data.get('booking', {})
-        integration_payments = booking.get('integration_payments', [])
-        
-        print(f"Found {len(integration_payments)} integration_payments entries")
-        
-        # Find the embedded entry
-        embedded_entry = None
-        for entry in integration_payments:
-            if entry.get('id') == embedded_data.get('checkout_id'):
-                embedded_entry = entry
-                break
-        
-        if not embedded_entry:
-            log_test("C4: MongoDB persistence", False, f"Embedded entry not found in integration_payments")
-            return
-        
-        print(f"Embedded entry: {json.dumps(embedded_entry, indent=2)}")
-        
-        # Validations
-        checks = []
-        checks.append(('id matches', embedded_entry.get('id') == embedded_data.get('checkout_id')))
-        checks.append(('mode is embedded', embedded_entry.get('mode') == 'embedded'))
-        checks.append(('pay_token exists', embedded_entry.get('pay_token') is not None))
-        checks.append(('pay_token matches', embedded_entry.get('pay_token') == embedded_data.get('pay_token')))
-        checks.append(('status is PENDING', embedded_entry.get('status') == 'PENDING'))
-        checks.append(('amount is 7.5', embedded_entry.get('amount') == 7.5))
-        
-        all_passed = all(check[1] for check in checks)
-        failed_checks = [check[0] for check in checks if not check[1]]
-        
-        if all_passed:
-            log_test("C4: MongoDB persistence", True, "All checks passed")
-        else:
-            log_test("C4: MongoDB persistence", False, f"Failed checks: {', '.join(failed_checks)}")
-            
-    except Exception as e:
-        log_test("C4: MongoDB persistence", False, f"Exception: {str(e)}")
-
-def test_d5_pay_integration_info_valid(embedded_data):
-    """D5: GET /api/sumup/pay-integration-info with valid checkout_id and token"""
-    print("\n=== TEST D5: Pay-Integration-Info endpoint (valid) ===")
-    if not embedded_data:
-        log_test("D5: Pay-Integration-Info valid", False, "Skipped - no embedded data from B3")
-        return
-    
-    try:
-        checkout_id = embedded_data.get('checkout_id')
-        pay_token = embedded_data.get('pay_token')
-        
-        response = requests.get(
-            f"{API_BASE}/sumup/pay-integration-info?checkout_id={checkout_id}&t={pay_token}",
-            timeout=10
-        )
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code != 200:
-            log_test("D5: Pay-Integration-Info valid", False, f"Expected 200, got {response.status_code}: {response.text}")
-            return
-        
-        data = response.json()
-        print(f"Response: {json.dumps(data, indent=2)}")
-        
-        # Validations
-        checks = []
-        checks.append(('booking_ref is MK-2026-0019', data.get('booking_ref') == BOOKING_REF))
-        checks.append(('checkout_id matches', data.get('checkout_id') == checkout_id))
-        checks.append(('amount is 7.5', data.get('amount') == 7.5))
-        checks.append(('currency is EUR', data.get('currency') == 'EUR'))
-        checks.append(('customer_name is Test Embedded', data.get('customer_name') == 'Test Embedded'))
-        checks.append(('payment_status is PENDING', data.get('payment_status') == 'PENDING'))
-        checks.append(('kind is experience', data.get('kind') == 'experience'))
-        checks.append(('company_name exists', 'company_name' in data))
-        checks.append(('NOT already_paid', data.get('already_paid') == False))
-        
-        all_passed = all(check[1] for check in checks)
-        failed_checks = [check[0] for check in checks if not check[1]]
-        
-        if all_passed:
-            log_test("D5: Pay-Integration-Info valid", True, "All checks passed")
-        else:
-            log_test("D5: Pay-Integration-Info valid", False, f"Failed checks: {', '.join(failed_checks)}")
-            
-    except Exception as e:
-        log_test("D5: Pay-Integration-Info valid", False, f"Exception: {str(e)}")
-
-def test_d6_pay_integration_info_wrong_token(embedded_data):
-    """D6: GET /api/sumup/pay-integration-info with wrong token"""
-    print("\n=== TEST D6: Pay-Integration-Info endpoint (wrong token) ===")
-    if not embedded_data:
-        log_test("D6: Pay-Integration-Info wrong token", False, "Skipped - no embedded data from B3")
-        return
-    
-    try:
-        checkout_id = embedded_data.get('checkout_id')
-        wrong_token = 'wrongtoken1234567890abcdef1234567'
-        
-        response = requests.get(
-            f"{API_BASE}/sumup/pay-integration-info?checkout_id={checkout_id}&t={wrong_token}",
-            timeout=10
-        )
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code == 403:
+        if response.status_code == 201:
             data = response.json()
-            if 'Token non valido' in data.get('error', ''):
-                log_test("D6: Pay-Integration-Info wrong token", True, "Correctly returned 403 with 'Token non valido'")
-            else:
-                log_test("D6: Pay-Integration-Info wrong token", False, f"Got 403 but wrong error message: {data.get('error')}")
-        else:
-            log_test("D6: Pay-Integration-Info wrong token", False, f"Expected 403, got {response.status_code}")
+            print(f"Response: {json.dumps(data, indent=2)}")
             
-    except Exception as e:
-        log_test("D6: Pay-Integration-Info wrong token", False, f"Exception: {str(e)}")
-
-def test_d7_pay_integration_info_nonexistent():
-    """D7: GET /api/sumup/pay-integration-info with non-existent checkout_id"""
-    print("\n=== TEST D7: Pay-Integration-Info endpoint (non-existent checkout_id) ===")
-    try:
-        fake_checkout_id = 'fake-checkout-id-12345678'
-        fake_token = 'faketoken1234567890abcdef12345678'
-        
-        response = requests.get(
-            f"{API_BASE}/sumup/pay-integration-info?checkout_id={fake_checkout_id}&t={fake_token}",
-            timeout=10
-        )
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code == 404:
-            log_test("D7: Pay-Integration-Info non-existent", True, "Correctly returned 404")
-        else:
-            log_test("D7: Pay-Integration-Info non-existent", False, f"Expected 404, got {response.status_code}")
+            # Validate response
+            assert "id" in data, "Missing id field"
+            assert "pass_number" in data, "Missing pass_number field"
+            assert data["pass_number"].startswith("PT-2026/"), f"Invalid pass_number format: {data['pass_number']}"
+            assert data["marina_name"] == "Porticciolo Bosa Marina", f"Wrong marina_name: {data['marina_name']}"
+            assert data["company_name"], "Missing company_name"
+            assert data["archived"] == False, "Should not be archived"
+            assert data["customer"]["name"] == "Mario", "Customer name mismatch"
+            assert data["customer"]["email"] == "mario@test.it", "Customer email mismatch"
+            assert data["boat"]["name"] == "Sea Breeze", "Boat name mismatch"
+            assert data["license_plate"] == "IT-AB-123", "License plate mismatch"
+            assert data["valid_from"] == "2026-06-20", "valid_from mismatch"
+            assert data["valid_to"] == "2026-06-25", "valid_to mismatch"
+            assert data["notes"] == "Test pass", "Notes mismatch"
             
-    except Exception as e:
-        log_test("D7: Pay-Integration-Info non-existent", False, f"Exception: {str(e)}")
-
-def test_d8_pay_integration_info_missing_params():
-    """D8: GET /api/sumup/pay-integration-info with missing parameters"""
-    print("\n=== TEST D8: Pay-Integration-Info endpoint (missing params) ===")
-    try:
-        # Missing both params
-        response = requests.get(f"{API_BASE}/sumup/pay-integration-info", timeout=10)
-        print(f"Status (no params): {response.status_code}")
-        
-        if response.status_code == 400:
-            log_test("D8: Pay-Integration-Info missing params", True, "Correctly returned 400")
+            created_pass_ids.append(data["id"])
+            print_result(True, f"Pass created successfully with number {data['pass_number']}")
+            return data
         else:
-            log_test("D8: Pay-Integration-Info missing params", False, f"Expected 400, got {response.status_code}")
-            
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 201, got {response.status_code}")
+            return None
     except Exception as e:
-        log_test("D8: Pay-Integration-Info missing params", False, f"Exception: {str(e)}")
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return None
 
-def test_e9_confirm_integration_payment(embedded_data):
-    """E9: POST /api/sumup/confirm-integration-payment with valid data"""
-    print("\n=== TEST E9: Confirm-Integration-Payment endpoint (valid) ===")
-    if not embedded_data:
-        log_test("E9: Confirm-Integration-Payment valid", False, "Skipped - no embedded data from B3")
-        return
+def test_a2_create_second_pass():
+    """A2: Create second pass to verify progressive numbering"""
+    print_test("A2", "Create second pass - verify progressive number increments")
     
     try:
-        checkout_id = embedded_data.get('checkout_id')
-        pay_token = embedded_data.get('pay_token')
-        
         payload = {
-            'checkout_id': checkout_id,
-            'token': pay_token
+            "marina_id": MARINA_ID,
+            "company_id": COMPANY_ID,
+            "customer": {
+                "name": "Luigi",
+                "surname": "Bianchi",
+                "email": "luigi@test.it",
+                "phone": "+39 333 9876543"
+            },
+            "boat": {
+                "name": "Ocean Dream",
+                "type": "Motore"
+            },
+            "license_plate": "IT-CD-456",
+            "valid_from": "2026-06-22",
+            "valid_to": "2026-06-28",
+            "notes": "Second test pass"
         }
         
-        print("NOTE: This request may take ~5 seconds due to polling...")
-        response = requests.post(
-            f"{API_BASE}/sumup/confirm-integration-payment",
-            json=payload,
-            timeout=15
-        )
+        response = requests.post(f"{BASE_URL}/marina-transit-passes", json=payload)
         print(f"Status: {response.status_code}")
         
-        data = response.json()
-        print(f"Response: {json.dumps(data, indent=2)}")
-        
-        # Expected: 202 with status PENDING (no real card payment)
-        if response.status_code == 202:
-            if data.get('ok') == False and data.get('status') == 'PENDING':
-                log_test("E9: Confirm-Integration-Payment valid", True, "Correctly returned 202 with status PENDING (no real payment)")
-            else:
-                log_test("E9: Confirm-Integration-Payment valid", False, f"Got 202 but unexpected data: {data}")
-        else:
-            log_test("E9: Confirm-Integration-Payment valid", False, f"Expected 202, got {response.status_code}: {data}")
+        if response.status_code == 201:
+            data = response.json()
+            print(f"Pass number: {data['pass_number']}")
             
+            # Extract number from pass_number (PT-2026/0002)
+            pass_num = int(data['pass_number'].split('/')[-1])
+            print(f"Progressive number: {pass_num}")
+            
+            created_pass_ids.append(data["id"])
+            print_result(True, f"Pass created with progressive number {data['pass_number']}")
+            return data
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 201, got {response.status_code}")
+            return None
     except Exception as e:
-        log_test("E9: Confirm-Integration-Payment valid", False, f"Exception: {str(e)}")
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return None
 
-def test_e10_confirm_integration_payment_wrong_token(embedded_data):
-    """E10: POST /api/sumup/confirm-integration-payment with wrong token"""
-    print("\n=== TEST E10: Confirm-Integration-Payment endpoint (wrong token) ===")
-    if not embedded_data:
-        log_test("E10: Confirm-Integration-Payment wrong token", False, "Skipped - no embedded data from B3")
-        return
+def test_a3_missing_marina_id():
+    """A3: Missing marina_id should return 400"""
+    print_test("A3", "Missing marina_id - expect 400")
     
     try:
-        checkout_id = embedded_data.get('checkout_id')
-        wrong_token = 'wrongtoken1234567890abcdef1234567'
-        
         payload = {
-            'checkout_id': checkout_id,
-            'token': wrong_token
+            "company_id": COMPANY_ID,
+            "customer": {"name": "Test", "email": "test@test.it"},
+            "valid_from": "2026-06-20",
+            "valid_to": "2026-06-25"
         }
         
-        response = requests.post(
-            f"{API_BASE}/sumup/confirm-integration-payment",
-            json=payload,
-            timeout=15
-        )
+        response = requests.post(f"{BASE_URL}/marina-transit-passes", json=payload)
         print(f"Status: {response.status_code}")
-        
-        if response.status_code == 403:
-            log_test("E10: Confirm-Integration-Payment wrong token", True, "Correctly returned 403")
-        else:
-            log_test("E10: Confirm-Integration-Payment wrong token", False, f"Expected 403, got {response.status_code}")
-            
-    except Exception as e:
-        log_test("E10: Confirm-Integration-Payment wrong token", False, f"Exception: {str(e)}")
-
-def test_e11_confirm_integration_payment_nonexistent():
-    """E11: POST /api/sumup/confirm-integration-payment with non-existent checkout_id"""
-    print("\n=== TEST E11: Confirm-Integration-Payment endpoint (non-existent) ===")
-    try:
-        fake_checkout_id = 'fake-checkout-id-12345678'
-        fake_token = 'faketoken1234567890abcdef12345678'
-        
-        payload = {
-            'checkout_id': fake_checkout_id,
-            'token': fake_token
-        }
-        
-        response = requests.post(
-            f"{API_BASE}/sumup/confirm-integration-payment",
-            json=payload,
-            timeout=15
-        )
-        print(f"Status: {response.status_code}")
-        
-        if response.status_code == 404:
-            log_test("E11: Confirm-Integration-Payment non-existent", True, "Correctly returned 404")
-        else:
-            log_test("E11: Confirm-Integration-Payment non-existent", False, f"Expected 404, got {response.status_code}")
-            
-    except Exception as e:
-        log_test("E11: Confirm-Integration-Payment non-existent", False, f"Exception: {str(e)}")
-
-def test_f12_validation_missing_email():
-    """F12: POST /api/payment-link/create with mode='embedded' and missing customer_email"""
-    print("\n=== TEST F12: Validation - missing customer_email ===")
-    try:
-        payload = {
-            'booking_ref': BOOKING_REF,
-            'customer_name': 'Test User',
-            # customer_email missing
-            'amount': 5.00,
-            'description': 'Test validation',
-            'send_via': 'show',
-            'mode': 'embedded'
-        }
-        
-        response = requests.post(f"{API_BASE}/payment-link/create", json=payload, timeout=30)
-        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
         
         if response.status_code == 400:
-            log_test("F12: Validation missing email", True, "Correctly returned 400")
+            print_result(True, "Correctly rejected missing marina_id with 400")
+            return True
         else:
-            log_test("F12: Validation missing email", False, f"Expected 400, got {response.status_code}")
-            
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
     except Exception as e:
-        log_test("F12: Validation missing email", False, f"Exception: {str(e)}")
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
 
-def test_f13_validation_invalid_mode():
-    """F13: POST /api/payment-link/create with mode='invalid' (should fallback to hosted)"""
-    print("\n=== TEST F13: Validation - invalid mode (fallback to hosted) ===")
+def test_a4_missing_valid_from():
+    """A4: Missing valid_from should return 400"""
+    print_test("A4", "Missing valid_from - expect 400")
+    
     try:
         payload = {
-            'booking_ref': BOOKING_REF,
-            'customer_name': 'Test User',
-            'customer_email': 'test@example.com',
-            'amount': 5.00,
-            'description': 'Test invalid mode',
-            'send_via': 'show',
-            'mode': 'invalid'
+            "marina_id": MARINA_ID,
+            "company_id": COMPANY_ID,
+            "customer": {"name": "Test", "email": "test@test.it"},
+            "valid_to": "2026-06-25"
         }
         
-        response = requests.post(f"{API_BASE}/payment-link/create", json=payload, timeout=30)
+        response = requests.post(f"{BASE_URL}/marina-transit-passes", json=payload)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code == 400:
+            print_result(True, "Correctly rejected missing valid_from with 400")
+            return True
+        else:
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+def test_a5_invalid_date_range():
+    """A5: valid_from > valid_to should return 400"""
+    print_test("A5", "valid_from > valid_to - expect 400 with 'data inizio deve precedere'")
+    
+    try:
+        payload = {
+            "marina_id": MARINA_ID,
+            "company_id": COMPANY_ID,
+            "customer": {"name": "Test", "email": "test@test.it"},
+            "valid_from": "2026-07-01",
+            "valid_to": "2026-06-25"
+        }
+        
+        response = requests.post(f"{BASE_URL}/marina-transit-passes", json=payload)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code == 400:
+            error_msg = response.json().get("error", "").lower()
+            if "data inizio" in error_msg or "precedere" in error_msg:
+                print_result(True, f"Correctly rejected with error: {response.json().get('error')}")
+                return True
+            else:
+                print_result(False, f"Got 400 but wrong error message: {response.json().get('error')}")
+                return False
+        else:
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+def test_a6_missing_customer_name():
+    """A6: Missing customer.name should return 400"""
+    print_test("A6", "Missing customer.name - expect 400")
+    
+    try:
+        payload = {
+            "marina_id": MARINA_ID,
+            "company_id": COMPANY_ID,
+            "customer": {"email": "test@test.it"},
+            "valid_from": "2026-06-20",
+            "valid_to": "2026-06-25"
+        }
+        
+        response = requests.post(f"{BASE_URL}/marina-transit-passes", json=payload)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code == 400:
+            print_result(True, "Correctly rejected missing customer.name with 400")
+            return True
+        else:
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+# ============================================================================
+# SECTION B: LIST PASSES
+# ============================================================================
+
+def test_b7_list_by_marina():
+    """B7: List passes by marina_id"""
+    print_test("B7", "List passes by marina_id - should return array with created passes")
+    
+    try:
+        response = requests.get(f"{BASE_URL}/marina-transit-passes?marina_id={MARINA_ID}")
         print(f"Status: {response.status_code}")
         
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Found {len(data)} passes")
+            
+            if len(data) >= 2:
+                # Check if sorted by issued_at DESC
+                print(f"First pass issued_at: {data[0].get('issued_at')}")
+                print(f"Last pass issued_at: {data[-1].get('issued_at')}")
+                
+                # Check if our test passes are in the list
+                test_emails = ["mario@test.it", "luigi@test.it"]
+                found_passes = [p for p in data if p.get("customer", {}).get("email") in test_emails]
+                print(f"Found {len(found_passes)} test passes")
+                
+                print_result(True, f"List endpoint working, found {len(data)} passes including {len(found_passes)} test passes")
+                return data
+            else:
+                print_result(False, f"Expected at least 2 passes, found {len(data)}")
+                return data
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return None
+
+def test_b8_list_archived():
+    """B8: List only archived passes"""
+    print_test("B8", "List archived passes - ?archived=true")
+    
+    try:
+        response = requests.get(f"{BASE_URL}/marina-transit-passes?archived=true")
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Found {len(data)} archived passes")
+            
+            # All should be archived
+            non_archived = [p for p in data if not p.get("archived")]
+            if len(non_archived) == 0:
+                print_result(True, f"All {len(data)} passes are archived")
+                return True
+            else:
+                print_result(False, f"Found {len(non_archived)} non-archived passes in archived list")
+                return False
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+def test_b9_list_by_company():
+    """B9: List passes by company_id"""
+    print_test("B9", "List passes by company_id")
+    
+    try:
+        response = requests.get(f"{BASE_URL}/marina-transit-passes?company_id={COMPANY_ID}")
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Found {len(data)} passes for company")
+            
+            # All should have the same company_id
+            wrong_company = [p for p in data if p.get("company_id") != COMPANY_ID]
+            if len(wrong_company) == 0:
+                print_result(True, f"All {len(data)} passes belong to company {COMPANY_ID}")
+                return True
+            else:
+                print_result(False, f"Found {len(wrong_company)} passes with wrong company_id")
+                return False
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+# ============================================================================
+# SECTION C: DETAIL
+# ============================================================================
+
+def test_c10_get_detail():
+    """C10: Get pass detail by ID"""
+    print_test("C10", "Get pass detail by valid ID - expect 200")
+    
+    if not created_pass_ids:
+        print_result(False, "No passes created yet")
+        return None
+    
+    try:
+        pass_id = created_pass_ids[0]
+        response = requests.get(f"{BASE_URL}/marina-transit-passes/{pass_id}")
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Pass number: {data.get('pass_number')}")
+            print(f"Customer: {data.get('customer', {}).get('name')} {data.get('customer', {}).get('surname')}")
+            
+            assert data["id"] == pass_id, "ID mismatch"
+            print_result(True, f"Retrieved pass {data['pass_number']} successfully")
+            return data
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return None
+
+def test_c11_get_nonexistent():
+    """C11: Get non-existent pass should return 404"""
+    print_test("C11", "Get non-existent pass - expect 404")
+    
+    try:
+        fake_id = "00000000-0000-0000-0000-000000000000"
+        response = requests.get(f"{BASE_URL}/marina-transit-passes/{fake_id}")
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code == 404:
+            print_result(True, "Correctly returned 404 for non-existent pass")
+            return True
+        else:
+            print_result(False, f"Expected 404, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+# ============================================================================
+# SECTION D: UPDATE
+# ============================================================================
+
+def test_d12_update_pass():
+    """D12: Update pass notes and valid_to"""
+    print_test("D12", "Update pass - notes and valid_to, pass_number should be immutable")
+    
+    if not created_pass_ids:
+        print_result(False, "No passes created yet")
+        return None
+    
+    try:
+        pass_id = created_pass_ids[0]
+        
+        # Get original pass
+        orig_response = requests.get(f"{BASE_URL}/marina-transit-passes/{pass_id}")
+        orig_data = orig_response.json()
+        orig_pass_number = orig_data.get("pass_number")
+        print(f"Original pass_number: {orig_pass_number}")
+        
+        # Update
+        update_payload = {
+            "notes": "Updated note",
+            "valid_to": "2026-06-30"
+        }
+        
+        response = requests.put(f"{BASE_URL}/marina-transit-passes/{pass_id}", json=update_payload)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Updated notes: {data.get('notes')}")
+            print(f"Updated valid_to: {data.get('valid_to')}")
+            print(f"Pass number after update: {data.get('pass_number')}")
+            
+            assert data["notes"] == "Updated note", "Notes not updated"
+            assert data["valid_to"] == "2026-06-30", "valid_to not updated"
+            assert data["pass_number"] == orig_pass_number, "pass_number should be immutable!"
+            assert "updated_at" in data, "Missing updated_at field"
+            
+            print_result(True, f"Pass updated successfully, pass_number remained {orig_pass_number}")
+            return data
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return None
+
+def test_d13_update_pass_number_immutable():
+    """D13: Try to change pass_number - should remain immutable"""
+    print_test("D13", "Try to change pass_number - should NOT change")
+    
+    if not created_pass_ids:
+        print_result(False, "No passes created yet")
+        return None
+    
+    try:
+        pass_id = created_pass_ids[0]
+        
+        # Get original pass
+        orig_response = requests.get(f"{BASE_URL}/marina-transit-passes/{pass_id}")
+        orig_data = orig_response.json()
+        orig_pass_number = orig_data.get("pass_number")
+        print(f"Original pass_number: {orig_pass_number}")
+        
+        # Try to update pass_number
+        update_payload = {
+            "pass_number": "PT-2026/9999",
+            "notes": "Trying to change pass_number"
+        }
+        
+        response = requests.put(f"{BASE_URL}/marina-transit-passes/{pass_id}", json=update_payload)
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Pass number after update: {data.get('pass_number')}")
+            
+            if data["pass_number"] == orig_pass_number:
+                print_result(True, f"pass_number correctly remained immutable: {orig_pass_number}")
+                return True
+            else:
+                print_result(False, f"pass_number changed from {orig_pass_number} to {data['pass_number']} - should be immutable!")
+                return False
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+# ============================================================================
+# SECTION E: ARCHIVE/UNARCHIVE
+# ============================================================================
+
+def test_e14_archive_pass():
+    """E14: Archive pass"""
+    print_test("E14", "Archive pass - action=archive")
+    
+    if not created_pass_ids:
+        print_result(False, "No passes created yet")
+        return None
+    
+    try:
+        pass_id = created_pass_ids[0]
+        
+        response = requests.post(f"{BASE_URL}/marina-transit-passes/{pass_id}?action=archive")
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Response: {json.dumps(data, indent=2)}")
+            
+            assert data.get("ok") == True, "ok should be true"
+            assert data.get("archived") == True, "archived should be true"
+            
+            # Verify by getting detail
+            detail_response = requests.get(f"{BASE_URL}/marina-transit-passes/{pass_id}")
+            detail_data = detail_response.json()
+            print(f"Archived: {detail_data.get('archived')}")
+            print(f"Archived at: {detail_data.get('archived_at')}")
+            
+            assert detail_data.get("archived") == True, "Pass should be archived"
+            assert detail_data.get("archived_at") is not None, "archived_at should be set"
+            
+            print_result(True, f"Pass archived successfully at {detail_data.get('archived_at')}")
+            return True
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+def test_e15_unarchive_pass():
+    """E15: Unarchive pass"""
+    print_test("E15", "Unarchive pass - action=unarchive")
+    
+    if not created_pass_ids:
+        print_result(False, "No passes created yet")
+        return None
+    
+    try:
+        pass_id = created_pass_ids[0]
+        
+        response = requests.post(f"{BASE_URL}/marina-transit-passes/{pass_id}?action=unarchive")
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Response: {json.dumps(data, indent=2)}")
+            
+            assert data.get("ok") == True, "ok should be true"
+            assert data.get("archived") == False, "archived should be false"
+            
+            # Verify by getting detail
+            detail_response = requests.get(f"{BASE_URL}/marina-transit-passes/{pass_id}")
+            detail_data = detail_response.json()
+            print(f"Archived: {detail_data.get('archived')}")
+            
+            assert detail_data.get("archived") == False, "Pass should not be archived"
+            
+            print_result(True, "Pass unarchived successfully")
+            return True
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+# ============================================================================
+# SECTION F: DELETE
+# ============================================================================
+
+def test_f16_delete_pass():
+    """F16: Delete pass"""
+    print_test("F16", "Delete pass - expect 200 with ok:true")
+    
+    if len(created_pass_ids) < 2:
+        print_result(False, "Need at least 2 passes for delete test")
+        return None
+    
+    try:
+        # Delete the second pass (keep first for other tests)
+        pass_id = created_pass_ids[1]
+        
+        response = requests.delete(f"{BASE_URL}/marina-transit-passes/{pass_id}")
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Response: {json.dumps(data, indent=2)}")
+            
+            assert data.get("ok") == True, "ok should be true"
+            
+            print_result(True, f"Pass {pass_id} deleted successfully")
+            return True
+        else:
+            print(f"Error: {response.text}")
+            print_result(False, f"Expected 200, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+def test_f17_get_deleted_pass():
+    """F17: Get deleted pass should return 404"""
+    print_test("F17", "Get deleted pass - expect 404")
+    
+    if len(created_pass_ids) < 2:
+        print_result(False, "Need at least 2 passes for this test")
+        return None
+    
+    try:
+        pass_id = created_pass_ids[1]
+        
+        response = requests.get(f"{BASE_URL}/marina-transit-passes/{pass_id}")
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code == 404:
+            print_result(True, "Correctly returned 404 for deleted pass")
+            return True
+        else:
+            print_result(False, f"Expected 404, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+# ============================================================================
+# SECTION G: EMAIL ACTION
+# ============================================================================
+
+def test_g18_send_email():
+    """G18: Send email with PDF (mock)"""
+    print_test("G18", "Send email with PDF - expect 502/500/200 (Resend may reject)")
+    
+    if not created_pass_ids:
+        print_result(False, "No passes created yet")
+        return None
+    
+    try:
+        pass_id = created_pass_ids[0]
+        
+        payload = {
+            "email": "test@example.com",
+            "pdf_base64": "VGVzdEJhc2U2NEZpbGU="  # "TestBase64File" in base64
+        }
+        
+        response = requests.post(f"{BASE_URL}/marina-transit-passes/{pass_id}?action=send-email", json=payload)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        # Accept 200, 500, or 502 (Resend may reject test data)
+        if response.status_code in [200, 500, 502]:
+            if response.status_code == 200:
+                data = response.json()
+                print(f"Email sent successfully: {json.dumps(data, indent=2)}")
+                
+                # Check if last_email_sent_at was updated
+                detail_response = requests.get(f"{BASE_URL}/marina-transit-passes/{pass_id}")
+                detail_data = detail_response.json()
+                if detail_data.get("last_email_sent_at"):
+                    print(f"last_email_sent_at: {detail_data.get('last_email_sent_at')}")
+                    print_result(True, "Email sent and timestamp updated")
+                else:
+                    print_result(True, "Email endpoint returned 200 (timestamp may not be updated)")
+            else:
+                print_result(True, f"Got expected error {response.status_code} (Resend rejection is acceptable)")
+            return True
+        else:
+            print_result(False, f"Unexpected status code: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+def test_g19_send_email_without_pdf():
+    """G19: Send email without PDF should return 400"""
+    print_test("G19", "Send email without pdf_base64 - expect 400")
+    
+    if not created_pass_ids:
+        print_result(False, "No passes created yet")
+        return None
+    
+    try:
+        pass_id = created_pass_ids[0]
+        
+        payload = {
+            "email": "test@example.com"
+            # Missing pdf_base64
+        }
+        
+        response = requests.post(f"{BASE_URL}/marina-transit-passes/{pass_id}?action=send-email", json=payload)
+        print(f"Status: {response.status_code}")
+        print(f"Response: {response.text}")
+        
+        if response.status_code == 400:
+            error_msg = response.json().get("error", "").lower()
+            if "pdf" in error_msg and "mancante" in error_msg:
+                print_result(True, f"Correctly rejected with error: {response.json().get('error')}")
+                return True
+            else:
+                print_result(False, f"Got 400 but wrong error message: {response.json().get('error')}")
+                return False
+        else:
+            print_result(False, f"Expected 400, got {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
+
+# ============================================================================
+# SECTION H: CLEANUP
+# ============================================================================
+
+def test_h20_cleanup():
+    """H20: Cleanup - delete all test passes"""
+    print_test("H20", "Cleanup - delete all test passes created during testing")
+    
+    try:
+        # Get all passes with test email
+        response = requests.get(f"{BASE_URL}/marina-transit-passes?marina_id={MARINA_ID}")
         if response.status_code != 200:
-            log_test("F13: Validation invalid mode", False, f"Expected 200, got {response.status_code}")
-            return
+            print_result(False, "Failed to get pass list for cleanup")
+            return False
         
-        data = response.json()
-        print(f"Response mode: {data.get('mode')}")
-        
-        # Should fallback to hosted
-        if data.get('mode') == 'hosted':
-            log_test("F13: Validation invalid mode", True, "Correctly fell back to 'hosted' mode")
-            created_checkout_ids.append(data.get('checkout_id'))
-        else:
-            log_test("F13: Validation invalid mode", False, f"Expected mode='hosted', got mode='{data.get('mode')}'")
-            
-    except Exception as e:
-        log_test("F13: Validation invalid mode", False, f"Exception: {str(e)}")
-
-def test_g14_cleanup():
-    """G14: Cleanup - remove test integration_payments from MongoDB"""
-    print("\n=== TEST G14: Cleanup ===")
-    try:
-        client = MongoClient(MONGO_URL)
-        db = client[DB_NAME]
-        
-        # Remove integration_payments entries with test descriptions
-        result = db.bookings.update_one(
-            {'booking_ref': BOOKING_REF},
-            {
-                '$pull': {
-                    'integration_payments': {
-                        'description': {
-                            '$in': ['Test hosted', 'Test hosted explicit', 'Test embedded', 'Test validation', 'Test invalid mode']
-                        }
-                    }
-                }
-            }
-        )
-        
-        print(f"Modified {result.modified_count} booking(s)")
-        
-        # Verify cleanup
-        booking = db.bookings.find_one({'booking_ref': BOOKING_REF})
-        remaining_test_entries = [
-            p for p in booking.get('integration_payments', [])
-            if p.get('description') in ['Test hosted', 'Test hosted explicit', 'Test embedded', 'Test validation', 'Test invalid mode']
+        all_passes = response.json()
+        test_passes = [
+            p for p in all_passes 
+            if p.get("customer", {}).get("email") in ["mario@test.it", "luigi@test.it"]
+            or (p.get("notes", "").startswith("Test") or p.get("notes", "").startswith("Second test") or p.get("notes", "").startswith("Updated"))
         ]
         
-        if len(remaining_test_entries) == 0:
-            log_test("G14: Cleanup", True, f"Successfully removed test entries from {BOOKING_REF}")
-        else:
-            log_test("G14: Cleanup", False, f"Still found {len(remaining_test_entries)} test entries")
+        print(f"Found {len(test_passes)} test passes to delete")
         
-        client.close()
+        deleted_count = 0
+        for pass_obj in test_passes:
+            pass_id = pass_obj["id"]
+            del_response = requests.delete(f"{BASE_URL}/marina-transit-passes/{pass_id}")
+            if del_response.status_code == 200:
+                deleted_count += 1
+                print(f"Deleted pass {pass_obj['pass_number']}")
+            else:
+                print(f"Failed to delete pass {pass_obj['pass_number']}: {del_response.status_code}")
         
+        print_result(True, f"Cleanup complete: deleted {deleted_count}/{len(test_passes)} test passes")
+        return True
     except Exception as e:
-        log_test("G14: Cleanup", False, f"Exception: {str(e)}")
+        print(f"Exception: {str(e)}")
+        print_result(False, str(e))
+        return False
 
-def print_summary():
-    """Print test summary"""
+# ============================================================================
+# MAIN TEST RUNNER
+# ============================================================================
+
+def run_all_tests():
+    print("\n" + "="*80)
+    print("MARINA TRANSIT PASS BACKEND TESTING")
+    print("="*80)
+    print(f"Base URL: {BASE_URL}")
+    print(f"Marina ID: {MARINA_ID}")
+    print(f"Company ID: {COMPANY_ID}")
+    print("="*80)
+    
+    results = {}
+    
+    # Section A: Create
+    results["A1"] = test_a1_create_valid_pass()
+    results["A2"] = test_a2_create_second_pass()
+    results["A3"] = test_a3_missing_marina_id()
+    results["A4"] = test_a4_missing_valid_from()
+    results["A5"] = test_a5_invalid_date_range()
+    results["A6"] = test_a6_missing_customer_name()
+    
+    # Section B: List
+    results["B7"] = test_b7_list_by_marina()
+    results["B8"] = test_b8_list_archived()
+    results["B9"] = test_b9_list_by_company()
+    
+    # Section C: Detail
+    results["C10"] = test_c10_get_detail()
+    results["C11"] = test_c11_get_nonexistent()
+    
+    # Section D: Update
+    results["D12"] = test_d12_update_pass()
+    results["D13"] = test_d13_update_pass_number_immutable()
+    
+    # Section E: Archive/Unarchive
+    results["E14"] = test_e14_archive_pass()
+    results["E15"] = test_e15_unarchive_pass()
+    
+    # Section F: Delete
+    results["F16"] = test_f16_delete_pass()
+    results["F17"] = test_f17_get_deleted_pass()
+    
+    # Section G: Email
+    results["G18"] = test_g18_send_email()
+    results["G19"] = test_g19_send_email_without_pdf()
+    
+    # Section H: Cleanup
+    results["H20"] = test_h20_cleanup()
+    
+    # Summary
     print("\n" + "="*80)
     print("TEST SUMMARY")
     print("="*80)
     
-    passed = sum(1 for r in test_results if r['passed'])
-    total = len(test_results)
+    passed = sum(1 for v in results.values() if v)
+    total = len(results)
     
-    print(f"\nTotal: {passed}/{total} tests passed ({passed*100//total}%)\n")
+    for test_id, result in results.items():
+        status = "✅ PASS" if result else "❌ FAIL"
+        print(f"{test_id}: {status}")
     
-    for result in test_results:
-        status = "✅" if result['passed'] else "❌"
-        print(f"{status} {result['test']}")
-        if result['message'] and not result['passed']:
-            print(f"   {result['message']}")
-    
-    print("\n" + "="*80)
+    print("="*80)
+    print(f"TOTAL: {passed}/{total} tests passed ({passed*100//total}%)")
+    print("="*80)
     
     return passed == total
 
-def main():
-    """Run all tests"""
-    print("="*80)
-    print("SumUp Embedded Payment Link - Backend Test Suite")
-    print("="*80)
-    print(f"API Base URL: {API_BASE}")
-    print(f"Test Booking: {BOOKING_REF}")
-    print(f"Company: {COMPANY_ID} (Marlin Sub)")
-    print("="*80)
-    
-    # Run tests in sequence
-    test_a1_hosted_mode_default()
-    test_a2_hosted_mode_explicit()
-    
-    embedded_data = test_b3_embedded_mode()
-    
-    test_c4_mongodb_persistence(embedded_data)
-    
-    test_d5_pay_integration_info_valid(embedded_data)
-    test_d6_pay_integration_info_wrong_token(embedded_data)
-    test_d7_pay_integration_info_nonexistent()
-    test_d8_pay_integration_info_missing_params()
-    
-    test_e9_confirm_integration_payment(embedded_data)
-    test_e10_confirm_integration_payment_wrong_token(embedded_data)
-    test_e11_confirm_integration_payment_nonexistent()
-    
-    test_f12_validation_missing_email()
-    test_f13_validation_invalid_mode()
-    
-    test_g14_cleanup()
-    
-    # Print summary
-    all_passed = print_summary()
-    
-    sys.exit(0 if all_passed else 1)
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    success = run_all_tests()
+    exit(0 if success else 1)

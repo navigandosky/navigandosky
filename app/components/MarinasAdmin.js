@@ -9,8 +9,12 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Anchor, Plus, Edit, Trash2, Save, X, AlertCircle, Ship, Lock, Unlock, RefreshCw, Eye, MapPin, FileText, Map as MapIcon, Upload, Image as ImageIcon } from 'lucide-react';
+import { Anchor, Plus, Edit, Trash2, Save, X, AlertCircle, Ship, Lock, Unlock, RefreshCw, Eye, MapPin, FileText, Map as MapIcon, Upload, Image as ImageIcon, Ticket } from 'lucide-react';
 import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
+
+// Lazy import per Pass Transito (riduce bundle)
+const MarinaTransitPassDialogLazy = dynamic(() => import('./MarinaTransitPassDialog'), { ssr: false });
 
 const MONTHS = [
   { num: '1', name: 'Gennaio' }, { num: '2', name: 'Febbraio' }, { num: '3', name: 'Marzo' },
@@ -28,6 +32,13 @@ export function MarinasManager() {
   const [marinas, setMarinas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
+  const [passMarina, setPassMarina] = useState(null); // marina selezionata per Pass Transito
+  const [companies, setCompanies] = useState([]);
+
+  useEffect(() => {
+    // Carica companies per intestazione PDF Pass
+    fetch('/api/companies').then(r => r.json()).then(data => setCompanies(Array.isArray(data) ? data : []));
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -65,12 +76,21 @@ export function MarinasManager() {
                 <h3 className="font-semibold text-lg">{m.name}</h3>
                 <p className="text-xs text-muted-foreground mb-2">{m.location}</p>
                 <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{m.short_description || m.description?.slice(0, 80)}</p>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1" onClick={() => setEditing(m)}>
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" className="flex-1 min-w-[100px]" onClick={() => setEditing(m)}>
                     <Edit className="w-3 h-3 mr-1" />Modifica
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => window.open(`/posti-barca/${m.slug}`, '_blank')}>
                     <Eye className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-cyan-400 text-cyan-700 hover:bg-cyan-50"
+                    onClick={() => setPassMarina(m)}
+                    title="Genera Pass di Transito alla sbarra"
+                  >
+                    <Ticket className="w-3 h-3 mr-1" />🎫 Pass
                   </Button>
                 </div>
               </CardContent>
@@ -80,6 +100,16 @@ export function MarinasManager() {
       )}
 
       {editing && <MarinaEditDialog marina={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+
+      {/* Pass di Transito Dialog */}
+      {passMarina && (
+        <MarinaTransitPassDialogLazy
+          open={!!passMarina}
+          onOpenChange={(v) => { if (!v) setPassMarina(null); }}
+          marina={passMarina}
+          company={companies.find(c => c.id === passMarina.company_id) || { id: passMarina.company_id, name: 'Maretrek' }}
+        />
+      )}
     </div>
   );
 }

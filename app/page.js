@@ -48,6 +48,8 @@ const SuperAdminBookingDeleteLazy = dynamic(() => import('./components/SuperAdmi
 const RefundsManagementLazy = dynamic(() => import('./components/RefundsManagement'), { ssr: false });
 const WarehouseAdminLazy = dynamic(() => import('./components/WarehouseAdmin'), { ssr: false });
 const EmployeesAdminLazy = dynamic(() => import('./components/EmployeesAdmin'), { ssr: false });
+// Pass di Transito Marina (sbarra)
+const MarinaTransitPassDialogLazy = dynamic(() => import('./components/MarinaTransitPassDialog'), { ssr: false });
 // Link Pagamento Online (Company Admin)
 const PaymentLinkDialogLazy = dynamic(() => import('./components/PaymentLinkDialog'), { ssr: false });
 // Backup Manager (Super Admin only)
@@ -67,7 +69,7 @@ import {
   Plus, Trash2, Search, CheckCircle2, BarChart3, Menu, X, Globe, Phone, Mail,
   Waves, Sun, Compass, Eye, Edit, Download, RefreshCw, Navigation, CreditCard, Tag, User,
   ChevronLeft, GripVertical, Building2, LogIn, ListOrdered, AlertCircle, Bell, Upload, Image as ImageIcon, Map, Languages, Copy,
-  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2, Database, Home, Sparkles, CalendarDays
+  ClipboardList, FileSignature, Shield, Wrench, FileText, Wallet, EyeOff, Banknote, Package, Link2, Database, Home, Sparkles, CalendarDays, Ticket
 } from 'lucide-react';
 import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -3433,6 +3435,9 @@ function AdminDashboard({ currentUser, onLogout }) {
   // Nuovo Preventivo (dialog admin) - apertura
   const [showNewQuoteDialog, setShowNewQuoteDialog] = useState(false);
   const [showNewTransitDialog, setShowNewTransitDialog] = useState(false);
+  // Pass di Transito Marina (sbarra) - dialog
+  const [showTransitPassDialog, setShowTransitPassDialog] = useState(false);
+  const [transitPassMarina, setTransitPassMarina] = useState(null);
   // Nuova Prenotazione Esperienza (dialog admin) - apertura
   const [showNewBookingDialog, setShowNewBookingDialog] = useState(false);
   useEffect(() => {
@@ -4403,6 +4408,41 @@ function AdminDashboard({ currentUser, onLogout }) {
             >
               <Plus className="w-4 h-4 mr-1.5" />
               ⚓ Nuovo Transito
+            </Button>
+            )}
+            {showMarina && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                // Se filtro attivo o solo 1 marina, usa quella; altrimenti picker
+                const m = (globalMarinaFilter && globalMarinaFilter !== 'ALL')
+                  ? ownedMarinas.find(x => x.id === globalMarinaFilter)
+                  : (ownedMarinas?.length === 1 ? ownedMarinas[0] : null);
+                if (!m) {
+                  // Più marine: chiedi quale
+                  if (ownedMarinas?.length > 1) {
+                    const choice = window.prompt(
+                      `Per quale Marina vuoi generare il Pass di Transito?\n\n${ownedMarinas.map((mm, i) => `${i + 1}) ${mm.name}`).join('\n')}\n\nInserisci il numero:`
+                    );
+                    const idx = parseInt(choice, 10) - 1;
+                    if (idx >= 0 && idx < ownedMarinas.length) {
+                      setTransitPassMarina(ownedMarinas[idx]);
+                      setShowTransitPassDialog(true);
+                    }
+                  } else {
+                    toast.error('Nessuna marina disponibile');
+                  }
+                  return;
+                }
+                setTransitPassMarina(m);
+                setShowTransitPassDialog(true);
+              }}
+              className="bg-cyan-600 text-white hover:bg-cyan-700 font-semibold shadow-md border border-cyan-400 h-9"
+              title="Genera Pass di Transito alla sbarra"
+            >
+              <Ticket className="w-4 h-4 mr-1.5" />
+              🎫 Pass Transito
             </Button>
             )}
             {showExperiences && (
@@ -6876,6 +6916,24 @@ function AdminDashboard({ currentUser, onLogout }) {
                   toast.success(`Transito ${saved.quote_number} pronto per assegnazione posto barca`);
                 }
               } catch (_e) { /* noop */ }
+            }}
+          />
+        </Suspense>
+      )}
+
+      {/* Pass di Transito Marina (sbarra) - Dialog */}
+      {showTransitPassDialog && transitPassMarina && (
+        <Suspense fallback={null}>
+          <MarinaTransitPassDialogLazy
+            open={showTransitPassDialog}
+            onOpenChange={(v) => {
+              setShowTransitPassDialog(v);
+              if (!v) setTransitPassMarina(null);
+            }}
+            marina={transitPassMarina}
+            company={companyBrand || companies?.find(c => c.id === transitPassMarina.company_id) || {
+              id: transitPassMarina.company_id,
+              name: 'Maretrek',
             }}
           />
         </Suspense>
