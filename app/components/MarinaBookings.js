@@ -323,12 +323,25 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!r.ok) throw new Error((await r.json()).error || 'Errore');
+      if (!r.ok) {
+        let errMsg = `HTTP ${r.status}`;
+        try {
+          const errData = await r.json();
+          errMsg = errData?.error || errData?.message || errMsg;
+        } catch (_pe) {
+          try { errMsg = (await r.text()) || errMsg; } catch (_te) {}
+        }
+        throw new Error(errMsg);
+      }
       const updated = await r.json();
       toast.success('Operazione completata');
       await load();
       return updated;
-    } catch (e) { toast.error(e.message); return null; }
+    } catch (e) {
+      console.error('[MarinaBookings doAction]', action, 'error:', e);
+      toast.error(`Errore: ${e.message || 'sconosciuto'}`);
+      return null;
+    }
   };
 
   const openPayDialog = (b) => {

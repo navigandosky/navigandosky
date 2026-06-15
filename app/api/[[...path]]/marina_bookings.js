@@ -223,6 +223,10 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
       deposit_payment_date: new Date().toISOString(),
       status: isFullyPaid ? 'CONFIRMED' : 'DEPOSIT_PAID',
       payment_note: body.note || null,
+      // Campi normalizzati per AccountingRegistry e altre viste
+      paid_amount: paidAmount,
+      payment_status: isFullyPaid ? 'PAID' : (paidAmount > 0 ? 'PARTIAL' : 'PENDING'),
+      payment_method: body.payment_method || 'SUMUP_MOCK',
       updated_at: new Date().toISOString(),
     };
     if (isFullyPaid) {
@@ -231,7 +235,17 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
       update.balance_payment_reference = body.payment_reference || update.deposit_payment_reference;
       update.confirmed_at = new Date().toISOString();
     }
-    await col.updateOne({ id }, { $set: update });
+    // Spinge la voce nello storico payments[] (utilizzato da AccountingRegistry)
+    const paymentRecord = {
+      id: `pay-${Date.now()}`,
+      amount: paidAmount,
+      method: body.payment_method || 'SUMUP_MOCK',
+      reference: update.deposit_payment_reference,
+      note: body.note || null,
+      date: new Date().toISOString(),
+      type: isFullyPaid ? 'FULL' : 'DEPOSIT',
+    };
+    await col.updateOne({ id }, { $set: update, $push: { payments: paymentRecord } });
     const updated = await col.findOne({ id });
     // Notifica admin (non blocca)
     try {
@@ -250,13 +264,32 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     const existing = await col.findOne({ id });
     if (!existing) return new Response(JSON.stringify({ error: 'Prenotazione non trovata' }), { status: 404 });
     
+    const balanceAmount = Math.round(Number(existing.balance_amount || 0) * 100) / 100;
+    const totalPaid = Math.round((Number(existing.deposit_amount || 0) + balanceAmount) * 100) / 100;
+    const payRef = body.payment_reference || `MAN-${Date.now()}`;
     await col.updateOne({ id }, {
       $set: {
         balance_paid: true,
         balance_payment_method: body.payment_method || 'SUMUP_MOCK',
         balance_payment_date: new Date().toISOString(),
+        balance_payment_reference: payRef,
         status: 'CONFIRMED',
+        confirmed_at: new Date().toISOString(),
+        paid_amount: totalPaid,
+        payment_status: 'PAID',
+        payment_method: body.payment_method || existing.deposit_payment_method || 'SUMUP_MOCK',
         updated_at: new Date().toISOString(),
+      },
+      $push: {
+        payments: {
+          id: `pay-${Date.now()}`,
+          amount: balanceAmount,
+          method: body.payment_method || 'SUMUP_MOCK',
+          reference: payRef,
+          note: body.note || null,
+          date: new Date().toISOString(),
+          type: 'BALANCE',
+        }
       }
     });
     const updated = await col.findOne({ id });
