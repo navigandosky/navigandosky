@@ -4474,34 +4474,6 @@ function AdminDashboard({ currentUser, onLogout }) {
               🎫 Pass Transito
             </Button>
             )}
-            {showMarina && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                // Stampa IBAN della company associata alla marina filtrata o, se 1 sola, quella
-                const m = (globalMarinaFilter && globalMarinaFilter !== 'ALL')
-                  ? ownedMarinas.find(x => x.id === globalMarinaFilter)
-                  : (ownedMarinas?.length === 1 ? ownedMarinas[0] : null);
-                if (!m) {
-                  if (ownedMarinas?.length > 1) {
-                    setPickerMarinaId(ownedMarinas[0]?.id || null);
-                    setShowIbanMarinaPicker(true);
-                  } else {
-                    toast.error('Nessuna marina disponibile');
-                  }
-                  return;
-                }
-                const cmp = companies?.find(c => c.id === m.company_id);
-                printCompanyIban(cmp, m);
-              }}
-              className="bg-slate-700 text-white hover:bg-slate-800 font-semibold shadow-md border border-slate-500 h-9"
-              title="Stampa IBAN della company per pagamenti bonifico"
-            >
-              <Banknote className="w-4 h-4 mr-1.5" />
-              🏦 Stampa IBAN
-            </Button>
-            )}
             {showExperiences && (
             <Button
               type="button"
@@ -4621,6 +4593,35 @@ function AdminDashboard({ currentUser, onLogout }) {
             <TabsTrigger value="refunds" className="text-white data-[state=active]:bg-white data-[state=active]:text-rose-800 hover:bg-white/20 font-semibold drop-shadow">
               <Banknote className="w-4 h-4 mr-1.5" />Procedura Rimborsi
             </TabsTrigger>
+            {/* Stampa IBAN — NON è un tab ma un'azione (apre PDF direttamente).
+                Stilizzato come un TabsTrigger per integrarsi visivamente nella riga. */}
+            {showMarina && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const m = (globalMarinaFilter && globalMarinaFilter !== 'ALL')
+                    ? ownedMarinas.find(x => x.id === globalMarinaFilter)
+                    : (ownedMarinas?.length === 1 ? ownedMarinas[0] : null);
+                  if (!m) {
+                    if (ownedMarinas?.length > 1) {
+                      setPickerMarinaId(ownedMarinas[0]?.id || null);
+                      setShowIbanMarinaPicker(true);
+                    } else {
+                      toast.error('Nessuna marina disponibile');
+                    }
+                    return;
+                  }
+                  const cmp = companies?.find(c => c.id === m.company_id);
+                  printCompanyIban(cmp, m);
+                }}
+                title="Stampa IBAN della company per pagamenti bonifico"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20 drop-shadow transition"
+              >
+                <Banknote className="w-4 h-4 mr-1.5" />🏦 Stampa IBAN
+              </button>
+            )}
           </TabsList>
         )}
 
