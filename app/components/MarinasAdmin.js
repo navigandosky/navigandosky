@@ -98,17 +98,20 @@ export function MarinasManager() {
                     className="border-slate-400 text-slate-700 hover:bg-slate-100"
                     onClick={async () => {
                       const cmp = companies.find(c => c.id === m.company_id);
+                      // IBAN dal payment_config (primario) → top-level → marina (legacy)
+                      const pcBt = cmp?.payment_config?.bank_transfer || {};
                       const cBt = cmp?.bank_transfer || {};
                       const mBt = m?.bank_transfer || {};
-                      const iban = cmp?.iban || cBt.iban || mBt.iban;
+                      const iban = pcBt.iban || cmp?.iban || cBt.iban || mBt.iban;
                       if (!iban) return toast.error(`Nessun IBAN configurato. Configura in Marina → Impostazioni → 🏦 Bonifico Istantaneo.`);
                       const enriched = {
                         ...(cmp || {}),
                         iban,
-                        bic_swift: cmp?.bic_swift || cBt.bic_swift || mBt.bic_swift || '',
-                        bank_name: cmp?.bank_name || cBt.bank_name || mBt.bank_name || '',
-                        bank_branch: cmp?.bank_branch || cBt.bank_branch || mBt.bank_branch || '',
-                        name: cBt.account_holder || mBt.account_holder || cmp?.name || 'Maretrek',
+                        bic_swift: pcBt.bic_swift || cmp?.bic_swift || cBt.bic_swift || mBt.bic_swift || '',
+                        bank_name: pcBt.bank_name || cmp?.bank_name || cBt.bank_name || mBt.bank_name || '',
+                        bank_branch: pcBt.bank_branch || cmp?.bank_branch || cBt.bank_branch || mBt.bank_branch || '',
+                        name: pcBt.account_holder || cBt.account_holder || mBt.account_holder || cmp?.name || 'Maretrek',
+                        zip: cmp?.zip || cmp?.postal_code || '',
                       };
                       try {
                         const { openCompanyIbanPdf } = await import('@/app/lib/companyIbanPdf');

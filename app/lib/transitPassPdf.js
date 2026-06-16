@@ -56,7 +56,7 @@ export async function generateTransitPassPdf({ pass, company }) {
   doc.setTextColor(80);
   const subLines = [
     company?.address || '',
-    [company?.city, company?.zip].filter(Boolean).join(' '),
+    [company?.city, company?.zip || company?.postal_code].filter(Boolean).join(' '),
     company?.vat_number ? `P.IVA: ${company.vat_number}` : '',
     [company?.phone, company?.email].filter(Boolean).join(' · '),
   ].filter(Boolean);

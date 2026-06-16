@@ -3443,24 +3443,27 @@ function AdminDashboard({ currentUser, onLogout }) {
   const [pickerMarinaId, setPickerMarinaId] = useState(null);
 
   // Helper: genera e apre il PDF con coordinate bancarie della company associata alla marina
-  // IBAN può essere salvato su company (company.bank_transfer.iban o company.iban) OPPURE su marina.bank_transfer.iban
+  // IBAN salvato in: company.payment_config.bank_transfer.iban (primario) | company.bank_transfer.iban | marina.bank_transfer.iban (legacy)
   const printCompanyIban = async (cmp, mar) => {
     if (!cmp && !mar) return toast.error('Company/Marina non trovata');
-    // Unifica i dati IBAN da company → marina (fallback)
+    // Unifica i dati IBAN: payment_config (primario) → top-level → marina (legacy)
+    const pcBt = cmp?.payment_config?.bank_transfer || {};
     const cBt = cmp?.bank_transfer || {};
     const mBt = mar?.bank_transfer || {};
-    const iban = cmp?.iban || cBt.iban || mBt.iban;
+    const iban = pcBt.iban || cmp?.iban || cBt.iban || mBt.iban;
     if (!iban) {
       return toast.error(`Nessun IBAN configurato per "${cmp?.name || mar?.name}". Configuralo in Marina → Impostazioni → 🏦 Bonifico Istantaneo.`);
     }
     const enriched = {
       ...cmp,
       iban,
-      bic_swift: cmp?.bic_swift || cBt.bic_swift || mBt.bic_swift || '',
-      bank_name: cmp?.bank_name || cBt.bank_name || mBt.bank_name || '',
-      bank_branch: cmp?.bank_branch || cBt.bank_branch || mBt.bank_branch || '',
-      // se l'intestatario è specificato in bank_transfer.account_holder lo usiamo come nome del beneficiario
-      name: cBt.account_holder || mBt.account_holder || cmp?.name || 'Maretrek',
+      bic_swift: pcBt.bic_swift || cmp?.bic_swift || cBt.bic_swift || mBt.bic_swift || '',
+      bank_name: pcBt.bank_name || cmp?.bank_name || cBt.bank_name || mBt.bank_name || '',
+      bank_branch: pcBt.bank_branch || cmp?.bank_branch || cBt.bank_branch || mBt.bank_branch || '',
+      // Intestatario beneficiario dal bonifico se presente
+      name: pcBt.account_holder || cBt.account_holder || mBt.account_holder || cmp?.name || 'Maretrek',
+      // Normalizza zip per il PDF (companies usa postal_code)
+      zip: cmp?.zip || cmp?.postal_code || '',
     };
     try {
       const { openCompanyIbanPdf } = await import('@/app/lib/companyIbanPdf');

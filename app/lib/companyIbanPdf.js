@@ -54,7 +54,7 @@ export async function generateCompanyIbanPdf({ company, marina, amount, causal }
   doc.setTextColor(80);
   const subLines = [
     company?.address || '',
-    [company?.city, company?.zip].filter(Boolean).join(' '),
+    [company?.city, company?.zip || company?.postal_code].filter(Boolean).join(' '),
     company?.vat_number ? `P.IVA: ${company.vat_number}` : '',
     company?.fiscal_code ? `C.F.: ${company.fiscal_code}` : '',
     [company?.phone, company?.email].filter(Boolean).join(' · '),
