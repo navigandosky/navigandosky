@@ -97,6 +97,21 @@ export default function MarinaPayNowDialog({ open, booking, currentUser, isAgenc
     ? `Agenzia · ${currentUser?.full_name || currentUser?.username || ''}`
     : `Admin · ${currentUser?.full_name || currentUser?.username || 'admin'}`;
 
+  // Parsing sicuro della risposta - gestisce body non-JSON o malformati
+  const safeReadJson = async (r) => {
+    const ct = r.headers.get('content-type') || '';
+    const txt = await r.text();
+    if (!txt) return {};
+    // Se Content-Type indica JSON, prova a parsare; altrimenti restituisce {message: txt}
+    if (ct.includes('json') || txt.trim().startsWith('{') || txt.trim().startsWith('[')) {
+      try { return JSON.parse(txt); } catch (e) {
+        console.error('[MarinaPayNowDialog] Risposta non-JSON ricevuta:', txt.substring(0, 200));
+        return { error: `Risposta server non valida (${r.status}): ${txt.substring(0, 100)}` };
+      }
+    }
+    return { error: txt.substring(0, 200) };
+  };
+
   // Esegue il pagamento per la modalità scelta
   const handleSubmit = async () => {
     if (!booking || previewAmount <= 0 || previewAmount > grandTotal + 0.01) {
@@ -118,8 +133,8 @@ export default function MarinaPayNowDialog({ open, booking, currentUser, isAgenc
             note: note || `Inserito da ${senderLabel}`,
           }),
         });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || 'Errore registrazione pagamento');
+        const data = await safeReadJson(r);
+        if (!r.ok) throw new Error(data?.error || `Errore registrazione pagamento (HTTP ${r.status})`);
 
         // Se Bonifico: invia email con coordinate (opzionale)
         if (paymentMethod === 'BANK_TRANSFER' && sendBankEmail && booking.customer?.email) {
@@ -154,8 +169,8 @@ export default function MarinaPayNowDialog({ open, booking, currentUser, isAgenc
             from_label: senderLabel,
           }),
         });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || 'Errore SumUp');
+        const data = await safeReadJson(r);
+        if (!r.ok) throw new Error(data?.error || `Errore SumUp (HTTP ${r.status})`);
         if (data.hosted_url) {
           window.open(data.hosted_url, '_blank');
           toast.success('💳 POS Web SumUp aperto in una nuova scheda');
@@ -180,8 +195,8 @@ export default function MarinaPayNowDialog({ open, booking, currentUser, isAgenc
             description: note || undefined,
           }),
         });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || 'Errore generazione link');
+        const data = await safeReadJson(r);
+        if (!r.ok) throw new Error(data?.error || `Errore generazione link (HTTP ${r.status})`);
         setGeneratedLink({ url: data.hosted_url, amount: previewAmount, sentViaEmail: linkSendVia === 'email' && data.email_sent });
         if (linkSendVia === 'email' && data.email_sent) toast.success('✉️ Link inviato via email al cliente');
         else if (linkSendVia === 'email' && !data.email_sent) toast.warning('Link generato ma invio email non riuscito: usa Copia');
