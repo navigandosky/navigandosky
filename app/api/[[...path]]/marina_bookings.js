@@ -678,14 +678,33 @@ export async function handleMarinaBookings(method, id, body, action, sp, db) {
     const update = { ...body, updated_at: new Date().toISOString() };
     delete update.id; delete update._id; delete update.booking_number; delete update.year; delete update.progressive;
     
-    // Se cambia grand_total/deposit_pct, ricalcola
+    // Se cambia grand_total: ricalcola balance/deposit in modo intelligente
     if (update.grand_total !== undefined || update.deposit_pct !== undefined) {
       const existing = await col.findOne({ id });
       if (existing) {
         const gt = Number(update.grand_total ?? existing.grand_total);
-        const pct = Number(update.deposit_pct ?? existing.deposit_pct);
-        update.deposit_amount = Math.round(gt * pct / 100 * 100) / 100;
-        update.balance_amount = Math.round((gt - update.deposit_amount) * 100) / 100;
+        // Se è già stato registrato un acconto, mantienilo: ricalcola solo balance & pct
+        if (existing.deposit_paid && Number(existing.deposit_amount) > 0) {
+          const da = Number(existing.deposit_amount);
+          update.deposit_amount = da; // immutato
+          update.balance_amount = Math.max(0, Math.round((gt - da) * 100) / 100);
+          update.deposit_pct = gt > 0 ? Math.round((da / gt) * 10000) / 100 : 0;
+          // Riallinea anche balance_paid se ora siamo saldati
+          if (update.balance_amount <= 0.01) {
+            update.balance_paid = true;
+            update.payment_status = 'PAID';
+            update.paid_amount = Math.round(gt * 100) / 100;
+          } else {
+            update.balance_paid = false;
+            update.payment_status = 'PARTIAL';
+            update.paid_amount = da;
+          }
+        } else {
+          // Nessun acconto pagato: usa la percentuale standard
+          const pct = Number(update.deposit_pct ?? existing.deposit_pct);
+          update.deposit_amount = Math.round(gt * pct / 100 * 100) / 100;
+          update.balance_amount = Math.round((gt - update.deposit_amount) * 100) / 100;
+        }
       }
     }
     

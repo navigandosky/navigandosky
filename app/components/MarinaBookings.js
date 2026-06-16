@@ -10,7 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
   Ship, RefreshCw, Search, FileText, CheckCircle2, XCircle, CreditCard, FileSignature,
-  Eye, Trash2, Anchor, Calendar, Euro, AlertCircle, Clock, Zap,
+  Eye, Trash2, Anchor, Calendar, Euro, AlertCircle, Clock, Zap, Edit, Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MarinaPayNowDialog from './MarinaPayNowDialog';
@@ -51,6 +51,9 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
   const [submittingPay, setSubmittingPay] = useState(false);
   // Nuovo "Paga Ora" dialog (5 modalità: CASH, ONLINE, BANK_TRANSFER, LATER, PAYMENT_LINK)
   const [payNowBk, setPayNowBk] = useState(null);
+  const [editingAmountBk, setEditingAmountBk] = useState(null);
+  const [editAmountForm, setEditAmountForm] = useState({ grand_total: '', mooring_amount: '', notes: '' });
+  const [savingAmount, setSavingAmount] = useState(false);
   const isAgencyUser = currentUser?.role === 'AGENCY' || !!currentUser?.agency_id;
 
   // Sincronizza il filtro Marina con il filtro globale passato dal parent
@@ -685,6 +688,25 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
                             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setViewing(b)}>
                               <Eye className="w-3 h-3 mr-1" />Dettaglio
                             </Button>
+                            {/* ✏️ Modifica importo — solo PRIMA che il contratto sia generato */}
+                            {b.status !== 'CONTRACT' && b.status !== 'CANCELLED' && b.status !== 'REJECTED' && !b.contract_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs border-amber-400 text-amber-700 hover:bg-amber-50"
+                                title="Modifica importo prima del contratto"
+                                onClick={() => {
+                                  setEditingAmountBk(b);
+                                  setEditAmountForm({
+                                    grand_total: Number(b.grand_total || b.total || 0).toString(),
+                                    mooring_amount: Number(b.mooring_amount || b.grand_total || 0).toString(),
+                                    notes: b.notes || '',
+                                  });
+                                }}
+                              >
+                                <Edit className="w-3 h-3 mr-1" />Modifica
+                              </Button>
+                            )}
                             {!b.balance_paid && b.status !== 'REJECTED' && b.status !== 'CANCELLED' && (
                               <Button
                                 variant="default"
@@ -1058,6 +1080,102 @@ export default function MarinaBookings({ currentUser, marinaFilterId }) {
           onClose={() => setPayNowBk(null)}
           onSuccess={() => { load(); }}
         />
+      )}
+
+      {/* ✏️ Dialog Modifica Importo (prima del contratto) */}
+      {editingAmountBk && (
+        <Dialog open={!!editingAmountBk} onOpenChange={(v) => { if (!v) setEditingAmountBk(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="w-5 h-5 text-amber-600" />
+                Modifica Importo — {editingAmountBk.booking_number}
+              </DialogTitle>
+              <DialogDescription>
+                Modifica l&apos;importo prima di generare il contratto. Cliente: <strong>{editingAmountBk.customer?.name} {editingAmountBk.customer?.surname}</strong>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800">
+                ⚠️ La modifica dell&apos;importo è consentita solo finché non è stato generato il contratto. Dopo il contratto è necessario passare da Procedura Rimborsi.
+              </div>
+              <div>
+                <Label className="text-xs">Importo Ormeggio (€)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editAmountForm.mooring_amount}
+                  onChange={(e) => setEditAmountForm(p => ({ ...p, mooring_amount: e.target.value }))}
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Importo base senza extra</p>
+              </div>
+              <div>
+                <Label className="text-xs font-semibold">Totale Generale (€) *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editAmountForm.grand_total}
+                  onChange={(e) => setEditAmountForm(p => ({ ...p, grand_total: e.target.value }))}
+                  className="font-bold text-lg"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Totale finale comprensivo di extra (questo è l&apos;importo che il cliente paga)</p>
+              </div>
+              <div>
+                <Label className="text-xs">Note</Label>
+                <Input
+                  value={editAmountForm.notes}
+                  onChange={(e) => setEditAmountForm(p => ({ ...p, notes: e.target.value }))}
+                  placeholder="Es: Sconto applicato, importo concordato..."
+                />
+              </div>
+              {editingAmountBk.deposit_paid && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-2 text-xs text-red-700">
+                  ⚠️ Questa prenotazione ha già un acconto registrato di <strong>{Number(editingAmountBk.deposit_amount).toFixed(2)} €</strong>. Se modifichi il totale, ricalcola anche manualmente saldo/percentuale.
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingAmountBk(null)}>Annulla</Button>
+              <Button
+                disabled={savingAmount}
+                className="bg-amber-600 hover:bg-amber-700"
+                onClick={async () => {
+                  const gt = Number(editAmountForm.grand_total);
+                  if (!Number.isFinite(gt) || gt <= 0) return toast.error('Inserisci un totale valido');
+                  const ma = Number(editAmountForm.mooring_amount);
+                  setSavingAmount(true);
+                  try {
+                    // Ricalcola balance_amount in base ai nuovi totali (se già pagato un acconto)
+                    const newBalance = Math.max(0, Math.round((gt - Number(editingAmountBk.deposit_amount || 0)) * 100) / 100);
+                    const payload = {
+                      grand_total: gt,
+                      mooring_amount: Number.isFinite(ma) && ma > 0 ? ma : gt,
+                      notes: editAmountForm.notes,
+                      balance_amount: newBalance,
+                    };
+                    const r = await fetch(`/api/marina-bookings/${editingAmountBk.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(payload),
+                    });
+                    if (!r.ok) {
+                      const d = await r.text();
+                      throw new Error(d || `HTTP ${r.status}`);
+                    }
+                    toast.success(`✅ Importo aggiornato a € ${gt.toFixed(2)}`);
+                    setEditingAmountBk(null);
+                    load();
+                  } catch (e) {
+                    toast.error('Errore: ' + e.message);
+                  } finally { setSavingAmount(false); }
+                }}
+              >
+                <Save className="w-4 h-4 mr-1" />Salva</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
